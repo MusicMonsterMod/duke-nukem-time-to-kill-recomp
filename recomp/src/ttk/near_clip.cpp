@@ -426,6 +426,9 @@ struct Frame {
     double coverage=1.0;
     bool far=false; // scene mesh with every vertex at least far_z away
     NearGte g;bool object,viewmodel;bool sky=false;bool borrowed=false;uint32_t far_limit,zsf3,zsf4;
+    // D41C: a primary-Duke presentation draw (first-person weapon layer,
+    // display or contact limbs) that takes the frame's lights.
+    bool duke_lit=false;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -618,9 +621,19 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 // D41A: view to world (relative to the eye) for lit corners: v = M d / 4096,
 // so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
 bool light_frame=false;double light_inv[9];
+// D41C: Duke's own layers too (weapon, held item, display arms and legs):
+// their view-space corners are where they appear before the eye, so world
+// lights reach them where the player sees them. The first-person layer's
+// translucent faces (the muzzle flash itself) keep their own colour.
 bool lit_frame(const Frame& f,const Poly& poly) {
-    return light_frame && unified_scene(f) && !f.viewmodel && !f.sky && !f.biomask && !poly.depth_only;
+    if(!light_frame || f.sky || f.biomask || poly.depth_only) return false;
+    if(f.duke_lit) return unified() && !(f.viewmodel && (poly.command&0x02000000u));
+    return unified_scene(f) && !f.viewmodel;
 }
+// D41C: Duke's third-person body is host-drawn (like the screen-door body)
+// while this image carries lights, so it takes them and the dimmed painted
+// light. DNTTK_DUKE_LIGHT=0 (developer) leaves him to the original renderer.
+bool duke_light_on() {static const bool v=env_int("DNTTK_DUKE_LIGHT",1,0,1)!=0;return v;}
 // Packet allocation (0x800117a8/0x80010480) and single-packet OT insert.
 // n is 3, or 4 for a quad in PS1 corner order (the GPU draws 0-1-2, 1-2-3).
 void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
@@ -1852,7 +1865,9 @@ void object(CPUState* cpu) {
     // screen-door coverage, every face host-drawn with it.
     const bool fp_legs=!third_person_camera_live() && first_person_duke_drawing() && limb.owner==LimbOwner::Legs;
     const double coverage=fp_legs?first_person_legs_coverage():third_person_duke_drawing()?third_person_body_coverage():1.0;
-    const bool body=(third_person_duke_drawing() && third_person_camera_live() && coverage<1.0) || (fp_legs && coverage<1.0);
+    const bool lit_body=light_frame && duke_light_on() && unified() && limb.owner==LimbOwner::Native &&
+        third_person_body_lightable();
+    const bool body=(third_person_duke_drawing() && third_person_camera_live() && coverage<1.0) || (fp_legs && coverage<1.0) || lit_body;
     if(!viewmodel && !limb.world_clip() && (first_person_duke_drawing() || third_person_duke_drawing()) && !body) {++duke_skips;return;}
     const bool actor=first_person_actor_drawing() || third_person_duke_drawing();
     ++object_stats.seen;
@@ -1881,6 +1896,8 @@ void object(CPUState* cpu) {
     if(limb.fixed_projection()) f.g.h=256;
     trace_begin(f,cpu);
     f.viewmodel=viewmodel;f.coverage=coverage;
+    f.duke_lit=duke_light_on() && (first_person_duke_drawing() || third_person_duke_drawing()) &&
+        (viewmodel || limb.owner!=LimbOwner::Native);
     f.scene=!viewmodel && !f.sky && !limb.fixed_projection();
     // D17AO1: the borrowed sky's textures exist only in the second bank, so
     // every one of its polygons is host-drawn with the bank mark.

@@ -2312,6 +2312,12 @@ static bool third_person_body_effect() {
     return (psx_mod_read_word(player)&0x6040) || (psx_mod_read_word(player+0x224)&0x200000) ||
         psx_mod_read_half(player+0x89c) || psx_mod_read_half(player+0x89e) || psx_mod_read_half(player+0x8a0);
 }
+// D41C: Duke's primary body in an outside view (not the eye view or its
+// blend, not the death eye, no power-up effect): it may be host-drawn, lit.
+bool third_person_body_lightable() {
+    return third_body_drawing && fp_blend==0 && input_modernized() && !death_eye_state() &&
+        !third_person_body_effect() && identity();
+}
 void third_person_mesh_begin(CPUState* cpu) {
     // The root sets the native fade AFTER its transform. Catch it at its
     // mesh too, before any pelvis polygons; subsequent joints use the same

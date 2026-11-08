@@ -1,5 +1,35 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D41C accepted and closed: Duke and first person in the light
+
+User, after playtesting: "the lighting looks so much smoother than the game's
+native lighting. it illuminates over the gun for example so smoothly that it
+actually now looks like it's made of metal ... fully accepted"; then "lock it
+in and close it out". D41C is Done.
+
+## 2026-11-08 - D41C Duke and first person in the light (Needs playtest)
+
+Selected with "work on D41C". Duke's own model and his first-person layers
+now take the frame's dynamic lights and the dimmed painted light (Modernized,
+Polymorph, DYNAMIC LIGHTS on). Third person: while an image carries lights,
+Duke's body is host-drawn like any other actor (the path the screen-door body
+already used) instead of being left to the original renderer, so its corners
+carry world positions; power-up effects, the eye view and its blend, the
+death eye and reflections stay as before. First person: the weapon layer,
+held items, display and contact arms and the legs pass their view-space
+corners as lit corners too (the muzzle flash's own translucent faces keep
+their colour). Developer `DNTTK_DUKE_LIGHT=0` restores the old behaviour.
+No framework change (no patch export), no new setting. Build OK;
+`ttk-near-test` PASS (stub added), `ttk-flash-test`, `ttk-live-env-test`
+PASS; `ttk-controls-test` stops at the known D14 HUD check (line 1754).
+Offscreen (private apartment cards, `DNTTK_LIGHT_AMBIENT=55`, lab
+`recomp/analysis/d41c/`, local): before, Duke and the pistol stayed bright
+under the dimmed room and ignored warm and blue test lights; after, both dim
+with the room and take the lights' colour, in third and first person. 180 Hz
+rate lab: 0 missed redraws with and without the change; the close-camera
+proximity fade looks the same; the muzzle flash now also lights Duke's body.
+Needs playtest: look and strength on Duke and the gun in both views.
+
 ## 2026-11-08 - D41 and D41A accepted and closed; D41B first part accepted
 
 User, after playtesting rockets in flight, the muzzle light and the console
@@ -6956,7 +6986,7 @@ values. Acceptance: user playtest per weapon in first and third person.
 
 ### D41C - Duke and first person in the light
 
-**Status: Todo. Dependencies: D41A.** Duke's own model is drawn by the original
+**Status: Done (user-accepted after playtest; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 8). Dependencies: D41A.** Duke's own model is drawn by the original
 renderer (D12) and the first-person layer is painter-only, so neither takes
 dynamic light or ambient dimming (in the D41A dimmed preview Duke stays
 bright). Give Duke's model, legs, arms, weapon and held items world positions
@@ -8300,7 +8330,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Done (accepted 2026-11-08; case study published, child jobs D41A-D41H on the board) | none |
 | D41A | Light foundation: world-space corners, per-pixel lights in Polymorph, blasts and muzzle flashes, DYNAMIC LIGHTS option | Done (accepted 2026-11-08) | D41 |
 | D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes, burning enemies | Todo (first part accepted 2026-11-08: rockets and energy rounds carry light, muzzle light at the gun's muzzle point) | D41A |
-| D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Todo | D41A |
+| D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Done (accepted 2026-11-08) | D41A |
 | D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Todo | D41A |
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |

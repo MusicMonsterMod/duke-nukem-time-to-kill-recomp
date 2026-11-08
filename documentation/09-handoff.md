@@ -1,5 +1,35 @@
 # Next-session handoff
 
+## 2026-11-08 - D41C accepted and closed: Duke and first person in the light
+
+User, after playtesting: "the lighting looks so much smoother than the game's
+native lighting. it illuminates over the gun for example so smoothly that it
+actually now looks like it's made of metal ... fully accepted"; then "lock it
+in and close it out". D41C is Done.
+
+## 2026-11-08 - D41C Duke and first person in the light (Needs playtest)
+
+Selected with "work on D41C". Duke's own model and his first-person layers
+now take the frame's dynamic lights and the dimmed painted light (Modernized,
+Polymorph, DYNAMIC LIGHTS on). Third person: while an image carries lights,
+Duke's body is host-drawn like any other actor (the path the screen-door body
+already used) instead of being left to the original renderer, so its corners
+carry world positions; power-up effects, the eye view and its blend, the
+death eye and reflections stay as before. First person: the weapon layer,
+held items, display and contact arms and the legs pass their view-space
+corners as lit corners too (the muzzle flash's own translucent faces keep
+their colour). Developer `DNTTK_DUKE_LIGHT=0` restores the old behaviour.
+No framework change (no patch export), no new setting. Build OK;
+`ttk-near-test` PASS (stub added), `ttk-flash-test`, `ttk-live-env-test`
+PASS; `ttk-controls-test` stops at the known D14 HUD check (line 1754).
+Offscreen (private apartment cards, `DNTTK_LIGHT_AMBIENT=55`, lab
+`recomp/analysis/d41c/`, local): before, Duke and the pistol stayed bright
+under the dimmed room and ignored warm and blue test lights; after, both dim
+with the room and take the lights' colour, in third and first person. 180 Hz
+rate lab: 0 missed redraws with and without the change; the close-camera
+proximity fade looks the same; the muzzle flash now also lights Duke's body.
+Needs playtest: look and strength on Duke and the gun in both views.
+
 ## 2026-11-08 - D41 and D41A accepted and closed; D41B first part accepted
 
 The user playtested rockets in flight, the muzzle light at the gun and the

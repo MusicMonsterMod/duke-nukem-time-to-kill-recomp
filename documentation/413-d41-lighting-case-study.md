@@ -201,7 +201,7 @@ actor polygon.
 
 - D41A Light foundation (this note; Done 2026-11-08).
 - D41B Weapon and projectile lights (first part accepted, section 7; rest Todo).
-- D41C Duke and first person in the light.
+- D41C Duke and first person in the light (section 8; Done 2026-11-08).
 - D41D Level light sources (emitters, animated light tables, per-level light
   files, light editor).
 - D41E Relit levels (LIGHTING Original / Enhanced / Relit).
@@ -226,3 +226,37 @@ actor polygon.
   D41A point. Gatling at 180 Hz: firing frames +9 levels over the crop mean.
 - Remaining: per-weapon muzzle colours and sizes, enemy muzzle flashes,
   impacts, per-blast sizes, fire.
+
+## 8. D41C - Duke and first person in the light (accepted and closed 2026-11-08)
+
+User: the light over the gun is so smooth "it actually now looks like it's
+made of metal"; "fully accepted".
+
+Before: `near_clip.cpp` `object()` returned early for every primary-Duke mesh
+that no first-person owner claimed (`duke_skips`), so the original renderer
+drew him with his painted colours; the first-person layer (`f.viewmodel`)
+and fixed-projection limbs (`f.scene` false) were excluded by `lit_frame`.
+
+- Third person: `lit_body` - this image has lights (`light_frame`), unified
+  geometry, a Native-owned part and `third_person_body_lightable()` (Duke's
+  primary draw, `fp_blend` 0, not the death eye, no power-up effect
+  `third_person_body_effect`). Such a mesh takes the existing `body` path:
+  every face host-drawn as an actor of the unified scene with depth, so its
+  corners get world positions. The native proximity fade (translucency near
+  the camera) still comes through the context's command bits.
+- First person: `Frame::duke_lit` marks primary-Duke presentation draws
+  (viewmodel or any non-Native limb owner). `lit_frame` accepts them under
+  unified geometry; the first-person layer's translucent faces (the muzzle
+  flash) are not lit. Their view-space corners are where they appear before
+  the eye, so `light_inv` gives eye-relative world positions as for the room.
+- `DNTTK_DUKE_LIGHT=0` (developer) restores the D41A behaviour. Lights off,
+  Classic and Vanilla: `light_frame` is false and nothing changes.
+- Evidence (local, `recomp/analysis/d41c/`): apartment, ambient 55%: crop of
+  Duke's back, mean RGB none/warm/blue before (45,31,24)/(135,71,35)/(65,60,62),
+  after (41,28,20)/(141,73,34)/(63,61,69), visibly dimmed and tinted; first
+  person: the pistol dims and takes warm and blue light. 180 Hz rate lab:
+  2165 replays, 0 misses, 0 failed captures.
+- Limits: faceted light on Duke (flat normals, D41H); the muzzle light at
+  the hand lights Duke's own body strongly for its 3 tics (judge in
+  playtest); a power-up effect returns Duke to the original renderer for its
+  duration, so he is unlit then; mirror Duke stays as before.

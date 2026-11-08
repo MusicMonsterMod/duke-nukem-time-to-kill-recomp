@@ -214,6 +214,8 @@ bool first_person_view_live();
 bool third_person_camera_live();
 bool third_person_duke_drawing();
 double third_person_body_coverage();
+// D41C: Duke's body in an outside view with no power-up effect (lightable).
+bool third_person_body_lightable();
 // D36H9: coverage of the first-person legs drawn now (1 = solid).
 double first_person_legs_coverage();
 void third_person_mesh_begin(CPUState* cpu);

@@ -344,8 +344,9 @@ barrels and characters blown apart light the walls, floors, props and
 characters around them in a warm flash that fades over about half a second,
 each shot Duke fires warms the ground and walls around his gun for a
 moment, and rockets and energy beam rounds carry their own light as they fly. The light falls off with distance and faces the surfaces it reaches;
-the game's own painted lighting stays underneath. It is a first version:
-Duke himself and the first-person weapon do not take the light yet, and the
+the game's own painted lighting stays underneath. Duke himself, his
+first-person weapon, arms and legs take the light too (while a power-up
+effect plays on him he keeps his original look). It is a first version: the
 light still passes through walls. Turn it off in **OPTIONS > DISPLAY >
 DYNAMIC LIGHTS** (it switches at once and saves); the launcher accepts
 `--dynamic-lights on|off` and terminal `--settings` uses **I Dynamic

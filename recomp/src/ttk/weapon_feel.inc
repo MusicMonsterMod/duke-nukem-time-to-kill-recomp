@@ -188,9 +188,12 @@ static void weapon_feel_cpu(uint64_t updates,bool fire_held) {
 // stops. With a RETRO gun up, the bump stores the original's own stop
 // instead (idle 63, as 0x800537ec..0x800539dc does); its thud (this call,
 // 0x8006b270 from 0x800538c4), rumble and noise stay. Landings keep 94/95.
+// D51: any drawn weapon (+0x3b8 2), not only the paced guns: held Energy
+// Weapon and Flamethrower streams stopped for about 630 ms at the stumble.
 static uint64_t feel_bumps_stopped;
 static void weapon_feel_bump(CPUState* cpu) {
-    if(cpu->gpr[18]!=player+0x60 || !weapon_feel_armed())return;
+    if(cpu->gpr[18]!=player+0x60 || !weapon_feel_retro() || !player_identity_ready() ||
+       psx_mod_read_byte(player+0x3b8)!=2)return;
     const unsigned animation=psx_mod_read_half(player+0x60);
     if(animation!=94 && animation!=95)return;
     psx_mod_write_half(player+0x60,63);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);

@@ -7179,7 +7179,7 @@ surveyed.
 
 ### D47 - First shotgun shot smokes from Duke's left shoulder
 
-**Status: Todo (user report 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-08: "lock it in, close it out, that is fixed!"; closeout authorized; [note 391](documentation/391-d10h6-held-fire-clock.md)). Dependencies: none.**
 User: "the first shoot from the shotgun seems to 'fire' (smoke etc) from
 duke's left shoulder (when viewed from first, and third person). you can see
 the smoke appear for no reason there. why does that happen? small glitch?"
@@ -7243,7 +7243,7 @@ without a shed (logs), no crackle, user confirms in slot 8.
 
 ### D51 - Continuous fire stops when running into a wall
 
-**Status: Todo (user report 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-08: "lock it in, close it out, that is fixed!"; closeout authorized; [note 391](documentation/391-d10h6-held-fire-clock.md)). Dependencies: none.**
 User: "load up slot 8. fire continuously with the energy weapon (selected
 already) or flamethrower, and then holding shift, run backwards, right, or
 forwards into any wall (backwards is easiest). it cuts the flow of fire.
@@ -7257,6 +7257,25 @@ the same, and whether other held weapons (Gatling) are affected. Fix so
 held fire keeps flowing while running into walls, Modernized only, Vanilla
 unchanged. Acceptance: user playtest in slot 8, both weapons, all three
 directions.
+
+**Work log (2026-11-08, Needs playtest).** Private copy of UI slot 8 (lab
+`recomp/analysis/d51/lab.py`, offscreen). Reproduced: running back into the
+wall with the beam held, Duke plays the wall-bump stumble 95 for about 0.3 s
+and the beam stops for 633 ms, then resumes while he keeps pushing. The
+stumble is the original's run collision (`0x800537f4`..`0x800538d8`);
+D10H6 revision 4 (`weapon_feel_bump`) already swapped it for the original's
+plain stop, but only when `weapon_feel_armed()`, i.e. the four guns with a
+Duke 3D analog. Not a traversal, mantle, aim or beam-lock check. Fix: the
+swap now needs only a drawn weapon (+0x3b8 2) under Modernized RETRO weapon
+feel. After, first and third person: Energy Weapon and Flamethrower running
+back, right and forward into walls: 33-37 ms between beam rounds, no 94/95,
+`bumps_stopped` counts each contact; running left found no wall. Walking (S)
+into the same wall never bumps (before or after). Gatling was already covered
+(100 ms throughout). The Energy Weapon shows a single 82 ms gap running or
+walking forward in open space, unrelated to walls. Vanilla: the swap is gated
+by `input_modernized()`. `ttk-input-test`, `ttk-aim-test` pass;
+`ttk-controls-test` stops at the known D14 HUD check. User playtest accepted
+2026-11-08: "lock it in, close it out, that is fixed!"
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -8569,7 +8588,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
 | D49 | Shots in step with the gun: the energy beam (and other rounds) lag the aim while turning | Todo | - |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
-| D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Todo | - |
+| D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

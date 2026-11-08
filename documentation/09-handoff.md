@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-11-08 - D51 held fire no longer stops at a wall (Done)
+
+Cause: running into a wall plays the original wall-bump stumble (body 94/95),
+whose upper pose drops the gun. D10H6 revision 4 already replaced the stumble
+with the original's plain stop, but only for the four paced guns (Desert
+Eagle, Combat Shotgun, Gatling/Freezer, RPG); the Energy Weapon and
+Flamethrower kept it. Private copy of UI slot 8, before: one 633 ms gap in the
+energy beam at the wall. Fix (`weapon_feel.inc`, `weapon_feel_bump`): the stop
+now applies with any drawn weapon, Modernized RETRO weapon feel only; Vanilla
+unchanged. After, offscreen in first and third person: Energy Weapon and
+Flamethrower running back, right and forward into walls keep 33-37 ms between
+beam rounds, no 94/95; Gatling unchanged at 100 ms; walking never bumped.
+Input and aim suites pass; controls stops at the known D14 HUD check. User
+accepted 2026-11-08: "lock it in, close it out, that is fixed!" [Note 391](391-d10h6-held-fire-clock.md).
+
 ## 2026-11-08 - D41B accepted and closed; D41I split off
 
 User, after playtesting the shot lights: "the lighting looks absolutely

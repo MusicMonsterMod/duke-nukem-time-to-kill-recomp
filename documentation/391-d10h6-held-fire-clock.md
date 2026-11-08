@@ -216,3 +216,12 @@ water. I'd say add a flag in", and "that stumble has gotta go".
   against that obstacle starts a full-body move (216; MODERN shows 218 there
   too). Debug `controls.weapon_feel.bumps_stopped`.
 
+
+## D51 (2026-11-08): every drawn weapon
+
+The wall-bump swap above applied only to the paced guns, so the Energy
+Weapon and Flamethrower still stumbled: in a private copy of UI slot 8 the
+held beam stopped for 633 ms at the wall. `weapon_feel_bump` now applies
+with any drawn weapon (+0x3b8 2) under Modernized RETRO weapon feel. After:
+both weapons keep 33-37 ms between rounds running back, right and forward
+into walls, first and third person; no 94/95. Lab `recomp/analysis/d51/`.

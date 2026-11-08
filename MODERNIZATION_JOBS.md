@@ -7268,7 +7268,7 @@ locally in `research/before-after/d49-beam-follows-gun/`.
 
 ### D49A - Impact glow at the drawn beam's end (then every gun's wall hits)
 
-**Status: Todo (user request 2026-11-08, after the D49 playtest: "it's really working!! ... the only thing that doesnt line up as such as the impact point lags behind"). Dependencies: D49 (beam drawn from the barrel).**
+**Status: Done (user-accepted 2026-11-08: "its absolutely rock solid!", then "lock us in and close it out"; D41B impact lights stay at the real hit, not raised by the user; beam animation rate split to D49C; user request 2026-11-08, after the D49 playtest: "it's really working!! ... the only thing that doesnt line up as such as the impact point lags behind"; [note 417](documentation/417-d49a-impacts-follow-beam.md)). Dependencies: D49 (beam drawn from the barrel).**
 At 120/180 Hz in first person the energy beam now leaves the barrel toward
 the crosshair (D49), but the bright glow and sparks where it meets a wall
 stay where the beam really hit, about 90 ms of turning behind, so on fast
@@ -7287,6 +7287,38 @@ unchanged; 60 Hz and third person unchanged unless agreed. Acceptance: user
 playtest turning fast while firing the energy weapon at near and far walls,
 then the Gatling.
 
+**Work log (2026-11-08, Needs playtest).** The glow is not a heap particle:
+D49's `0x800606f4` lead was stale stack. The beam updater spawns it through
+the effects system (`0x8009cd74(0x307, ...)` at the beam's end every fourth
+tick; pool `*0x800c5894`, active list `0x800deb50`, position `+0x1c`, drawn as
+a billboard by `0x8009ca2c`); it lives about four game frames and starts ten
+bounce-engine sparks (kind `0x04002706`, list `0x800dd7f0`, position `+0x10`)
+that fall for a second or more. Bullet wall puffs are effects `0x12` (and
+`0x20`/`0x21`/`0x1c` by round type) spawned at the hit by `0x8006f1b8`. Fix
+(`impact_follow.inc` in `frame_replay.cpp`, `weapon_aim.cpp`): just before each
+gameplay frame is published to the redraw workers, new glows at the end of
+Duke's unlocked view-aimed beams take that beam's shot view, new sparks beside
+them take the glow's, and new puffs at Duke's view-aimed rounds' wall impacts
+(each round bound to its shot by its muzzle at the first sweep) take the
+shot's view; tags live in guest memory. Late first-person redraws move tagged
+records in the worker's copy by the same view change as D49's beams: glows
+always, sparks and puffs for 3 frames, then fading back to their real place
+over 5. Drawing only; hits, decals, bullet holes, D41B lights, locks, 60 Hz,
+third person and Vanilla unchanged. `DNTTK_IMPACT_FOLLOW=0` compares;
+`beamfollow off` turns both off. Lab (private slot 8 copy, offscreen): every
+glow tagged at 180 and 120 Hz (0 misses); fast turns put the glow on the
+drawn beam's end at the crosshair instead of behind the turn; Gatling 21/21,
+pistol 12/12, shotgun 30/30 wall impacts tagged, newest puff on the
+crosshair. `ttk-aim-test` (new D49A check) and `ttk-input-test` pass. Open:
+whether D41B's impact lights should follow (they stay at the real hit). Needs
+the user's playtest: fast turns firing the energy weapon at near and far
+walls, then the Gatling.
+
+**Accepted (2026-11-08).** User playtest: "its absolutely rock solid!" D41B's
+impact lights stay at the real hit point (the user did not ask for them to
+follow). The user's next observation, the beam's own animation looking slower
+than the game, is D49C.
+
 ### D49B - Rounds leave the gun (flamethrower fireballs, rockets, rounds in flight)
 
 **Status: Todo (scoped 2026-11-08 from the D49 findings; user approved adding it). Dependencies: D49.**
@@ -7303,6 +7335,24 @@ person, 120 and 180 Hz) before choosing the blend. Hits, flight, damage, D41B
 flight lights and Vanilla unchanged. Acceptance: user playtest turning and
 strafing while firing the flamethrower, then the RPG and the other launched
 weapons.
+
+### D49C - Energy beam animated at the display rate
+
+**Status: Todo (user report 2026-11-08, D49A acceptance: "the beam itself looks like it's a lower framerate than the game ... it looks like it's animated at a lower framerate than how we've got the rest of the game to run at our high auto value"; the user is unsure whether it is real). Dependencies: D49.**
+At 120/180 Hz the energy beam looks good and stays on the gun (D49) with its
+glow on its end (D49A), but its own look (texture scroll, flicker, width or
+colour pulse, or the beam being respawned every game tick) may only change
+at the game's tick rate while the rest of the picture is interpolated or
+redrawn at the display rate. First establish whether it is real: capture the
+beam at 180 and 120 Hz in first person (still and turning) and compare
+successive redraws of the same game frame; find which beam fields and draw
+inputs change per tick and whether the late redraws repeat them unchanged.
+If they step at the tick rate, advance the beam's animated look smoothly
+between ticks in the redraws (interpolate or extrapolate by redraw time),
+drawing only; if it is already per frame, record that this is how it looks
+and close. Hits, beam timing, damage, D49/D49A placement, 60 Hz, third
+person and Vanilla unchanged. Acceptance: user playtest at the AUTO rate
+firing the energy weapon, still and turning.
 
 ### D50 - Frame rate halves after loading (audio running low at load)
 
@@ -8664,8 +8714,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Todo | - |
 | D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
 | D49 | Shots in step with the gun: the energy beam drawn from the barrel while turning and moving | Done 2026-11-08 | - |
-| D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Todo | D49 |
+| D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
+| D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Todo | D49 |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |

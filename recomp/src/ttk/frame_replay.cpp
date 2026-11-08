@@ -1157,6 +1157,7 @@ void composition_hook(CPUState* cpu,uint32_t address) {
     redraw_only_decide(!fe);
     capture(cpu,fe ? frontend_image : gameplay_image);
 }
+void impact_tags_scan();
 void capture(CPUState* cpu,int kind) {
     ++captures;
     static uint64_t load_epoch=~uint64_t(0),field0=0,last_field=0;
@@ -1207,6 +1208,8 @@ void capture(CPUState* cpu,int kind) {
     release_jobs(*f);
     f->valid=false;
     const int slot=(int)(f-frames);
+    // D49A: tag new beam impact glows and sparks before the workers see them.
+    if(kind==gameplay_image) impact_tags_scan();
     if(!psx_mod_replay_publish(slot,cpu)) return;
     ++publishes;
     f->serial=++serial; f->time_ms=pose_ms;
@@ -1442,6 +1445,7 @@ void beam_roots_at_barrel() {
         beam_aim_angles(a,rec);
     }
 }
+#include "impact_follow.inc"
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1470,7 +1474,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             body_camera.valid=true;
             std::memcpy(body_camera.rot[0],p.camera.rot,sizeof p.body_rot);std::memcpy(body_camera.view[0],p.camera.view,sizeof p.body_view);
             std::memcpy(body_camera.rot[1],p.body_rot,sizeof p.body_rot);std::memcpy(body_camera.view[1],p.body_view,sizeof p.body_view);
-            if(p.flags&16) beams_follow_view(p.camera);
+            if(p.flags&16) {beams_follow_view(p.camera);impacts_follow_view(p.camera);}
             beam_follow_job=(p.flags&16)!=0; first_person_muzzle_reset();
         }
         // The camera update (0x8003ade4) stores the eye's room from
@@ -2109,6 +2113,7 @@ void start_workers_once() {
     near_clip_prepare();
     render_state_prepare();
     aim_render_prepare();
+    impact_follow_prepare();
     workers_started=true;
     psx_mod_replay_workers_visual_timing(1);
     int workers=3;
@@ -2498,13 +2503,19 @@ const char* quake_json() {
         (unsigned long long)quake_live,(unsigned long long)quake_redraws,(unsigned long long)quake_restores,(unsigned long long)quake_kept);
     return b;
 }
+const char* impact_json() {
+    static char b[192];
+    std::snprintf(b,sizeof b,"{\"on\":%s,\"glows\":%llu,\"sparks\":%llu,\"glow_misses\":%llu,\"round_hits\":%llu,\"puffs\":%llu}",impact_follow_enabled()?"true":"false",
+        (unsigned long long)impact_glows,(unsigned long long)impact_sparks,(unsigned long long)impact_glow_misses,(unsigned long long)impact_points,(unsigned long long)impact_puffs);
+    return b;
+}
 const char* frame_replay_debug_json() {
     static char buffer[98304];
     uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
     gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
-    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"impact\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
-        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
+        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),impact_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,

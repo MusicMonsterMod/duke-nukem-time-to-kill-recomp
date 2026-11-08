@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D49A impact glow and wall puffs at the crosshair while turning (Done)
+
+After D49 the energy beam left the gun toward the crosshair, but its wall glow
+and sparks stayed at the real hit, about 90 ms of turning behind. They are the
+effects system's type 7 glow (`0x8009cd74(0x307, ...)` at the beam's end,
+about four game frames) and ten bounce-engine sparks; bullet wall puffs are
+effects `0x12` (and `0x20`/`0x21`/`0x1c`) spawned at the hit by `0x8006f1b8`.
+Fix (`impact_follow.inc` in `frame_replay.cpp`, `weapon_aim.cpp`): before each
+gameplay frame goes to the redraw workers, new glows, sparks and puffs from
+Duke's view-aimed shots are tagged with their shot's view; late first-person
+redraws move them by the same view change as the beam (glows always; sparks
+and puffs for 3 frames, then easing back to their real place). Drawing only.
+Lab: every glow tagged at 180/120 Hz, the glow on the drawn beam's end in fast
+turns; Gatling, pistol and shotgun wall hits all tagged, newest puff on the
+crosshair. `ttk-aim-test` and `ttk-input-test` pass. Open: whether D41B's
+impact lights follow too. [Note 417](417-d49a-impacts-follow-beam.md).
+
+Accepted 2026-11-08: "its absolutely rock solid!" D41B's impact lights stay
+at the real hit. New job D49C: the user thinks the beam itself may look
+animated at a lower rate than the game at the AUTO refresh; to be measured
+first.
+
 ## 2026-11-08 - D49 energy beam drawn from the gun while turning (Done)
 
 User: "when you move around, the projectile beam lags behind where duke is

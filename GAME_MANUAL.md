@@ -1572,10 +1572,12 @@ console and type `shootseen off` (session only); `shootseen on` or
 higher, in first person, the energy weapon's beam is drawn from the gun toward
 the crosshair while you turn or move, instead of trailing where you pointed a
 moment earlier. Only the picture changes: what the beam hits is the same.
-The glow where it strikes a wall still shows the real hit point, a moment
-behind a fast turn. At 60 Hz, in third person and in Vanilla nothing changes.
-To compare, open the backtick console and type `beamfollow off` (session
-only); `beamfollow on` or `beamfollow default` turns it back on.
+The glow and sparks where it strikes a wall appear at the end of the beam
+you see (D49A), and the puffs where your bullets hit a wall appear under the
+crosshair, then settle where the rounds really struck. At 60 Hz, in third
+person and in Vanilla nothing changes. To compare, open the backtick console
+and type `beamfollow off` (session only); `beamfollow on` or `beamfollow
+default` turns it back on.
 
 **Rounds that leave on an enemy land (Modernized, D10H2).** The crosshair now
 asks the same question as the round itself: it is "on" an enemy only where

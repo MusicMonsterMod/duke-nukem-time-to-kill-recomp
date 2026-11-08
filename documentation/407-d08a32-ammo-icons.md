@@ -99,3 +99,24 @@ user's retest.
   player only, as the D14 window), a level change while animating.
 - The energy weapon's continuous beam drains ammo every few updates, so held
   fire cycles the atom continuously, as designed.
+
+## D08A38 clean-edge energy atom
+
+User (2026-11-08): the same atom and rules, "but none of the fuzzy edges",
+made by editing the frames. The eight shipped energy frames were edited pixel
+by pixel (local `atom5_clean.py` beside the atom design):
+
+- the halo pass's pixels outside the drawn rings, nucleus and electrons are
+  cleared (23 to 40 per frame);
+- grey flecks on the outline take the most common neighbouring green (2 to 6
+  per frame); flecks inside the atom stay;
+- lone pixels and darkest-green tips are cleared (none remained once the
+  halo was gone). Thin rest-pose spokes are kept (8-connected, one pass).
+
+Every other pixel equals the shipped frame; at most 15 colours. The cells are
+`energy-clean-0..7-15col.png`; `ammo.json` lists them for slot 10 and the
+earlier `energy-N` frames are kept. Animation rules unchanged (a shot plays
+1-7 at 60 ms then 0). Offscreen private run (fixture copy, UI slot 12,
+Modernized 16:9 framed, 60 Hz): held fire drew cells 40-47 and settled on the
+rest pose. User-accepted in play: "its perfect".
+

@@ -1,5 +1,18 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D08A38 clean-edge energy weapon ammo icon (Done)
+
+The user liked the D08A32 energy atom but not its fuzzy edges. The same eight
+frames were edited at the edges only: the smudgy dark halo cleared, grey
+flecks on the outline turned to the green around them (inner flecks kept),
+no stray pixels; dither, poses, flare and timing unchanged. In game
+(Modernized) through `energy-clean-N` cells in `recomp/assets/ui/ammo/`;
+offscreen held fire drew all eight cells. Vanilla unchanged.
+[Note 407](407-d08a32-ammo-icons.md#d08a38-clean-edge-energy-atom).
+
+Accepted 2026-11-08: "its perfect. lock it in and close it out".
+Executable `5e6d2d9204e8a28c9dfc0609bc023d8a5378b77ac0724d9853fe096a03d717cb`.
+
 ## 2026-11-08 - D49C energy beam animates at the display rate (Done)
 
 The user saw the energy beam look lower frame rate than the game. Real: the

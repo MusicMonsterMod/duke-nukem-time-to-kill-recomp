@@ -105,14 +105,14 @@
    "slot": 10,
    "name": "ENERGY WEAPON",
    "frames": [
-    "energy-0-15col.png",
-    "energy-1-15col.png",
-    "energy-2-15col.png",
-    "energy-3-15col.png",
-    "energy-4-15col.png",
-    "energy-5-15col.png",
-    "energy-6-15col.png",
-    "energy-7-15col.png"
+    "energy-clean-0-15col.png",
+    "energy-clean-1-15col.png",
+    "energy-clean-2-15col.png",
+    "energy-clean-3-15col.png",
+    "energy-clean-4-15col.png",
+    "energy-clean-5-15col.png",
+    "energy-clean-6-15col.png",
+    "energy-clean-7-15col.png"
    ],
    "note": "Frame 0 rest; a shot plays 1-7 at 60 ms then 0; held fire keeps cycling and finishes on 0."
   },

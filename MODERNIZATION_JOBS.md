@@ -1,5 +1,42 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D08A38 closed
+
+User: "its perfect. lock it in and close it out". D08A38 is Done: in
+Modernized the energy weapon's ammo icon is the clean-edge atom (the D08A32
+atom with its halo, outline flecks and stray pixels removed; same frames,
+dither and timing). The earlier `energy-N` frames stay in
+`recomp/assets/ui/ammo/` for reference. Vanilla unchanged. Executable
+`5e6d2d9204e8a28c9dfc0609bc023d8a5378b77ac0724d9853fe096a03d717cb`. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-08 - D08A38 in game (Needs playtest)
+
+User: "this looks awesome, lets try it within the game". The clean frames are
+tracked as `recomp/assets/ui/ammo/energy-clean-0..7-15col.png` (plus
+same-pixel full-colour copies); `ammo.json` points the energy weapon at them
+and `build_ammo_icons.py` regenerated `src/ttk/ammo_icons.h` (`--check` up to
+date, `test_ui_art.py` OK). The chosen atom's `energy-N` files are kept, so
+going back is the eight names in `ammo.json`. Animation code unchanged.
+Offscreen private run (fixture copy, UI slot 12, `dnstuff`, Modernized 16:9
+framed, 60 Hz): the energy weapon held fire for 13 shots and the box drew all
+eight cells (views 40-47) with clean edges, then settled on the rest pose.
+Player files unchanged. Executable
+`5e6d2d9204e8a28c9dfc0609bc023d8a5378b77ac0724d9853fe096a03d717cb`. Not
+seen by the user in play yet; Vanilla untouched (no icon draws there).
+
+## 2026-11-08 - D08A38 added: clean-edge energy atom (review)
+
+User asked for an alternate energy weapon icon with the same atom and rules
+but no fuzzy edges, built into the D08A32 review artifact beside the chosen
+one. `atom5_clean.py` (local, next to `atom4_design.py`) edits the shipped
+atom4 15-colour frames pixel by pixel: the halo pass's pixels outside the
+drawn rings, nucleus and electrons are cleared (23-40 per frame), grey flecks
+on the outline take the green around them (2-6 per frame; inner flecks stay),
+and lone pixels or darkest-green tips are cleared (none left after the halo).
+Asserted: every other pixel is exactly the shipped pixel; still at most 15
+colours. Same timing and fire/auto-fire behaviour on the page. No game code
+changed.
+
 ## 2026-11-08 - D41B accepted and closed; D41I split off
 
 User, after playtesting the shot lights: "the lighting looks absolutely
@@ -4878,6 +4915,20 @@ Not run live: swimming, jetpack flight. The Desert Eagle report did not
 reproduce separately. Executable
 `9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`, [note 409](documentation/409-d08a37-switch-while-firing.md).
 
+### D08A38 - Energy weapon ammo icon, clean-edge alternate
+
+**Status: Done (user-accepted 2026-11-08: "its perfect"; [note 407](documentation/407-d08a32-ammo-icons.md#d08a38-clean-edge-energy-atom)). Dependencies: D08A32.** User,
+2026-11-08: "can we make an alternate animation for the energy weapon cell
+... i essentially want the exact same thing, exact same rules we came up with
+and everything, but none of the fuzzy edges ... dont disregard what we
+currently have ... i highly recommend simply editing these frames to neaten
+the edges, and those stray pixels etc." The D08A32 atom (8 frames, 60 ms,
+shot, held-fire loop and settle on the rest pose) stays as chosen; the
+alternate edits those same frames only at the edges. Acceptance: the user
+picks the chosen atom or the alternate on the review artifact
+(https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu, private); if the
+alternate wins, swap the eight HUD cells in game and keep Vanilla's belt.
+
 ### D08Z9 - Stuck weapon: Duke cannot shoot or change weapons
 
 **Status: Done (user-accepted 2026-11-07: "it's all working!!"; [note 411](documentation/411-d08z9-stuck-weapon.md)). Dependencies: D08Z8.** User, 2026-11-07, UI slot 7:
@@ -9028,6 +9079,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
 | D08A36 | Weapon switching in mid air: number keys, the wheel and ; ' do nothing during a jump or fall (any save; user, 2026-11-05) | Done (user-accepted) | D08A, D08A29 |
 | D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
+| D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

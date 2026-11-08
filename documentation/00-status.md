@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D22I closed
+
+User: "yep lock us in and close it out". D22I is Done ([note 412](412-d22i-enemies-weapons.md)). Executable `d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570` is the regression baseline. No framework edit; the runtime patch export is unchanged. CI repaired (three stale unit tests).
+
+## 2026-11-08 - D22I accepted
+
+User: "they are your flying enemies. they are famous in this game for not being easy to kill, only really the energy weapon works on them. however with our hitscan logic, you can shoot them now with the desert eagle. this is amazing and a much welcomed change to the game. well done accepted" Type 44 is the flying enemy (killed in play with the Desert Eagle via AUTO AIM HITSCAN; the user's UI slot 8 is saved at them). Turrets 540 and 605 are the original design; D22I2 closed without work. D22I1 (spawn tool for 847, 848 and mounted turrets) stays Todo.
+
+## 2026-11-08 - D22I: enemies and weapons per level (Needs review)
+
+[Note 412](412-d22i-enemies-weapons.md) fills the D22E matrix's Enemies and
+Weapons columns (automated, offscreen, first person, view aim, AUTO AIM off;
+no user playtest). All 14 weapons damaged an enemy in every non-boss
+campaign level; every placed hostile type took damage and was killed in at
+least one level, except the gatling turret 540 (explosives only: the original
+design per the user, 2026-11-08, kept), the turret 605 (cannot be harmed,
+must be deactivated: original per the user; D22I2 closed without work) and the path
+creatures 44, 847 and 848 that the spawn tool cannot place (D22I1). The
+three bosses take damage (fights are D22J). Every placed weapon and ammo
+pickup appears in all 15 levels. Tool fix in `spawn.inc`: `spawn enemy` no
+longer picks a dormant script-held row (levels 0-2). CI repaired: three
+stale unit tests (D08J9 guard split, profile schema 70, D12E1's 21st
+animation clip); local suite and the runtime tests pass. Executable
+`d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570`. No
+framework edit; the runtime patch export is unchanged.
+
 ## 2026-11-07 - D08Z9 closed
 
 User: "it's all working!! lock it in and close it out. excellent". D08Z9 is

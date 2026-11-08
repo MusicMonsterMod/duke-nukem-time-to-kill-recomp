@@ -138,7 +138,7 @@ class OwnedDisc(unittest.TestCase):
             path = Path(tmp) / 'anim.pack'
             cw.write_host_pack(self.g, path)
             data = path.read_bytes()
-        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 20)  # walk/idle, run, matching upper clips, one-hand pull-up, padding
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 21)  # walk/idle, run, matching upper clips, one-hand pull-up, quick kick (D12E1), padding
 
     def test_onehand_pullup(self):
         # D08J7C: the one-handed pull-up upper body, frame for frame with 140.

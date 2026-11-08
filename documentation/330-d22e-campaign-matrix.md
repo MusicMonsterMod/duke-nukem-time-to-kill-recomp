@@ -83,21 +83,21 @@ level), **Prog** (progression items and gates), **Enemies**, **Weapons**,
 
 | Idx | Name | Load | Handoff | Prog | Enemies | Weapons | Boss | Saves | Scripted | Native | Played |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | TIME TO KILL | A | U (portal, D22A); A (D20B) | I items; U partial (1) | A partial (2) | A partial (2) | n/a | A (D20B) | - | - | U partial (1) |
-| 1 | DUKE HILL | A | - | I items | A partial (2) | A partial (2) | n/a | A (D26A) | - | - | U partial (3) |
-| 2 | MINER 69ER | A | - | I items (4) | - | - | n/a | - | - | - | - |
-| 3 | GOLD AND GUNS | A | - | I items | - | - | n/a | U load (5) | - | - | - |
-| 5 | OBEY OR DIE | A | - | I items | - | - | n/a | - | - | - | - |
-| 6 | FAMILY JEWELS | A | - | I items; A partial (6) | - | - | n/a | U load (5) | - | - | U reported (7) |
-| 7 | RESISTANCE IS FEUDAL | A | - | I items | - | - | n/a | - | - | - | - |
-| 8 | HOLY TERROR | A | - | I none | - | - | n/a | - | - | - | - |
-| 9 | PIG FACTORY | A | - | I items | - | U partial (8) | n/a | U load (5) | - | - | - |
-| 10 | HOG HEAVEN | A | - | I items | - | - | n/a | - | - | - | U partial (9) |
-| 11 | LET THE GAMES BEGIN | A | - | I items | - | - | n/a | - | - | - | U partial (10) |
-| 12 | BLOOD BATHS | A | - | I none | - | - | n/a | - | - | - | - |
-| 27 | THE REAPER | A | - | n/a | - | - | - | - | - | - | - |
-| 28 | WING'ED DEATH | A | - | n/a | - | - | - | - | - | - | - |
-| 29 | MOLOCH THE GATEKEEPER | A | n/a (ending) | n/a | - | - | - | - | - | - | - |
+| 0 | TIME TO KILL | A | U (portal, D22A); A (D20B) | I items; U partial (1) | A (12) | A 14/14 (12) | n/a | A (D20B) | - | - | U partial (1) |
+| 1 | DUKE HILL | A | - | I items | A; 540 explosives only, original (U) (12) | A 14/14 (12) | n/a | A (D26A) | - | - | U partial (3) |
+| 2 | MINER 69ER | A | - | I items (4) | A; 847 untested (12) | A 14/14 (12) | n/a | - | - | - | - |
+| 3 | GOLD AND GUNS | A | - | I items | A; 605 turret cannot be harmed, original (U); 44 flyer: see level 7 (12) | A 14/14 (12) | n/a | U load (5) | - | - | - |
+| 5 | OBEY OR DIE | A | - | I items | A (12) | A 14/14 (12) | n/a | - | - | - | - |
+| 6 | FAMILY JEWELS | A | - | I items; A partial (6) | A (12) | A 14/14 (12) | n/a | U load (5) | - | - | U reported (7) |
+| 7 | RESISTANCE IS FEUDAL | A | - | I items | A; 44 flyer U (12) | A 14/14 (12) | n/a | - | - | - | - |
+| 8 | HOLY TERROR | A | - | I none | A (12) | A 14/14 (12) | n/a | - | - | - | - |
+| 9 | PIG FACTORY | A | - | I items | A (12) | A 14/14 (12) | n/a | U load (5) | - | - | - |
+| 10 | HOG HEAVEN | A | - | I items | A (12) | A 14/14 (12) | n/a | - | - | - | U partial (9) |
+| 11 | LET THE GAMES BEGIN | A | - | I items | A; 44 flyer: see level 7 (12) | A 14/14 (12) | n/a | - | - | - | U partial (10) |
+| 12 | BLOOD BATHS | A | - | I none | A; 848 untested (12) | A 14/14 (12) | n/a | - | - | - | - |
+| 27 | THE REAPER | A | - | n/a | boss damaged A (12) | D22J | - | - | - | - | - |
+| 28 | WING'ED DEATH | A | - | n/a | boss damaged A (12) | D22J | - | - | - | - | - |
+| 29 | MOLOCH THE GATEKEEPER | A | n/a (ending) | n/a | boss damaged A (12) | D22J | - | - | - | - | - |
 | - | Ending (VICTRY, KILT, CREDIT) | n/a | - | n/a | n/a | n/a | n/a | n/a | A fixture only (11) | - | - |
 
 In every row, Load stands on the shared D26A/D22B baseline. The **Prog** "I
@@ -138,6 +138,15 @@ boss levels name no mission items, so D22H still has to check their gates
 11. Ending movies: full playback from a private movie-table fixture (A, D18).
     The natural route through level 29's completion, and the difficulty-3 KILT
     condition, are unverified.
+12. D22I (A, 2026-11-07/08, [note 412](412-d22i-enemies-weapons.md)):
+    offscreen sweep, first person, view aim, AUTO AIM off. Every placed
+    hostile type not named in the cell spawned and took damage (bosses
+    included); all but the bosses were also killed in at least one level
+    (type 1044 dies by itself). All 14 weapons damaged an enemy in every
+    non-boss level, and every placed weapon and ammo pickup appears. Type 540 takes only
+    explosive damage, the original design (U, 2026-11-08); 605 (a turret) cannot be harmed and must be deactivated, also the original (U); the flyers (44) die in play with the
+    Desert Eagle via AUTO AIM HITSCAN (U, 2026-11-08); 847 and 848 could not be
+    placed by the spawn tool (D22I1). D22I accepted 2026-11-08.
 
 The user also reported medieval-era play (first-person height and kick good,
 D22B; D23C moat/Necro slowdown). The level index for those reports was not
@@ -194,8 +203,8 @@ progress. Note 281 leaves D18 listening checks open.
 
 - No level other than level 0 has a recorded natural exit.
 - No boss fight has any evidence.
-- Enemy and weapon evidence exists only for levels 0 and 1, and only for the
-  energy weapon.
+- Enemy and weapon evidence existed only for levels 0 and 1, and only for the
+  energy weapon. D22I (note 412) has since filled both columns.
 - No per-level native counters exist.
 - Campaign order is still unknown until D26D. D22F and D22O need it to check
   "correct next level", so D26D should be done before or alongside them.

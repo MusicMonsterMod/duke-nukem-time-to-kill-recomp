@@ -318,6 +318,12 @@ static void spawn_enemy(CPUState* cpu,int type) {
     const int32_t px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);
     auto far2=[&](uint32_t row){const uint32_t a=psx_mod_read_word(row+4);
         const double dx=(int32_t)psx_mod_read_word(a+4)-px,dz=(int32_t)psx_mod_read_word(a+12)-pz;return dx*dx+dz*dz;};
+    // D22I: the half +0x16 marks a row a level script holds (levels 0-2 wake
+    // them through 0x80091828); its actor is created dormant (actor +0 bit
+    // 0x10000) and neither moves nor takes damage until the script wakes it.
+    // Prefer an ordinary row, then one not in play.
+    auto rank=[&](uint32_t row){const uint32_t f=psx_mod_read_word(row+20);
+        return ((f>>16)?2:0)+((f&1)?1:0);};
     uint32_t pick=0,farthest=0;double most=-1;
     for(unsigned i=0;i<count;++i) {
         const uint32_t row=table+48*i,flags=psx_mod_read_word(row+20);
@@ -325,7 +331,7 @@ static void spawn_enemy(CPUState* cpu,int type) {
         const bool live=(flags&1) && cheat_ram(psx_mod_read_word(row+4),0x2cc);
         if(live && far2(row)>most){most=far2(row);farthest=row;}
         if(psx_mod_read_word(row)!=unsigned(type))continue;
-        if(!pick || (!live && (psx_mod_read_word(pick+20)&1)))pick=row;   // prefer one not in play
+        if(!pick || rank(row)<rank(pick))pick=row;
     }
     if(!pick) {input_notice("Spawn: that enemy is not placed in this level");return;}
     auto remove=[&](uint32_t row){return cheat_call(cpu,0x80098d70,row);};

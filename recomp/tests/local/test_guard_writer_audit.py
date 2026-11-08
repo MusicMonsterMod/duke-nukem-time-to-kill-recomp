@@ -25,7 +25,16 @@ class GuardWriterAuditTest(unittest.TestCase):
 
     def test_state_guards_parse_with_masks(self):
         code, state = guard_ranges((ROOT / 'src/ttk/control_guards.inc').read_text())
-        self.assertIn((0x800c2824, 1060, 0xffffffbf), state)
+        # The upper-body animation flag table (280 entries from 0x800c2824)
+        # stays fully covered with bit 0x40 masked, however it is split
+        # (D08J9 carved out entry 116; DB21-DB26 own entry 265's low half).
+        table = sorted(g for g in state if 0x800c2824 <= g[0] < 0x800c2824 + 1120)
+        end = 0x800c2824
+        for address, size, mask in table:
+            self.assertEqual(address, end)
+            self.assertEqual(mask & 0x40, 0)
+            end = address + size
+        self.assertEqual(end, 0x800c2824 + 280 * 4)
         self.assertFalse(any(a <= 0x800c2b34 < a + n for a, n in code))
 
     @unittest.skipUnless((ROOT / 'disc/time-to-kill.bin').exists(), 'owned disc not imported')

@@ -193,3 +193,17 @@ live enemy is removed first. If creation fails the 0x10 flag is cleared so
 the record is not lost. Only types the level places can be spawned (their
 models are loaded). Verified: level 6, types 57, 50 (Necro), 26 and 344
 created in front of Duke; the Necro attacked once approached.
+
+## D22I addition: record choice (2026-11-08)
+
+The half `+0x16` of a spawner record marks a row a level script holds
+(levels 0-2 wake them through `0x80091828`). Its actor is created dormant
+(actor `+0` bit `0x10000`): it faces away, does not move and takes no
+damage, so `spawn enemy 57` in level 0 could give an inert pig cop. The
+record is now chosen by rank: an ordinary row first, then one not in play,
+then a script-held row only when nothing else of that type is left. Verified
+in level 0 (the pig cop is damaged and dies). Known limits, D22I1: path,
+wall and ceiling creatures (classes 21, 27, 52: types 44, 847, 848) leave
+their spawn point at once, wall-mounted turrets (540) spawn in mid-air, and
+after such spawns later ones in the same level often fail with "Spawn could
+not complete". See [note 412](412-d22i-enemies-weapons.md).

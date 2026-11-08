@@ -1,5 +1,30 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D22I closed
+
+User: "yep lock us in and close it out". D22I is Done (note 412). Executable `d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570` is the regression baseline. No framework edit; the runtime patch export is unchanged. CI repaired in the same commit.
+
+## 2026-11-08 - D22I accepted
+
+User: "they are your flying enemies. they are famous in this game for not being easy to kill, only really the energy weapon works on them. however with our hitscan logic, you can shoot them now with the desert eagle. this is amazing and a much welcomed change to the game. well done accepted" Type 44 is the flyer; the user's UI slot 8 is saved at them. Turrets 540 and 605 settled as original design; D22I2 closed without work.
+
+## 2026-11-08 - D22I: enemies and weapons per level (Needs review)
+
+Note 412 fills the D22E matrix's Enemies and Weapons columns from an
+automated offscreen sweep (first person, view aim, AUTO AIM off, private
+cards and profile, player files hash-checked). All 14 weapons damaged an
+enemy in every non-boss campaign level; every placed hostile type took
+damage except the ones below, and the three bosses take damage (fights are
+D22J). Every placed weapon and ammo pickup appears in all 15 levels. Type 540
+(gatling turret, level 1) takes only explosive damage: original design per
+the user (2026-11-08), kept. 605 (turret, level 3) cannot be harmed and must
+be deactivated, also original (user); D22I2 closed without work; types 44, 847 and 848 cannot be placed by the spawn tool (new
+D22I1). Tool fix: `spawn enemy` no longer picks a dormant script-held row
+(levels 0-2 gave an inert pig cop). Also: CI repaired - three stale unit
+tests (guard table split by D08J9, profile schema 70, D12E1's 21st clip).
+Executable `d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570`.
+No framework edit.
+
 ## 2026-11-07 - D08Z9 closed
 
 User: "it's all working!! lock it in and close it out. excellent". D08Z9 is
@@ -8402,7 +8427,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22F | Level load and level-to-level handoff sweep | Todo | D22E |
 | D22G | Per-level native/interpreted coverage measurement | Todo | D22E; coordinate D23G |
 | D22H | Progression items and objectives per level | Todo | D22E |
-| D22I | Enemies and weapons per level | Todo | D22E |
+| D22I | Enemies and weapons per level | Done (user-accepted; closed 2026-11-08; note 412) | D22E |
+| D22I1 | Spawn tool: path, wall and ceiling creatures and mounted turrets | Todo | D22I |
+| D22I2 | Damage rules of turrets 540 and 605 | Done (resolved by user report 2026-11-08; original design, no work) | D22I |
 | D22J | Boss encounters | Todo | D22E |
 | D22K | Save and load round-trips per level | Todo | D22E |
 | D22L | Movies and scripted sequences per level | Todo | D22E; related D18F |
@@ -18754,9 +18781,19 @@ keeps a stale aim vector). [Note 152](documentation/152-d22d-energy-beam.md).
 
 ### D22I - Enemies and weapons per level
 
-**Status: Todo. Dependencies: D22E.** Per level, confirm the enemy types present spawn, react, take damage and die, and that every weapon available there fires and damages correctly with Modernized aiming (D22D covered the energy weapon on levels 0 and 1 only). Note pickups and ammo that fail to appear. Bosses are D22J.
+**Status: Done (user-accepted, 2026-11-08: "they are your flying enemies. they are famous in this game for not being easy to kill, only really the energy weapon works on them. however with our hitscan logic, you can shoot them now with the desert eagle. this is amazing and a much welcomed change to the game. well done accepted"); closed 2026-11-08. [Note 412](documentation/412-d22i-enemies-weapons.md). Dependencies: D22E.** Result: all 14 weapons damaged an enemy in every non-boss level; every placed hostile type took damage except 540 (explosives only), 605 (none) and the flyers 44 (killed in play by the user with the Desert Eagle via hitscan) and the untestable 847/848; bosses take damage; no placed weapon or ammo pickup is missing. Split: D22I1; D22I2 resolved by the user (both turrets are the original design). Original scope: per level, confirm the enemy types present spawn, react, take damage and die, and that every weapon available there fires and damages correctly with Modernized aiming (D22D covered the energy weapon on levels 0 and 1 only). Note pickups and ammo that fail to appear. Bosses are D22J.
 
 **Acceptance:** enemies and weapons columns filled per level; failures split into dedicated jobs.
+
+### D22I1 - Spawn tool: path, wall and ceiling creatures and mounted turrets
+
+**Status: Todo. Dependencies: D22I.** `spawn enemy` cannot place classes 21, 27 and 52 (types 44, 847, 848): they leave the spawn point at once along fixed lines above or away from Duke and no shot can meet them. Type 44 is the flying enemy; the user killed them in play with the Desert Eagle via AUTO AIM HITSCAN (2026-11-08, private UI slot 8), so only 847 and 848 lack any damage evidence. Wall-mounted turrets (540) spawn in mid-air. After such spawns, later spawns in the same level often fail ("Spawn could not complete"). Find how the original places these (their spawn points, rails or mounts) and spawn them in a reachable, visible place, then run the D22I sweep (`recomp/analysis/d22i/sweep.py`) for those types. [Note 412](documentation/412-d22i-enemies-weapons.md), finding 3.
+
+**Acceptance:** each of 44, 847, 848 and 540 can be spawned visibly in front of Duke in its levels, later spawns keep working, and the sweep records whether each takes damage and dies.
+
+### D22I2 - Damage rules of turrets 540 and 605
+
+**Status: Done (resolved by user report 2026-11-08; no work). Dependencies: D22I.** The D22I sweep found the level 1 gatling turret (540) ignores bullets and dies to explosives, and the level 3 turret (605, health 60000) takes no damage at all. User: 540 "that's actually how the game plays. you have to destroy it with an explosive" (misleading after level 0's Desert Eagle turrets, but kept as is); 605 "is quite simply a turret. the turret cannot be harmed, you have to deactivate it". Both are the original design. [Note 412](documentation/412-d22i-enemies-weapons.md), findings 1-2.
 
 ### D22J - Boss encounters
 

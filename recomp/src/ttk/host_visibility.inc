@@ -331,6 +331,7 @@ bool host_visibility_room_shown(uint32_t room) {
 static bool host_vis_walk(CPUState* cpu) {
     host_vis_shown_valid=false;
     host_vis_live=false;
+    lights_upload(false,nullptr,nullptr); // D41A: no lit corners until this frame's camera is known
     // The session log records the switch (the environment and console are not).
     static int logged=-1;
     const int on=host_visibility_enabled();
@@ -360,6 +361,7 @@ static bool host_vis_walk(CPUState* cpu) {
     const double gx=(view[2]-view[0])*0.5*host_vis_guard(),gy=(view[3]-view[1])*0.5*host_vis_guard();
     const double guard[4]={view[0]-gx,view[1]-gy,view[2]+gx,view[3]+gy};
     host_vis_frame_cam=c;std::copy(guard,guard+4,host_vis_frame_guard);
+    lights_upload(true,c.m,c.eye); // D41A
     host_vis_game_count=count;
     for(uint32_t i=0;i<count;++i) {
         const uint32_t e=0x800d68b0+12*i;host_vis_game[i].room=psx_mod_read_word(e+8);

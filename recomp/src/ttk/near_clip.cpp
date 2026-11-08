@@ -615,6 +615,12 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
     if(otz>=(int32_t)f.far_limit) return -1;
     return clamp((otz>>3)+poly.bias+(poly.actor?0:object_bias()),0,0x7ff);
 }
+// D41A: view to world (relative to the eye) for lit corners: v = M d / 4096,
+// so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
+bool light_frame=false;double light_inv[9];
+bool lit_frame(const Frame& f,const Poly& poly) {
+    return light_frame && unified_scene(f) && !f.viewmodel && !f.sky && !f.biomask && !poly.depth_only;
+}
 // Packet allocation (0x800117a8/0x80010480) and single-packet OT insert.
 // n is 3, or 4 for a quad in PS1 corner order (the GPU draws 0-1-2, 1-2-3).
 void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
@@ -655,6 +661,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     double trace_raster[4][4];
     // D17AM2: translucent faces keep painter order (no depth test or write).
     const bool painter=f.viewmodel || f.sky || (unified_scene(f) && (poly.command&0x02000000u));
+    const bool lit=lit_frame(f,poly);
     {
         for(unsigned i=0;i<n;++i) {
             const uint32_t addr=prim+8+stride*i,word=psx_mod_read_word(addr);
@@ -678,6 +685,10 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
             (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:f.borrowed?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
+            if(lit) {
+                const double* p=v[i].p;const double* m=light_inv;
+                psx_mod_gpu_host_vertex_world(addr,word,(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]));
+            }
         }
         ++precise_triangles;
     }
@@ -2206,7 +2217,19 @@ void near_clip_prepare() {
         }
     }
 }
-void near_clip_flip() {region_chosen=false;model_end();}
+void near_clip_flip() {region_chosen=false;model_end();light_frame=false;}
+void near_clip_light_frame(bool valid,const double m[9]) {
+    light_frame=false;
+    if(!valid) return;
+    const double a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7],i=m[8];
+    const double det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);
+    if(std::fabs(det)<1) return;
+    const double k=4096.0/det;
+    light_inv[0]=(e*i-f*h)*k;light_inv[1]=(c*h-b*i)*k;light_inv[2]=(b*f-c*e)*k;
+    light_inv[3]=(f*g-d*i)*k;light_inv[4]=(a*i-c*g)*k;light_inv[5]=(c*d-a*f)*k;
+    light_inv[6]=(d*h-e*g)*k;light_inv[7]=(b*g-a*h)*k;light_inv[8]=(a*e-b*d)*k;
+    light_frame=true;
+}
 NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region,region_chosen};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
     frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;

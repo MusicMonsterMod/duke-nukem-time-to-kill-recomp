@@ -1,5 +1,63 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D41 and D41A accepted and closed; D41B first part accepted
+
+User, after playtesting rockets in flight, the muzzle light and the console
+light with dimmed painted light: "the tests looked incredible as a first
+exploration into this lighting ... lock it in and close it out". D41 and D41A
+are Done. D41B's first part (rockets and energy rounds carry light, muzzle
+light at the gun's muzzle) is accepted; D41B returns to Todo for its remaining
+scope.
+
+Performance: the player saw slowdowns earlier the same morning (session logs:
+emulation behind real time at 46.5 frames/s, presents every 3 refreshes).
+Host check: Photon Studio had been running for 33 hours (left open from art
+work) and two orphaned Xvfb test displays were still up; Timeshift had
+finished at 08:21, before play. After closing them, the retest sessions with
+dynamic lights on held 179.9-180.0 presents/s for whole minutes with no
+behind-real-time warnings. The `continue-duke-recomp` skill now requires
+closing every program an agent starts, and a full tidy-up at closeout.
+
+## 2026-11-08 - D41 case study published; D41A light foundation (Needs playtest)
+
+Later the same session, D41B first part (In progress, needs playtest): rockets
+and energy beam rounds carry light in flight (projectile pool probe: shotgun
+type 1, Gatling 7, RPG 8, energy beam 15; flag 3 while flying), and the
+muzzle light moved to the gun's muzzle point `player+0xbc`. Also found: with
+`ttk-near-test` linking again, `test_primitive_trace` runs (it was skipped)
+and fails one mesh-instance expectation; the lighting path is not active in
+that harness, so this is an older hidden failure, not fixed here.
+
+User: "proceed to work autonomously on this one ... a really deep research
+done so we can truly understand this lighting system ... make real lighting in
+this game rather than of course the painted/simulated lighting the ps1 does
+... you may delve into new tickets pertaining to this job". D41 is Needs review:
+the case study is published (https://claude.ai/artifact/M1MNyrZqtgzEFc7s72jSXh,
+[note 413](documentation/413-d41-lighting-case-study.md)) with captures of
+EDuke32 Polymost/Polymer, UZDoom and Ironwail made on private copies of the
+player's installs, research on Duke-RT, Quake tools, RTX Remix and RT64, a
+survey of TTK's own painted light and the options for Polymorph. Child jobs
+D41A-D41H are on the board.
+
+D41A is implemented (Needs playtest): Polymorph's world, prop and actor
+corners carry world positions; the OpenGL textured shader adds per-pixel
+lights to the original vertex colour; blasts and Duke's muzzle flash are the
+first sources; console `light`; OPTIONS > DISPLAY > DYNAMIC LIGHTS (schema 71,
+`--dynamic-lights`). Framework edits exported into the accepted patch and
+verified against the pinned checkout. Tests: profiles 133 OK, `ttk-near-test`
+PASS (its earlier link failure fixed), `ttk-controls-test` stops at the known
+D14 HUD check. In game at 60 and 180 Hz: blasts light the apartment and the
+level 0 street, Gatling rounds warm the street, 0 missed redraws. Limits:
+Duke and the first-person weapon take no light yet (D41C), no shadows (D41F).
+
+## 2026-11-08 - D10B closed off the board
+
+User: "then close it off the board". D10B is now Cancelled (superseded by
+D10B1). Its accepted behavior was rolled back by D10B1 on 2026-10-24 and stays
+available only through the developer opt-in `DNTTK_TIGHT_CAMERA=1`; the
+close-surface camera work continued in D10F, D10F1 and D10F2. Board status
+only; no code, build or gameplay change.
+
 ## 2026-11-08 - D22I closed
 
 User: "yep lock us in and close it out". D22I is Done (note 412). Executable `d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570` is the regression baseline. No framework edit; the runtime patch export is unchanged. CI repaired in the same commit.
@@ -6833,7 +6891,7 @@ playtest.
 
 ### D41 - Foundational lighting system (pre-job)
 
-**Status: Todo (placeholder, intake 2026-11-03). Dependencies: none. Do not implement lighting under this ID: starting it produces the case-study artifact and a scoped set of child jobs for the user to choose from.**
+**Status: Done (user-accepted; closeout authorized 2026-11-08; case study published: https://claude.ai/artifact/M1MNyrZqtgzEFc7s72jSXh, [note 413](documentation/413-d41-lighting-case-study.md); child jobs D41A-D41H added; the user authorized autonomous work on the child jobs, and D41A is implemented). Dependencies: none. Lighting itself is implemented under the child jobs, not under this ID.**
 User, 2026-11-03: "i think we make a foundational lighting system for this
 game. to bring it in line with other source ports like gzdoom, uzdoom,
 eduke32, ironwail and so on. Real, genuine lighting"; "that job will actually
@@ -6868,6 +6926,87 @@ Inputs: [note 370](documentation/370-d39-screen-flash-framework.md) D39F
 map); the D39 present tint. **Acceptance:** the artifact is published and
 reviewed with the user, and the child jobs are on the board; no lighting code
 under D41 itself.
+
+### D41A - Light foundation
+
+**Status: Done (user-accepted after playtest; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 5). Dependencies: D41.**
+Polymorph gives every world, prop and actor corner its world position and the
+OpenGL textured shader adds the frame's lights per pixel to the original vertex
+colour (falloff, facing, soft shoulder). Sources: blasts (the D39F blast sound
+calls, the TNT barrel's shake request) and Duke's muzzle flash; console
+`light`. Per-image light lists travel to redraw workers in RenderState and to
+the GPU in the replay stream. OPTIONS > DISPLAY > DYNAMIC LIGHTS (schema 71,
+`--dynamic-lights`). Vanilla and Classic unchanged. Acceptance: the user
+playtests blasts and gunfire in several levels at the player's frame rate,
+judges look and strength, and confirms no slowdown and the option's off state.
+
+### D41B - Weapon and projectile lights
+
+**Status: Todo (first part user-accepted and closed 2026-11-08; the remaining scope below is open; [note 413](documentation/413-d41-lighting-case-study.md) section 7). Dependencies: D41A.**
+Done so far: RPG rockets (projectile type 8) and energy beam rounds (type 15)
+carry light in flight, read each tick from the projectile pool `0x800da978`
+(flag 3 while flying); Duke's muzzle light sits at the gun's muzzle point
+(`player+0xbc`) when it is within 1500 units of him. Remaining: each weapon's muzzle light (colour,
+size, life) at the real muzzle (the hand matrix and the slot's muzzle vector,
+note 63) instead of a point ahead of Duke; enemies' muzzle flashes; rockets,
+grenades and freezer rounds that carry light in flight like the rockets;
+bullet impacts and sparks; blast sizes per type (barrel, pipe bomb, dynamite,
+gib); burning enemies and fire. Compare with EDuke32 Polymer and Ironwail
+values. Acceptance: user playtest per weapon in first and third person.
+
+### D41C - Duke and first person in the light
+
+**Status: Todo. Dependencies: D41A.** Duke's own model is drawn by the original
+renderer (D12) and the first-person layer is painter-only, so neither takes
+dynamic light or ambient dimming (in the D41A dimmed preview Duke stays
+bright). Give Duke's model, legs, arms, weapon and held items world positions
+(or a lighting path of their own) in both views. Read the D36 audit (note 257)
+and D36H5 notes first; preserve their ownership boundaries. Acceptance:
+matched shots of Duke beside a blast and under a test light, first and third
+person, no presentation regressions.
+
+### D41D - Level light sources
+
+**Status: Todo. Dependencies: D41A.** Lights the levels themselves own: survey
+emitters per level (neon, lamps, braziers, fires, monitors) by texture page and
+CLUT and by peaks in the painted vertex light; decode the colour-index and
+animated light tables (`0x800c37e4`, `ctx+0x68`) into light styles that drive
+real lights; a data file of lights per level (like Duke-RT `LIGHTOVR` or
+`.rtlights`) written by us, and a console light editor to place, colour and
+save lights. Acceptance: a first set of levels with their lamps and signs
+casting real light, user review per level.
+
+### D41E - Relit levels
+
+**Status: Todo. Dependencies: D41C, D41D, D41F.** A LIGHTING option: Original
+(no dynamic lights), Enhanced (D41A-D41D on the painted light) and Relit (the
+painted light dimmed per level and room so placed lights, shadows and blasts
+carry the scene). Readability checks level by level (remasters that relit
+vertex-lit games were criticised for areas too dark to read). Acceptance: the
+user plays relit levels and approves each one.
+
+### D41F - Shadows
+
+**Status: Todo. Dependencies: D41A.** Research spike, then shadow maps for
+chosen lights (blasts, placed lamps) rendered from the host's world-space room
+meshes, so light stops at walls; PCF filtering; cost limits at 180 Hz. GZDoom's
+1D shadow maps do not fit TTK's 3D rooms. Acceptance: matched shots of a light
+behind a wall and a lamp throwing shadows, measured frame cost.
+
+### D41G - Light scale and cost
+
+**Status: Todo. Dependencies: D41A.** Clustered light lists (Ironwail) when
+lights exceed a few dozen; lighting for untextured polygons (G3/F3), a policy
+for sprites and translucent faces (emissive or lit); measured cost per frame
+at 120/180/240 Hz on busy levels. Acceptance: measured budgets and no
+regressions on the D17 performance routes.
+
+### D41H - Smooth light on models
+
+**Status: Todo. Dependencies: D41C.** Per-vertex normals for actor and prop
+meshes (averaged per mesh, cached by mesh) so light rounds over bodies instead
+of showing flat facets; optional later: normal or specular detail. Acceptance:
+matched shots of an enemy under a test light, faceted and smooth.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -8158,7 +8297,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Done (accepted 2026-11-03) | D39C, D08G7 |
 | D39E | Damage flashes from real hits, per TTK damage type | Done (accepted 2026-11-03) | D39C |
 | D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
-| D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
+| D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Done (accepted 2026-11-08; case study published, child jobs D41A-D41H on the board) | none |
+| D41A | Light foundation: world-space corners, per-pixel lights in Polymorph, blasts and muzzle flashes, DYNAMIC LIGHTS option | Done (accepted 2026-11-08) | D41 |
+| D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes, burning enemies | Todo (first part accepted 2026-11-08: rockets and energy rounds carry light, muzzle light at the gun's muzzle point) | D41A |
+| D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Todo | D41A |
+| D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Todo | D41A |
+| D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
+| D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
+| D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
+| D41H | Smooth light on models: per-vertex normals for actors and props | Todo | D41C |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -8282,7 +8429,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10 | Third-person camera polish | Done | D08 |
 | D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Done (user-accepted 2026-10-27) | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
-| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
+| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Cancelled (superseded by D10B1; closed 2026-11-08) | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
 | D10F | Third-person camera near close surfaces (research report first) | Done | D10, D10B1, D08J3 |
 | D10F1 | Third-person camera: clear lens against walls and grills | Done (user-accepted 2026-11-04) | D10F |

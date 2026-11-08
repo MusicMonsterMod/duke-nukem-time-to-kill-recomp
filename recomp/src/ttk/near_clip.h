@@ -34,6 +34,10 @@ uint32_t near_clip_enemy_extras_word();
 struct NearClipFrameState { uint32_t first_cursor,host_bytes,held_frame,host_region; bool region_chosen; };
 // Every flip (0x8001fcbc) ends a displayed frame's packet region.
 void near_clip_flip();
+// D41A: the frame's camera (camera +0x20 matrix, 4.12 with row 0's aspect)
+// for world positions of lit corners (relative to the eye); valid false
+// stops them (dynamic_lights.inc).
+void near_clip_light_frame(bool valid,const double m[9]);
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();

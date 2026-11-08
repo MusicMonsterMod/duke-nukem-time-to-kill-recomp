@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-11-08 - D41 and D41A accepted and closed; D41B first part accepted
+
+The user playtested rockets in flight, the muzzle light at the gun and the
+console light with dimmed painted light: "the tests looked incredible as a
+first exploration into this lighting ... lock it in and close it out". D41
+and D41A are Done; D41B's first part (rockets and energy rounds carry light,
+muzzle light at the gun's muzzle point) is accepted and D41B returns to Todo
+for its remaining scope. Earlier slowdowns the same morning traced to host
+contention (Photon Studio open for 33 hours, two orphaned Xvfb test
+displays); after closing them the retests held 179.9-180.0 presents/s with
+lights on. Executable `41fd89e136f2538ca7a4fc27a61fa26640913cdc1ee17294b445361c1b8dfe94`.
+
+## 2026-11-08 - D41 case study published; D41A light foundation
+
+D41: the lighting case study is published
+(https://claude.ai/artifact/M1MNyrZqtgzEFc7s72jSXh, [note 413](413-d41-lighting-case-study.md)):
+captures of EDuke32 Polymost/Polymer, UZDoom and Ironwail from private copies
+of the player's installs, research on Duke-RT, Quake tools, RTX Remix and
+RT64, TTK's own painted light, and the options for Polymorph. Child jobs
+D41A-D41H are on the board. The user authorized autonomous work on them.
+
+D41A: Polymorph's world, prop and actor corners carry world
+positions and the OpenGL textured shader adds per-pixel lights to the
+original vertex colour. Blasts and Duke's muzzle flash are the first sources;
+console `light`; OPTIONS > DISPLAY > DYNAMIC LIGHTS (profile schema 71,
+`--dynamic-lights`). Framework edits (`mod_plugins.h`, `gpu.c`,
+`render_replay.c`, `gpu_gl_renderer.c`, render-copy name headers) exported
+into the accepted patch and verified against the pinned checkout. Tests:
+profiles 133 OK, `ttk-near-test` PASS (its pre-existing link failure fixed),
+`ttk-flash-test`, `ttk-live-env-test` PASS; `ttk-controls-test` stops at the
+known D14 HUD check (same with lights off). In game at 60 and 180 Hz (private
+apartment fixtures, level 0 street): blasts light walls and street, Gatling
+rounds warm the street, 0 missed redraws. Not yet: Duke and the first-person
+weapon take no light (D41C), no shadows (D41F). Executable `ccfc1019c8c25b6ed88c3d362fc1b724260541a051798ec06aeadd5236e13226`.
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-08 - D22I closed
 
 User: "yep lock us in and close it out". D22I is Done ([note 412](412-d22i-enemies-weapons.md)). Executable `d2d6c09472cbe455b0bb05e1f85d324a216606b9466f6c9b766f25abb0c88570` is the regression baseline. No framework edit; the runtime patch export is unchanged. CI repaired (three stale unit tests).

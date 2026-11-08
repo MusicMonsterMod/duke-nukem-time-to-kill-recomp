@@ -72,9 +72,15 @@ paplay /usr/share/sounds/freedesktop/stereo/complete.oga || canberra-gtk-play -i
 
 Play it once per finished job, not for job listings or intermediate steps. A failed chime never blocks the summary.
 
+## Close what you opened
+
+Close every program you started once you are finished with it (user request, 2026-11-08): reference engines and ports (EDuke32, UZDoom, Ironwail and so on), Photon Studio, offscreen test games, Xvfb displays, ffmpeg captures, background watch loops, browsers or viewers opened for the work, and anything else. Leftover programs compete with the player's game for the CPU and GPU. Track the process IDs you start (pid files, not broad `pkill -f`), stop them when the step that needed them ends, and before the final summary check that nothing you launched is still running (`pgrep -a Xvfb`, the game, the reference ports). Never close programs the user started themselves unless they ask.
+
+When the user asks to close a job out, that is also the signal to tidy up and pack up shop: stop every program and background task from the work, remove scratch captures and temporary files that are not wanted evidence, and leave the machine as it was before the job started.
+
 ## After a closeout
 
-When the user accepts a job and authorizes the closeout (documentation, commit and push), end the closeout reply with up to three suggested next jobs and a ready-to-run command for each (user request, 2026-11-01). Pick them from the current board: unfinished jobs whose dependencies are met, preferring follow-ups the closed job uncovered and related open work. Give each a one-line reason, then the command, for example:
+When the user accepts a job and authorizes the closeout (documentation, commit and push), tidy up first (see Close what you opened), then end the closeout reply with up to three suggested next jobs and a ready-to-run command for each (user request, 2026-11-01). Pick them from the current board: unfinished jobs whose dependencies are met, preferring follow-ups the closed job uncovered and related open work. Give each a one-line reason, then the command, for example:
 
 ```
 /continue-duke-recomp work on D36H6

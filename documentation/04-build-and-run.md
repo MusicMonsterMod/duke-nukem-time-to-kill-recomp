@@ -483,3 +483,18 @@ generated line, codegen hash unchanged, savestates load. Diagnostics:
 `DNTTK_QUAKE_TRACE=1` logs starts and each shaken image; the debug command
 `render_replay` reports `plugin.quake`. See
 [note 397](397-d44a-earthquakes.md).
+
+## Dynamic lights (D41A)
+
+Profile schema 71 adds the Modernized `dynamic_lights` choice: `on` (default)
+or `off`. `run.py --dynamic-lights VALUE` saves it (`--settings` choice I); the
+launcher passes `DNTTK_LIGHTS` (always `off` for Vanilla). No new hooks: the
+sources use the existing entries `0x8006B73C`, `0x8006B270`, `0x80028A2C` and
+`0x800412A4`, so no regeneration. Framework edits (host vertex world
+positions, light lists in the replay stream, the GL textured shader) are in
+`recomp/patches/time-to-kill-accepted-source.patch`; after adding globals to
+the GPU sources, rerun `runtime/src/render_copy/gen_names.py` on the object
+directory (`build-local/CMakeFiles/psx-runtime.dir/psxrecomp/runtime/src`) or
+the render-thread copies fail to link. Developer: `DNTTK_LIGHT_TRACE=1` logs
+light sources, `DNTTK_LIGHT_AMBIENT=<percent>` scales the original colour of
+lit surfaces. See [note 413](413-d41-lighting-case-study.md).

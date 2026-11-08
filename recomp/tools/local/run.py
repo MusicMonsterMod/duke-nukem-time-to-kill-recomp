@@ -66,6 +66,7 @@ def main(argv=None):
     p.add_argument('--third-person-kick', choices=profiles.THIRD_PERSON_KICKS, help='save the Modernized third-person KICK: quick (default; a fast legs-only kick with any weapon, on the move) or original (the holstered Boot kicks 112-115); Vanilla always uses original')
     p.add_argument('--fire-cpu', choices=('on', 'off'), help='this launch only: off keeps CPU SPEED unchanged while you hold fire on a WEAPON FEEL RETRO gun (on, the default, runs CPU SPEED 200 for a steady fire rate)')
     p.add_argument('--earthquakes', choices=profiles.EARTHQUAKE_MODES, help='save Modernized EARTHQUAKES: on (default; TNT barrels and explosive vests shake the whole level like Duke Nukem 3D) or off (the original short camera jitter); Vanilla never has earthquakes')
+    p.add_argument('--dynamic-lights', choices=profiles.DYNAMIC_LIGHTS_MODES, help='save Modernized DYNAMIC LIGHTS: on (default; blasts and muzzle flashes light the world, Polymorph renderer) or off (only the original lighting); Vanilla never has them')
     p.add_argument('--weapon-feel', choices=profiles.WEAPON_FEELS, help='save Modernized WEAPON FEEL: retro (default; every click fires, the first shot comes sooner and held fire keeps a steady rate, close to EDuke32) or modern (the original weapon timing); Vanilla always uses the original')
     p.add_argument('--sidearm-return', choices=profiles.SIDEARM_RETURN_MODES, help='save Modernized SIDEARM RETURN: never (default; keep a climb or hang sidearm until you choose) or auto (your weapon comes back 0.75 s after the last shot)')
     p.add_argument('--level-stats', choices=('on', 'off'), help='save Modernized LEVEL STATS: on (default; time, kills and secrets in the bottom-left corner) or off; Vanilla never shows them')
@@ -117,7 +118,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.dynamic_lights is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -136,6 +137,7 @@ def main(argv=None):
             if a.third_person_kick is not None: controls['third_person_kick'] = a.third_person_kick
             if a.weapon_feel is not None: controls['weapon_feel'] = a.weapon_feel
             if a.earthquakes is not None: controls['earthquakes'] = a.earthquakes
+            if a.dynamic_lights is not None: controls['dynamic_lights'] = a.dynamic_lights
             if a.level_stats is not None: controls['level_stats'] = a.level_stats == 'on'
             if a.fps is not None: controls['fps'] = a.fps == 'on'
             if a.night_vision is not None: controls['night_vision'] = a.night_vision
@@ -286,6 +288,7 @@ def main(argv=None):
     env['DNTTK_TP_KICK'] = controls['third_person_kick'] if modernized else 'original'
     env['DNTTK_WEAPON_FEEL'] = controls['weapon_feel'] if modernized else 'modern'
     env['DNTTK_EARTHQUAKES'] = controls['earthquakes'] if modernized else 'off'
+    env['DNTTK_LIGHTS'] = controls['dynamic_lights'] if modernized else 'off'
     env.pop('DNTTK_WEAPON_FEEL_CPU', None)
     if a.fire_cpu == 'off': env['DNTTK_WEAPON_FEEL_CPU'] = '100'
     env['DNTTK_LEVEL_STATS'] = '1' if modernized and controls['level_stats'] else '0'

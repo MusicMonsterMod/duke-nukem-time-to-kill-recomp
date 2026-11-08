@@ -336,6 +336,26 @@ only (`renderer` alone names the current one). `--world-renderer
 polymorph|classic` saves the choice from the launcher. A screen flash in
 progress stops when you switch to Classic. Vanilla always uses Classic.
 
+### Dynamic lights (Modernized, Polymorph, D41A)
+
+With **DYNAMIC LIGHTS** on (the default), blasts and Duke's muzzle flash put
+real light into the world: rockets, grenades, pipe bombs, dynamite, TNT
+barrels and characters blown apart light the walls, floors, props and
+characters around them in a warm flash that fades over about half a second,
+each shot Duke fires warms the ground and walls around his gun for a
+moment, and rockets and energy beam rounds carry their own light as they fly. The light falls off with distance and faces the surfaces it reaches;
+the game's own painted lighting stays underneath. It is a first version:
+Duke himself and the first-person weapon do not take the light yet, and the
+light still passes through walls. Turn it off in **OPTIONS > DISPLAY >
+DYNAMIC LIGHTS** (it switches at once and saves); the launcher accepts
+`--dynamic-lights on|off` and terminal `--settings` uses **I Dynamic
+lights**. The Classic renderer and Vanilla have no dynamic lights.
+
+The backtick console's `light` places a warm test light above Duke where he
+stands; `light <r> <g> <b> [radius]` picks its colour (0 to 4 for each, 1 is
+about as strong as a lamp) and reach (500 to 30000 units, 4000 by default),
+and `light off` removes the test lights.
+
 ### Portable steroids (Modernized)
 
 With `portable` (the Modernized default), steroids work as in EDuke32: picking
@@ -1838,7 +1858,7 @@ outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
-`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `earthquake` (see Earthquakes), `renderer` (see Renderer), unknown-command errors). `fps` also toggles a compact
+`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `earthquake` (see Earthquakes), `renderer` (see Renderer), `light` (see Dynamic lights), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay); in Modernized it is the same setting as
 OPTIONS > DISPLAY > FPS and is saved. Escape or backtick closes the console.

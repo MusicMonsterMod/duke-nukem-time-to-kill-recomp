@@ -402,6 +402,9 @@ std::vector<Screen> make_screens() {
         // D17AR6: the world renderer (D17AM/D17AR switches). D40: live, from the next frame.
         {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",true,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
          {{"POLYMORPH","polymorph","\"polymorph\""},{"CLASSIC","classic","\"classic\""}},0},
+        // D41A: real light from blasts and muzzle flashes (Polymorph).
+        {"DYNAMIC LIGHTS",Section::Controls,"dynamic_lights","DNTTK_LIGHTS",true,"BLASTS AND MUZZLE FLASHES LIGHT THE WORLD. POLYMORPH ONLY",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},

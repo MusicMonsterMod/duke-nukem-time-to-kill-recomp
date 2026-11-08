@@ -1214,6 +1214,7 @@ static bool facing_ready() {
 #include "widescreen.inc"
 #include "gadget_hud.inc"
 #include "ammo_hud.inc"
+#include "dynamic_lights.inc"
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
 #include "spawn.inc"
@@ -2148,6 +2149,8 @@ struct RenderState {
     OnehandView onehand_view;
     // D44A: the earthquake offset of this image (held, never blended).
     QuakeView quake;
+    // D41A: this image's dynamic lights.
+    LightView lights;
     // D08A32: the ammo box icon cell the live frame chose (-1 the game's belt).
     int ammo_view;
 };
@@ -2216,6 +2219,7 @@ void render_state_save(void* out) {
     r.push_letgo=push_letgo;
     r.onehand_view=onehand_view_live();
     r.quake=quake_view;
+    r.lights=light_view;
     r.ammo_view=ammo_view;
     std::memcpy(out,&r,sizeof r);
 }
@@ -2284,6 +2288,7 @@ void render_state_load(const void* in) {
     override_projection_blend=r.projection_blend;
     jet_flight_live=r.jet_flight;
     quake_view=r.quake;
+    light_view=r.lights;
     override_ammo_view=r.ammo_view;
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
@@ -2503,7 +2508,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::earthquake_native_shake(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::lights_shake(cpu);ttk::earthquake_native_shake(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);});
@@ -2516,9 +2521,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // neck query only. Other joint lookups retain the cheap caller check.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007a9f8u)ttk::swim_plunge_sweep(cpu);else if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u){ttk::steroids_pickup_sound(cpu);ttk::pickup_flash_sound(cpu);}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);ttk::lights_sound(cpu);if(cpu->gpr[31]==0x800828d8u){ttk::steroids_pickup_sound(cpu);ttk::pickup_flash_sound(cpu);}});
     // D27A: the player update; only Duke's call goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::lights_tick();ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
@@ -2544,5 +2549,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006d594,[](CPUState* cpu,uint32_t){ttk::dynamite_sparks(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006b270);if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);if(cpu->gpr[31]==0x800538c4u)ttk::weapon_feel_bump(cpu);ttk::dynamite_sizzle(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006b270);if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);if(cpu->gpr[31]==0x800538c4u)ttk::weapon_feel_bump(cpu);ttk::dynamite_sizzle(cpu);ttk::lights_sound_water(cpu);});
 }

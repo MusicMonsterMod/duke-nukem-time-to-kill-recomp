@@ -336,12 +336,22 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // D42: the death eye rides the neck as the body falls, to the floor.
     const bool dying=fp_policy.action==PerspectiveAction::Death && fp_policy.effective;
     const bool root_anchored=swimming || jetting || pushing || climbing || mantling || using_object || fidget || dying;
-    if(root_anchored) pivot_y=root[1];
+    // D08K15: the native pivot leaves Duke's root for a few updates around a
+    // drop from a still stance: at the fall's first update (108 before mode 9)
+    // it sat about 280 above the root, lifting the eye about 200 for that
+    // update; on a crouch landing it is already on the floor while the root
+    // eases down. Measure the eye's height from the root then (the dead band
+    // and its easing are unchanged), so the eye travels with the body and
+    // ends where an ordinary crouch puts it.
+    const unsigned anchor_animation=psx_mod_read_half(player+0x60);
+    const bool fall_start=anchor_animation==108 && psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0;
+    const bool root_height=root_anchored || fall_start || crouch_landing_eye_root();
+    if(root_height) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
-    if(eye_rel_valid && eye_offset_valid && root_anchored!=eye_was_root_anchored)
+    if(eye_rel_valid && eye_offset_valid && root_height!=eye_was_root_anchored)
         eye_rel[1]+=eye_reference_offset-(pivot_y-root[1]);
-    eye_reference_offset=pivot_y-root[1];eye_was_root_anchored=root_anchored;
+    eye_reference_offset=pivot_y-root[1];eye_was_root_anchored=root_height;
     // Eye relative to its references: x/z to the root, y to the pivot.
     // Game Y grows downward.
     double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};

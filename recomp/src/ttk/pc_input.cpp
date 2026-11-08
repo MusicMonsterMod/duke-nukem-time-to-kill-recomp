@@ -1107,7 +1107,7 @@ void input_frame() {
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q},
             {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
-            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
+            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"p",SDL_SCANCODE_P},{"backspace",SDL_SCANCODE_BACKSPACE},
             {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE},
             {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1},{"0",SDL_SCANCODE_0},
             {"2",SDL_SCANCODE_2},{"3",SDL_SCANCODE_3},{"4",SDL_SCANCODE_4},{"5",SDL_SCANCODE_5},{"6",SDL_SCANCODE_6},

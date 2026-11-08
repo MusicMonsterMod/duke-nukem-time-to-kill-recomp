@@ -3,6 +3,18 @@
 // choice. Intercept only its soft-landing animation at the existing lower
 // channel initializer, before that animation can be initialized or displayed.
 static bool crouch_landing_armed,crouch_landing_started;
+// D08K15: the native camera pivot is already on the floor when Duke lands,
+// while the crouch landing still eases his root down over its ramp. Measured
+// from that pivot the eye followed the higher neck out of its dead band and
+// settled 128 units above an ordinary crouch (at the edge of the crouched-legs
+// envelope, so turning popped the left leg in and out). During the ease the
+// eye takes its height from the root instead (first_person_anchor).
+static bool crouch_landing_easing;
+static bool crouch_landing_eye_root() {
+    if(crouch_landing_easing && (!crouch_owned || psx_mod_read_half(player+0x60)!=178 || !crouch_walk_ramp_left))
+        crouch_landing_easing=false;
+    return crouch_landing_easing;
+}
 static uint64_t crouch_landing_epoch;
 static uint32_t crouch_landing_sp;
 static unsigned crouch_landings;
@@ -46,7 +58,7 @@ static void crouch_landing_start(CPUState* cpu,uint32_t ra) {
     psx_mod_write_half(player+0x60,178);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
     // This bit requests the selector's running continuation; crouch owns it now.
     psx_mod_write_word(player+0x228,psx_mod_read_word(player+0x228)&~8u);
-    crouch_landing_started=true;++crouch_entries;++crouch_landings;
+    crouch_landing_started=true;crouch_landing_easing=true;++crouch_entries;++crouch_landings;
     if(std::getenv("DNTTK_TRAVERSAL_TRACE"))std::fprintf(stderr,"ttk-crouch landing %u -> 178 height=%.0f\n",a,crouch_walk_height);
 }
 static void crouch_landing_finish(CPUState* cpu,uint32_t ra) {

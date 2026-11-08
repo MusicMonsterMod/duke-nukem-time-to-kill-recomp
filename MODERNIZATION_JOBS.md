@@ -2488,7 +2488,7 @@ the user asks.
 
 ### D08K15 - Duke jerks upright when the box he crouches on is kicked apart
 
-**Status: Todo (user report 2026-11-08). Dependencies: D08K7, D12A, D12E1.**
+**Status: Done (2026-11-08, accepted and closed; user: "thats a winner. lock it in and close it out"; [note 420](documentation/420-d08k15-fall-start-camera.md)). Dependencies: D08K7, D12A, D12E1.**
 User: "for slot 9, when you crouch on this box, look down, and then quick kick
 to break it, theres some weird glitch that happens when duke selfrights really
 quickly, like jerks him somehow. this is all boxes of this type in fact."
@@ -2503,6 +2503,43 @@ vanishes under the one-knee kneel (D08K8), so trace per frame the animation,
 D12E1) to find which owner snaps him upright. Fix as a smooth drop (stay low
 or recover with the normal stand-up), Modernized only; Vanilla unchanged.
 Acceptance: user playtest of slot 9 and another box of the type.
+
+**Work log (2026-11-08, Needs playtest).** Cause: the jerk was the view, not
+Duke's body. When the crate breaks, the fall initializer sets 108 one update
+before mode 9, and that update (108 at 0/0) was not in the camera lease. First
+person dropped for one update ("unsupported-camera") and the orbit re-seeded
+from the native camera, so the pitch snapped from looking down (1.046) to
+level (0.039). `unowned_fall_early()` in `modern_controls.cpp` now also covers
+108 at 0/0 when it is not an owned short fall: every unowned fall start, not
+only this crate. Lab (`recomp/analysis/d08k15/`, private slot 9 copy, first
+person, 180 and 60 Hz): first person stays active, pitch holds through the
+break, fall and crouch landing (held Ctrl stays low; C toggle lands with the
+normal soft landing and stands, as the D21 latch ends in the air).
+`ttk-input-test` and `ttk-aim-test` pass. `ttk-controls-test` fails at the D14
+`hud_intact()` assertion with or without this change (pre-existing; its
+missing D49 `replay_beam_roots` stub was added so it links again). Test input
+gains `p` (view key). Not tested in the lab: third person (a crouched Duke
+cannot kick there) and a second type 303 crate (the teleport left the lab game
+stuck). Executable
+`38bdab2ea9e68371ab8e5b130ef52885c5c918c5ebd63058be857be08fe15fc2`. Needs
+the user's playtest of slot 9 and another crate of the type.
+
+**Playtest round 1 (2026-11-08, Needs playtest).** User: "this has
+essentially fixed it", but crouched after the break, turning made the left
+leg pop in and out. Cause: after the crouch landing the eye sat 353-354 above
+the pelvis against the crouched-legs limit of 352 (ordinary crouch 225). The
+native camera pivot leaves the root around the drop (about 280 above it on
+the fall's first update, already on the floor while the D08K9 landing eases
+the root down), and the eye's +-64 dead band, measured from that pivot, was
+left 128 units high. Any jump landed with Ctrl held did the same. Now the
+eye's height is measured from the root on the fall's first update and during
+the landing ease (`first_person_anchor`, `crouch_landing_eye_root()`). The
+eye descends with the body and settles 220-240 above the pelvis; the leg is
+steady while turning (60 and 180 Hz, crate break and jump landing). Input and
+aim suites pass. Executable
+`d63d61048b3a4aaf298a54ce46aba88cc000ed069f20856d0f504ed68c291957`.
+
+**Accepted (2026-11-08).** User: "thats a winner. lock it in and close it out".
 
 ### D10H6 - Repeat rate parity with Duke 3D analogs
 
@@ -8877,7 +8914,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K12 | Crouch running with the configured run action | Done (user-accepted) | D08K, D08K11, D08L1, D21 |
 | D08K13 | Sustained backwards crouch movement enters a legacy roll | Done | D08K12, D21A |
 | D08K14 | MGS-based crouch walk/run quality, hand posture and HTML preview | Done (revision 2 accepted) | D08K13, D08K6 |
-| D08K15 | Duke jerks upright when the box he crouches on is kicked apart (slot 9, all boxes of the type) | Todo | D08K7, D12A, D12E1 |
+| D08K15 | Duke jerks upright when the box he crouches on is kicked apart (slot 9, all boxes of the type) | Done | D08K7, D12A, D12E1 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |

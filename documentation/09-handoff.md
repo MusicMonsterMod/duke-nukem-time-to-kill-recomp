@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-11-08 - D08K15 view snaps level when a crate under Duke breaks (Done)
+
+Kicking apart the crate a crouched Duke stands on (UI slot 9, all type 303
+crates) jerked the first-person view level. The fall's first update (108
+before mode 9) was missing from the camera lease. First person dropped for
+that update and the orbit re-seeded from the native camera, so the pitch
+snapped from looking down to level. `unowned_fall_early()` now covers that
+update for every unowned fall start. Lab on a private slot 9 copy (180/60 Hz):
+pitch and first person hold through the break, fall and crouch landing.
+Input and aim suites pass. `ttk-controls-test` has a pre-existing D14
+`hud_intact()` failure. [Note 420](420-d08k15-fall-start-camera.md). Needs the
+user's playtest of slot 9 and another crate of the type.
+
+Round 1: the left leg popped in and out while turning crouched after the
+landing (the eye was left 128 units high by the camera pivot's drop
+transient, at the edge of the crouched-legs test; any jump landed with Ctrl
+held too). The eye's height now follows the root on the fall's first update
+and during the crouch landing's ease; the leg is steady.
+
+Accepted 2026-11-08: "thats a winner. lock it in and close it out". Executable
+`d63d61048b3a4aaf298a54ce46aba88cc000ed069f20856d0f504ed68c291957`.
+
 ## 2026-11-08 - D10H8 first-person world drawn nearer the present (Done)
 
 At 120/180 Hz the redraw replayed the older game frame's display list, so a

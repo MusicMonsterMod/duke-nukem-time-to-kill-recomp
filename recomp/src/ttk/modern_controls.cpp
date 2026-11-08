@@ -821,6 +821,12 @@ static bool unowned_fall_early() {
     // after an owned jump, is camera only; the camera hook then drops the stale
     // jump ownership (flight_valid) as for any animation outside the flight set.
     const bool owned=animation==108 && flight_valid && short_fall;
+    // D08K15: the fall initializer sets 108 one update before the dispatcher
+    // sets mode 9 (support gone under a still Duke: a crate kicked or shot apart
+    // beneath him, crouched or standing). That update (0/0) was unleased, so
+    // the eye view dropped and the orbit re-seeded from the native camera: the
+    // view pitch snapped level.
+    if(animation==108 && mode==0 && previous==0 && !owned)return true;
     return (animation==107 || animation==108) && mode==9 && (previous==9 || previous==0) && !owned;
 }
 // D08U: the host-blended top-of-ladder mount (ladder_top.inc).

@@ -498,3 +498,8 @@ directory (`build-local/CMakeFiles/psx-runtime.dir/psxrecomp/runtime/src`) or
 the render-thread copies fail to link. Developer: `DNTTK_LIGHT_TRACE=1` logs
 light sources, `DNTTK_LIGHT_AMBIENT=<percent>` scales the original colour of
 lit surfaces. See [note 413](413-d41-lighting-case-study.md).
+D41H: models take smoothed per-corner normals (console `light smooth
+on|off|default` for a session comparison; developer `DNTTK_SMOOTH_LIGHT=0`,
+`DNTTK_SMOOTH_CREASE=<degrees>`, `DNTTK_SMOOTH_TRACE=1`). The framework call
+`psx_mod_gpu_host_vertex_world_normal` is a new render-copy global, so
+`gen_names.py` was rerun.

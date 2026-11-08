@@ -37,7 +37,7 @@ void near_clip_flip();
 // D41A: the frame's camera (camera +0x20 matrix, 4.12 with row 0's aspect)
 // for world positions of lit corners (relative to the eye); valid false
 // stops them (dynamic_lights.inc).
-void near_clip_light_frame(bool valid,const double m[9]);
+void near_clip_light_frame(bool valid,const double m[9],bool smooth=false);
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();

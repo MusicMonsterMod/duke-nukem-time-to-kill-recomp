@@ -7033,10 +7033,39 @@ regressions on the D17 performance routes.
 
 ### D41H - Smooth light on models
 
-**Status: Todo. Dependencies: D41C.** Per-vertex normals for actor and prop
+**Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop
 meshes (averaged per mesh, cached by mesh) so light rounds over bodies instead
 of showing flat facets; optional later: normal or specular detail. Acceptance:
 matched shots of an enemy under a test light, faceted and smooth.
+
+Work log 2026-11-08: `near_clip.cpp` `smooth_model_normals` gives every lit
+actor and prop corner (Duke too) the area-weighted mean of the mesh's face
+normals at that corner, within a 65 degree crease, welded across texture
+seams, outward (front faces face the eye), recomputed per draw rather than
+cached so animated meshes stay correct (about 4.6 us per mesh). The GL
+shader interpolates them; model light is one-sided with a slight wrap,
+double-sided faces and the world keep D41A's two-sided facing. Console
+`light smooth on|off|default`. Matched offscreen shots (private savestate
+reloaded faceted and smooth): a figure, a pig cop, Duke, the street pole and
+the pistol, `research/before-after/d41h-smooth-light/`. 180 Hz 0 missed
+redraws. Remaining: user playtest of the look in both views; normal or
+specular detail stays optional later work.
+
+### D46 - Apartment mirror shows the outside when Duke turns left
+
+**Status: Todo (backlog, reported 2026-11-08; user: "do not work on it now",
+next after the D41H closeout). Dependencies: none known.** User, after the
+D41H playtest: "slot 8 will load you into the apartment, if you turn duke to
+the left, you'll notice that the mirror pops into the outside. i never
+noticed this before". Unknown whether it is a regression and from which job
+(candidates to check: the D41C/D41H host-drawn lit Duke and models, D17
+host visibility and unified geometry, the D40 renderer switch); compare with
+dynamic lights off, `light smooth off`, `DNTTK_DUKE_LIGHT=0`, the Classic
+renderer and Vanilla, and older builds if needed. Work only on a private copy
+of the player's slot 8 (never the player's saves or cards). Acceptance:
+reproduce on the copy, name the owner of the wrong mirror view with evidence,
+fix it game-wide (not for this mirror only) and matched shots before and after
+turning left; user playtest.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -8335,7 +8364,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
-| D41H | Smooth light on models: per-vertex normals for actors and props | Todo | D41C |
+| D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -8343,6 +8372,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D44B | Earthquakes from scripted level events (collapses, crashes, large set pieces; Duke 3D's SE 2 analogue): survey the level overlays' event code, then add sources to the D44A timer | Done (user-accepted 2026-11-05; note 399) | D44A |
 | D44C | Earthquakes for the overlays' remaining native shakes: MINER 69ER tremor rooms (held while Duke is inside), the OBEY OR DIE / PIG FACTORY robot turrets (types 621-623), the WING'ED DEATH and Moloch landings; train unchanged | Done (user-accepted 2026-11-06; note 400) | D44B |
 | D45 | MINER 69ER drill section drama (UI slot 11): tasteful set-piece additions (explosions on arrival, events) that complement the drill and its puzzle, LA Rumble inspired; small level editing, not a redesign | Todo (backlog, user 2026-11-06: not now) | D44C |
+| D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Todo (backlog, reported 2026-11-08) | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

@@ -388,13 +388,17 @@ NearGte read_gte(const CPUState* cpu) {
 // e: the GTE's integer screen position minus the true projection (original
 // corners); new points carry it interpolated along their edge, so a piece's
 // edge runs exactly where the original renderer's neighbouring polygon has it.
-struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
+// n (D41H): world-space shading normal of a lit model corner (0: none).
+struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; double n[3]={0,0,0}; };
 // One polygon to draw here: attributes resolved as its renderer would.
 struct Poly {
     uint32_t source=0;
     bool phone_back=false;
     bool native_order=false;int native_slot=-1;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
+    // D41H: smoothed world normal per corner (zero: the face's own) and
+    // whether the face is seen from both sides (light from either side).
+    float n[4][3]{};bool two_sided=false;
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
     double key_z;
@@ -620,7 +624,7 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 }
 // D41A: view to world (relative to the eye) for lit corners: v = M d / 4096,
 // so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
-bool light_frame=false;double light_inv[9];
+bool light_frame=false,light_smooth=false;double light_inv[9];
 // D41C: Duke's own layers too (weapon, held item, display arms and legs):
 // their view-space corners are where they appear before the eye, so world
 // lights reach them where the player sees them. The first-person layer's
@@ -700,7 +704,10 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:f.borrowed?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
             if(lit) {
                 const double* p=v[i].p;const double* m=light_inv;
-                psx_mod_gpu_host_vertex_world(addr,word,(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]));
+                const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]);
+                const double* nv=v[i].n;
+                if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
+                else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
         }
         ++precise_triangles;
@@ -721,6 +728,7 @@ Vertex mid(const Vertex& a,const Vertex& b,double t) {
     Vertex m{};
     for(int i=0;i<3;++i){m.p[i]=a.p[i]+(b.p[i]-a.p[i])*t;m.rgb[i]=a.rgb[i]+(b.rgb[i]-a.rgb[i])*t;}
     for(int i=0;i<2;++i) m.uv[i]=a.uv[i]+(b.uv[i]-a.uv[i])*t;
+    for(int i=0;i<3;++i) m.n[i]=a.n[i]+(b.n[i]-a.n[i])*t;
     // The snap error is linear along the edge on screen: screen parameter from
     // the view-space one (perspective) where both ends are in front of the eye.
     const double den=a.p[2]+t*(b.p[2]-a.p[2]);
@@ -946,6 +954,7 @@ void draw(Frame& f,const Poly& poly) {
         Vertex v{};
         for(int a=0;a<3;++a){v.p[a]=f.verts[i].view[a];v.rgb[a]=(poly.colors[k]>>(8*a))&0xff;}
         v.uv[0]=poly.uv[k]&0xff;v.uv[1]=(poly.uv[k]>>8)&0xff;
+        for(int a=0;a<3;++a) v.n[a]=poly.n[k][a];
         v.original=f.verts[i].safe && !poly.exact_screen?i:-1;
         if(v.original>=0 && v.p[2]>0) {
             double x,y;screen(f,v,x,y);
@@ -1007,6 +1016,7 @@ void draw(Frame& f,const Poly& poly) {
                 tri.idx[j]=poly.idx[indices[j]];
                 tri.colors[j]=poly.colors[indices[j]];
                 tri.uv[j]=poly.uv[indices[j]];
+                for(int a=0;a<3;++a) tri.n[j][a]=poly.n[indices[j]][a];
             }
             // Keep the source world's maximum-depth key across both halves.
             if(!f.object && source_order)
@@ -1042,7 +1052,7 @@ void draw(Frame& f,const Poly& poly) {
         // follows the corners' snap to the GTE's integer positions.
         Vertex centre{};centre.original=-1;
         for(const auto& v:shape) {
-            for(int a=0;a<3;++a) {centre.p[a]+=v.p[a]/4;centre.rgb[a]+=v.rgb[a]/4;}
+            for(int a=0;a<3;++a) {centre.p[a]+=v.p[a]/4;centre.rgb[a]+=v.rgb[a]/4;centre.n[a]+=v.n[a]/4;}
             centre.uv[0]+=v.uv[0]/4;centre.uv[1]+=v.uv[1]/4;centre.ex+=v.ex/4;centre.ey+=v.ey/4;
         }
         for(unsigned i=0;i<4;++i) {pieces[i].push_back(shape[i]);pieces[i].push_back(shape[(i+1)%4]);pieces[i].push_back(centre);}
@@ -1857,6 +1867,116 @@ bool open_models_on() {static const bool v=env_int("DNTTK_OPEN_MODELS",1,0,1)!=0
 uint64_t folded_quads=0;
 bool folded_quads_on() {static const bool v=env_int("DNTTK_FOLDED_QUADS",1,0,1)!=0;return v;}
 // 0x80010000 entry, same register contract as the world renderer.
+// D41H: smooth light on models. TTK's meshes carry no normals (note 184) and
+// D41A shades each face by its own plane, so a body shows its facets under a
+// light. Each corner of a drawn face takes the area-weighted mean of the
+// mesh's face normals at that corner (every face of the list, drawn or
+// culled, with corners at the same position welded), limited to faces within
+// the crease angle of its own, so rounded parts shade round and hard edges
+// (crates, a gun's slide) stay hard. World space, the space of the lights;
+// recomputed per draw so animated meshes keep correct normals. Outward
+// normals: front faces face the eye (front_facing's sign), so a light
+// behind a closed body leaves its far side unlit. A face seen from both
+// sides (double-sided, open-model backs) keeps two-sided light
+// (shorter normal, gpu_gl_renderer.c). DNTTK_SMOOTH_CREASE=<degrees>
+// (developer, default 65).
+double smooth_crease_cos() {
+    static const double v=std::cos(env_int("DNTTK_SMOOTH_CREASE",65,0,180)*3.14159265358979323846/180.0);return v;
+}
+void smooth_model_normals(const Frame& f,std::vector<Poly>& polys,uint32_t list,unsigned count,uint32_t flags) {
+    if(polys.empty() || !count) return;
+    // DNTTK_SMOOTH_TRACE=1 (developer): every 4000 meshes, the mean cost and
+    // how many drawn faces' outward normals face the eye (should be all but
+    // double-sided faces).
+    static const bool smooth_trace=std::getenv("DNTTK_SMOOTH_TRACE")!=nullptr;
+    const auto t0=smooth_trace?std::chrono::steady_clock::now():std::chrono::steady_clock::time_point{};
+    struct V3 {double x,y,z;};
+    thread_local std::vector<V3> w;thread_local std::vector<int> rep,order;
+    thread_local std::vector<V3> fn;thread_local std::vector<int> fstart,fadj,fill;
+    w.resize(count);rep.resize(count);order.resize(count);
+    const double* m=light_inv;
+    for(unsigned i=0;i<count;++i) {
+        const double* p=f.verts[i].view;
+        w[i]={m[0]*p[0]+m[1]*p[1]+m[2]*p[2],m[3]*p[0]+m[4]*p[1]+m[5]*p[2],m[6]*p[0]+m[7]*p[1]+m[8]*p[2]};
+        order[i]=(int)i;
+    }
+    // Weld corners at one model position (texture seams): same view position.
+    std::sort(order.begin(),order.end(),[&](int a,int b) {
+        const double* p=f.verts[a].view;const double* q=f.verts[b].view;
+        for(int k=0;k<3;++k) if(p[k]!=q[k]) return p[k]<q[k];
+        return a<b;});
+    for(unsigned i=0;i<count;++i) {
+        const int a=order[i];
+        rep[a]=i && !std::memcmp(f.verts[a].view,f.verts[order[i-1]].view,sizeof(double)*3)?rep[order[i-1]]:a;
+    }
+    const double a0=light_inv[0],a1=light_inv[1],a2=light_inv[2],a3=light_inv[3],a4=light_inv[4],a5=light_inv[5],a6=light_inv[6],a7=light_inv[7],a8=light_inv[8];
+    const double det_m=a0*(a4*a8-a5*a7)-a1*(a3*a8-a5*a6)+a2*(a3*a7-a4*a6);
+    // det(v0,v1,v2) = n_view . v0 and front faces have sign*det > 0, so the
+    // outward view normal is -sign * n_view; in world space det(M) flips it.
+    const double orient=((flags&0x400)?1.0:-1.0)*(det_m<0?-1.0:1.0);
+    auto face_normal=[&](const int* idx,unsigned corners) {
+        const V3& p0=w[idx[0]];const V3& p1=w[idx[1]];const V3& p2=w[idx[2]];
+        V3 e1,e2;
+        if(corners==4) {const V3& p3=w[idx[3]];e1={p3.x-p0.x,p3.y-p0.y,p3.z-p0.z};e2={p2.x-p1.x,p2.y-p1.y,p2.z-p1.z};}
+        else {e1={p1.x-p0.x,p1.y-p0.y,p1.z-p0.z};e2={p2.x-p0.x,p2.y-p0.y,p2.z-p0.z};}
+        return V3{orient*(e1.y*e2.z-e1.z*e2.y),orient*(e1.z*e2.x-e1.x*e2.z),orient*(e1.x*e2.y-e1.y*e2.x)};
+    };
+    // Every face of the list, by welded corner (two passes: count, fill).
+    fn.clear();fadj.clear();fstart.assign(count+1,0);
+    thread_local std::vector<int> fidx;fidx.clear();
+    uint32_t cursor=list;
+    for(unsigned guard=0;guard<=256;++guard) {
+        const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+        const uint32_t type=header&0xffff,n=header>>16;
+        if(type==0xff) break;
+        const unsigned size=object_record_size(type);
+        if(!size || !n || n>4096) return;
+        const unsigned corners=(type&8)?4:3;
+        for(uint32_t k=0;k<n;++k,cursor+=size) {
+            const uint32_t word=psx_mod_read_word(cursor);int idx[4];
+            for(unsigned j=0;j<corners;++j) {idx[j]=(int)((word>>(8*j))&0xff);if(idx[j]>=(int)count) return;}
+            const V3 v=face_normal(idx,corners);
+            if(v.x*v.x+v.y*v.y+v.z*v.z<=1e-12) continue;
+            fn.push_back(v);
+            for(unsigned j=0;j<corners;++j) {fidx.push_back(rep[idx[j]]);++fstart[rep[idx[j]]+1];}
+            fidx.push_back(-1);
+        }
+    }
+    for(unsigned i=0;i<count;++i) fstart[i+1]+=fstart[i];
+    fadj.resize(fstart[count]);fill.assign(fstart.begin(),fstart.end()-1);
+    for(size_t i=0,face=0;i<fidx.size();++i) {
+        if(fidx[i]<0) {++face;continue;}
+        // A degenerate quad may name a corner twice: count the face once.
+        bool seen=false;for(int j=fstart[fidx[i]];j<fill[fidx[i]];++j) seen|=fadj[j]==(int)face;
+        if(!seen) fadj[fill[fidx[i]]++]=(int)face;
+    }
+    const double crease=smooth_crease_cos();
+    for(auto& p:polys) {
+        const V3 own=face_normal(p.idx,p.count);
+        const double ol=std::sqrt(own.x*own.x+own.y*own.y+own.z*own.z);
+        if(ol<=1e-6) continue;
+        const double scale=p.two_sided?0.4:1.0;
+        for(unsigned j=0;j<p.count;++j) {
+            const int r=rep[p.idx[j]];V3 sum{0,0,0};
+            for(int a=fstart[r];a<fill[r];++a) {
+                const V3& q=fn[fadj[a]];
+                const double ql=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z);
+                if((q.x*own.x+q.y*own.y+q.z*own.z)<crease*ql*ol) continue;
+                sum.x+=q.x;sum.y+=q.y;sum.z+=q.z;
+            }
+            double sl=std::sqrt(sum.x*sum.x+sum.y*sum.y+sum.z*sum.z);
+            if(sl<=1e-9) {sum=own;sl=ol;}
+            p.n[j][0]=(float)(scale*sum.x/sl);p.n[j][1]=(float)(scale*sum.y/sl);p.n[j][2]=(float)(scale*sum.z/sl);
+        }
+    }
+    if(smooth_trace) {
+        thread_local uint64_t calls=0,faces=0,ns=0,eye=0,drawn=0;
+        for(const auto& p:polys) if(!p.two_sided) {const V3 n=face_normal(p.idx,p.count);const V3& q=w[p.idx[0]];eye+=(n.x*q.x+n.y*q.y+n.z*q.z)<0;++drawn;}
+        ++calls;faces+=fn.size();ns+=(uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t0).count();
+        if(calls%4000==0) std::fprintf(stderr,"[TTK smooth] %llu meshes, %.1f faces and %.2f us each, outward toward eye %llu of %llu drawn\n",
+            (unsigned long long)calls,(double)faces/calls,ns/1000.0/calls,(unsigned long long)eye,(unsigned long long)drawn);
+    }
+}
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const LimbPresentation limb=first_person_limb_presentation();
@@ -1988,8 +2108,9 @@ void object(CPUState* cpu) {
             if(p.count==4 && folded_quads_on() && unified_scene(f) && !actor && !body && !viewmodel && !f.sky &&
                front_facing(f,half,flags,false)) {folded=true;++folded_quads;trace_record(f,"folded_half",record);}
             else if(!open_faces || !std::binary_search(open_faces->begin(),open_faces->end(),record)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
-            else {++open_model_drawn;trace_record(f,"open_back",record);}
+            else {++open_model_drawn;trace_record(f,"open_back",record);p.two_sided=true;}
         }
+        p.two_sided|=(bits&1)!=0;
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
         p.phone_back=phone && type==0x2c && word==0x06020400u &&
@@ -2027,6 +2148,8 @@ void object(CPUState* cpu) {
         polys.push_back(p);
     }
     if(!viewmodel) rank_coplanar(f,polys);
+    if(light_frame && light_smooth && !f.sky && !f.biomask && (unified_scene(f) || f.duke_lit))
+        smooth_model_normals(f,polys,list,count,flags);
     for(const auto& p:polys) draw(f,p);
 }
 #include "water_clip.inc"
@@ -2235,8 +2358,8 @@ void near_clip_prepare() {
     }
 }
 void near_clip_flip() {region_chosen=false;model_end();light_frame=false;}
-void near_clip_light_frame(bool valid,const double m[9]) {
-    light_frame=false;
+void near_clip_light_frame(bool valid,const double m[9],bool smooth) {
+    light_frame=false;light_smooth=smooth;
     if(!valid) return;
     const double a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7],i=m[8];
     const double det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);

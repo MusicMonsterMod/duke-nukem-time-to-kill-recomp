@@ -28,9 +28,17 @@
 struct LightSrc {double p[3];float rgb[3];double radius;int age,life,kind;};
 enum {light_kind_blast=1,light_kind_muzzle=2,light_kind_test=3};
 static LightSrc light_srcs[24];static unsigned light_src_count;
-struct LightView {uint32_t n=0;float amb=1;PSXModLight l[PSX_MOD_MAX_LIGHTS];};
+// D41H: smooth tells near_clip.cpp to give model corners smoothed normals
+// (console "light smooth on|off", DNTTK_SMOOTH_LIGHT=0 developer default off).
+struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];};
 static LightView light_view;                 // this image's lights (RenderState)
 static std::atomic<int> light_console{0};    // 1 add test light, 2 clear
+static std::atomic<int> light_smooth{-1};     // D41H session override (-1 default)
+static bool light_smooth_on() {
+    const int o=light_smooth.load(std::memory_order_relaxed);
+    if(o>=0) return o!=0;
+    static const bool v=[]{const char* t=std::getenv("DNTTK_SMOOTH_LIGHT");return !(t && t[0]=='0');}();return v;
+}
 static float light_console_rgb[3]={1.0f,0.85f,0.6f};static double light_console_radius=4000;
 static uint64_t light_blasts,light_muzzles,light_uploads;
 static uint32_t light_loads;
@@ -90,7 +98,7 @@ static unsigned lights_flight(PSXModLight* out,unsigned room) {
     return n;
 }
 static void lights_publish() {
-    LightView v;v.amb=light_ambient();
+    LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
     v.n=lights_flight(v.l,8);
     for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const LightSrc& s=light_srcs[i];
@@ -181,7 +189,9 @@ static void lights_shake(CPUState* cpu) {
 // Host walk (draw time, live process and redraw workers): this image's
 // lights relative to the eye that the corners are given in.
 static void lights_upload(bool valid,const double m[9],const double eye[3]) {
-    near_clip_light_frame(valid && lights_enabled(),m);
+    // D41H: normals only matter where the shader lights (a light or a dimmed
+    // ambient); otherwise lit triangles keep their original colour.
+    near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f));
     if(!valid || !lights_enabled()) {psx_mod_gpu_set_lights(nullptr,0,1.0f);return;}
     PSXModLight l[PSX_MOD_MAX_LIGHTS];
     const unsigned n=std::min<unsigned>(light_view.n,PSX_MOD_MAX_LIGHTS);
@@ -201,6 +211,17 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
     if(ttk_world_classic()) {say("Light: dynamic lights need the Polymorph renderer");return true;}
     const char* arg=line+5;while(*arg==' ')++arg;
     if(!std::strcmp(arg,"off")) {light_console.store(2);say("Light: test lights removed");return true;}
+    // D41H: "light smooth [on|off|default]" - smooth or faceted light on
+    // models for this session (matched comparisons).
+    if(!std::strncmp(arg,"smooth",6) && (!arg[6] || arg[6]==' ')) {
+        const char* v=arg+6;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) light_smooth.store(1);
+        else if(!std::strcmp(v,"off")) light_smooth.store(0);
+        else if(!std::strcmp(v,"default")) light_smooth.store(-1);
+        else if(*v) {say("Light: light smooth [on|off|default]");return true;}
+        say(light_smooth_on()?"Light: smooth light on models":"Light: faceted light on models (session only)");
+        return true;
+    }
     if(*arg) {
         float r,g,b;double radius=light_console_radius;
         const int got=std::sscanf(arg,"%f %f %f %lf",&r,&g,&b,&radius);

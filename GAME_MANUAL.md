@@ -346,8 +346,10 @@ each shot Duke fires warms the ground and walls around his gun for a
 moment, and rockets and energy beam rounds carry their own light as they fly. The light falls off with distance and faces the surfaces it reaches;
 the game's own painted lighting stays underneath. Duke himself, his
 first-person weapon, arms and legs take the light too (while a power-up
-effect plays on him he keeps his original look). It is a first version: the
-light still passes through walls. Turn it off in **OPTIONS > DISPLAY >
+effect plays on him he keeps his original look). Light rounds smoothly over
+characters and props instead of showing their flat facets, and lights only
+the side of a figure that faces it. It is a first version: the light still
+passes through walls. Turn it off in **OPTIONS > DISPLAY >
 DYNAMIC LIGHTS** (it switches at once and saves); the launcher accepts
 `--dynamic-lights on|off` and terminal `--settings` uses **I Dynamic
 lights**. The Classic renderer and Vanilla have no dynamic lights.
@@ -355,7 +357,9 @@ lights**. The Classic renderer and Vanilla have no dynamic lights.
 The backtick console's `light` places a warm test light above Duke where he
 stands; `light <r> <g> <b> [radius]` picks its colour (0 to 4 for each, 1 is
 about as strong as a lamp) and reach (500 to 30000 units, 4000 by default),
-and `light off` removes the test lights.
+and `light off` removes the test lights. `light smooth off` shows the
+faceted light on models for comparison until `light smooth on` (or the next
+launch).
 
 ### Portable steroids (Modernized)
 

@@ -79,6 +79,7 @@ extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t,uint32_t,int32_t,int32
 extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 // D41A dynamic lighting.
 extern "C" int psx_mod_gpu_host_vertex_world(uint32_t,uint32_t,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_world_normal(uint32_t,uint32_t,float,float,float,float,float,float){return 1;}
 extern "C" void psx_mod_gpu_set_lights(const PSXModLight*,int,float){}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}

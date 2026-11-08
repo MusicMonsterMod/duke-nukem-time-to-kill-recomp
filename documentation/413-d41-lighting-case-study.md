@@ -208,7 +208,7 @@ actor polygon.
 - D41F Shadows (research spike, then shadow maps for chosen lights).
 - D41G Light scale and cost (clustered lights, untextured polygons, sprites,
   translucency, 180 Hz budgets).
-- D41H Smooth light on models (per-vertex normals).
+- D41H Smooth light on models (section 9; Done 2026-11-08).
 
 ## 7. D41B first part (accepted 2026-11-08)
 
@@ -260,3 +260,47 @@ and fixed-projection limbs (`f.scene` false) were excluded by `lit_frame`.
   the hand lights Duke's own body strongly for its 3 tics (judge in
   playtest); a power-up effect returns Duke to the original renderer for its
   duration, so he is unlit then; mirror Duke stays as before.
+
+## 9. D41H - Smooth light on models (accepted and closed 2026-11-08)
+
+User: "it looks good still! ... it looks great".
+
+Before: the shader took each lit triangle's normal from screen derivatives of
+its world position (one flat normal per face, two-sided), so bodies and
+round props showed their facets under a light (D41C limits).
+
+- `near_clip.cpp` `smooth_model_normals` (per `object()` draw, while the
+  image has lights or a dimmed ambient and the toggle is on): world positions
+  of the mesh's corners (`light_inv`), corners at the same model position
+  welded, every face of the list (drawn or culled) with an area-weighted
+  normal, and for each corner of each drawn face the sum of the faces at
+  that corner within the crease (`DNTTK_SMOOTH_CREASE`, default 65 degrees)
+  of its own. Outward: `det(v0,v1,v2) = n . v0` and front faces have
+  `sign*det > 0` (`front_facing`), so the outward normal is `-sign * n`,
+  times the sign of `det(light_inv)` in world space. Trace check: 97.9% of
+  drawn one-sided faces face the eye (the rest are folded and odd faces).
+- Corners carry the normal (`Poly::n`, `Vertex::n`, interpolated through
+  clipping); `emit` sends `psx_mod_gpu_host_vertex_world_normal`. Faces seen
+  from both sides (double-sided bit, open-model backs) send a 0.4-long
+  normal.
+- Framework: `HostPV` normal and `lit` 2, replay kind 6 with 8 words (5 still
+  accepted), `gl_set_host_world(enabled, w, n)`, `TexVert.wn` (attribute 13).
+  The fragment shader uses the interpolated normal when it is longer than
+  0.05; longer than 0.6 means one-sided: `nl = clamp((N.L + 0.25) / 1.25)`
+  (a little wrap past the terminator), otherwise `|N.L|` as D41A.
+- Toggle: `LightView.smooth` travels to redraw workers in RenderState; console
+  `light smooth on|off|default` (session), `DNTTK_SMOOTH_LIGHT=0` (developer
+  default off), `DNTTK_SMOOTH_TRACE=1` (cost and orientation every 4000
+  meshes).
+- Evidence (local, `recomp/analysis/d41h/`): level 0, ambient 55%, test light
+  at Duke, a spawned figure (type 123) and pig cop (57), saved to a private
+  slot of the card copy and reloaded with `light smooth off` and `on` for
+  matched poses. Thighs, torso, arms, Duke's back and legs and the street
+  pole lose their facet breaks; the pistol keeps its hard edges. 180 Hz:
+  5218 redraws, 0 misses; 4.6 us per lit mesh (17.6 faces mean).
+- Changed look to judge: model light is one-sided, so a light behind a
+  figure or prop no longer lights the side facing the camera (the apartment
+  armchair with the test light beyond it now stays dim).
+- Limits: the world stays per-face (flat walls); separate meshes (limbs drawn
+  as separate parts) do not share normals across their seam; normal and
+  specular detail remain optional later work.

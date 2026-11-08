@@ -1,5 +1,46 @@
 # Next-session handoff
 
+## 2026-11-08 - D41H accepted and closed; D46 mirror report on the backlog
+
+User, after playtesting D41H: "it looks good still! i take it this is a more
+subtle change, but still, it looks great"; then "lock us in and close it out".
+D41H is Done. The user also reported that in their slot 8 apartment the
+mirror "pops into the outside" when Duke turns left; whether it is a
+regression is unknown. Added as D46 (Todo, next job; not investigated yet).
+
+## 2026-11-08 - D41H smooth light on models (Needs playtest)
+
+Selected with "work on D41H". Actors and props (Duke included, both views)
+now take dynamic light through smoothed per-corner normals instead of each
+face's flat plane, so light rounds over bodies, poles and limbs instead of
+showing facets (Modernized, Polymorph, DYNAMIC LIGHTS on). Each drawn
+corner averages the mesh's face normals at that corner (every face of the
+list, culled ones too, texture-seam corners welded), limited to faces within
+65 degrees of its own, so hard edges (crates, the pistol's slide) stay hard.
+Normals are outward (front faces face the eye), so model light is now
+one-sided with a slight wrap: a light behind a body no longer lights the side
+the camera sees (D41A's two-sided light still applies to the world, to
+double-sided faces and to open-model backs). Recomputed per draw (animated
+meshes stay right). Console `light smooth on|off|default` compares for the
+session; developer `DNTTK_SMOOTH_LIGHT=0`, `DNTTK_SMOOTH_CREASE=<degrees>`,
+`DNTTK_SMOOTH_TRACE=1`. Framework: `psx_mod_gpu_host_vertex_world_normal`,
+replay kind 6 with 8 words, `TexVert` +12 bytes, attribute 13; patch
+exported and verified against a pristine pinned checkout. Build OK;
+`ttk-near-test` PASS (both geometry modes), `ttk-flash-test`,
+`ttk-live-env-test` PASS; `ttk-controls-test` fails at line 487
+(`movement_ready`) on every stored overlay fixture (stale fixtures, see
+earlier entries; D41H does not touch movement). Offscreen (private apartment
+cards, level 0, `DNTTK_LIGHT_AMBIENT=55`, lab `recomp/analysis/d41h/`,
+local): a spawned figure and a pig cop under a test light, saved to a
+private slot and reloaded faceted and smooth for matched poses; thighs,
+torso, arms, Duke and the street pole lose their facet breaks, the pistol
+keeps its edges. 180 Hz: 5218 redraws, 0 misses; about 4.6 us per lit mesh
+(17 faces mean); 97.9% of drawn one-sided faces had outward normals toward
+the eye. Before/after: `research/before-after/d41h-smooth-light/` (local).
+Executable `333b797f1b77e92e2372e4ca9c65f96085e7900132e920abf83caed27dc5a52a`.
+Needs playtest: smooth look on enemies, props and Duke in both views, and
+the one-sided change (a light behind a figure).
+
 ## 2026-11-08 - D41C accepted and closed: Duke and first person in the light
 
 User, after playtesting: "the lighting looks so much smoother than the game's

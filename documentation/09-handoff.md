@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-11-08 - D46 accepted and closed
+
+User: "fully accepted. excellent work! absolutely superb. lock it in, close it
+out". D46 is Done: the first-person eye view keeps `camera+0xa0` at H, so the
+portal walk no longer lists rooms behind walls and the slot 8 mirror keeps
+its reflection. Other mirrors and doorways elsewhere were not surveyed.
+
+## 2026-11-08 - D46 apartment mirror (Needs playtest)
+
+Selected with "work on D46". The slot 8 mirror showed the outdoor wall behind
+the bathroom when Duke turned left in first person. Cause: the original
+portal walk treats portals nearer than Duke (`camera+0xa0`) as full screen;
+in the eye view Duke's own draw returns early, so that depth stayed at the
+last third-person value (about 5400 units) and the walk listed outdoor rooms
+behind the wall, drawn over the reflection. Fix: `camera_target_near` writes
+H there, the original formula's own result for a camera at Duke (Modernized
+only; developer `DNTTK_TARGET_DEPTH=0`). Verified offscreen on a private
+slot copy at 60/180 Hz and in Classic; third person and Vanilla unchanged.
+See [note 414](414-d46-mirror-portal-depth.md). Needs the user's playtest.
+
 ## 2026-11-08 - D41H accepted and closed; D46 mirror report on the backlog
 
 User, after playtesting D41H: "it looks good still! i take it this is a more

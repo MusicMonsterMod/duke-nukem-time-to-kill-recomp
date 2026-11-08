@@ -7053,8 +7053,7 @@ specular detail stays optional later work.
 
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
-**Status: Todo (backlog, reported 2026-11-08; user: "do not work on it now",
-next after the D41H closeout). Dependencies: none known.** User, after the
+**Status: Done (user-accepted 2026-11-08: "fully accepted. excellent work! absolutely superb. lock it in, close it out"; [note 414](documentation/414-d46-mirror-portal-depth.md)). Dependencies: none known.** User, after the
 D41H playtest: "slot 8 will load you into the apartment, if you turn duke to
 the left, you'll notice that the mirror pops into the outside. i never
 noticed this before". Unknown whether it is a regression and from which job
@@ -7066,6 +7065,24 @@ of the player's slot 8 (never the player's saves or cards). Acceptance:
 reproduce on the copy, name the owner of the wrong mirror view with evidence,
 fix it game-wide (not for this mirror only) and matched shots before and after
 turning left; user playtest.
+
+Work log 2026-11-08: reproduced offscreen on a private copy of UI slot 8
+(file 7): from about yaw 55 the mirror shows the outdoor wall behind the
+bathroom. Same in Classic, with lights off, original draw distance and the
+other host culling switches off. Owner: the game's portal walk listed street
+rooms 5 and 6 (blanking room 6's pieces restored the reflection), because the
+portal rectangle test uses `camera+0xa0` (the depth of Duke) as its
+near-portal limit, and in the eye view Duke's draw returns before storing it
+(nearer than H), so it stayed at the third-person 5386. `camera_target_near`
+(first_person.inc) completes the original `max(depth, H)` for that case:
+`camera+0xa0` = H (160) for the main camera's own target, Modernized only,
+`DNTTK_TARGET_DEPTH=0` to compare. Matched before/after shots over a full
+left turn (60, 180 Hz, Classic): the mirror keeps its reflection; the street
+through the doorway is unchanged; third person and Vanilla identical.
+`ttk-near-test`, `ttk-input-test`, `ttk-aim-test` pass; `ttk-controls-test`
+stops at a pre-existing assertion with or without the change. Remaining:
+user playtest; other mirrors and first-person doorways elsewhere not
+surveyed.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -8372,7 +8389,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D44B | Earthquakes from scripted level events (collapses, crashes, large set pieces; Duke 3D's SE 2 analogue): survey the level overlays' event code, then add sources to the D44A timer | Done (user-accepted 2026-11-05; note 399) | D44A |
 | D44C | Earthquakes for the overlays' remaining native shakes: MINER 69ER tremor rooms (held while Duke is inside), the OBEY OR DIE / PIG FACTORY robot turrets (types 621-623), the WING'ED DEATH and Moloch landings; train unchanged | Done (user-accepted 2026-11-06; note 400) | D44B |
 | D45 | MINER 69ER drill section drama (UI slot 11): tasteful set-piece additions (explosions on arrival, events) that complement the drill and its puzzle, LA Rumble inspired; small level editing, not a redesign | Todo (backlog, user 2026-11-06: not now) | D44C |
-| D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Todo (backlog, reported 2026-11-08) | - |
+| D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Done (2026-11-08) | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

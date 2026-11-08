@@ -2094,3 +2094,30 @@ static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     const int h=cpu->gte_ctrl[26]&0xffff;
     if((int32_t)cpu->gpr[16]<h)cpu->gpr[16]=h;
 }
+
+// D46: camera+0xa0 is the depth of the camera's target (Duke), written by the
+// actor draw as max(depth, GTE H) (0x80034d04..0x80034d40) and read by the
+// portal walk's rectangle test (0x80062258, a5 = camera+0xa0): a portal with
+// a corner nearer than that depth takes its parent room's whole rectangle,
+// so rooms around Duke never pop. The actor draw returns before that store
+// when the target is nearer than H (0x80034c8c), which the original camera
+// never allows. Any Modernized camera that does (the eye view, any blend
+// toward it) kept the last third-person depth, about 5400 units: every
+// portal within that range of the eye then passed its parent's full screen
+// on, rooms behind walls were listed, and outdoor rooms behind the apartment
+// bathroom wall were drawn over the mirror's reflection. Here the original's
+// own formula is completed for that case: max(depth, H) = H. Only the main
+// camera's own target; reflections use the stacked mirror camera. Vanilla
+// never reaches it. DNTTK_TARGET_DEPTH=0 (developer) keeps the stale value.
+static uint64_t target_depth_writes=0;
+static void camera_target_near(CPUState* cpu,uint32_t ra) {
+    if(ra!=0x80034c8c || render_override || !input_modernized())return;
+    static const bool off=[]{const char* t=std::getenv("DNTTK_TARGET_DEPTH");return t && !std::strcmp(t,"0");}();
+    if(off)return;
+    const uint32_t sp=cpu->gpr[29];
+    if(sp<0x80010000 || sp>0x801fff60 || (sp&3) || psx_mod_read_word(sp+0x98)!=camera)return;
+    if(cpu->gpr[20]!=psx_mod_read_word(camera+0xa4) || !identity())return;
+    const int32_t h=cpu->gte_ctrl[26]&0xffff;
+    if((int32_t)cpu->gpr[16]>=h || (int32_t)psx_mod_read_word(camera+0xa0)==h)return;
+    psx_mod_write_word(camera+0xa0,(uint32_t)h);++target_depth_writes;
+}

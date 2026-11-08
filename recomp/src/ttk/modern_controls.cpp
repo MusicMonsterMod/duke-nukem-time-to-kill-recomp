@@ -1884,6 +1884,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(ra==0x800376b4 || ra==0x80037724) {third_body_drawing=false;head_restore();weapon_draw_bounds(false,true);}
     } else if (address==0x800b4d2c) {
         first_person_ladder_near(cpu,ra);
+        camera_target_near(cpu,ra);
     } else if (address==0x800292a0) {
         first_person_weapon_joint(cpu,ra);
         if(ra==0x80034c6c) third_person_mesh_begin(cpu);

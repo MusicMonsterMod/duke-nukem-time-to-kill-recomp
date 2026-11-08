@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D47 first shotgun shot smokes at the barrel (Done)
+
+A shotgun shot fired from rest put its puff and muzzle light at Duke's left
+shoulder. Duke's draw writes the muzzle point from the pose it draws; the
+shot, earlier in the frame, read the rest pose's point. This is the original
+order, not a regression. Modernized now moves that shot's puff and light onto
+the aimed muzzle when Duke's draw writes it, in the live game and in the
+120/180 Hz redraw copies. Rounds, hits, other guns and Vanilla are unchanged.
+Lab: puff at the aimed muzzle on every press, first and third person, 60 and
+180 Hz. Accepted 2026-11-08: "lock it in, close it out! good work"
+[Note 422](422-d47-first-shot-smoke.md).
+
 ## 2026-11-08 - D08A39 mission item label and count (Done)
 
 Accepted 2026-11-08 ("this is a winner"). The mission panel now widens to fit "MISSION", a gap and its count, so the

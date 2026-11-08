@@ -7442,7 +7442,7 @@ surveyed.
 
 ### D47 - First shotgun shot smokes from Duke's left shoulder
 
-**Status: Done (user-accepted 2026-11-08: "lock it in, close it out, that is fixed!"; closeout authorized; [note 391](documentation/391-d10h6-held-fire-clock.md)). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-08: "lock it in, close it out! good work"; closeout authorized; [note 422](documentation/422-d47-first-shot-smoke.md)). Dependencies: none.**
 User: "the first shoot from the shotgun seems to 'fire' (smoke etc) from
 duke's left shoulder (when viewed from first, and third person). you can see
 the smoke appear for no reason there. why does that happen? small glitch?"
@@ -7453,6 +7453,32 @@ first shot's smoke (and whether the round or flash also starts there), and
 whether it is original behaviour or a regression from the recomp's aim,
 muzzle or first-person work. Acceptance: the first shotgun shot's smoke
 appears at the muzzle like later shots, in both views, confirmed by the user.
+
+**Work log (2026-11-08, Needs playtest).** The status line had been
+overwritten by D51's closeout text (af34de4); D47 was never started before
+this. Lab `recomp/analysis/d47/lab.py`, private copy of UI slot 8. Cause:
+the puff (effect `0x12`), D41B's muzzle light and the rounds use the muzzle
+point player `+0xbc`. Duke's draw writes it (`0x80032364` in `0x800348d8`)
+from the pose it draws. The gun call runs earlier, in the update, so a press
+that finds the shotgun at rest reads the rest pose's muzzle, at the left
+shoulder (Duke-relative -203, -257, -246). The next frame draws the gun aimed
+(-374, -120, +68), so held shots are right. This happens on every press from
+rest. It is the original code order, not a recomp regression: the same with
+the original weapon timing, and the recomp never writes `+0xbc`. Fix
+(`muzzle_settle.inc`, Modernized only): the gun call notes the old muzzle and
+the live effects. At `0x80032bd8`, entered from Duke's draw right after the
+muzzle write, the shot's puff moves onto the new muzzle, and its muzzle light
+with it. Effects are drawn after the actors, so no live frame shows it at the
+shoulder. The state is in guest memory, so the 120/180 Hz redraw workers'
+copies (taken before that draw) make the same move. Only shots that left a
+puff there are moved, i.e. the shotgun; the Desert Eagle, Gatling and RPG are
+unchanged. Rounds and hits are unchanged. New entry hook `0x80032BD8`: one
+generated file, codegen hash unchanged, saves load. After: the puff is at the
+aimed muzzle on every press, first and third person, at 60 and 180 Hz (15
+consecutive 180 Hz frames, none at the shoulder). Vanilla: disabled. Input
+and aim suites pass; the controls suite stops at the known D14 HUD check.
+Remaining: at 120/180 Hz the first game frame's redraws still light from the
+old point. User playtest accepted 2026-11-08: "lock it in, close it out! good work"
 
 ### D48 - Steady left hand on the Gatling gun
 
@@ -9060,7 +9086,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D44C | Earthquakes for the overlays' remaining native shakes: MINER 69ER tremor rooms (held while Duke is inside), the OBEY OR DIE / PIG FACTORY robot turrets (types 621-623), the WING'ED DEATH and Moloch landings; train unchanged | Done (user-accepted 2026-11-06; note 400) | D44B |
 | D45 | MINER 69ER drill section drama (UI slot 11): tasteful set-piece additions (explosions on arrival, events) that complement the drill and its puzzle, LA Rumble inspired; small level editing, not a redesign | Todo (backlog, user 2026-11-06: not now) | D44C |
 | D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Done (2026-11-08) | - |
-| D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Todo | - |
+| D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Done (user-accepted; closed 2026-11-08; note 422) | - |
 | D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
 | D49 | Shots in step with the gun: the energy beam drawn from the barrel while turning and moving | Done 2026-11-08 | - |
 | D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |

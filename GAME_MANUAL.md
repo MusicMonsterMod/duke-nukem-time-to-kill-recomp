@@ -347,7 +347,9 @@ moment, and rockets, freezer and energy rounds carry their own light as they fly
 gun has its own flash at the point its round leaves: warm for the Desert
 Eagle, shotgun, Gatling, Buffalo Rifle and RPG (the shotgun, rifle and RPG
 bigger), violet-blue for the freezer, green for the energy weapon, and a
-flickering fire light along the flamethrower's jet. The flamethrowers'
+flickering fire light along the flamethrower's jet. In Modernized, a Combat Shotgun shot
+fired with the gun lowered puffs and flashes at the barrel, like held shots;
+the original put that first puff at Duke's left shoulder (D47). The flamethrowers'
 flames light their surroundings as they fly, and anything that burns (an
 enemy set alight, Duke himself) glows with a flickering fire light for as
 long as it burns. Enemies' shots flash at their guns too: warm for the pig

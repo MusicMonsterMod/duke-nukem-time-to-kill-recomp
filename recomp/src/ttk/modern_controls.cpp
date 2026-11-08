@@ -2327,6 +2327,29 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
     a.onehand_view.raise+=(b.onehand_view.raise-a.onehand_view.raise)*alpha;
     std::memcpy(out,&a,sizeof a);
 }
+// D10H8: the draw-time state for a redraw of the newer frame's display list.
+// Discrete state (weapon, frames, flags) is the newer frame's; the values the
+// base list blends between ticks take the same blended value, under the same
+// conditions, so poses match the pair blend. A new shot (kick rising) shows at
+// the newer tick with its muzzle flash, as the base list shows it at its tick.
+void render_state_blend_newer(void* out,const void* older,double alpha) {
+    RenderState n,a,f;std::memcpy(&n,out,sizeof n);std::memcpy(&a,older,sizeof a);
+    alignas(RenderState) unsigned char buf[sizeof(RenderState)];
+    std::memcpy(buf,&a,sizeof a);render_state_blend_mask(buf,&n,alpha);std::memcpy(&f,buf,sizeof f);
+    n.mask_bob=f.mask_bob;
+    if(a.weapon_slot==n.weapon_slot) n.run_arms=f.run_arms;
+    if(a.weapon_slot==6 && n.weapon_slot==6) {n.rifle_reload=f.rifle_reload;n.kick=f.kick;}
+    static const bool tick=[]{const char* t=std::getenv("DNTTK_DRAW_POSE");return t && !std::strcmp(t,"tick");}();
+    if(!tick) {
+        if(!(a.weapon_slot==6 && n.weapon_slot==6) && a.weapon_slot==n.weapon_slot && n.kick<=a.kick) n.kick=f.kick;
+        if(a.kick_active && n.kick_active && n.kick_frame>=a.kick_frame && n.kick_frame-a.kick_frame<=8) n.kick_frame=f.kick_frame;
+        if(a.door_valid && n.door_valid && n.door_frame>=a.door_frame) n.door_frame=f.door_frame;
+        if(a.channel_hand.valid && n.channel_hand.valid && a.weapon_slot==n.weapon_slot) n.channel_hand=f.channel_hand;
+        n.projection_blend=f.projection_blend;
+        n.onehand_view.raise=f.onehand_view.raise;
+    }
+    std::memcpy(out,&n,sizeof n);
+}
 void render_state_load(const void* in) {
     RenderState r;
     std::memcpy(&r,in,sizeof r);

@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-11-08 - D10H8 first-person world drawn nearer the present (Done)
+
+At 120/180 Hz the redraw replayed the older game frame's display list, so a
+new bullet hole, smoke, flash or HUD change showed a whole world delay (about
+65-75 ms) after the game made it: about 25 degrees of trail at a 360 deg/s
+turn. First person now replays the newer frame's list with the same blended
+positions (EDuke32 draws its newest sprites at interpolated positions), plus
+at most 16 ms of extrapolation (user's choice after A/B against 8: "a whole
+tonne better", no wobble seen), limited per axis so stairs, stops and
+reversals hold instead of overshooting. Lab (180 Hz, first person): new hits 17-28 ms
+after their game frame instead of 57-71, trail about 10 degrees, world 6-9 ms
+fresher, smoothness, starved presents and pacing unchanged. Third person,
+Vanilla, 60 Hz and gameplay unchanged. A/B: `DNTTK_WORLD_DRAW=pair`,
+`DNTTK_WORLD_EXTRAP_MS=0|8`. [Note 419](419-d10h8-newest-world-draw.md).
+
+Accepted 2026-11-08: "it's a whole tonne better!", then "lock it in, close it out".
+
 ## 2026-11-08 - D49D bullet hits stay at the real hit, like EDuke32 (Done)
 
 User report after D49A: pistol and shotgun wall smoke looked as if it moved

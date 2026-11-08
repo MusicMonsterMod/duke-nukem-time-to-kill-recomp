@@ -308,6 +308,19 @@ bool blend_rot(const int16_t a[9],const int16_t b[9],double alpha,int16_t out[9]
     return true;
 }
 int32_t lerp_i(int32_t a,int32_t b,double alpha) {return (int32_t)std::lround(a+(double)(b-a)*alpha);}
+// D10H8: past the newest pose (alpha > 1) a position runs on at the speed
+// both of the last two game steps agree on (minmod, per axis): steady motion
+// continues, while a stop, a reversal or a one-step jump (a stair step, a
+// collision push-out) holds at the newest pose instead of overshooting.
+// Rotations hold at the newest pose. ext_ms is the time past it.
+struct Extrap {bool on=false; double ext_ms=0, sab=1, sza=1;} extrap;
+int32_t lerp_x(int32_t a,int32_t b,double alpha,const int32_t* z) {
+    if(alpha<=1.0) return lerp_i(a,b,alpha);
+    if(!extrap.on || !z) return b;
+    const double v1=(double)(b-a)/extrap.sab, v0=(double)(a-*z)/extrap.sza;
+    const double v=v1*v0<=0 ? 0.0 : std::fabs(v1)<std::fabs(v0) ? v1 : v0;
+    return (int32_t)std::lround(b+v*extrap.ext_ms);
+}
 // The view matrix (camera +0x20) is the camera rotation with its rows scaled
 // (row 0 by the horizontal aspect, 1.6). Blend it as a rotation with row
 // scales: lerping its elements made in-between views skew and shrink, and the
@@ -424,17 +437,18 @@ uint32_t scratch=0;            // mod memory ring for substituted matrices
 constexpr int scratch_n=64;
 
 // Build the job parameters for base frame a toward frame b at alpha.
-uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uint8_t* out) {
+uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uint8_t* out,const InterpState* z=nullptr) {
     Params p{};
     p.magic=0x54544b32u;
     p.alpha=(float)alpha;
+    const double ar=std::min(alpha,1.0);   // D10H8: rotations hold past the newest pose
     // Camera: a jump in the anchor (cut, teleport) keeps the base camera.
     CameraState c=a.camera;
     long dx=(long)b.camera.anchor[0]-a.camera.anchor[0],dy=(long)b.camera.anchor[1]-a.camera.anchor[1],dz=(long)b.camera.anchor[2]-a.camera.anchor[2];
     const bool cut=dx*dx+dy*dy+dz*dz>(long)2048*2048;
-    if(!cut && blend_rot(a.camera.rot,b.camera.rot,alpha,c.rot)) {
-        for(int i=0;i<3;++i) c.anchor[i]=lerp_i(a.camera.anchor[i],b.camera.anchor[i],alpha);
-        c.distance=(int16_t)lerp_i(a.camera.distance,b.camera.distance,alpha);
+    if(!cut && blend_rot(a.camera.rot,b.camera.rot,ar,c.rot)) {
+        for(int i=0;i<3;++i) c.anchor[i]=lerp_x(a.camera.anchor[i],b.camera.anchor[i],alpha,z?&z->camera.anchor[i]:nullptr);
+        c.distance=(int16_t)lerp_i(a.camera.distance,b.camera.distance,ar);
         // Through a doorway the in-between eye's room is found in the worker
         // by the game's own portal walk (flag 2); until then keep the base room.
         c.room=a.camera.room;
@@ -442,10 +456,10 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         static const int walk_mode=[]{const char* t=std::getenv("DNTTK_ROOM_WALK");return !t?1:(!std::strcmp(t,"always")||!std::strcmp(t,"probe"))?2:!std::strcmp(t,"off")?0:1;}();
         if(walk_mode==2 || (walk_mode==1 && a.camera.room!=b.camera.room)) p.flags|=2;
         if(walk_mode==0) c.room=alpha<0.5 ? a.camera.room : b.camera.room;
-        if(!blend_view(a.camera.view,b.camera.view,alpha,c.view))
-            for(int i=0;i<9;++i) c.view[i]=(int16_t)lerp_i(a.camera.view[i],b.camera.view[i],alpha);
-        for(int i=0;i<3;++i) c.view_t[i]=lerp_i(a.camera.view_t[i],b.camera.view_t[i],alpha);
-        for(int i=0;i<3;++i) c.pos[i]=lerp_i(a.camera.pos[i],b.camera.pos[i],alpha);
+        if(!blend_view(a.camera.view,b.camera.view,ar,c.view))
+            for(int i=0;i<9;++i) c.view[i]=(int16_t)lerp_i(a.camera.view[i],b.camera.view[i],ar);
+        for(int i=0;i<3;++i) c.view_t[i]=lerp_x(a.camera.view_t[i],b.camera.view_t[i],alpha,z?&z->camera.view_t[i]:nullptr);
+        for(int i=0;i<3;++i) c.pos[i]=lerp_x(a.camera.pos[i],b.camera.pos[i],alpha,z?&z->camera.pos[i]:nullptr);
         p.camera=c;
         p.flags|=1;
     } else ++camera_cuts;
@@ -459,9 +473,11 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         if(y) {
             long dx=(long)y->pos[0]-x.pos[0],dy=(long)y->pos[1]-x.pos[1],dz=(long)y->pos[2]-x.pos[2];
             if(dx*dx+dy*dy+dz*dz<=(long)1536*1536) {
-                for(int k=0;k<3;++k) o.pos[k]=lerp_i(x.pos[k],y->pos[k],alpha);
+                const ObjectPose* w=nullptr;
+                if(z && alpha>1.0) for(int k=0;k<z->nposes;++k) if(z->pose[k].obj==x.obj) {w=&z->pose[k];break;}
+                for(int k=0;k<3;++k) o.pos[k]=lerp_x(x.pos[k],y->pos[k],alpha,w?&w->pos[k]:nullptr);
                 const int turn=(((int)(y->yaw&0xfff)-(int)(x.yaw&0xfff)+2048)%4096+4096)%4096-2048;
-                o.yaw=(uint16_t)((x.yaw&0xf000)|(((int)(x.yaw&0xfff)+(int)std::lround(turn*alpha))&0xfff));
+                o.yaw=(uint16_t)((x.yaw&0xf000)|(((int)(x.yaw&0xfff)+(int)std::lround(turn*ar))&0xfff));
                 ++blended_poses;
             }
         }
@@ -475,14 +491,16 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         if(!y || y->mats!=x.mats || y->model!=x.model || y->joints!=x.joints) {++skipped_actors;continue;}
         MatPatch patch[max_joints];
         bool ok=true;
+        const ActorState* w=nullptr;
+        if(z && alpha>1.0) for(int k=0;k<z->nactors;++k) if(z->actor[k].actor==x.actor && z->actor[k].mats==x.mats && z->actor[k].joints==x.joints) {w=&z->actor[k];break;}
         for(int j=0;j<x.joints && ok;++j) {
             const Mat& m0=x.mat[j];const Mat& m1=y->mat[j];
             long tx=(long)m1.t[0]-m0.t[0],ty=(long)m1.t[1]-m0.t[1],tz=(long)m1.t[2]-m0.t[2];
             if(tx*tx+ty*ty+tz*tz>(long)1536*1536) {ok=false;break;}
             patch[j].addr=x.mats+0x20u*j;
             patch[j].mat=m0;
-            if(!blend_rot(m0.m,m1.m,alpha,patch[j].mat.m)) {ok=false;break;}
-            for(int k=0;k<3;++k) patch[j].mat.t[k]=lerp_i(m0.t[k],m1.t[k],alpha);
+            if(!blend_rot(m0.m,m1.m,ar,patch[j].mat.m)) {ok=false;break;}
+            for(int k=0;k<3;++k) patch[j].mat.t[k]=lerp_x(m0.t[k],m1.t[k],alpha,w?&w->mat[j].t[k]:nullptr);
         }
         if(!ok) {++skipped_actors;continue;}
         const uint32_t bytes=sizeof(MatPatch)*(uint32_t)x.joints;
@@ -497,8 +515,9 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
 }
 // Interpolated transforms for every object (except Duke, whose joint
 // matrices are patched in RAM) drawn with the same call count in both frames.
-uint32_t append_xf(const Frame& a,const Frame& b,double alpha,uint8_t* out,uint32_t used) {
+uint32_t append_xf(const Frame& a,const Frame& b,double alpha,uint8_t* out,uint32_t used,const Frame* z=nullptr) {
     Params p; std::memcpy(&p,out,sizeof p);
+    const double ar=std::min(alpha,1.0);
     int i=0;
     while(i<a.nxf) {
         const uint32_t obj=a.xf[i].obj;
@@ -507,14 +526,20 @@ uint32_t append_xf(const Frame& a,const Frame& b,double alpha,uint8_t* out,uint3
         for(int k=0;k<b.nxf;++k) if(b.xf[k].obj==obj) {j=k;break;}
         int nb=0; if(j>=0) while(j+nb<b.nxf && b.xf[j+nb].obj==obj) ++nb;
         bool ok=j>=0 && nb==n && obj!=duke;
+        int jz=-1;   // D10H8: the same object two frames back (extrapolation)
+        if(ok && z && alpha>1.0) {
+            for(int k=0;k<z->nxf;++k) if(z->xf[k].obj==obj) {jz=k;break;}
+            int nz=0; if(jz>=0) while(jz+nz<z->nxf && z->xf[jz+nz].obj==obj) ++nz;
+            if(nz!=n) jz=-1;
+        }
         Frame::Xf blend[Frame::max_xf];
         for(int k=0;k<n && ok;++k) {
             const Mat& m0=a.xf[i+k].m; const Mat& m1=b.xf[j+k].m;
             long tx=(long)m1.t[0]-m0.t[0],ty=(long)m1.t[1]-m0.t[1],tz=(long)m1.t[2]-m0.t[2];
             if(tx*tx+ty*ty+tz*tz>(long)1536*1536) {ok=false;break;}
             blend[k]=a.xf[i+k];
-            if(!blend_rot(m0.m,m1.m,alpha,blend[k].m.m)) {ok=false;break;}
-            for(int c=0;c<3;++c) blend[k].m.t[c]=lerp_i(m0.t[c],m1.t[c],alpha);
+            if(!blend_rot(m0.m,m1.m,ar,blend[k].m.m)) {ok=false;break;}
+            for(int c=0;c<3;++c) blend[k].m.t[c]=lerp_x(m0.t[c],m1.t[c],alpha,jz>=0?&z->xf[jz+k].m.t[c]:nullptr);
         }
         if(ok && used+n*sizeof(Frame::Xf)<=params_max) {
             std::memcpy(out+used,blend,n*sizeof(Frame::Xf));
@@ -579,6 +604,39 @@ double submit_ahead_samples[1024]{}, submit_need_samples[1024]{}; unsigned submi
 // at the D10H5 level (0.03%, none at 0); DNTTK_WORLD_DELAY_MARGIN scales it
 // (1 = D10H5, 0 = no margin: 0.12% starved).
 double world_delay_margin_scale=0.5;
+// D10H8: first-person world draw on the present timeline (gameplay only;
+// third person keeps pair). Default newer: the newer frame's display list
+// (its new hits, smoke, HUD and weapon frame appear one game frame sooner),
+// with the same blended poses as the pair, like EDuke32 drawing its newest
+// sprites at interpolated positions. DNTTK_WORLD_DRAW=pair is the D10H5/D10H7
+// draw (the older list); step draws the newest complete frame unblended
+// (moving things step at the game rate). DNTTK_WORLD_EXTRAP_MS (default 16,
+// 0..50) lets the world time run that far past the newest pose (positions
+// limited by lerp_x) and lowers the delay target by the same amount.
+int world_draw=-1;          // 0 pair, 1 newer, 2 step
+double world_extrap_ms=0;
+uint64_t timeline_extrapolated=0;
+double world_delay_pair=90.0;   // the D10H5 target without extrapolation
+void world_draw_init();
+// First person only (third person keeps the D10H5 pair blend).
+double world_fp_extrap() {world_draw_init(); return world_draw>=1 && late_fp_blend()>=0.999 ? world_extrap_ms : 0.0;}
+// The extrapolation a present may use: what the world delay is below the
+// pair-only target, at most the setting, so after a switch to third person
+// the world does not hold while the delay slews back up.
+double world_extrap_allow() {
+    world_draw_init();
+    if(world_draw<1) return 0.0;
+    if(world_delay_fixed) return world_fp_extrap();
+    return std::clamp(world_delay_pair-world_delay_ms,0.0,world_extrap_ms);
+}
+void world_draw_init() {
+    if(world_draw>=0) return;
+    world_draw=1;
+    if(const char* e=std::getenv("DNTTK_WORLD_DRAW")) world_draw=!std::strcmp(e,"pair")?0:!std::strcmp(e,"step")?2:1;
+    world_extrap_ms=16.0;
+    if(const char* e=std::getenv("DNTTK_WORLD_EXTRAP_MS")) world_extrap_ms=std::clamp(std::atof(e),0.0,50.0);
+    if(world_draw==2) world_extrap_ms=0;
+}
 void note_submit(double ahead,double need) {
     submit_ahead_samples[submit_sample_count%1024]=ahead;
     submit_need_samples[submit_sample_count++%1024]=need;
@@ -601,7 +659,9 @@ void update_world_delay(double now_ms,double period_ms) {
     const double dt=last ? std::clamp(now_ms-last,0.0,50.0) : 0.0;
     last=now_ms;
     if(world_delay_fixed || pair_age_count<8) return;
-    world_delay_wanted=std::clamp(pair_age_p99+late_lead_ms+period_ms*world_delay_margin_scale,50.0,90.0);
+    world_draw_init();
+    world_delay_pair=std::clamp(pair_age_p99+late_lead_ms+period_ms*world_delay_margin_scale,50.0,90.0);
+    world_delay_wanted=world_delay_pair-world_fp_extrap();
     world_delay_ms+=std::clamp(world_delay_wanted-world_delay_ms,-dt*0.03,dt*0.10);
 }
 double timeline_delay() {
@@ -632,9 +692,22 @@ Frame* timeline_pair(double present_ms, Frame*& next, double& alpha) {
     }
     if(!best) best=oldest;
     if(!best) return nullptr;
+    world_draw_init();
     next=frame_by_serial(best->serial+1);
-    pair_starved=world_ms>next->time_ms;
-    alpha=std::clamp((world_ms-best->time_ms)/(next->time_ms-best->time_ms),0.0,1.0);
+    const bool game=!best->frontend && !next->frontend;
+    if(game && world_draw==2) {
+        // D10H8 step: the newest complete frame, as it is.
+        for(auto& f:frames) if(f.valid && f.xf_done) {
+            Frame* n=frame_by_serial(f.serial+1);
+            if(n && n->xf_done && n->time_ms>next->time_ms && !n->frontend) {best=&f;next=n;}
+        }
+        pair_starved=false;alpha=1.0;
+        return best;
+    }
+    const double extrap=game ? world_extrap_allow() : 0.0;
+    const double span=next->time_ms-best->time_ms;
+    pair_starved=world_ms>next->time_ms+extrap;
+    alpha=std::clamp((world_ms-best->time_ms)/span,0.0,1.0+extrap/span);
     return best;
 }
 bool timeline_clock_reset=true;
@@ -864,10 +937,22 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         return job;
     }
     submitted_menu=base.menu;
-    uint32_t len=build_params(base.state,next.state,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer);
+    // D10H8: the newer frame's display list (world_draw newer/step), with the
+    // same poses, camera and draw-time blends as the base list.
+    world_draw_init();
+    const bool fp=late_fp_blend()>=0.999;
+    const bool newer=late && fp && world_draw>=1 && &next!=&base && !base.frontend && !next.frontend && next.serial==base.serial+1;
+    const Frame& drawn=newer ? next : base;
+    const Frame* back=alpha>1.0 ? frame_by_serial(base.serial-1) : nullptr;
+    if(back && (back->frontend || !back->xf_done)) back=nullptr;
+    extrap.on=back!=nullptr;
+    if(back) {extrap.sab=std::max(next.time_ms-base.time_ms,1.0);extrap.sza=std::max(base.time_ms-back->time_ms,1.0);extrap.ext_ms=(alpha-1.0)*extrap.sab;}
+    uint32_t len=build_params(base.state,next.state,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer,back?&back->state:nullptr);
     {
         Params p; std::memcpy(&p,param_buffer,sizeof p);
-        p.near=base.near; p.serial=base.serial;
+        p.near=drawn.near; p.serial=base.serial;
+        // D10H8: an extrapolated eye can leave the base room; walk it.
+        if(alpha>1.0) p.flags|=2;
         last_late_yaw=999.0f;
         if(late) {
             if(apply_late(base.state,next.state,alpha,p,look_ms)) {
@@ -882,11 +967,18 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         std::memcpy(param_buffer,&p,sizeof p);
     }
     {
-        const uint32_t at=len;len=append_render(base,param_buffer,len);
-        if(len-at==render_state_size())render_state_blend_mask(param_buffer+at,next.render,interp_off ? 0.0 : interp_full ? 1.0 : alpha);
+        const uint32_t at=len;len=append_render(drawn,param_buffer,len);
+        const double ra=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
+        if(len-at==render_state_size()) {
+            if(newer) render_state_blend_newer(param_buffer+at,base.render,ra);
+            else render_state_blend_mask(param_buffer+at,next.render,ra);
+        }
     }
-    len=append_xf(base,next,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer,len);
-    const int job=psx_mod_replay_submit(base.slot,param_buffer,len,base.serial);
+    len=append_xf(base,next,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer,len,back);
+    extrap.on=false;
+    // Tagged with the base serial: released with the base frame, which is
+    // older, so the newer frame's slot is still held (oldest slot reused first).
+    const int job=psx_mod_replay_submit(drawn.slot,param_buffer,len,base.serial);
     if(job>=0) ++submits;
     return job;
 }
@@ -1718,7 +1810,7 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     {
         const Frame* next=frame_by_serial(f.serial+1);
         CachedTint& t=cache_tint[c];
-        t.on=flash_mix(f.flash,next?next->flash:f.flash,f.alpha[index],screen_flash_steps(),t.rgbw);
+        t.on=flash_mix(f.flash,next?next->flash:f.flash,std::min(f.alpha[index],1.0f),screen_flash_steps(),t.rgbw);
         t.serial=f.serial;t.alpha=f.alpha[index];t.duke_word=f.duke_word;
     }
     // D17AW: on the render thread the image is only queued. A present due now
@@ -1791,17 +1883,25 @@ void shown_poses(const Frame& f,int shown) {
     const Frame* n=frame_by_serial(f.serial+1);
     const double alpha=interp_off ? 0.0 : interp_full ? 1.0 : f.alpha[shown];
     shown_view_state.nposes=0;
+    // D10H8: past the newest pose, the same limited extrapolation as the draw.
+    const Frame* back=alpha>1.0 && n ? frame_by_serial(f.serial-1) : nullptr;
+    if(back && (back->frontend || !back->xf_done)) back=nullptr;
+    extrap.on=back!=nullptr;
+    if(back) {extrap.sab=std::max(n->time_ms-f.time_ms,1.0);extrap.sza=std::max(f.time_ms-back->time_ms,1.0);extrap.ext_ms=(alpha-1.0)*extrap.sab;}
     for(int i=0;i<f.state.nposes;++i) {
         const ObjectPose& x=f.state.pose[i];
         ObjectPose o=x;
         if(n) for(int k=0;k<n->state.nposes;++k) if(n->state.pose[k].obj==x.obj) {
             const ObjectPose& y=n->state.pose[k];
+            const ObjectPose* w=nullptr;
+            if(back) for(int j=0;j<back->state.nposes;++j) if(back->state.pose[j].obj==x.obj) {w=&back->state.pose[j];break;}
             long dx=(long)y.pos[0]-x.pos[0],dy=(long)y.pos[1]-x.pos[1],dz=(long)y.pos[2]-x.pos[2];
-            if(dx*dx+dy*dy+dz*dz<=(long)1536*1536) for(int c=0;c<3;++c) o.pos[c]=lerp_i(x.pos[c],y.pos[c],alpha);
+            if(dx*dx+dy*dy+dz*dz<=(long)1536*1536) for(int c=0;c<3;++c) o.pos[c]=lerp_x(x.pos[c],y.pos[c],alpha,w?&w->pos[c]:nullptr);
             break;
         }
         shown_view_state.pose[shown_view_state.nposes++]=o;
     }
+    extrap.on=false;
 }
 void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,bool drawn) {
     if(f && shown>=0) {
@@ -1886,7 +1986,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
             if(have) break;
         }
         if(have) continue;
-        if(!f->frontend) {++timeline_presents; if(pair_starved) ++timeline_starved; if(next!=f) {
+        if(!f->frontend) {++timeline_presents; if(pair_starved) ++timeline_starved; if(alpha>1.0) ++timeline_extrapolated; if(next!=f) {
             note_submit(t-now_ms,t-pair_end_ms);
             static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
             if(pose_trace) std::fprintf(stderr,"[submit] host_ms=%.3f t=%.3f lead=%.2f delay=%.2f need=%.2f period=%.3f\n",now_ms,t,late_lead_ms,timeline_delay(),t-pair_end_ms,period);
@@ -2528,10 +2628,10 @@ const char* frame_replay_debug_json() {
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
         n+=std::snprintf(buffer+n,sizeof buffer-n,",\"redraw_only\":%s",redraw_only_json());
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu,\"world_delay_ms\":%.1f,\"world_delay_wanted_ms\":%.1f,\"world_delay_fixed\":%s,\"pair_age_p99_ms\":%.1f,\"presents\":%llu,\"starved\":%llu,\"margin_scale\":%.2f,\"submit_samples\":%u,\"ahead_ms\":[%.2f,%.2f,%.2f,%.2f],\"need_ms\":[%.2f,%.2f,%.2f,%.2f]},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,world_delay_ms,world_delay_wanted,world_delay_fixed?"true":"false",pair_age_p99,(unsigned long long)timeline_presents,(unsigned long long)timeline_starved,
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu,\"world_delay_ms\":%.1f,\"world_delay_wanted_ms\":%.1f,\"world_delay_fixed\":%s,\"pair_age_p99_ms\":%.1f,\"presents\":%llu,\"starved\":%llu,\"margin_scale\":%.2f,\"submit_samples\":%u,\"ahead_ms\":[%.2f,%.2f,%.2f,%.2f],\"need_ms\":[%.2f,%.2f,%.2f,%.2f],\"world_draw\":%d,\"extrap_ms\":%.1f,\"extrapolated\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,world_delay_ms,world_delay_wanted,world_delay_fixed?"true":"false",pair_age_p99,(unsigned long long)timeline_presents,(unsigned long long)timeline_starved,
             world_delay_margin_scale,submit_sample_count,
             sample_pct(submit_ahead_samples,submit_sample_count,0),sample_pct(submit_ahead_samples,submit_sample_count,500),sample_pct(submit_ahead_samples,submit_sample_count,990),sample_pct(submit_ahead_samples,submit_sample_count,1000),
-            sample_pct(submit_need_samples,submit_sample_count,500),sample_pct(submit_need_samples,submit_sample_count,990),sample_pct(submit_need_samples,submit_sample_count,999),sample_pct(submit_need_samples,submit_sample_count,1000),
+            sample_pct(submit_need_samples,submit_sample_count,500),sample_pct(submit_need_samples,submit_sample_count,990),sample_pct(submit_need_samples,submit_sample_count,999),sample_pct(submit_need_samples,submit_sample_count,1000),world_draw,world_extrap_ms,(unsigned long long)timeline_extrapolated,
             frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",(unsigned long long)menu_kept,(unsigned long long)menu_alone_jobs,(unsigned long long)menu_held,ttk_game_menu_json(),menu_latency_json(),
             loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
         const unsigned first=trace_n>128?trace_n-128:0;

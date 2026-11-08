@@ -2432,7 +2432,7 @@ note 392): a lower percentile, early partial frames, extrapolation.
 
 ### D10H8 - EDuke32-close world delay in first person
 
-**Status: Todo (scoped 2026-11-08 from D49D; user: "eduke32 feel (cleanroom) IS the goal"). Dependencies: D10H5, D10H7.**
+**Status: Done (user-accepted 2026-11-08: "it's a whole tonne better!", 16 ms chosen, then "lock it in, close it out"; scoped from D49D; user: "eduke32 feel (cleanroom) IS the goal"; [note 419](documentation/419-d10h8-newest-world-draw.md)). Dependencies: D10H5, D10H7.**
 At 120/180 Hz the view turns at once but the world (hits, smoke, bullet
 holes, enemies, pickups, the beam) is drawn about 50-90 ms in the past,
 because each present blends two finished game frames (`timeline_pair`; D10H5
@@ -2450,6 +2450,59 @@ trail the crosshair on fast turns. Then decide with the user which D49/D49A
 follow tricks are still needed. Modernized only; Vanilla, 60 Hz and gameplay
 unchanged. Acceptance: user playtest against EDuke32 for turning and firing
 feel.
+
+**Work log (2026-11-08, Needs playtest).** Cause found: the redraw replayed
+the older frame's display list, so anything new (hole, smoke, flash, HUD,
+weapon frame) appeared a whole world delay (about 65-75 ms) after the game
+made it, about 25 degrees of trail at a 360 deg/s turn. First person now
+replays the newer frame's list with the same blended positions (as EDuke32
+draws its newest sprites at interpolated positions), plus at most 8 ms of
+extrapolation past the newest pose, limited per axis to the speed both of the
+last two game steps agree on (stairs, stops and reversals hold, no overshoot);
+the adaptive delay target is 8 ms lower. `frame_replay.cpp`
+(`world_draw`, `lerp_x`, `submit_job`, `shown_poses`) and
+`render_state_blend_newer` in `modern_controls.cpp`. Lab (`wd8.py`, private
+apartment copies, first person, 180 Hz): new hits appear 28 ms after their
+game frame instead of 71 (level 1: 26 vs 66; level 8: 17 vs 57), trail 10
+degrees instead of 25 at 360 deg/s, world 6-9 ms fresher, no eye-path
+deviation over 8 units, starved and pace unchanged. Rejected: step (no blend,
+world jitter p95 28 ms) and 16 ms (no fresher hits in fast scenes, about 3
+eye-step deviations per second on level 8). Third person, Vanilla, 60 Hz and
+gameplay unchanged. `DNTTK_WORLD_DRAW=pair` / `DNTTK_WORLD_EXTRAP_MS=0|16`
+compare (16 became the default after the user's A/B, below). `ttk-aim-test` and `ttk-input-test` pass. Executable
+`2fdd2e6b8e4543890ab0154a717359528f2b05a7777ff31f78a7b49d1b2d172b`. Needs
+the user's playtest against EDuke32: turning and firing (pistol, shotgun,
+Gatling at a wall), strafing, stairs and enemies for smoothness; then decide
+which D49/D49A follow tricks are still wanted.
+
+**User playtest (2026-11-08): "it's a whole tonne better!"** The user found
+`DNTTK_WORLD_EXTRAP_MS=16` a little more in sync and saw no wobble at all
+("so let's go for 16 as default then"). Default now 16 ms: level 1 run-strafe
+new hits 18.5 ms after their game frame (6.7 degrees at 360 deg/s), delay
+47 ms, 0 starved. Executable
+`289bc12019668f18782a8be599e9934e0baa4a4ef89ad4c40b06ab8599e666f9`.
+
+**Accepted (2026-11-08).** User: "lock it in, close it out". The energy
+beam's D49/D49A follow (glow and sparks) stays as accepted; revisit only if
+the user asks.
+
+### D08K15 - Duke jerks upright when the box he crouches on is kicked apart
+
+**Status: Todo (user report 2026-11-08). Dependencies: D08K7, D12A, D12E1.**
+User: "for slot 9, when you crouch on this box, look down, and then quick kick
+to break it, theres some weird glitch that happens when duke selfrights really
+quickly, like jerks him somehow. this is all boxes of this type in fact."
+Reproduce on a private copy of UI slot 9 (savestate file `slot08`; never the
+player's saves): crouch on the breakable box, look down, quick kick it apart,
+in first and third person at 180 Hz, then on other boxes of the same type
+(game-wide, not this box only). Lead from D08K7 (note 189): on an object top
+Duke's contact `player+0x174` holds the box and the crouch stand-up and hull
+use it (`crouch_hull.inc` `crouch_floor`); when the box breaks the support
+vanishes under the one-knee kneel (D08K8), so trace per frame the animation,
+`+0x174`, feet height, crouch state and the quick-kick leg/body draw (D12A,
+D12E1) to find which owner snaps him upright. Fix as a smooth drop (stay low
+or recover with the normal stand-up), Modernized only; Vanilla unchanged.
+Acceptance: user playtest of slot 9 and another box of the type.
 
 ### D10H6 - Repeat rate parity with Duke 3D analogs
 
@@ -8824,6 +8877,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K12 | Crouch running with the configured run action | Done (user-accepted) | D08K, D08K11, D08L1, D21 |
 | D08K13 | Sustained backwards crouch movement enters a legacy roll | Done | D08K12, D21A |
 | D08K14 | MGS-based crouch walk/run quality, hand posture and HTML preview | Done (revision 2 accepted) | D08K13, D08K6 |
+| D08K15 | Duke jerks upright when the box he crouches on is kicked apart (slot 9, all boxes of the type) | Todo | D08K7, D12A, D12E1 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
@@ -8937,7 +8991,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H5 | Shorter world delay at high refresh | Done | D10H1 |
 | D10H7 | Queue redraws at their exact lead | Done | D10H5 |
 | D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
-| D10H8 | EDuke32-close world delay in first person (draw the world nearer the present) | Todo | D10H5, D10H7 |
+| D10H8 | EDuke32-close world delay in first person (draw the world nearer the present) | Done (user-accepted 2026-11-08; note 419) | D10H5, D10H7 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Done | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

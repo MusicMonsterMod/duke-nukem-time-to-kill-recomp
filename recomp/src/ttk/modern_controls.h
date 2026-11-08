@@ -210,6 +210,7 @@ size_t render_state_size();
 void render_state_save(void* out);
 void render_state_load(const void* in);
 void render_state_blend_mask(void* out,const void* next,double alpha);
+void render_state_blend_newer(void* out,const void* older,double alpha);
 // D11B: the eye view is live (Modernized, orbit lease, first-person blend > 0).
 bool first_person_view_live();
 bool third_person_camera_live();

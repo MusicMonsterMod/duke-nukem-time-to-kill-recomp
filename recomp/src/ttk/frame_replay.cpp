@@ -416,7 +416,7 @@ uint64_t captures=0,publishes=0,submits=0,presented=0,reused=0,no_job=0,failures
 struct Params {
     uint32_t magic;
     float alpha;
-    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera, 16 = D49 beams follow the view
+    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera, 16 = D49 beams follow the view, 32 = D49C beam animation (beam_t)
     uint32_t nmats;          // matrix patches following the header
     CameraState camera;
     uint32_t render_len;     // draw-time host state after the patches
@@ -425,6 +425,7 @@ struct Params {
     int32_t logo;            // D17U: logo angle to show (flag 4)
     int16_t body_rot[9],body_view[9]; // D14H: Duke's own draw (flag 8)
     uint64_t serial;         // D17AY: base frame (present trace)
+    float beam_t;            // D49C: redraw time in game frames past the drawn frame's list (flag 32)
     uint32_t nposes;         // D17AY: in-between object poses
     ObjectPose pose[max_poses];
 };
@@ -951,6 +952,12 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
     {
         Params p; std::memcpy(&p,param_buffer,sizeof p);
         p.near=drawn.near; p.serial=base.serial;
+        // D49C: the drawn list's beams were drawn at its own game frame; the
+        // redraw shows the world at alpha past base (newer list: alpha - 1).
+        if(aim_beam_anim_enabled()) {
+            const double ra=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
+            p.beam_t=(float)(newer ? ra-1.0 : ra); p.flags|=32;
+        }
         // D10H8: an extrapolated eye can leave the base room; walk it.
         if(alpha>1.0) p.flags|=2;
         last_late_yaw=999.0f;
@@ -1537,6 +1544,39 @@ void beam_roots_at_barrel() {
         beam_aim_angles(a,rec);
     }
 }
+// D49C: the energy beam's look moves with the redraw's clock. The beam draw
+// 0x80072868 bends each of its +0x1c strands into a wave over N segments
+// (short 0x800c3b3c): strand phase from +0x40, advanced 2*(4096/N) per strand
+// each draw, and alternates its stripe colours by the draw count +0x58. The
+// game draws once per game frame and every redraw reloads that frame's
+// memory, so between two game frames the wave and stripes stood still (about
+// 30 steps a second under 120/180 Hz redraws). Here, in the worker's copy
+// only, each beam's phase is moved by beam_t game frames of its own per-draw
+// advance, taken the short way round a 4096 turn (2454 = -1642 at N 10 with
+// 3 strands: the wave seen at the game's rate flows from the gun), and the
+// draw count by whole frames on the same clock. Every beam, any owner.
+uint64_t beam_anims=0;
+void beams_animate(double t) {
+    const int n=(int16_t)psx_mod_read_half(0x800c3b3cu);
+    if(n<=0 || n>256 || !(t>-2.0 && t<2.0)) return;
+    const int seg=(int16_t)(4096/n);
+    for(uint32_t i=0;i<100;++i) {
+        const uint32_t a=0x800da978u+i*0x60u;
+        if(!psx_mod_read_half(a) || psx_mod_read_byte(a+0x30)!=15) continue;
+        const int32_t strands=(int32_t)psx_mod_read_word(a+0x1c);
+        if(strands<=0 || strands>64) continue;
+        auto turn=[](long d){d%=4096; if(d>=2048) d-=4096; if(d<-2048) d+=4096; return d;};
+        const long d40=turn((long)strands*2*seg), d5a=turn((long)strands*(4096/strands));
+        static const bool trace=std::getenv("DNTTK_BEAM_ANIM_TRACE")!=nullptr;
+        if(trace) std::fprintf(stderr,"[TTK beam anim] %08x t %.3f phase %u -> %u count %d -> %d\n",a,t,
+            psx_mod_read_half(a+0x40),(uint32_t)((psx_mod_read_word(a+0x40)+(uint32_t)(int32_t)std::lround(t*d40))&0xffff),
+            (int16_t)psx_mod_read_half(a+0x58),(int16_t)psx_mod_read_half(a+0x58)+(int)std::floor(t));
+        psx_mod_write_word(a+0x40,psx_mod_read_word(a+0x40)+(uint32_t)(int32_t)std::lround(t*d40));
+        psx_mod_write_half(a+0x5a,(uint16_t)(psx_mod_read_half(a+0x5a)+(int16_t)std::lround(t*d5a)));
+        psx_mod_write_half(a+0x58,(uint16_t)(psx_mod_read_half(a+0x58)+(int16_t)std::floor(t)));
+        ++beam_anims;
+    }
+}
 #include "impact_follow.inc"
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
@@ -1637,6 +1677,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // backdrop is already in the drawing chain; the draw adds the field delta.
     if(p.flags&4) psx_mod_write_half(logo_angle,(uint16_t)((p.logo-(int)psx_mod_read_half(field_delta))&0xfff));
     if(!(p.flags&4)) quake_begin(false);
+    if((p.flags&32) && !(p.flags&4)) beams_animate(p.beam_t);
     psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {

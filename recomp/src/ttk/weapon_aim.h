@@ -8,6 +8,9 @@ const char* aim_debug_json();
 // the view it was aimed from (eye, unit forward). False for other projectiles.
 bool aim_beam_view(uint32_t object,uint32_t& record,double eye[3],double fwd[3]);
 bool aim_beam_follow_enabled();
+// D49C: redraws advance each energy beam's animated look (wave phase, stripes)
+// to the redraw's time between game frames. DNTTK_BEAM_ANIM=0 / "beamanim off".
+bool aim_beam_anim_enabled();
 // D12A: the original query-only segment trace (0x8006d980) under the aim code
 // identity. kind 0 miss (hit = to), 1 world, 2 actor.
 bool view_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind);

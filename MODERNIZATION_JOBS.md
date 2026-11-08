@@ -7449,7 +7449,7 @@ weapons.
 
 ### D49C - Energy beam animated at the display rate
 
-**Status: Todo (user report 2026-11-08, D49A acceptance: "the beam itself looks like it's a lower framerate than the game ... it looks like it's animated at a lower framerate than how we've got the rest of the game to run at our high auto value"; the user is unsure whether it is real). Dependencies: D49.**
+**Status: Done (user-accepted 2026-11-08: "it's amazing work! lock it in and close it out"; [note 421](documentation/421-d49c-beam-animated-per-redraw.md); user report 2026-11-08, D49A acceptance: "the beam itself looks like it's a lower framerate than the game ... it looks like it's animated at a lower framerate than how we've got the rest of the game to run at our high auto value"; the user is unsure whether it is real). Dependencies: D49.**
 At 120/180 Hz the energy beam looks good and stays on the gun (D49) with its
 glow on its end (D49A), but its own look (texture scroll, flicker, width or
 colour pulse, or the beam being respawned every game tick) may only change
@@ -7464,6 +7464,29 @@ drawing only; if it is already per frame, record that this is how it looks
 and close. Hits, beam timing, damage, D49/D49A placement, 60 Hz, third
 person and Vanilla unchanged. Acceptance: user playtest at the AUTO rate
 firing the energy weapon, still and turning.
+
+**Work log (2026-11-08, Needs playtest).** Real: the beam draw `0x80072868`
+advances the beam's look itself each time it runs (wave phase `+0x40` by
+2454 of a 4096 turn for 3 strands over 10 segments, stripe parity by the
+draw count `+0x58`), once per game frame (about 30 Hz), and every redraw
+reloads the frame's memory, so the wave stood still for six presents at
+180 Hz. Fix (`frame_replay.cpp` `beams_animate`, `weapon_aim.cpp`): each
+gameplay redraw job carries its time past the drawn list's frame and the
+worker advances every live beam's phase by that fraction (short way round:
+-1642 per frame, the wave flows from the gun) and the draw count by whole
+frames on the same clock, worker copy only. Stripes still swap at the game
+rate, as on the console. Hits, locks, D49/D49A placement unchanged; 60 Hz
+and Vanilla have no redraws; third person smoothed too. Console `beamanim`,
+`DNTTK_BEAM_ANIM=0`. Lab (private slot 8 copy): per-redraw phases at 180
+and 120 Hz, still, turning and third person, continuous across frames.
+`ttk-aim-test` and `ttk-input-test` pass. Executable
+`2bff2c5ca40aeb384cb738fa3605c9b3a866853454be6e3bbd087a7f6f868160`. Needs
+the user's playtest at AUTO firing the energy weapon, still and turning.
+
+**Accepted (2026-11-08, Done).** User: "it's amazing work! lock it in and
+close it out". Stripes stay at the game rate. Still captures (`beamanim` off
+against default) are kept locally in
+`research/before-after/d49c-beam-animated-per-redraw/`.
 
 ### D49D - Pistol and shotgun wall smoke in step with the bullet holes
 
@@ -8890,7 +8913,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49 | Shots in step with the gun: the energy beam drawn from the barrel while turning and moving | Done 2026-11-08 | - |
 | D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
-| D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Todo | D49 |
+| D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Done 2026-11-08 | D49 |
 | D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |

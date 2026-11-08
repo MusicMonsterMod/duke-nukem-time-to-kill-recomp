@@ -516,6 +516,31 @@ bool beam_follow_console_command(const char* line,void (*say)(const char*),bool&
         aim_beam_follow_enabled()?"on":"off",aim_beam_follow_enabled()?"from the gun where it points":"where they were fired in the world");
     say(text);return true;
 }
+// D49C: the beam draw 0x80072868 itself advances the beam's look each time it
+// runs (wave phase +0x40, stripe parity +0x58), once per game frame; redraws
+// reload the frame's memory, so every redraw between two game frames repeated
+// the same look. frame_replay.cpp advances it to the redraw's time instead.
+static std::atomic<int> beam_anim_override{-1};
+bool aim_beam_anim_enabled() {
+    const int o=beam_anim_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=std::getenv("DNTTK_BEAM_ANIM");return !v || std::strcmp(v,"0");
+}
+bool beam_anim_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"beamanim") && std::strncmp(line,"beamanim ",9))return false;
+    close=false;
+    if(line[8]) {
+        const char* value=line+9;
+        if(!std::strcmp(value,"on"))beam_anim_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))beam_anim_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))beam_anim_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: beamanim [on|off|default] (on: energy beams animate at the display rate at high refresh; session only)");return true;}
+        close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,"Beam animation %s: energy beams animate %s (session only). Default on.",
+        aim_beam_anim_enabled()?"on":"off",aim_beam_anim_enabled()?"at the display rate":"once per game frame");
+    say(text);return true;
+}
 // At the beam constructor's verified post-allocation list-advance call, keep
 // the original damage/line collision updater. The first beam locks onto the
 // targetable actor under the crosshair (D22D) instead of the original

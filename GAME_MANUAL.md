@@ -1579,6 +1579,12 @@ person and in Vanilla nothing changes. To compare, open the backtick console
 and type `beamfollow off` (session only); `beamfollow on` or `beamfollow
 default` turns it back on.
 
+**The energy beam ripples smoothly (Modernized, D49C).** At FRAME RATE 120 or
+higher the beam's ripple moves on every frame shown, not only about 30 times
+a second, in first and third person. Its green and white stripes still flicker
+at the original rate. To compare, type `beamanim off` in the backtick console
+(session only); `beamanim on` or `beamanim default` turns it back on.
+
 **Rounds that leave on an enemy land (Modernized, D10H2).** The crosshair now
 asks the same question as the round itself: it is "on" an enemy only where
 the enemy's body is, not the slightly wider outline the game uses for other

@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-11-08 - D49C energy beam animates at the display rate (Done)
+
+The user saw the energy beam look lower frame rate than the game. Real: the
+beam draw advances the beam's wave and stripe colours itself, once per game
+frame (about 30 Hz), and every redraw reloads that frame's memory, so the
+wave stood still for six presents at 180 Hz. Redraws now advance each beam's
+wave phase to their own time between game frames (worker copy only); the
+stripe swap stays at the game rate, as on the console. Gameplay, hits, D49/D49A
+placement, 60 Hz and Vanilla unchanged; third person smoothed too. A/B:
+console `beamanim off`, `DNTTK_BEAM_ANIM=0`.
+[Note 421](421-d49c-beam-animated-per-redraw.md).
+
+Accepted 2026-11-08: "it's amazing work! lock it in and close it out".
+Executable `2bff2c5ca40aeb384cb738fa3605c9b3a866853454be6e3bbd087a7f6f868160`.
+
 ## 2026-11-08 - D08K15 view snaps level when a crate under Duke breaks (Done)
 
 Kicking apart the crate a crouched Duke stands on (UI slot 9, all type 303

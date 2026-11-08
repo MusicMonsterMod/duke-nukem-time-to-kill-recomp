@@ -7354,6 +7354,25 @@ and close. Hits, beam timing, damage, D49/D49A placement, 60 Hz, third
 person and Vanilla unchanged. Acceptance: user playtest at the AUTO rate
 firing the energy weapon, still and turning.
 
+### D49D - Pistol and shotgun wall smoke in step with the bullet holes
+
+**Status: Todo (user report 2026-11-08, after D49A: "if you load up the pistol, or shotgun, the trailing smoke seems to be out of sync slightly with the bullets when you're firing against a wall face ... giving the illusion that it \"moves towards\" the bullet hole in the wall"). Dependencies: D49A.**
+At 120/180 Hz in first person, rapid pistol or shotgun fire into a wall face
+while moving and turning quickly makes the smoke at each hit look as if it
+travels toward its bullet hole instead of starting on it. Likely lead, to be
+confirmed: D49A draws each new wall puff (effects `0x12`/`0x20`/`0x21`/`0x1c`)
+under the crosshair for 3 game frames and then eases it back over 5 to its
+real hit point, while the bullet hole decal is drawn at the real hit point
+from the start, so the puff visibly slides onto the hole. Measure the puff
+and decal positions per redraw (pistol and shotgun, still, strafing and fast
+turns, 180 and 120 Hz), then make smoke and hole agree without bringing back
+the D49A lag: for example move the new decal with its puff by the same view
+change, shorten or reshape the settle, or anchor the puff to the hole once
+the view change is small. Drawing only; hits, decals' real placement, damage,
+D49/D49A beam behaviour, 60 Hz, third person and Vanilla unchanged. Test:
+private copy of UI slot 8, pistol then shotgun, rapid fire at a wall face
+while moving and turning quickly. Acceptance: user playtest of the same.
+
 ### D50 - Frame rate halves after loading (audio running low at load)
 
 **Status: Accepted, closeout not yet authorized (user, 2026-11-08: "it is now fixed!!!!"; load-time shed fixed; the energy-weapon stalls traced to native-widescreen mirror framebuffer switches on the render thread and fixed with a deferred mirror, images verified exact; [note 415](documentation/415-d50-load-audio-shed.md)). Dependencies: none.**
@@ -8717,6 +8736,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Todo | D49 |
+| D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Todo | D49A |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |

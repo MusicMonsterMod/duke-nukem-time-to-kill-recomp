@@ -1353,6 +1353,21 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         RunArms held;
         if(arm_reference(unsigned(freezer_hold[0]),unsigned(freezer_hold[1]),held)) {run=held;arm_weight=1;}
     }
+    // D48: the Gatling's firing clip (34) alternates two keys every frame and
+    // throws the support hand up over the barrel and back. Hold the left
+    // chain on the ready grip (clip 29, key 0) like the Freezer: it then
+    // rides the weapon matrix, so only the gun's own recoil kick moves it.
+    // Base record 7 and Laser Gatling 28 share display slot 7.
+    // Developer override: DNTTK_FP_GATLING_HOLD=anim,key (-1,-1 = native).
+    static const std::array<int,2> gatling_hold=[]{
+        std::array<int,2> v{29,0};const char* t=std::getenv("DNTTK_FP_GATLING_HOLD");
+        if(t && std::sscanf(t,"%d,%d",&v[0],&v[1])!=2)v={29,0};
+        return v;
+    }();
+    if(part<13 && slot==7 && gatling_hold[0]>=0) {
+        RunArms held;
+        if(arm_reference(unsigned(gatling_hold[0]),unsigned(gatling_hold[1]),held)) {run=held;arm_weight=1;}
+    }
     if(arm_weight>0) {
         const unsigned base=part<13?0:3;
         for(int n=0;n<3;++n) {
@@ -1443,6 +1458,8 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         }
     }
     std::memcpy(target[2],native[2],sizeof target[2]);
+    // D48 trace: the drawn support wrist (recomp/tools/local/present_trace.py).
+    if(present_trace_enabled() && part==12)present_trace("support_hand",target[2]);
     const double side=part<13?-1:1;
     for(int n=1;n>=0;--n) {
         double length=0;for(int r=0;r<3;++r)length+=std::pow(native[n+1][r]-native[n][r],2);

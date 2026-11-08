@@ -1,5 +1,18 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D48 steady left hand on the Gatling gun (Done)
+
+Firing the Gatling in first person threw the left glove from under the barrel
+to over it and shook it every frame. The original firing clip (34) holds the
+support hand still against the body while the gun kicks through it. First person
+showed that recoil as hand movement because it draws the gun steady and hangs
+the left arm on the native hand-to-gun offset. Modernized first person now
+holds the Gatling and Laser Gatling left hand on the ready grip, riding the gun's own kick
+(like the Freezer, D36H11). Third person is the original animation,
+unchanged. Lab: glove under the barrel through held fire at 60 and 180 Hz.
+`ttk-controls-test` has a pre-existing D14 HUD-layout failure, unrelated.
+Accepted 2026-11-08: "im very happy with it". [Note 423](423-d48-gatling-steady-hand.md).
+
 ## 2026-11-08 - D47 first shotgun shot smokes at the barrel (Done)
 
 A shotgun shot fired from rest put its puff and muzzle light at Duke's left

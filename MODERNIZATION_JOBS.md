@@ -7482,7 +7482,7 @@ old point. User playtest accepted 2026-11-08: "lock it in, close it out! good wo
 
 ### D48 - Steady left hand on the Gatling gun
 
-**Status: Todo (user request 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+**Status: Done (accepted 2026-11-08: "im very happy with it"; [note 423](documentation/423-d48-gatling-steady-hand.md)).**
 User: "can we stabalize duke's left hand with the gatling gun, i dont think
 it needs to violently shake backwards and forwards. you can observe that by
 simply opening the gatling gun and firing with it. is that really how the
@@ -7495,6 +7495,8 @@ at most a small recoil that follows the gun. Modernized only; Vanilla
 unchanged. Read the D36 audit (note 257) and the D36H5 arm notes (305, 306)
 first if the first-person arms own it. Acceptance: user playtest firing the
 Gatling in first and third person.
+
+**Done.** First-person left hand held on the ready grip (as D36H11).
 
 ### D49 - Shots in step with the gun (energy beam lags the aim)
 
@@ -9087,7 +9089,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D45 | MINER 69ER drill section drama (UI slot 11): tasteful set-piece additions (explosions on arrival, events) that complement the drill and its puzzle, LA Rumble inspired; small level editing, not a redesign | Todo (backlog, user 2026-11-06: not now) | D44C |
 | D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Done (2026-11-08) | - |
 | D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Done (user-accepted; closed 2026-11-08; note 422) | - |
-| D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
+| D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Done | - |
 | D49 | Shots in step with the gun: the energy beam drawn from the barrel while turning and moving | Done 2026-11-08 | - |
 | D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |

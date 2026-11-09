@@ -1,5 +1,6 @@
-# D41D level 0 lamps (documentation/428-d41d-level-lights.md)
+# D41D level 0 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
 # x y z  r g b  radius  strength  style  # note
+7026 -11123 -23  1.00 0.35 0.85  3500  1.00  flicker  # Bootylicious sign
 -7188 -3475 74117  0.29 0.61 1.00  6000  0.60  steady  # scan room 68
 -39672 -6342 90315  0.45 0.71 1.00  6000  0.60  steady  # scan room 65
 7598 -10547 -5883  1.00 0.26 0.31  6000  0.60  steady  # scan room 75
@@ -25,8 +26,8 @@
 -7165 -3475 79457  1.00 0.66 0.74  3052  0.60  steady  # scan room 68
 24230 -11571 78602  1.00 0.66 0.65  4002  0.60  steady  # scan room 62
 32900 -9190 64424  1.00 0.99 0.86  6000  0.60  steady  # scan room 44
--5147 -3853 57940  1.00 0.97 0.70  5173  0.60  steady  # scan room 72
--13768 -7219 85633  1.00 0.99 0.86  6000  0.60  steady  # scan room 63
+-5147 -3853 57940  1.00 0.97 0.70  5173  0.60  wave:28:0.45  # scan room 72
+-13768 -7219 85633  1.00 0.99 0.86  6000  0.60  wave:26:0.35  # scan room 63
 51196 -7302 57709  1.00 0.92 0.73  3088  0.60  steady  # scan room 29
 32768 -7987 84104  0.52 1.00 0.49  3008  0.60  steady  # scan room 35
 5772 -7142 35747  1.00 0.50 0.50  3181  0.60  steady  # scan room 18
@@ -41,8 +42,8 @@
 -15807 -7219 90692  1.00 0.63 0.32  2563  0.60  steady  # scan room 63
 57965 -7302 58662  0.73 0.38 1.00  3672  0.60  steady  # scan room 30
 -22016 -7219 89544  1.00 0.99 0.86  4782  0.60  steady  # scan room 63
--17733 -1331 71546  0.64 0.58 1.00  3063  0.60  steady  # scan room 70
--5759 -1331 65619  0.77 0.70 1.00  3162  0.60  steady  # scan room 72
+-17733 -1331 71546  0.64 0.58 1.00  3063  0.60  wave:28:0.55  # scan room 70
+-5759 -1331 65619  0.77 0.70 1.00  3162  0.60  wave:17:0.55  # scan room 72
 4131 -7226 79441  1.00 0.99 0.86  4012  0.60  steady  # scan room 66
 13463 -6803 105419  1.00 0.90 0.78  4457  0.60  steady  # scan room 61
 7461 -7251 39351  1.00 0.50 0.50  2718  0.60  steady  # scan room 82
@@ -51,4 +52,33 @@
 18910 -9190 62437  1.00 0.99 0.85  3040  0.60  steady  # scan room 46
 46750 -7302 48528  1.00 0.91 0.76  2690  0.60  steady  # scan room 28
 19975 -7363 39424  1.00 0.87 0.67  5328  0.60  steady  # scan room 19
-7026 -11123 -23  1.00 0.35 0.85  3500  1.00  flicker  # Bootylicious sign
+6141 -11113 -451  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 12
+13645 -7779 30715  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 17
+3386 -6983 37696  1.00 0.00 0.00  1576  1.00  steady  # sign type 858 room 18
+3385 -6983 36859  1.00 0.00 0.00  1576  1.00  steady  # sign type 858 room 18
+3386 -6983 36030  1.00 0.00 0.00  1576  1.00  steady  # sign type 858 room 18
+5668 -7570 35868  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 18
+38601 -5871 42731  1.00 0.74 0.01  2282  1.00  steady  # sign type 213 room 23
+39359 -5871 42669  1.00 0.74 0.01  2282  1.00  steady  # sign type 213 room 23
+41286 -6806 41938  0.14 0.76 1.00  3992  1.00  steady  # sign type 77 room 23
+38244 -6645 49294  1.00 0.06 0.06  2007  1.00  steady  # sign type 478 room 25
+38041 -7432 48129  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 25
+23544 -7100 47809  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 27
+75265 -9939 53751  1.00 0.09 0.36  1791  1.00  steady  # sign type 176 room 31
+18435 -6866 127618  0.31 1.00 0.25  1710  1.00  steady  # sign type 178 room 42
+-10173 -7338 47101  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 57
+-7774 -7438 79441  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 68
+-6580 -7438 79441  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 68
+-8642 -4818 55299  0.26 0.19 1.00  1758  1.00  steady  # sign type 177 room 73
+6756 -10239 -7450  1.00 0.47 0.31  4094  1.00  steady  # sign type 4 room 75
+11261 -9983 -4101  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 76
+14344 -9983 -2938  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 76
+14777 -10494 -1328  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 76
+10795 -9983 -1990  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 76
+11264 -10820 -3189  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 76
+11264 -10820 -5003  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 76
+19102 -6645 31477  1.00 0.06 0.06  2007  1.00  steady  # sign type 478 room 77
+10025 -7316 24359  1.00 0.74 0.01  2282  1.00  steady  # sign type 213 room 79
+9917 -7316 25344  1.00 0.74 0.01  2282  1.00  steady  # sign type 213 room 79
+7239 -7432 39432  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 82
+13897 -6659 33642  0.22 0.13 1.00  4658  1.00  steady  # sign type 16 room 82

@@ -375,12 +375,17 @@ faceted light on models for comparison until `light smooth on` (or the next
 launch), and `light fire off` / `light fire on` turns the fire lights
 (flames and burning) off and on for the session.
 
-**Level lights (first version).** Levels can also have placed lights of their
-own, "lamps": neon signs, lamps and coloured rooms cast real light on walls,
-props, enemies and Duke, on top of the painted light. Level 0 (Los Angeles)
-has a first set: one lamp per coloured pool of the painted light, found
-automatically, plus a flickering pink lamp at the club sign. They come and go
-with DYNAMIC LIGHTS. The backtick console edits them:
+**Level lights.** Levels can also have placed lights of their own, "lamps":
+neon signs, lamps and coloured rooms cast real light on walls, props, enemies
+and Duke, on top of the painted light. Every level has a first set, found
+automatically: one lamp per coloured pool of the painted light, and one at
+each glowing prop (EXIT and SECURITY signs, neon, tube lights, lit panels,
+lanterns) in its own colour. Lanterns flicker like flames; where the original
+light ripples (the game's own animated light), its lamps ripple with it.
+Level 0 (Los Angeles) also keeps its flickering pink lamp at the club sign. A
+lamp lights only while its room is in view, so a sign behind a wall does not
+tint the room in front of it. They come and go with DYNAMIC LIGHTS. The
+backtick console edits them:
 
 - `lamp list` shows the level's lamps; `lamp off` / `lamp on` hides and shows
   them for the session (to compare).
@@ -389,14 +394,20 @@ with DYNAMIC LIGHTS. The backtick console edits them:
   crosshair (or number n). The selected lamp blinks for a moment.
 - On the selected lamp: `lamp move`, `lamp nudge dx dy dz` (y up is
   negative), `lamp color r g b`, `lamp radius R`, `lamp power K`, `lamp style
-  steady|flicker|pulse|candle|strobe|broken`, `lamp note text`, `lamp del`.
+  steady|flicker|pulse|candle|strobe|broken`, or `lamp style wave [phase]
+  [depth]` to follow the game's own animated light (phase 0 to 31, depth 0
+  to 1), `lamp note text`, `lamp del`.
 - `lamp save` writes the level's lamps (`recomp/assets/lights/levelNN.lights`),
-  `lamp reload` goes back to the saved file, `lamp clear` removes them all,
-  and `lamp scan [threshold]` replaces them with a fresh set found from the
-  painted light (170 by default; lower finds more).
+  `lamp reload` goes back to the saved file, and `lamp clear` removes them all.
+- `lamp scan [threshold]` replaces the lamps found from the painted light with
+  a fresh set (170 by default; lower finds more); `lamp signs` replaces the
+  lamps at glowing props. Each keeps the other's lamps and the ones you
+  placed.
+- `lamp gate off` lets every nearby lamp light through walls again for the
+  session (to compare); `lamp gate on` restores the rule.
 
-Signs and neon keep their own look under any light (they give light, they
-are never washed out by it). Lamps still shine through walls (shadows are a
+Signs and neon keep their own look under any light: they give light, and
+neon signs take none on their letters, so they stay as crisp as drawn. Lamps still shine through walls (shadows are a
 later job).
 
 ### Portable steroids (Modernized)

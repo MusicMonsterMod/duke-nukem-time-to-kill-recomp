@@ -433,6 +433,7 @@ struct Frame {
     // D41C: a primary-Duke presentation draw (first-person weapon layer,
     // display or contact limbs) that takes the frame's lights.
     bool duke_lit=false;
+    bool glow=false; // D41D1: a neon sign prop: gives light, never lit
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -630,7 +631,7 @@ bool light_frame=false,light_smooth=false;double light_inv[9];
 // lights reach them where the player sees them. The first-person layer's
 // translucent faces (the muzzle flash itself) keep their own colour.
 bool lit_frame(const Frame& f,const Poly& poly) {
-    if(!light_frame || f.sky || f.biomask || poly.depth_only) return false;
+    if(!light_frame || f.sky || f.biomask || poly.depth_only || f.glow) return false;
     if(f.duke_lit) return unified() && !(f.viewmodel && (poly.command&0x02000000u));
     return unified_scene(f) && !f.viewmodel;
 }
@@ -1223,6 +1224,8 @@ void rank_coplanar_world(const Frame& f,std::vector<Poly>& polys,uint32_t mesh,u
 extern uint64_t coplanar_hits,coplanar_builds;
 inline uint64_t coplanar_mix(uint64_t h,uint32_t w);
 uint64_t unified_downgrades,fallback_kind[3],near_fallbacks;
+uint32_t last_object_animation; // D41D1
+std::vector<uint32_t> glow_meshes; // D41D1, sorted (near_clip_set_glow_meshes)
 // Bytes a mesh's taken faces are expected to need before it is taken over.
 // Unified scene geometry: about one packet per face (most are unclipped quads).
 // D17AR2: a distant host piece (every vertex 4096+ away) is never cut by the
@@ -1991,6 +1994,9 @@ void object(CPUState* cpu) {
     if(!viewmodel && !limb.world_clip() && (first_person_duke_drawing() || third_person_duke_drawing()) && !body) {++duke_skips;return;}
     const bool actor=first_person_actor_drawing() || third_person_duke_drawing();
     ++object_stats.seen;
+    // D41D1: the object animation table (ctx+0x60 is only set while objects
+    // draw), for the sign scan's animated faces (near_clip_object_animation).
+    if(const uint32_t a=psx_mod_read_word(context+0x60);a>=0x80010000u && a<=0x801ffff0u && !(a&3)) last_object_animation=a;
     const unsigned count=psx_mod_read_byte(mesh+6);
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     // D08A35: the hat head copy keeps its vertices and list beside it.
@@ -1998,6 +2004,7 @@ void object(CPUState* cpu) {
     const bool borrowed=sky_borrow_owns(mesh) && sky_borrow_owns(vertices) && sky_borrow_owns(list);
     if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    f.glow=!glow_meshes.empty() && std::binary_search(glow_meshes.begin(),glow_meshes.end(),mesh);
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
     static SkyRenderIdentity sky_identity;
@@ -2322,6 +2329,10 @@ void hook(CPUState* cpu,uint32_t address) {
 void near_clip_host_world_unlit(uint32_t mesh) {
     const unsigned count=psx_mod_read_half(mesh+0x14);
     if(count && count<=1024 && mesh>=0x80010000u && mesh+0x1c+8*((count+2)/3*3)<=0x80200000u) clear_color_index(mesh,count);
+}
+uint32_t near_clip_object_animation() {return last_object_animation;}
+void near_clip_set_glow_meshes(std::vector<uint32_t> meshes) {
+    std::sort(meshes.begin(),meshes.end());glow_meshes.swap(meshes);
 }
 bool near_clip_host_world_live() {
     const bool clip_live=first_person_view_live() || third_person_camera_live() || widescreen_near_clip_live();

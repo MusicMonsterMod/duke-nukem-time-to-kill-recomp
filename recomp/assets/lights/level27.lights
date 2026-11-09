@@ -1,0 +1,13 @@
+# D41D level 27 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
+# x y z  r g b  radius  strength  style  # note
+-8984 1382 5551  1.00 0.62 0.24  5321  0.60  steady  # scan room 0
+6475 1382 -7874  1.00 0.59 0.22  5201  0.60  steady  # scan room 2
+5995 1382 6628  1.00 0.68 0.34  3830  0.60  steady  # scan room 3
+-6483 1382 -7310  1.00 0.62 0.27  4190  0.60  steady  # scan room 1
+-2442 -421 15349  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 0 animated
+-8586 603 5621  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 0 animated
+-15242 -421 -5643  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 1 animated
+-6538 603 -6667  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 1 animated
+6774 603 -7691  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 2 animated
+15478 -421 6645  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 3 animated
+5750 603 6645  1.00 0.70 0.24  5000  1.00  candle  # sign type 449 room 3 animated

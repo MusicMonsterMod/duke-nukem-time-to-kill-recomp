@@ -29,6 +29,8 @@
 #include "pgxp.h"
 #include "gpu.h"
 #include <algorithm>
+#include <array>
+#include <set>
 #include <atomic>
 #include <cctype>
 #include <cmath>

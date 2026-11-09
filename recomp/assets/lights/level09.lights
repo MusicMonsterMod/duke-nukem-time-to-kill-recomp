@@ -1,0 +1,55 @@
+# D41D level 9 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
+# x y z  r g b  radius  strength  style  # note
+8776 -10547 -5905  1.00 0.24 0.29  6000  0.60  steady  # scan room 12
+13896 -10547 -4642  0.65 1.00 0.76  6000  0.60  steady  # scan room 12
+27147 -3328 35999  0.18 0.57 1.00  6000  0.60  steady  # scan room 46
+58612 -12237 3053  0.49 0.52 1.00  5067  0.60  steady  # scan room 67
+10069 -10547 -2463  1.00 0.21 0.77  5710  0.60  steady  # scan room 12
+66596 -6848 44787  1.00 0.85 0.48  3814  0.60  steady  # scan room 54
+50048 -10260 8204  1.00 0.99 0.75  6000  0.60  steady  # scan room 18
+56179 -6784 49019  0.77 0.94 1.00  6000  0.60  steady  # scan room 29
+43907 -10880 24656  0.78 1.00 0.99  6000  0.60  steady  # scan room 20
+23502 -11035 12402  1.00 0.84 0.49  5442  0.60  steady  # scan room 6
+60580 -6784 51679  0.94 1.00 0.83  3465  0.60  steady  # scan room 29
+60520 -15360 8909  0.50 0.53 1.00  5098  0.60  steady  # scan room 28
+60416 -6451 38340  1.00 0.84 0.49  2500  0.60  steady  # scan room 52
+73080 -10714 38912  1.00 0.84 0.50  2500  0.60  steady  # scan room 26
+6629 -11140 1757  1.00 0.99 0.01  2323  1.00  candle  # sign type 957 room 3 animated
+14766 -10493 -1335  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 12
+14340 -9981 -2932  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 12
+11257 -9981 -4101  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 12
+10803 -9981 -1986  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 12
+11264 -10820 -3189  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 12
+11264 -10820 -5003  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 12
+6141 -11113 -451  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 12
+6756 -10239 -7450  1.00 0.47 0.31  4094  1.00  steady  # sign type 4 room 12
+7681 -9664 -7890  1.00 0.06 0.06  2007  1.00  steady  # sign type 775 room 12
+47497 -10090 52729  1.00 0.00 0.00  1661  1.00  steady  # sign type 1003 room 25
+50619 -10384 54959  1.00 0.00 0.00  1576  1.00  steady  # sign type 1000 room 25
+54745 -10384 54960  1.00 0.00 0.00  1576  1.00  steady  # sign type 1000 room 25
+52620 -10384 54960  1.00 0.00 0.00  1576  1.00  steady  # sign type 1000 room 25
+47221 -10084 51776  1.00 0.00 0.00  2172  1.00  steady  # sign type 977 room 25
+67180 -9585 44423  1.00 0.73 0.13  1623  1.00  steady  # sign type 890 room 26
+67180 -9585 33408  1.00 0.73 0.13  1623  1.00  steady  # sign type 890 room 26
+72249 -9472 37356  1.00 0.73 0.13  1623  1.00  steady  # sign type 890 room 26
+72160 -9472 40285  1.00 0.73 0.13  1623  1.00  steady  # sign type 890 room 26
+56522 -6112 54165  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+59113 -6112 54165  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+61616 -6112 54165  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+62172 -6112 47201  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+59648 -6112 47201  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+57093 -6112 47201  1.00 0.89 0.35  3640  1.00  candle  # sign type 860 room 29 animated
+55627 -5643 49666  1.00 0.06 0.06  2007  1.00  steady  # sign type 775 room 29
+52550 -5578 46476  1.00 0.09 0.09  1572  1.00  steady  # sign type 1002 room 30
+59704 -5287 14926  1.00 0.09 0.09  1572  1.00  steady  # sign type 1002 room 39
+60450 -4863 14446  1.00 0.96 0.00  2866  1.00  steady  # sign type 889 room 39
+66010 -515 41466  1.00 0.91 0.17  2575  1.00  steady  # sign type 967 room 60
+50671 4336 38906  0.26 0.19 1.00  1758  1.00  steady  # sign type 177 room 61
+55791 4336 37935  0.31 1.00 0.25  1710  1.00  steady  # sign type 178 room 61
+53244 4335 41484  1.00 0.09 0.36  1791  1.00  steady  # sign type 176 room 61
+53238 6719 38551  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 61
+69590 -962 36725  1.00 0.87 0.29  3327  1.00  steady  # sign type 968 room 65
+72705 -962 41870  1.00 0.87 0.29  3327  1.00  steady  # sign type 968 room 65
+72323 -515 35339  1.00 0.91 0.17  2575  1.00  steady  # sign type 967 room 65
+66958 -670 35494  1.00 0.90 0.22  2089  1.00  steady  # sign type 965 room 65
+69295 -670 40384  1.00 0.90 0.22  2089  1.00  steady  # sign type 965 room 65

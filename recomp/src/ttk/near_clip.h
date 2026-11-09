@@ -48,6 +48,11 @@ void near_clip_counters(uint64_t out[8]);
 // D17AR2 host visibility. True when a room-walk piece would be drawn here
 // whole (Modernized unified geometry with the near path live).
 bool near_clip_host_world_live();
+// D41D1: the object animation table last seen while objects drew (0 if none).
+uint32_t near_clip_object_animation();
+// D41D1: neon sign prop meshes (level_lights.inc); dynamic lights skip them,
+// so a sign gives light but none falls on its letters. Emulation thread.
+void near_clip_set_glow_meshes(std::vector<uint32_t> meshes);
 // The one RAM effect drawing a world piece in a non-flat room has (the
 // colour-index nibble clear), for a redraw-only live frame that draws none.
 void near_clip_host_world_unlit(uint32_t mesh);

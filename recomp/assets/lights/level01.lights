@@ -1,0 +1,51 @@
+# D41D level 1 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
+# x y z  r g b  radius  strength  style  # note
+26619 -3328 -14649  1.00 0.83 0.64  3755  0.60  steady  # scan room 13
+15179 -3570 -14573  1.00 0.79 0.58  5983  0.60  steady  # scan room 12
+32336 -3994 -8663  1.00 0.84 0.66  4361  0.60  steady  # scan room 8
+10799 -1376 -3033  1.00 0.70 0.30  4592  0.60  steady  # scan room 5
+27596 2765 -12774  1.00 0.72 0.27  3064  0.60  steady  # scan room 56
+8338 -2330 -11409  1.00 0.67 0.37  5066  0.60  steady  # scan room 3
+38437 -3994 -9216  1.00 0.75 0.34  2500  0.60  steady  # scan room 8
+6801 -3328 -14336  1.00 0.71 0.41  3308  0.60  steady  # scan room 18
+19121 -3994 -26624  1.00 0.84 0.66  2500  0.60  steady  # scan room 25
+10732 -1117 -9728  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 3
+11477 -1352 -4097  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 5
+15158 -1352 -3536  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 5
+24372 -1352 -7168  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 6
+18945 -1352 -7989  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 6
+21725 -1352 -9420  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 12
+19239 -1352 -9420  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 12
+30240 -1117 -9728  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 14
+39729 -1352 -23045  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 15
+39729 -1352 -19973  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 15
+13315 -1352 -15565  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 19
+12494 -1352 -23551  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 19
+15158 -1352 -23555  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 19
+16590 -1352 -17829  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 20
+21297 -1352 -17963  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 20
+17893 -1352 -25400  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 21
+26165 -1632 -23009  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 22
+26165 -1632 -17915  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 22
+11468 -1352 -38423  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 30
+19983 -1352 -41782  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 31
+16587 -1352 -40436  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 31
+16587 -1352 -33887  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 31
+22323 -1352 -33879  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 31
+38496 -669 -42642  1.00 0.17 0.17  1991  1.00  steady  # sign type 643 room 35
+41419 -669 -42713  1.00 0.17 0.17  1991  1.00  steady  # sign type 644 room 35
+53726 -1352 -28465  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 36
+48647 -1352 -28465  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 36
+43511 -1637 -21500  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 38
+45861 -1352 -24037  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 38
+51704 -1637 -22522  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 39
+48670 -1637 -22522  1.00 0.90 0.35  2449  1.00  steady  # sign type 243 room 39
+48650 -1352 -24779  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 39
+49702 -1352 -14538  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 41
+48609 -4424 -24783  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 45
+51681 -4424 -24783  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 45
+52746 1720 -28882  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 67
+48647 1720 -30513  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 67
+6666 1720 -40150  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 70
+12807 1720 -41777  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 70
+-817 1720 -41473  1.00 0.67 0.34  1824  1.00  steady  # sign type 242 room 72

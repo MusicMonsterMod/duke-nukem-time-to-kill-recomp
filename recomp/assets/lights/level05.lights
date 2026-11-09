@@ -1,0 +1,70 @@
+# D41D level 5 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
+# x y z  r g b  radius  strength  style  # note
+-4212 -7821 18791  0.29 0.54 1.00  6000  0.60  steady  # scan room 65
+2969 -7821 24761  0.29 0.53 1.00  6000  0.60  steady  # scan room 38
+9352 -10547 -3688  1.00 0.31 0.69  6000  0.60  steady  # scan room 41
+-51114 1418 -17292  0.49 0.52 1.00  6000  0.60  steady  # scan room 54
+-51704 -8346 -29762  1.00 0.87 0.43  6000  0.60  steady  # scan room 61
+13174 -10547 -5268  0.39 1.00 0.56  3976  0.60  steady  # scan room 41
+12615 -10547 -2506  0.34 0.27 1.00  3629  0.60  steady  # scan room 41
+12379 -8025 24985  0.26 0.52 1.00  6000  0.60  steady  # scan room 15
+-61098 -6656 18377  0.38 0.38 1.00  6000  0.60  steady  # scan room 33
+1550 -13875 14940  0.43 0.39 1.00  3725  0.60  steady  # scan room 7
+-54577 -8233 19312  1.00 0.23 0.17  5016  0.60  steady  # scan room 33
+-48226 -8346 -27550  0.49 0.84 1.00  5444  0.60  steady  # scan room 61
+1851 -13830 1326  1.00 0.61 0.59  4445  0.60  steady  # scan room 2
+-50948 -8346 -35068  0.46 0.76 1.00  4508  0.60  steady  # scan room 61
+-69191 -11213 -15196  0.57 0.62 1.00  3220  0.60  steady  # scan room 63
+-62468 -7475 10791  1.00 0.82 0.47  3016  0.60  steady  # scan room 64
+-51479 -13158 -10486  1.00 0.76 0.45  3870  0.60  steady  # scan room 51
+11959 -7571 29373  0.24 0.50 1.00  4612  0.60  wave:19:0.35  # scan room 72
+-49854 -11571 3705  1.00 0.57 0.28  4698  0.60  steady  # scan room 30
+-62093 -12544 -10240  1.00 0.80 0.46  3313  0.60  steady  # scan room 63
+-53592 1741 -1048  0.80 0.71 1.00  4100  0.60  wave:22:0.50  # scan room 60
+-62464 -6810 24559  1.00 0.48 0.23  2853  0.60  steady  # scan room 35
+-58092 717 5491  0.53 0.50 1.00  3557  0.60  steady  # scan room 60
+-27930 -13773 25014  1.00 0.45 0.45  2729  0.60  steady  # scan room 55
+-4774 -9772 6435  1.00 0.06 0.06  2007  1.00  steady  # sign type 832 room 1
+-4306 -9600 9679  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 1 animated
+-888 -9138 3328  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated
+-232 -9163 5079  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated
+-1377 -11650 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated
+-3520 -11609 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated
+5420 -9600 6091  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 2 animated
+1507 -9838 1725  1.00 0.87 0.00  2686  1.00  candle  # sign type 220 room 2 animated
+19756 -9600 971  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 4 animated
+13637 -11531 4834  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated
+13637 -11554 2663  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated
+16668 -11657 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated
+18812 -11627 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated
+6139 -11088 -651  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 12
+6756 -10239 -7450  1.00 0.47 0.31  4094  1.00  steady  # sign type 4 room 17
+-17095 -10062 -15360  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
+-17095 -10062 -13824  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
+-17095 -10062 -14592  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
+-12607 -9938 -13912  0.31 1.00 0.25  1710  1.00  steady  # sign type 178 room 18
+-16541 -9731 -6410  0.22 0.13 1.00  4658  1.00  steady  # sign type 16 room 20
+-31339 -10798 -330  1.00 0.00 0.00  1661  1.00  steady  # sign type 728 room 24
+-42390 -11742 5453  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 29
+-62472 -6587 35027  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 31
+-54383 -8643 17989  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33
+-54383 -8643 20966  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33
+-54403 -6272 19307  1.00 0.00 0.00  2683  1.00  steady  # sign type 732 room 33
+-49489 -7623 19396  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 34
+-52841 -8354 10573  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
+-51533 -8354 12749  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
+-50867 -8271 15900  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
+-45546 -9784 11955  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 39
+-39601 -11742 7724  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40
+-38221 -11533 10567  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40
+15274 -9600 -6497  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 41 animated
+9103 -10233 -742  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41
+15904 -10187 -4685  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41
+11264 -10820 -3189  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41
+11264 -10820 -5003  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41
+-54272 -10752 -5835  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51
+-51353 -10368 -10097  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 51
+-53963 -10752 0  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51
+-36716 -10368 1173  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 53
+-28161 -5843 25073  1.00 0.09 0.36  1791  1.00  steady  # sign type 176 room 55
+-59904 302 -15366  0.26 0.19 1.00  1758  1.00  steady  # sign type 177 room 68

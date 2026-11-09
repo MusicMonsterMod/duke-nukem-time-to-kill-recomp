@@ -1,5 +1,36 @@
 # Next-session handoff
 
+## 2026-11-09 - D41D1 accepted and closed
+
+User: "lock it in and close it out". D41D1 is Done: glowing props give real
+light (`lamp signs`), the `wave` style follows TTK's animated light table, a
+lamp lights only while its room is shown, neon signs take no light on their
+letters, and every selectable level has a first lamp set.
+
+## 2026-11-09 - D41D1 club sign smudge fixed, neon signs only (Needs playtest)
+
+User, UI slot 7: "the bootylicious sign suffers the same issue as our exit
+sign from earlier". A first fix (every glowing prop unlit, `lamp glow`
+switch) was shelved at the user's request; after the explanation, user:
+"limit to the neon signs. leave out the lamp glow toggle. go". Now a prop with
+a face of neon on a dark ground (not animated, not flame-coloured) takes no
+dynamic light: its lamp still lights the room around it, its letters stay as
+drawn. Slot 7 sign pixels match lamps off (0.1, was 24.5). Per level: 0: 18
+meshes, 5: 12, 2: 14 (a blue lamp lens), 3: 1, 1 and 6: 0; lanterns and
+torches still take light. No toggle.
+[Note 429](429-d41d1-signs-waves-levels.md).
+
+## 2026-11-09 - D41D1 signs, waves and every level (Needs playtest)
+
+`lamp signs` gives glowing props (signs, neon, tubes, lanterns, torches,
+braziers) real light in their own colour; the `wave` lamp style follows TTK's
+animated light table live (decoded: `ctx+0x68` pointer over a 64-entry sine
+table, vertex colour byte = phase); a lamp lights only while its room is
+shown. First lamp sets for all 21 selectable levels in
+`recomp/assets/lights/`, each for the user's review. Light still passes
+between rooms that are both in view (D41F). Not measured at 180 Hz on the
+player's GPU. [Note 429](429-d41d1-signs-waves-levels.md).
+
 ## 2026-11-09 - D41D accepted and closed; D41D1 added
 
 User: "excellent lock it in and close it out". D41D is Done: per-level lamp

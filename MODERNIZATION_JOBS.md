@@ -1,5 +1,39 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D41D1 accepted and closed
+
+User: "lock it in and close it out". D41D1 is Done: glowing props give real
+light (`lamp signs`), the `wave` style follows TTK's animated light table, a
+lamp lights only while its room is shown, neon signs take no light on their
+letters, and every selectable level has a first lamp set.
+
+## 2026-11-09 - D41D1 club sign smudge fixed, neon signs only (Needs playtest)
+
+User, UI slot 7: "the bootylicious sign suffers the same issue as our exit
+sign from earlier". A first fix (every glowing prop unlit, `lamp glow`
+switch) was shelved at the user's request; after the explanation, user:
+"limit to the neon signs. leave out the lamp glow toggle. go". Now a prop with
+a face of neon on a dark ground (not animated, not flame-coloured) takes no
+dynamic light: its lamp still lights the room around it, its letters stay as
+drawn. Slot 7 sign pixels match lamps off (0.1, was 24.5). Per level: 0: 18
+meshes, 5: 12, 2: 14 (a blue lamp lens), 3: 1, 1 and 6: 0; lanterns and
+torches still take light. No toggle.
+[Note 429](documentation/429-d41d1-signs-waves-levels.md).
+
+## 2026-11-09 - D41D1 signs, waves and every level (Needs playtest)
+
+Selected with "work on D41D1 - proceed autonomously". Glowing props now give
+real light: `lamp signs` finds them by their textures (EXIT and SECURITY
+signs, neon, tube lights, lit panels, lanterns, torches, braziers) and puts a
+lamp in front of each in its dominant colour; animated warm ones (flames)
+flicker as candles. TTK's animated light is decoded: the pointer at
+`ctx+0x68` steps a tick at a time through a 64-entry sine table and each
+vertex's colour byte is its phase; the new `wave:P:D` style follows it live,
+and `lamp scan` uses it where a cluster's phases agree. A lamp now lights
+only while Polymorph shows its room (fixes a sign lighting through a wall).
+All 21 selectable levels have a first set for review. Shots: subway EXIT,
+club sign, mine lantern, sweep. [Note 429](documentation/429-d41d1-signs-waves-levels.md).
+
 ## 2026-11-09 - D41D accepted and closed; D41D1 added
 
 User: "excellent lock it in and close it out". D41D is Done: per-level lamp
@@ -7530,7 +7564,7 @@ casting real light, user review per level.
 
 ### D41D1 - Level light sources, second part
 
-**Status: Todo. Dependencies: D41D.** User (2026-11-09): signs emitting real
+**Status: Done (user-accepted 2026-11-09: "lock it in and close it out"; `lamp signs`, `wave` style, room gate, neon signs take no light on their letters, first sets for all 21 selectable levels; [note 429](documentation/429-d41d1-signs-waves-levels.md)). Dependencies: D41D.** User (2026-11-09): signs emitting real
 light, "i like that idea". Find emitters by texture page and CLUT (EXIT signs,
 neon, monitors, lit panels) and give each a lamp in its own colour, the sign
 itself kept crisp by the D41D shader rule; decode the animated light tables
@@ -9467,7 +9501,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes | Done (accepted 2026-11-08; fire and other enemy weapons moved to D41I) | D41A |
 | D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Done (accepted 2026-11-08) | D41A |
 | D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Done (user-accepted 2026-11-09: lamps, editor, scan, level 0, signs keep their look; note 428; rest moved to D41D1) | D41A |
-| D41D1 | Level light sources, second part: signs and neon found by texture give real light, TTK's animated light tables as lamp styles, first lamp sets for more levels (user review per level) | Todo | D41D |
+| D41D1 | Level light sources, second part: signs and neon found by texture give real light, TTK's animated light tables as lamp styles, first lamp sets for more levels (user review per level) | Done (user-accepted 2026-11-09; note 429) | D41D |
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |

@@ -1,0 +1,19 @@
+# D41D level 23 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
+# x y z  r g b  radius  strength  style  # note
+-4886 -1331 379  1.00 0.87 0.77  6000  0.60  steady  # scan room 0
+4525 -1222 161  0.98 0.91 0.82  6000  0.60  steady  # scan room 1
+2798 -3844 -2567  1.00 0.93 0.83  6000  0.60  steady  # scan room 24
+-3022 -3728 -3366  1.00 0.93 0.84  6000  0.60  steady  # scan room 26
+-3011 -4145 3604  1.00 0.92 0.82  6000  0.60  steady  # scan room 25
+10 -1331 1293  1.00 0.84 0.65  6000  0.60  steady  # scan room 6
+2526 -3968 3893  1.00 0.91 0.80  5566  0.60  steady  # scan room 23
+21 -1331 -1614  1.00 0.85 0.66  5701  0.60  steady  # scan room 8
+5761 -4710 4829  1.00 0.96 0.86  4652  0.60  steady  # scan room 2
+15082 0 306  0.93 0.93 1.00  3482  0.60  steady  # scan room 1
+-15117 0 -258  1.00 0.92 0.92  3196  0.60  steady  # scan room 0
+-9986 -3021 12976  1.00 1.00 1.00  3387  0.60  steady  # scan room 11
+-14658 -2502 8976  1.00 1.00 1.00  3196  0.60  steady  # scan room 16
+11264 -666 753  0.57 0.57 1.00  2500  0.60  steady  # scan room 1
+10172 -3021 -12504  1.00 1.00 1.00  3648  0.60  steady  # scan room 13
+0 -4403 0  1.00 0.86 0.64  2831  0.60  steady  # scan room 33
+21008 -3526 206  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 31

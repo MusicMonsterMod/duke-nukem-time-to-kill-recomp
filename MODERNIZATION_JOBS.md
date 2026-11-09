@@ -1,5 +1,14 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D49E and D08A40 accepted and closed
+
+User: "lock it all in and close us out". D49E is Done: the Laser Gatling's
+streak starts at the drawn barrel (first person) or that draw's muzzle
+(third person), Modernized only (`bolt_barrel.inc`, console `boltbarrel`).
+D08A40 is Done: the upgraded Gatling's ammo box shows the chosen laser charge
+canister (B), animated with the energy weapon's shot cycle; the regular
+Gatling keeps its belt.
+
 ## 2026-11-09 - D41J accepted and closed; D49E and D08A40 added
 
 User: "this current job at hand is fully accepted", closeout authorized.
@@ -4791,11 +4800,14 @@ all HUD scales; tracked or disc-derived sources per D24A; Vanilla unchanged.
 
 ### D08A40 - Laser Gatling ammo icon
 
-**Status: Todo (user, 2026-11-09: "the laser gatling gun ammo icon needs to change, as it still shows the default ammunition belt"). Dependencies: D08A32, D08A38.**
+**Status: Done (user-accepted 2026-11-09: "lock it all in and close us out"; user picked candidate B: "type B"; user, 2026-11-09: "the laser gatling gun ammo icon needs to change, as it still shows the default ammunition belt"). Dependencies: D08A32, D08A38.**
 With the upgrade (record 28) the bottom-right ammo box still shows the
-regular Gatling's ammunition belt. Design a Laser Gatling ammo icon in the
+regular Gatling's ammunition belt, because there has never been a custom
+Laser Gatling icon (user: "we dont have a custom icon for the laser gatling
+gun, and the job will be for us to create one"). Create a Laser Gatling ammo icon in the
 D08A32 process and style (14x14 in a 16x16 canvas, original TTK-style art,
-flat orthographic look, red-pink to match its laser bolts), add the
+flat orthographic look, red-pink to match its laser bolts; animated, like the
+energy weapon's frames - user: "i would like it animated of course"), add the
 candidates to the ammo icon review artifact
 (https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu) for the user's choice,
 then show it in game when the Gatling's upgrade is held. Check the other
@@ -4803,6 +4815,37 @@ upgraded records (HiTemp Flamethrower 27, Incendiary RPG 29) for the same
 fallback and report. Acceptance: user-approved icon on the artifact, then
 in game, framed and borderless HUD, all HUD scales; regular Gatling and
 Vanilla unchanged.
+
+**Work log (2026-11-09, awaiting the user's pick).** Three animated
+candidates (8 frames like the energy atom: rest, then 1-7 at 60 ms per shot,
+looping while held; at most 15 exact PSX colours; red-pink ramp around the
+bolts' colour plus gunmetal): A laser energy cell on the diagonal with a
+surge along its charge; B an industrial laser charge canister (inspired by
+the user's Duke3D freezethrower ammo idea, drawn new) with a steady beam in
+its window and a beam between two emitters, no arcs (user: "we want some
+kind of more stable laser beam type vibe"); C a three-bolt volley with a
+pulse running down each bolt. Frames in `recomp/assets/ui/ammo/`
+(`laser-gatling-{a,b,c}-0..7.png` and `-15col` copies), on the ammo icon
+artifact. In-game notes: the HUD picks the icon by the status bar weapon
+byte `+0x3ba` (`ammo_live_view()`, `ammo_hud.inc`), which stays 7 with the
+upgrade, so the upgraded Gatling needs its own entry keyed on inventory bit
+8; its ammo counter is `+0x336` (not `+0x2c6+4*7`), which shot detection must
+read; the HiTemp (27) and Incendiary RPG (29) show their base icons and
+count at `+0x33a`/`+0x332`.
+
+**Work log (2026-11-09, Needs playtest).** User: "type B". `ammo.json` lists
+B's frames for record 28 (`laser-gatling-b-0..7`); `build_ammo_icons.py`
+covers records 0-29 and regenerated `ammo_icons.h`; `test_ui_art.py` expects
+record 28. `ammo_live_view()` (`ammo_hud.inc`) shows an upgraded weapon's
+record icon when it has one (slot 7 with inventory bit 8 -> 28; the HiTemp
+and Incendiary RPG keep their base icons, having none), and record 28 uses
+the energy weapon's cycle. Its ammo is `+0x2c6+4*28` = `+0x336`, the
+upgraded Gatling's own counter, so shots are counted. A and C moved to
+local `research/d08a40-candidates/`. Offscreen check (level 0, borderless,
+60 Hz): regular Gatling view -1 (the game's belt), upgraded rest on B frame
+0, held fire cycled frames 1-7 over 9 shots and settled on 0. Manual updated.
+`test_ui_art.py` (12) and `--check` pass. Needs the user's playtest (framed
+HUD and other scales not checked separately; same draw path as D08A32).
 
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 
@@ -7526,7 +7569,7 @@ section 12. Needs the user's playtest (`dnupgrade` upgrades both).
 
 ### D49E - Laser Gatling bolts leave from the true muzzle
 
-**Status: Todo (user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
+**Status: Done (user-accepted 2026-11-09: "lock it all in and close us out"; user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
 The Laser Gatling (record 28, the Gatling's upgrade; launches projectile
 type 27) does not appear to fire from its drawn muzzle the way the other
 guns now do after the D10H8/D49B muzzle work (rounds drawn from the barrel,
@@ -7537,6 +7580,34 @@ barrel and stay in step with its spin and fire animation. Game-wide, not
 level-specific; regular Gatling, other weapons and Vanilla unchanged; keep
 the D41J bolt lights with the bolts. Test with `dnupgrade`. Acceptance: user
 playtest.
+
+**Work log (2026-11-09, Needs playtest).** Cause: the bolt (type 27) is the
+game's stretched laser-streak model (0x76a), drawn by `0x8003177c` from the
+pool draw loop `0x8006d08c`; the streak reaches back from the bolt by its
+drawn length (+0x46), and on its first drawn tick (one tick, 2000 units,
+after launch) it runs back to the launch point, the third-person skeleton's
+muzzle (`player+0xbc`). In first person the gun is drawn in its own
+presentation pose, so the streak came out of the gun's side; a shot from
+rest also launches from the previous frame's rest-pose muzzle (as in D47).
+The regular Gatling's type 7 has no model, so only the Laser Gatling showed
+it; fire timing was already right (streak and flash on the same tick).
+Fix: `recomp/src/ttk/bolt_barrel.inc` `bolt_at_barrel`, called from
+`frame_replay.cpp` at the bolt's transform load `0x800292a0`, turns and
+stretches only that draw's transform copy so Duke's type 27 streak runs on
+its first drawn tick from the drawn barrel (first person: the D49
+`first_person_drawn_muzzle` point, same as the flash; third person: that
+draw's muzzle) to the bolt's real position. Flight, hits, lights and game
+records untouched; live frames and 180 Hz redraw workers; Modernized only.
+Console `boltbarrel on|off|default`, `DNTTK_BOLT_BARREL=0`. Measured gap
+between the streak tail and the drawn barrel before the fix (180 Hz): first
+person taps 779 units median (39 deg from the eye), held 663; third person
+presses from rest 416, held 42; after, on the barrel. Matched stills
+`research/before-after/D49E/`. `ttk-input-test`, `ttk-aim-test` pass.
+Executable `4b911c4c301cad13648182c13701b6f7235b94a8af46715a681052c1355168b8`.
+Limits: bolts are not blended between game ticks at 180 Hz (as the
+original; blending would touch every round); enemy laser bolts (type 35, same
+model) unchanged; the muzzle light stays at the launch point; Vanilla not
+run (code is Modernized only).
 
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
@@ -9253,7 +9324,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Done 2026-11-08 (covered by D10H8; note 424) | D49 |
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Done 2026-11-08 | D49 |
 | D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
-| D49E | Laser Gatling bolts leave from the true muzzle, in step with the gun | Todo | D10H8, D49B, D41J |
+| D49E | Laser Gatling bolts leave from the true muzzle, in step with the gun | Done (user-accepted 2026-11-09) | D10H8, D49B, D41J |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
@@ -9369,7 +9440,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
 | D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Done (user-accepted 2026-11-08) | - |
-| D08A40 | Laser Gatling ammo icon (still shows the Gatling's ammunition belt; review on the ammo icon artifact) | Todo | D08A32, D08A38 |
+| D08A40 | Laser Gatling ammo icon (still shows the Gatling's ammunition belt; review on the ammo icon artifact) | Done (user-accepted 2026-11-09) | D08A32, D08A38 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

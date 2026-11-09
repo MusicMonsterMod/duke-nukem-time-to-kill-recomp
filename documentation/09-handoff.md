@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-11-09 - D49E and D08A40 closed
+
+User: "lock it all in and close us out". D49E (Laser Gatling bolts drawn from
+the barrel) and D08A40 (Laser Gatling ammo icon, the laser charge canister)
+are Done.
+
+## 2026-11-09 - D49E Laser Gatling bolts from the barrel (Done); D08A40 candidates
+
+D49E: the Laser Gatling's streak (type 27, model 0x76a) ran back to the
+skeleton muzzle, beside the first-person gun; `bolt_barrel.inc` roots its
+first drawn tick at the drawn barrel (first person) or that draw's muzzle
+(third person), draw-side only, Modernized. Console `boltbarrel`. Stills in
+`research/before-after/D49E/`. D08A40: the user picked B (the
+laser charge canister); in game for the upgraded Gatling with the energy
+weapon's shot cycle, regular Gatling keeps its belt (Needs playtest).
+
 ## 2026-11-09 - D41J closed; D49E and D08A40 added
 
 User: "this current job at hand is fully accepted". D41J is Done. New jobs:

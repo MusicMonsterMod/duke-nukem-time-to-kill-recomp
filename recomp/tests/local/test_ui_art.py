@@ -68,10 +68,11 @@ class ProjectUiArt(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_ammo_icons_cover_every_weapon(self):
-        # The Gatling gun (slot 7) keeps the game's belt; every other weapon 1-14 has frames.
+        # The Gatling gun (slot 7) keeps the game's belt; every other weapon 1-14 has frames,
+        # and the Laser Gatling (record 28, D08A40) has its own.
         import json
         weapons = {w['slot']: w for w in json.loads((UI / 'ammo/ammo.json').read_text())['weapons']}
-        self.assertEqual(sorted(weapons), list(range(1, 15)))
+        self.assertEqual(sorted(weapons), list(range(1, 15)) + [28])
         for slot, w in weapons.items():
             with self.subTest(slot=slot):
                 self.assertEqual(bool(w['frames']), slot != 7)

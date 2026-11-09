@@ -143,6 +143,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     if(point_blank_console_command(line,say,close))return true;
     if(shot_view_console_command(line,say,close))return true;
     if(beam_follow_console_command(line,say,close))return true;
+    if(bolt_barrel_console_command(line,say,close))return true;
     if(beam_anim_console_command(line,say,close))return true;
     if(shoot_seen_console_command(line,say,close))return true;
     if(auto_aim_console_command(line,say,close))return true;

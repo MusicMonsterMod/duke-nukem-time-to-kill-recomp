@@ -57,6 +57,7 @@ namespace ttk {
 const char* frame_replay_debug_json();
 namespace {
 const char* status_json() {return frame_replay_debug_json();}
+bool bolt_barrel_enabled();   // D49E (bolt_barrel.inc)
 constexpr uint32_t composition=0x80026164, composition_ret=0x800268f4;
 constexpr uint32_t flip=0x8001fcbc, chain_close=0x8001fba0, submit=0x8001fa78;
 constexpr uint32_t sentinel=0x800000fc;
@@ -416,7 +417,7 @@ uint64_t captures=0,publishes=0,submits=0,presented=0,reused=0,no_job=0,failures
 struct Params {
     uint32_t magic;
     float alpha;
-    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera, 16 = D49 beams follow the view, 32 = D49C beam animation (beam_t)
+    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera, 16 = D49 beams follow the view, 32 = D49C beam animation (beam_t), 64 = D49E bolts at the barrel
     uint32_t nmats;          // matrix patches following the header
     CameraState camera;
     uint32_t render_len;     // draw-time host state after the patches
@@ -960,6 +961,7 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         }
         // D10H8: an extrapolated eye can leave the base room; walk it.
         if(alpha>1.0) p.flags|=2;
+        if(bolt_barrel_enabled()) p.flags|=64;   // D49E
         last_late_yaw=999.0f;
         if(late) {
             if(apply_late(base.state,next.state,alpha,p,look_ms)) {
@@ -1578,6 +1580,7 @@ void beams_animate(double t) {
     }
 }
 #include "impact_follow.inc"
+#include "bolt_barrel.inc"
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1585,6 +1588,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if(len<sizeof(Params)) return 0;
     Params p;
     std::memcpy(&p,params,sizeof p);
+    bolt_barrel_job=(p.flags&64)!=0;   // D49E
     if(p.magic!=0x54544b32u || sizeof(Params)+(uint64_t)p.nmats*sizeof(MatPatch)>len) return 0;
     // Developer mask DNTTK_INTERP_CAM: 1 rotation, 2 anchor/distance/room,
     // 4 view matrix +0x20/+0x34, 8 eye position +0x14 (default all).
@@ -2646,8 +2650,8 @@ const char* quake_json() {
 }
 const char* impact_json() {
     static char b[256];
-    std::snprintf(b,sizeof b,"{\"on\":%s,\"glows\":%llu,\"sparks\":%llu,\"glow_misses\":%llu}",impact_follow_enabled()?"true":"false",
-        (unsigned long long)impact_glows,(unsigned long long)impact_sparks,(unsigned long long)impact_glow_misses);
+    std::snprintf(b,sizeof b,"{\"on\":%s,\"glows\":%llu,\"sparks\":%llu,\"glow_misses\":%llu,\"bolt_barrel\":%s,\"bolts_at_barrel\":%llu}",impact_follow_enabled()?"true":"false",
+        (unsigned long long)impact_glows,(unsigned long long)impact_sparks,(unsigned long long)impact_glow_misses,bolt_barrel_enabled()?"true":"false",(unsigned long long)bolt_moves);
     return b;
 }
 const char* frame_replay_debug_json() {
@@ -2688,6 +2692,23 @@ const char* frame_replay_debug_json() {
     }
     return buffer;
 }
+// D49E: "boltbarrel [on|off|default]", session-only A/B of the Laser
+// Gatling's bolts drawn from the drawn barrel versus the original launch point.
+bool bolt_barrel_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"boltbarrel") && std::strncmp(line,"boltbarrel ",11)) return false;
+    close=false;
+    if(line[10]) {
+        const char* value=line+11;
+        if(!std::strcmp(value,"on")) bolt_barrel_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off")) bolt_barrel_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default")) bolt_barrel_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: boltbarrel [on|off|default] (on: Laser Gatling bolts leave the drawn barrel; session only)");return true;}
+        close=true;
+    }
+    char text[160];std::snprintf(text,sizeof text,"Bolt barrel %s: Laser Gatling bolts are drawn %s (session only). Default on.",
+        bolt_barrel_enabled()?"on":"off",bolt_barrel_enabled()?"from the drawn barrel":"from the original launch point");
+    say(text);return true;
+}
 } // namespace ttk
 
 PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
@@ -2697,7 +2718,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
     for(uint32_t a:{0x800632b0u,0x80031d10u,0x80032e78u,0x800348d8u,0x80031c14u})
         psx_mod_register_function_entry_plugin("ttk.frame.replay",a,ttk::actor_draw);
     psx_mod_register_function_entry_plugin("ttk.frame.replay.profile",0x8001ca4cu,ttk::quality_actor_end);
-    psx_mod_register_function_entry_plugin("ttk.frame.replay.xf",0x800292a0u,ttk::transform_load);
+    // D49E: after the transform's record/substitute step, so the bolt's drawn
+    // streak is changed in this draw's own copy only.
+    psx_mod_register_function_entry_plugin("ttk.frame.replay.xf",0x800292a0u,[](CPUState* cpu,uint32_t fn){ttk::transform_load(cpu,fn);ttk::bolt_at_barrel(cpu);});
     psx_mod_register_function_entry_plugin("ttk.frame.replay",0x8001fba0u,ttk::composition_end);
     psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::flip,ttk::redraw_only_flip);
 }

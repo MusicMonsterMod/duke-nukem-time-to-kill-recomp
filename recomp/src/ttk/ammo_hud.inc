@@ -4,14 +4,20 @@
 // (x + 2, y + 2) that steps one round per shot (0x8008bb5c), then the 46x16
 // box at (x, y). The weapon is player +0x3ba; its ammo is +0x2c6 + 4 * slot,
 // or +0x336 / +0x33a / +0x332 for an upgraded Gatling / RPG / flamethrower
-// (+0x2c4 + 4 * slot bit 3; 0x8008ba50..0x8008baf0).
+// (+0x2c4 + 4 * slot bit 3; 0x8008ba50..0x8008baf0), which is +0x2c6 + 4 *
+// the upgraded record (28 / 29 / 27, as 0x8003df40 resolves them).
+//
+// D08A40: an upgraded weapon shows its record's own icon when it has one
+// (the Laser Gatling, record 28); otherwise its base slot's (the HiTemp
+// Flamethrower and Incendiary RPG keep the flamethrower and RPG icons).
 //
 // Here each weapon shows its own icon (assets/ui/ammo/, ammo_icons.h), drawn
 // as the gadget icons are (hud_box_draw, bare: the 16x16 cell at x + 1, y,
 // its cell and palette loaded in front of it through OT slot 0), and the four
 // belt records get width 0 for the status bar's call (a degenerate quad, as
 // hud_border_begin does to the box) until widescreen_hud_restore. The Gatling
-// gun keeps the game's belt (user decision). One cell and palette in the HUD
+// gun keeps the game's belt (user decision); its upgrade, the Laser Gatling,
+// has its own icon (D08A40). One cell and palette in the HUD
 // sheet's empty band (D08A7): the cell at (984,205) between the D08A20 and
 // D19U2 cells, the palette at (1008,212) below the D08A20 one.
 //
@@ -27,8 +33,9 @@
 //    from a clip of n (5 at most), then at 0 with a reserve the empty
 //    magazine drops (20, 21) until the refill raises a loaded one (22, 23
 //    when four or more go in).
-//  - Energy weapon: a shot plays 1-7 at 60 ms then 0; shots during the cycle
-//    keep it going, it ends on 0 at the end of the cycle.
+//  - Energy weapon and Laser Gatling (D08A40): a shot plays 1-7 at 60 ms then
+//    0; shots during the cycle keep it going, it ends on 0 at the end of the
+//    cycle.
 //  - Freezer: a shot flashes 1 (peak), 2, 3 and rest at 230 ms; shots within
 //    that keep pulsing 1, 2, 3, 2 at 70 ms, then 3 and rest.
 // Live frames choose the cell; redraws (D17 replay presentation, workers
@@ -90,6 +97,7 @@ static int ammo_frame(const AmmoAnim& a) {
         return rest;
     }
     case 10:  // energy weapon
+    case 28:  // Laser Gatling (D08A40), the same cycle
         if(!a.shot_valid || a.t>=a.end) return 0;
         {const int i=(int)(((a.t-a.start)/18)%8);return i<7?i+1:0;}
     case 11:  // freezer
@@ -102,7 +110,13 @@ static int ammo_frame(const AmmoAnim& a) {
 // Live frame: advance the clock, take shots and refills from the counts.
 static int ammo_live_view() {
     if(!input_modernized() || !identity()) return -1;
-    const unsigned slot=psx_mod_read_byte(player+0x3ba);
+    unsigned slot=psx_mod_read_byte(player+0x3ba);
+    // D08A40: the upgraded record's own icon (bit 3 of the base slot's
+    // inventory word), when it has one.
+    if(slot>=7 && slot<=9 && (psx_mod_read_half(player+0x2c4+4*slot)&8)) {
+        const unsigned up=slot==7?28:slot==8?29:27;
+        if(k_ammo_first[up]>=0) slot=up;
+    }
     if(slot>=sizeof k_ammo_first/sizeof k_ammo_first[0] || k_ammo_first[slot]<0) {ammo_anim.slot=-1;return -1;}
     AmmoAnim& a=ammo_anim;
     const int ammo=ammo_slot_ammo(slot),clip=slot==4?ammo_clip_rounds():0;
@@ -112,7 +126,7 @@ static int ammo_live_view() {
         a.t+=(int32_t)std::min(30u,psx_mod_read_word(0x800d21fc));
         const int count=slot==4?clip:ammo,last=slot==4?a.clip:a.ammo;
         if(count<last) {
-            if(slot==10) {
+            if(slot==10 || slot==28) {
                 if(a.shot_valid && a.t<a.end) a.end=a.start+144*((a.t-a.start)/144+1);
                 else {a.start=a.t;a.end=a.t+144;}
             } else if(slot==11 && !(a.shot_valid && a.t-a.shot<69)) a.start=a.t;

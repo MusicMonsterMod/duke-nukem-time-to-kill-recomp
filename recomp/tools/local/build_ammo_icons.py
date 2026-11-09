@@ -18,7 +18,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / 'assets/ui/ammo'
 HEADER = ROOT / 'src/ttk/ammo_icons.h'
-SLOTS = 15  # weapon slots 0..14 (+0x3ba)
+SLOTS = 30  # weapon records 0..29: slots 0..14 (+0x3ba) and the upgraded 27-29 (D08A40)
 
 
 def cell(path):

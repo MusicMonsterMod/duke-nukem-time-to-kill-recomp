@@ -203,8 +203,8 @@ actor polygon.
 - D41B Weapon and projectile lights (sections 7 and 10; Done 2026-11-08).
 - D41I Fire and enemy weapon lights (split from D41B; section 11; Done 2026-11-08).
 - D41C Duke and first person in the light (section 8; Done 2026-11-08).
-- D41D Level light sources (emitters, animated light tables, per-level light
-  files, light editor).
+- D41D Level light sources: lamp files, editor, scan, level 0 (note 428; Done
+  2026-11-09). D41D1: texture emitters, animated light tables, more levels.
 - D41E Relit levels (LIGHTING Original / Enhanced / Relit).
 - D41F Shadows (research spike, then shadow maps for chosen lights).
 - D41G Light scale and cost (clustered lights, untextured polygons, sprites,

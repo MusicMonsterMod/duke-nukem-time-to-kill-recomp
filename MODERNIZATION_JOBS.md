@@ -1,5 +1,29 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D41D accepted and closed; D41D1 added
+
+User: "excellent lock it in and close it out". D41D is Done: per-level lamp
+files, the `lamp` editor and scan, level 0's first set, and signs and neon
+keeping their look under any light. The remaining parts (signs found by
+texture giving real light, the animated light tables as styles, more levels)
+are the new D41D1 (Todo).
+
+## 2026-11-09 - D41D level lights, first part (Done)
+
+Selected with "let's do D41D". First part in: each level can have real lights
+("lamps") in a tracked text file (`recomp/assets/lights/levelNN.lights`); the
+nearest 12 to Duke join the D41A per-pixel lights, with styles (steady,
+flicker, pulse, candle, strobe, broken). Backtick `lamp` edits them in game
+(add at the crosshair, pick, move, nudge, colour, radius, power, style, save)
+and `lamp scan` finds lamps from the painted light's coloured pools (room
+table decode checked against the stored piece bounds). Level 0 has a first
+set: 51 scan lamps and a flickering pink lamp at the club sign. Vanilla
+refuses `lamp`; Classic and DYNAMIC LIGHTS off show none. Next parts: texture
+emitters, the animated light tables as styles, more levels. User report
+fixed: the subway EXIT sign was smudged by a scan lamp beside it; bright,
+strongly coloured texels (signs, neon) now keep their original look under any
+light. [Note 428](documentation/428-d41d-level-lights.md).
+
 ## 2026-11-09 - D08A41 accepted and closed
 
 User: "much smoother. great work! lock it in and close it out". D08A41 is
@@ -7495,7 +7519,7 @@ person, no presentation regressions.
 
 ### D41D - Level light sources
 
-**Status: Todo. Dependencies: D41A.** Lights the levels themselves own: survey
+**Status: Done (user-accepted 2026-11-09: "excellent lock it in and close it out"; per-level lamp files, `lamp` editor, painted-light scan, level 0 first set, signs keep their look under light; [note 428](documentation/428-d41d-level-lights.md)). The remaining parts are D41D1. Dependencies: D41A.** Lights the levels themselves own: survey
 emitters per level (neon, lamps, braziers, fires, monitors) by texture page and
 CLUT and by peaks in the painted vertex light; decode the colour-index and
 animated light tables (`0x800c37e4`, `ctx+0x68`) into light styles that drive
@@ -7503,6 +7527,16 @@ real lights; a data file of lights per level (like Duke-RT `LIGHTOVR` or
 `.rtlights`) written by us, and a console light editor to place, colour and
 save lights. Acceptance: a first set of levels with their lamps and signs
 casting real light, user review per level.
+
+### D41D1 - Level light sources, second part
+
+**Status: Todo. Dependencies: D41D.** User (2026-11-09): signs emitting real
+light, "i like that idea". Find emitters by texture page and CLUT (EXIT signs,
+neon, monitors, lit panels) and give each a lamp in its own colour, the sign
+itself kept crisp by the D41D shader rule; decode the animated light tables
+(`ctx+0x68`) into lamp styles that follow the original flicker; first lamp
+sets for more levels with the `lamp` editor. Acceptance: signs visibly light
+their surroundings in level 0, then each new level reviewed by the user.
 
 ### D41E - Relit levels
 
@@ -9432,7 +9466,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41A | Light foundation: world-space corners, per-pixel lights in Polymorph, blasts and muzzle flashes, DYNAMIC LIGHTS option | Done (accepted 2026-11-08) | D41 |
 | D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes | Done (accepted 2026-11-08; fire and other enemy weapons moved to D41I) | D41A |
 | D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Done (accepted 2026-11-08) | D41A |
-| D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Todo | D41A |
+| D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Done (user-accepted 2026-11-09: lamps, editor, scan, level 0, signs keep their look; note 428; rest moved to D41D1) | D41A |
+| D41D1 | Level light sources, second part: signs and neon found by texture give real light, TTK's animated light tables as lamp styles, first lamp sets for more levels (user review per level) | Todo | D41D |
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |

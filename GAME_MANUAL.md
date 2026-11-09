@@ -375,6 +375,30 @@ faceted light on models for comparison until `light smooth on` (or the next
 launch), and `light fire off` / `light fire on` turns the fire lights
 (flames and burning) off and on for the session.
 
+**Level lights (first version).** Levels can also have placed lights of their
+own, "lamps": neon signs, lamps and coloured rooms cast real light on walls,
+props, enemies and Duke, on top of the painted light. Level 0 (Los Angeles)
+has a first set: one lamp per coloured pool of the painted light, found
+automatically, plus a flickering pink lamp at the club sign. They come and go
+with DYNAMIC LIGHTS. The backtick console edits them:
+
+- `lamp list` shows the level's lamps; `lamp off` / `lamp on` hides and shows
+  them for the session (to compare).
+- `lamp add [r g b [radius]]` puts a lamp where the crosshair meets a wall
+  (`lamp here` at Duke); `lamp pick [n]` selects the lamp nearest the
+  crosshair (or number n). The selected lamp blinks for a moment.
+- On the selected lamp: `lamp move`, `lamp nudge dx dy dz` (y up is
+  negative), `lamp color r g b`, `lamp radius R`, `lamp power K`, `lamp style
+  steady|flicker|pulse|candle|strobe|broken`, `lamp note text`, `lamp del`.
+- `lamp save` writes the level's lamps (`recomp/assets/lights/levelNN.lights`),
+  `lamp reload` goes back to the saved file, `lamp clear` removes them all,
+  and `lamp scan [threshold]` replaces them with a fresh set found from the
+  painted light (170 by default; lower finds more).
+
+Signs and neon keep their own look under any light (they give light, they
+are never washed out by it). Lamps still shine through walls (shadows are a
+later job).
+
 ### Portable steroids (Modernized)
 
 With `portable` (the Modernized default), steroids work as in EDuke32: picking

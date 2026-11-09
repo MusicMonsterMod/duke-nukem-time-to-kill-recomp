@@ -24,6 +24,7 @@
 //   (enemies, Duke; flag word bit 0x800) as flickering fire lights.
 // - D41J upgrades: the HiTemp Flamethrower's flames and hand flash light
 //   blue and the Laser Gatling's bolts red-pink, as they are drawn.
+// - D41D level lamps (level_lights.inc): placed lights per level.
 // - console "light": a test light at Duke ("light", "light <r> <g> <b>
 //   [radius]", "light off").
 // The per-image list (LightView) travels to redraw workers in RenderState and
@@ -226,9 +227,11 @@ static void lights_fire_collect() {
     }
 }
 static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint32_t owner);
+static unsigned level_lamps_publish(PSXModLight* out,unsigned room); // D41D (level_lights.inc)
 static void lights_publish() {
     LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
     v.n=lights_flight(v.l,8);
+    v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
     for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;

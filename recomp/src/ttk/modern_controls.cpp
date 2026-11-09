@@ -1,4 +1,10 @@
 #include "tight_camera.h"
+#include <cstdarg>
+#include <deque>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <mutex>
 #include "action_perspective.h"
 // Bounded SLUS-00583 adapter for the authenticated level overlays in
 // control_guards.inc (LEVEL00, LEVEL01). Original routines retain all integration,
@@ -1226,6 +1232,7 @@ static bool facing_ready() {
 #include "enemy_reach.inc"
 #include "spawn.inc"
 #include "pickup_nudge.inc"
+#include "level_lights.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;
@@ -1559,6 +1566,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             cheats_update(cpu);
             spawn_update(cpu);
             pickup_nudge_update(cpu); // D08A41
+            level_lamps_update(cpu); // D41D
             steroids_beat(cpu); // D08A10
             console_idle_hold(); // D26K
             weapon_feel_update(f.held[fire] && !switch_fire_masked()); // D10H4

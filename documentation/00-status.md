@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D41D accepted and closed; D41D1 added
+
+User: "excellent lock it in and close it out". D41D is Done: per-level lamp
+files, the `lamp` editor and scan, level 0's first set, and signs and neon
+keeping their look under any light. The remaining parts (signs found by
+texture giving real light, the animated light tables as styles, more levels)
+are the new D41D1 (Todo).
+
+## 2026-11-09 - D41D level lights, first part (Done)
+
+Levels can have placed real lights ("lamps") in `recomp/assets/lights/levelNN.lights`,
+edited in game with the backtick `lamp` commands; `lamp scan` drafts them from
+the painted light. Level 0 has a first set (51 scan lamps, a flickering pink
+lamp at the club sign). Light still passes through walls (D41F). Not measured
+at 180 Hz on the player's GPU. Next: texture emitters, animated light tables,
+more levels. User report fixed: the subway EXIT sign was smudged by a scan lamp
+beside it; bright, strongly coloured texels (signs, neon) now keep their
+original look under any light (shader rule, framework patch re-exported).
+[Note 428](428-d41d-level-lights.md).
+
 ## 2026-11-09 - D08A41 accepted and closed
 
 User: "much smoother. great work! lock it in and close it out". D08A41 is

@@ -144,6 +144,7 @@ def main():
     # Prevent unrelated developer experiments leaking into this private route.
     env = {k: v for k, v in os.environ.items() if not k.startswith(('DNTTK_', 'PSX_'))}
     env['SDL_AUDIODRIVER'] = 'pulseaudio'
+    env['PSX_TRACE_HISTORY'] = '1'  # D23I: the audio_wav history is opt-in
     report['command'] = clean(cmd)
     try:
         with (d/'runtime.log').open('w') as log:

@@ -154,6 +154,40 @@ index df6b213d..9865381f 100644
          add_test(NAME setup_package_bios_hint_test
                   COMMAND ${Python3_EXECUTABLE}
                           ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_setup_package_bios_hint.py)
+diff --git a/runtime/include/audio_trace.h b/runtime/include/audio_trace.h
+index 6d55b102..ca5a8b34 100644
+--- a/runtime/include/audio_trace.h
++++ b/runtime/include/audio_trace.h
+@@ -29,6 +29,7 @@
+ #define PSX_AUDIO_TRACE_H
+ 
+ #include <stdint.h>
++#include <stdlib.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -93,6 +94,21 @@ typedef struct {
+ 
+ void audio_trace_init(void);
+ 
++/* Time to Kill D23I: the history rings (PCM taps, audio and SPU events, SIO
++ * byte and IRQ rings) are only recorded when PSX_TRACE_HISTORY=1 is set
++ * (developer). Off, their pages are never touched, saving up to about 180 MiB
++ * that filled over a long session; counters and statistics stay live, and the
++ * debug commands that read the history report it as empty. */
++static inline int psx_trace_history(void)
++{
++    static int on = -1;   /* per translation unit; the environment is fixed */
++    if (on < 0) {
++        const char *e = getenv("PSX_TRACE_HISTORY");
++        on = e && e[0] == '1' && !e[1];
++    }
++    return on;
++}
++
+ /* Record `frames` interleaved stereo s16 frames into tap `tap`. */
+ void audio_trace_pcm(int tap, const int16_t *stereo, int frames);
+ 
 diff --git a/runtime/include/boot_state.h b/runtime/include/boot_state.h
 index 420b06a5..faf35a82 100644
 --- a/runtime/include/boot_state.h
@@ -958,6 +992,85 @@ index 149a3fdc..b7f0a80e 100644
      ${PSXRECOMP_ROOT}/runtime/src/host_time.c
      ${PSXRECOMP_ROOT}/runtime/src/psx_fiber.c
      ${PSXRECOMP_ROOT}/runtime/src/sio.c
+diff --git a/runtime/src/audio_trace.c b/runtime/src/audio_trace.c
+index 9008c094..9e3a3548 100644
+--- a/runtime/src/audio_trace.c
++++ b/runtime/src/audio_trace.c
+@@ -6,6 +6,8 @@
+  * recording hot path is a memcpy per audio block and is compiled into
+  * Release/production builds too (always-on ring-buffer discipline — probes
+  * query history, they never arm recording).
++ * Time to Kill D23I: the PCM and event history is written only with
++ * PSX_TRACE_HISTORY=1 (see audio_trace.h); counters and stats stay live.
+  */
+ #include "audio_trace.h"
+ 
+@@ -93,14 +95,17 @@ void audio_trace_pcm(int tap, const int16_t *stereo, int frames)
+ {
+     if (tap < 0 || tap >= AUDIO_TAP_COUNT || !stereo || frames <= 0) return;
+     PcmTap *t = &s_taps[tap];
++    const int history = psx_trace_history();
+     uint64_t head = atomic_load_explicit(&t->head, memory_order_relaxed);
+ 
+     for (int f = 0; f < frames; f++) {
+         int16_t l = stereo[f * 2 + 0];
+         int16_t r = stereo[f * 2 + 1];
+-        uint32_t pos = (uint32_t)((head + (uint64_t)f) & PCM_RING_MASK);
+-        t->pcm[pos * 2 + 0] = l;
+-        t->pcm[pos * 2 + 1] = r;
++        if (history) {
++            uint32_t pos = (uint32_t)((head + (uint64_t)f) & PCM_RING_MASK);
++            t->pcm[pos * 2 + 0] = l;
++            t->pcm[pos * 2 + 1] = r;
++        }
+         int32_t al = l < 0 ? -(int32_t)l : l;
+         int32_t ar = r < 0 ? -(int32_t)r : r;
+         int32_t a  = al > ar ? al : ar;
+@@ -115,15 +120,17 @@ void audio_trace_pcm(int tap, const int16_t *stereo, int frames)
+ void audio_trace_event(uint16_t kind, uint32_t a, uint32_t b)
+ {
+     uint64_t seq = atomic_load_explicit(&s_event_head, memory_order_relaxed);
+-    AudioTraceEvent *e = &s_events[(uint32_t)(seq & EV_RING_MASK)];
+-    e->seq        = seq;
+-    e->sample_idx = atomic_load_explicit(&s_taps[AUDIO_TAP_SPU_OUT].head,
+-                                         memory_order_relaxed);
+-    e->frame      = atomic_load_explicit(&s_noted_frame, memory_order_relaxed);
+-    e->kind       = kind;
+-    e->reserved   = 0;
+-    e->a          = a;
+-    e->b          = b;
++    if (psx_trace_history()) {
++        AudioTraceEvent *e = &s_events[(uint32_t)(seq & EV_RING_MASK)];
++        e->seq        = seq;
++        e->sample_idx = atomic_load_explicit(&s_taps[AUDIO_TAP_SPU_OUT].head,
++                                             memory_order_relaxed);
++        e->frame      = atomic_load_explicit(&s_noted_frame, memory_order_relaxed);
++        e->kind       = kind;
++        e->reserved   = 0;
++        e->a          = a;
++        e->b          = b;
++    }
+     atomic_store_explicit(&s_event_head, seq + 1, memory_order_release);
+ 
+     switch (kind) {
+@@ -175,7 +182,7 @@ uint64_t audio_trace_events_total(void)
+ 
+ uint32_t audio_trace_events_get(AudioTraceEvent *out, uint32_t max)
+ {
+-    if (!out || max == 0) return 0;
++    if (!out || max == 0 || !psx_trace_history()) return 0;
+     uint64_t total = atomic_load_explicit(&s_event_head, memory_order_acquire);
+     uint64_t avail = total < (uint64_t)EV_RING_CAP ? total : (uint64_t)EV_RING_CAP;
+     if ((uint64_t)max > avail) max = (uint32_t)avail;
+@@ -223,7 +230,7 @@ int64_t audio_trace_dump_wav(int tap, const char *path,
+     uint64_t head  = atomic_load_explicit(&t->head, memory_order_acquire);
+     uint64_t avail = head < (uint64_t)PCM_RING_FRAMES ? head
+                                                       : (uint64_t)PCM_RING_FRAMES;
+-    if (avail == 0) return -1;
++    if (avail == 0 || !psx_trace_history()) return -1;
+     uint64_t oldest = head - avail;
+ 
+     uint64_t s;   /* absolute first frame of the slice */
 diff --git a/runtime/src/boot_state.c b/runtime/src/boot_state.c
 index f0284eaf..7149d69d 100644
 --- a/runtime/src/boot_state.c
@@ -13566,10 +13679,82 @@ index 7f191c99..15c8b3e0 100644
               * immediately (avoids disabled-display blank latch + stale smooth). */
              psx_frontend_on_savestate_loaded();
 diff --git a/runtime/src/sio.c b/runtime/src/sio.c
-index 08dcadd0..af4c6a94 100644
+index 08dcadd0..05e36cf9 100644
 --- a/runtime/src/sio.c
 +++ b/runtime/src/sio.c
-@@ -3036,7 +3036,17 @@ void sio_snapshot_section_ends(uint32_t out[5]) {
+@@ -17,6 +17,7 @@
+ #include "memcard.h"
+ #include "debug_server.h"
+ #include "event_ring.h"
++#include "audio_trace.h"   /* psx_trace_history (D23I) */
+ #include <stdlib.h>
+ #include <string.h>
+ 
+@@ -393,8 +394,16 @@ static uint16_t sio_last_ctrl_on_tx = 0; /* CTRL at last TX write */
+ static PSX_BSS SioTraceEntry sio_trace_buf[SIO_TRACE_CAP];
+ static int sio_trace_idx = 0;       /* next write position */
+ static uint32_t sio_trace_seq = 0;  /* monotonic sequence number */
++/* D23I: without PSX_TRACE_HISTORY=1 entries go to one scratch slot, so the
++ * 28 MiB ring is never touched; a history read reports it as empty. */
++static SioTraceEntry sio_trace_scratch;
+ 
+ uint32_t sio_get_trace(const SioTraceEntry **buf_out, int *write_idx_out) {
++    if (buf_out && !psx_trace_history()) {
++        *buf_out = sio_trace_buf;
++        if (write_idx_out) *write_idx_out = 0;
++        return 0;
++    }
+     if (buf_out) *buf_out = sio_trace_buf;
+     if (write_idx_out) *write_idx_out = sio_trace_idx;
+     return sio_trace_seq;
+@@ -782,6 +791,7 @@ static void txn_close(uint8_t end_reason, uint8_t terminal_state, uint32_t func)
+ static PSX_BSS SioIrqEntry sio_irq_buf[SIO_IRQ_RING_CAP];
+ static int       sio_irq_idx = 0;
+ static uint32_t  sio_irq_seq = 0;
++static SioIrqEntry sio_irq_scratch;   /* D23I: as sio_trace_scratch (40 MiB ring) */
+ 
+ /* Pending-IRQ context — captured when the countdown is armed, used when it fires. */
+ static uint8_t   sio_irq_pending_source     = SIO_IRQ_SRC_UNKNOWN;
+@@ -791,6 +801,11 @@ static uint8_t   sio_irq_pending_mc_state   = 0;
+ static uint32_t  sio_irq_pending_byte_seq   = 0;
+ 
+ uint32_t sio_get_irq_ring(const SioIrqEntry **buf_out, int *write_idx_out) {
++    if (buf_out && !psx_trace_history()) {
++        *buf_out = sio_irq_buf;
++        if (write_idx_out) *write_idx_out = 0;
++        return 0;
++    }
+     if (buf_out) *buf_out = sio_irq_buf;
+     if (write_idx_out) *write_idx_out = sio_irq_idx;
+     return sio_irq_seq;
+@@ -2028,7 +2043,7 @@ static void sio_process_byte(uint8_t tx_byte) {
+ 
+     /* ---- Trace: capture post-state and record entry ---- */
+     {
+-        SioTraceEntry *e = &sio_trace_buf[sio_trace_idx];
++        SioTraceEntry *e = psx_trace_history() ? &sio_trace_buf[sio_trace_idx] : &sio_trace_scratch;
+         e->seq           = sio_trace_seq;
+         e->tx            = tx_byte;
+         e->rx            = sio_rx_data;
+@@ -2673,7 +2688,7 @@ static void sio_fire_ack_irq(void) {
+ 
+     extern uint32_t g_debug_current_func_addr;
+     extern uint8_t psx_read_byte(uint32_t addr);
+-    SioIrqEntry *e = &sio_irq_buf[sio_irq_idx];
++    SioIrqEntry *e = psx_trace_history() ? &sio_irq_buf[sio_irq_idx] : &sio_irq_scratch;
+     e->seq            = sio_irq_seq;
+     e->byte_seq       = sio_irq_pending_byte_seq;
+     e->i_stat_before  = i_stat_before;
+@@ -2854,7 +2869,7 @@ void sio_tick(int cycles) {
+             /* SIO IRQ ring capture. */
+             extern uint32_t g_debug_current_func_addr;
+             extern uint8_t psx_read_byte(uint32_t addr);
+-            SioIrqEntry *e = &sio_irq_buf[sio_irq_idx];
++            SioIrqEntry *e = psx_trace_history() ? &sio_irq_buf[sio_irq_idx] : &sio_irq_scratch;
+             e->seq            = sio_irq_seq;
+             e->byte_seq       = sio_irq_pending_byte_seq;
+             e->i_stat_before  = i_stat_before;
+@@ -3036,7 +3051,17 @@ void sio_snapshot_section_ends(uint32_t out[5]) {
      out[4] = (uint32_t)w.written;
  }
  
@@ -13588,7 +13773,7 @@ index 08dcadd0..af4c6a94 100644
      uint32_t u;
      int32_t i;
      int16_t tr;
-@@ -3044,11 +3054,11 @@ static int sio_snap_parse(PstR *r) {
+@@ -3044,11 +3069,11 @@ static int sio_snap_parse(PstR *r) {
          !pst_r_u16(r, &sio_stat) || !pst_r_u16(r, &sio_mode) ||
          !pst_r_u16(r, &sio_ctrl) || !pst_r_u16(r, &sio_baud))
          return 0;
@@ -13602,7 +13787,7 @@ index 08dcadd0..af4c6a94 100644
          return 0;
      pad_state = (PadState)u;
      selected_slot = (int)i;
-@@ -3061,7 +3071,7 @@ static int sio_snap_parse(PstR *r) {
+@@ -3061,7 +3086,7 @@ static int sio_snap_parse(PstR *r) {
          pad_response_idx = 0;
          pad_current_cmd = 0;
      }
@@ -13611,7 +13796,7 @@ index 08dcadd0..af4c6a94 100644
          if (!pst_r_i16(r, &tr))
              return 0;
          pad_type_req[s] = (int8_t)tr;
-@@ -3122,15 +3132,15 @@ static int sio_snap_parse(PstR *r) {
+@@ -3122,15 +3147,15 @@ static int sio_snap_parse(PstR *r) {
          memset(pad_rumble_map, 0xFF, sizeof(pad_rumble_map));
          memset(pad_rumble_small, 0, sizeof(pad_rumble_small));
          memset(pad_rumble_large, 0, sizeof(pad_rumble_large));
@@ -13631,7 +13816,7 @@ index 08dcadd0..af4c6a94 100644
          return 0;
      if (r->p != r->end) return 0;
      return 1;
-@@ -3156,8 +3166,17 @@ int sio_snapshot_read(const uint8_t *p, uint32_t len) {
+@@ -3156,8 +3181,17 @@ int sio_snapshot_read(const uint8_t *p, uint32_t len) {
      const uint32_t rumble_bytes = (uint32_t)(sizeof(pad_rumble_map) +
                                    sizeof(pad_rumble_small) +
                                    sizeof(pad_rumble_large));
@@ -13652,10 +13837,19 @@ index 08dcadd0..af4c6a94 100644
 +    return sio_snap_parse(&r, saved_players);
  }
 diff --git a/runtime/src/spu.c b/runtime/src/spu.c
-index dc358955..0fe329e4 100644
+index dc358955..c5eca1c1 100644
 --- a/runtime/src/spu.c
 +++ b/runtime/src/spu.c
-@@ -1601,6 +1601,8 @@ uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len) {
+@@ -154,6 +154,8 @@ typedef struct {
+ static SpuVoice voices[SPU_VOICE_COUNT];
+ 
+ static void spu_event_record(uint8_t kind, int voice, uint32_t addr) {
++    /* D23I: the 32 MiB ring is developer history (PSX_TRACE_HISTORY=1). */
++    if (!psx_trace_history()) { s_event_seq++; s_event_idx++; return; }
+     SpuEvent *e = &s_events[s_event_idx & (SPU_EVENT_CAP - 1u)];
+     e->seq      = s_event_seq++;
+     e->frame    = (uint32_t)s_frame_count;
+@@ -1601,6 +1603,8 @@ uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len) {
      return len;
  }
  
@@ -13664,6 +13858,24 @@ index dc358955..0fe329e4 100644
  void spu_get_global_state(SpuGlobalState* out) {
      if (!out) return;
      memset(out, 0, sizeof(*out));
+@@ -1644,7 +1648,7 @@ void spu_get_global_state(SpuGlobalState* out) {
+ uint64_t spu_event_total(void) { return s_event_seq; }
+ 
+ uint32_t spu_event_get(SpuEvent* out, uint32_t max_count) {
+-    if (!out || max_count == 0) return 0;
++    if (!out || max_count == 0 || !psx_trace_history()) return 0;
+     uint64_t avail = s_event_seq < (uint64_t)SPU_EVENT_CAP
+                      ? s_event_seq : (uint64_t)SPU_EVENT_CAP;
+     if ((uint64_t)max_count > avail) max_count = (uint32_t)avail;
+@@ -1659,7 +1663,7 @@ uint32_t spu_event_get(SpuEvent* out, uint32_t max_count) {
+ void spu_event_reset(void) {
+     s_event_idx = 0;
+     s_event_seq = 0;
+-    memset(s_events, 0, sizeof(s_events));
++    if (psx_trace_history()) memset(s_events, 0, sizeof(s_events));
+ }
+ 
+ /* ---- boot snapshot: complete SPU register + voice state (LE field wire) ---- */
 diff --git a/runtime/src/ttk_texture_sample.h b/runtime/src/ttk_texture_sample.h
 new file mode 100644
 index 00000000..c82c70d9

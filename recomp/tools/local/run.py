@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--headless', action='store_true')
-    p.add_argument('--diagnostics', action='store_true', help='retain dispatch and stopped guest diagnostics')
+    p.add_argument('--diagnostics', action='store_true', help='retain dispatch and stopped guest diagnostics, and the SIO/audio history rings')
     p.add_argument('--debug-port', type=int, default=9123)
     p.add_argument('--renderer', choices=profiles.RENDERERS, help='save renderer for the selected profile')
     p.add_argument('--internal-scale', type=int, choices=profiles.INTERNAL_SCALES, help='save internal 3D resolution for the selected profile: 1 original, 2..4 times')
@@ -325,6 +325,8 @@ def main(argv=None):
     if a.diagnostics:
         env['PSX_FNTRACE_ALL'] = '1'
         env['PSX_EXIT_HALT'] = '1'
+        # D23I: also record the SIO/audio history rings (up to about 180 MiB).
+        env.setdefault('PSX_TRACE_HISTORY', '1')
     else:
         # Player sessions: keep the runtime's always-on forensic rings (per-store
         # traces, per-frame full-VRAM readback) quiet; they cost emulation time.
@@ -386,7 +388,7 @@ def ensure_movie_shard():
               'Rebuild with: python3 tools/local/build_movie_overlay.py', file=sys.stderr, flush=True)
 
 
-def run_with_session_log(command, env, keep=5):
+def run_with_session_log(command, env, keep=20):
     """Mirror the runtime's stderr ([TTK input]/[TTK lease] diagnostics) into
     build-local/logs so a playtest report can be checked afterwards. stdout stays
     on the terminal untouched; nothing under saves/ is written."""

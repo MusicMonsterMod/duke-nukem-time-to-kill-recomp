@@ -38,6 +38,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
+#ifdef __linux__
+#include <malloc.h>
+#include <unistd.h>
+#endif
 #include <cstring>
 #include <string>
 
@@ -823,6 +828,48 @@ void pace_log(const char* why,double ratio,int backoff) {
     static unsigned n=0; if(++n>200) return;
     std::fprintf(stderr,"[TTK pace] presents every %d refresh%s (%s, repeats %.1f%%, backoff %d)\n",pace_div,pace_div>1?"es":"",why,ratio*100.0,backoff);
 }
+// D23I: with each minute line, where the resident memory sits, so a long
+// session's growth names its owner in the log. Read on a short-lived thread:
+// /proc/self/smaps takes a few milliseconds. Static = the executable's tables
+// (.data/.bss, e.g. the GPU host-vertex tables, a high-water mark capped at
+// 108 MiB); heap = malloc's main arena, with the bytes malloc has handed out (allocated, not all resident);
+// shared = GL driver and replay-worker shared mappings; anon = other private
+// anonymous memory (malloc's other arenas, large blocks, thread stacks);
+// files = mapped libraries and files.
+void memory_minute(unsigned minute) {
+#ifndef __linux__
+    (void)minute;
+#else
+    std::thread([minute]{
+        FILE* f=std::fopen("/proc/self/smaps","r"); if(!f) return;
+        char line[512], exe[256]={0};
+        { const ssize_t n=readlink("/proc/self/exe",exe,sizeof exe-1); if(n>0) exe[n]=0; }
+        unsigned long long kb[6]={0,0,0,0,0,0};   // static heap shared anon files total
+        int cls=4; unsigned long long last_end=0, exe_end=0;
+        while(std::fgets(line,sizeof line,f)) {
+            unsigned long long lo,hi; char perm[8]={0};
+            if(std::sscanf(line,"%llx-%llx %7s",&lo,&hi,perm)==3) {
+                const char* name=line; for(int i=0;i<5 && name;++i) {name=std::strchr(name,' '); if(name) while(*name==' ') ++name;}
+                std::string nm=name?std::string(name):std::string(); while(!nm.empty() && (nm.back()=='\n' || nm.back()==' ')) nm.pop_back();
+                if(exe[0] && nm==exe) {cls=perm[1]=='w'?0:4; exe_end=hi;}
+                else if(nm.empty()) cls=(lo==exe_end && lo==last_end)?0:perm[3]=='s'?2:3;
+                else if(nm=="[heap]") cls=1;
+                else if(perm[3]=='s' || nm.rfind("/dev/",0)==0 || nm.rfind("/memfd:",0)==0) cls=2;
+                else if(nm[0]=='[') cls=3;
+                else cls=4;
+                if(cls==0 && nm.empty()) exe_end=hi;
+                last_end=hi; continue;
+            }
+            unsigned long long v;
+            if(std::sscanf(line,"Rss: %llu kB",&v)==1) {kb[cls]+=v; kb[5]+=v;}
+        }
+        std::fclose(f);
+        const struct mallinfo2 mi=mallinfo2();
+        std::fprintf(stderr,"[TTK memory] minute %u: rss %llu MB = static %llu, heap %llu (malloc allocated %zu), shared %llu, anon %llu, files %llu\n",
+            minute,kb[5]/1024,kb[0]/1024,kb[1]/1024,(mi.uordblks+mi.hblkhd)>>20,kb[2]/1024,kb[3]/1024,kb[4]/1024);
+    }).detach();
+#endif
+}
 void pace_minute() {
     using clk=std::chrono::steady_clock;
     static clk::time_point t0; static uint64_t n0=0, w0=0, m0=0, c0=0; static uint64_t presents=0;
@@ -833,6 +880,7 @@ void pace_minute() {
     long rss_kb=0; if(FILE* f=std::fopen("/proc/self/statm","r")) {long a=0,b=0; if(std::fscanf(f,"%ld %ld",&a,&b)==2) rss_kb=b*4; std::fclose(f);}
     std::fprintf(stderr,"[TTK pace] minute: %.1f presents/s, every %d, backoff %d/%d, %llu windows (%llu mixed), %llu changes, rss %ld MB\n",
         (presents-n0)/dt,pace_div,pace_backoff,shed_backoff,(unsigned long long)(pace_windows-w0),(unsigned long long)(pace_mid-m0),(unsigned long long)(pace_changes-c0),rss_kb/1024);
+    static unsigned minutes=0; memory_minute(++minutes);
     t0=now;n0=presents;w0=pace_windows;m0=pace_mid;c0=pace_changes;
 }
 void late_pace(bool bad) {

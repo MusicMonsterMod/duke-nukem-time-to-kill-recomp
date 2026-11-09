@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D23I accepted and closed
+
+User: "in that case, you've done all the testing this time around. i'm playing
+the game now, all is fine. lock this in and close it out". D23I is Done: the runtime's SIO, SPU and audio history rings (about
+180 MiB) are recorded only for developer diagnostics (`PSX_TRACE_HISTORY=1`,
+`--diagnostics`), so a 20-minute route peaks at 482 MB instead of 589 and is
+nearly flat after 10 minutes. Session logs report memory by owner each minute
+(`[TTK memory]`) and 20 logs are kept. The unreproduced 893 MB session is
+left to those lines. [Note 433](433-d23i-memory-growth.md).
+
+## 2026-11-09 - D23I: audio and SIO history no longer recorded (Needs playtest)
+
+The runtime's SIO, SPU and audio history rings (about 180 MiB, filling over
+a session) are now recorded only for developer diagnostics. Same 20-minute
+route: 589 -> 482 MB after 20 minutes, and nearly flat after 10. Each
+session-log minute now also reports where memory sits, and 20 logs are kept.
+[Note 433](433-d23i-memory-growth.md).
+
 ## 2026-11-09 - D53 accepted and closed
 
 User: "lock it in and close it out". D53 is Done: in Modernized (Polymorph),

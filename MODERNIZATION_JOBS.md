@@ -1,5 +1,33 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D23I accepted and closed
+
+User: "in that case, you've done all the testing this time around. i'm playing
+the game now, all is fine. lock this in and close it out". D23I is Done: the runtime's SIO, SPU and audio history rings (about
+180 MiB) are recorded only for developer diagnostics (`PSX_TRACE_HISTORY=1`,
+`--diagnostics`), so a 20-minute route peaks at 482 MB instead of 589 and is
+nearly flat after 10 minutes. Session logs report memory by owner each minute
+(`[TTK memory]`) and 20 logs are kept. The unreproduced 893 MB session is
+left to those lines. [Note 433](documentation/433-d23i-memory-growth.md).
+
+## 2026-11-09 - D23I: audio and SIO history no longer recorded (Needs playtest)
+
+The runtime's SIO, SPU and audio history rings (about 180 MiB, filling over
+a session) are now recorded only for developer diagnostics. Same 20-minute
+route: 589 -> 482 MB after 20 minutes, and nearly flat after 10. Each
+session-log minute now also reports where memory sits, and 20 logs are kept.
+[Note 433](documentation/433-d23i-memory-growth.md).
+
+## 2026-11-09 - D23I investigation: not a leak, D53 ruled out
+
+Offscreen measurements (180 Hz, first person, Polymorph): live malloc memory
+is flat; the growth is first touches of static tables. GPU host-vertex tables
+follow the busiest frame so far and level off by about 10 minutes (ceiling
+108 MiB); D23's SIO/audio history rings fill at about 2.2 MiB/min to 84 MiB;
+levels add 10-25 MB per first visit. Projected ceiling about 690 MB. D53 makes
+no difference. The 893 MB session is not reproduced (its log was rotated out).
+Direction to choose with the user. [Note 433](documentation/433-d23i-memory-growth.md).
+
 ## 2026-11-09 - D53 accepted and closed
 
 User: "lock it in and close it out". D53 is Done: in Modernized (Polymorph),
@@ -10373,7 +10401,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Done (user-accepted 2026-11-02; step 5 Vanilla flag cost, note 356; step 3 closed 2026-11-02 by user decision: measured, no saving to win, no code change, note 355; part 2 user-accepted 2026-11-01, note 354; part 1 accepted 2026-10-30, note 331; step 5 remains) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
-| D23I | Memory growth in long sessions: 14-23 MB a minute in 2026-11-09 sessions (investigation; rule D53 in or out first) | Todo | D23, D23H |
+| D23I | Memory growth in long sessions: 14-23 MB a minute in 2026-11-09 sessions (investigation; rule D53 in or out first) | Done | D23, D23H |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Done (user-accepted; closed 2026-10-30) | D24A |
@@ -21287,7 +21315,7 @@ min (rate unaffected, not investigated).
 
 ### D23I - Memory growth in long sessions (investigation)
 
-**Status: Todo (stood up 2026-11-09 at the user's request; investigation first, no fix chosen). Dependencies: D23, D23H (Done).**
+**Status: Done (accepted 2026-11-09: history rings opt-in and a per-minute memory line). Dependencies: D23, D23H (Done).**
 The user's session logs of 2026-11-09 (`recomp/build-local/logs`, `[TTK
 pace] minute` lines) show resident memory climbing steadily in every
 Modernized session at 180 Hz, first person, Polymorph: 401 to 511 MB in 8
@@ -21311,6 +21339,34 @@ Plan:
 Acceptance: the cause named with evidence; then a bounded fix or a reasoned
 ceiling, agreed with the user, and a long-session run showing growth
 flattening.
+
+Work log 2026-11-09 (investigation): [note 433](documentation/433-d23i-memory-growth.md).
+Seven offscreen runs (4-20 min; idle, savestate loads, level travel, mixed
+play). A scratch heap tracker showed live malloc +0.47 MiB over 9 min while
+RSS rose 41 MB: not a heap leak. Pagemap attribution put the growth in `.bss`:
+`gpu.c` host-vertex aperture tables (two used in the main process, 54 MiB
+each, high-water mark of the busiest frame, 23 MiB each from 10 to 20 min)
+and D23's SIO/audio rings (about 2.2 MiB/min, 84 MiB cap). D53 ruled out
+(duke3d 540 vs ttk 547 MB at 410 s). 20-minute run 419 -> 589 MB; projected
+ceiling about 690 MB. Not reproduced: the 893 MB session (log rotated; real
+display, audio and combat not covered). Options in the note: drop or shrink
+the forensic rings in player builds, add a per-minute memory breakdown and
+keep more logs, or accept a reasoned ceiling. Waiting for the user's choice.
+
+Work log 2026-11-09 (fix, user: "we absoltely dont need to be recording
+audio. yes lets go with your recommendation"): the SIO, SPU, audio event and
+PCM history rings (about 180 MiB together) are recorded only with
+`PSX_TRACE_HISTORY=1` (`--diagnostics`, `fmv_reliability.py`); counters and
+audio output unchanged. A `[TTK memory] minute N` line breaks resident memory
+down by owner each minute; `run.py` keeps 20 session logs. Same 20-minute
+route: main RSS 589 -> 482 MB at 20 min, combined PSS 814 -> 656, minutes
+10-20 +8 MB (was +27). History on/off checked through the debug commands;
+Vanilla smoke, `ttk-input-test` pass; framework patch exported and verified.
+Remaining: a long real session (window, audio, combat), and the unreproduced
+893 MB case, which the new line will attribute.
+
+Accepted and closed 2026-11-09. User: "in that case, you've done all the testing this time around. i'm playing
+the game now, all is fine. lock this in and close it out".
 
 ### D24 — Linux / Windows player build and disc import
 

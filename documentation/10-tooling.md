@@ -399,7 +399,14 @@ out. `DNTTK_REPLAY_SHED=0` keeps presents at full rate when emulation falls
 behind, to measure a scene's real cost (note 338). Player
 sessions run with `PSX_FORENSICS=0` (the runtime's always-on forensic rings
 quiet, no per-frame VRAM readback); set `PSX_FORENSICS=1` or launch with
-`--diagnostics` to keep them.
+`--diagnostics` to keep them. D23I (note 433): the SIO byte/IRQ, SPU event,
+audio event and PCM tap history rings are recorded only with
+`PSX_TRACE_HISTORY=1` (set by `--diagnostics` and `fmv_reliability.py`);
+otherwise `sio_trace`, `sio_irq_*`, `spu_events`, `audio_events` and
+`audio_wav` report empty history, while counters and `audio_stats` stay live.
+Modernized session logs carry a `[TTK memory] minute N` line (resident memory
+by owner: static tables, heap, shared/driver, other anonymous, files) beside
+each `[TTK pace] minute` line; `run.py` keeps the last 20 session logs.
 
 D17A (documentation/81-d17a-instability.md): `a1slots.sh TAG SLOTS` (alpha 1
 consistency per slot), `a0check.py`, `a1check.py`, `altcheck.py`

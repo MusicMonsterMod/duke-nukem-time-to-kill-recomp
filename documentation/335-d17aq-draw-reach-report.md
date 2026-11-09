@@ -467,3 +467,14 @@ itself remains (D17AW).
 User: "close D17AQ", after D17AW was accepted. No crackle reported on the
 D17AX and D17AW builds. Retained limit: the slow first second after loading
 the slot 10 vista (D17AW note 353).
+
+## Later fix: far spawner churn (D52, 2026-11-09)
+
+With the live cap full, the original replacement `0x80099048` compares
+`0x800675d4` distances, which saturate to `0x7fffffff` past 32768 units on
+an axis. Dormant reach let spawners that far in, so they tied with the far
+live enemy and replaced it every visit: one actor hopped between spawners
+each tick (an enemy seen on a security monitor showed one tick in six). The
+range test now refuses a spawn at the cap unless the enemy the replacement
+would remove is farther than the spawner by exact distance. See
+[note 430](430-d52-security-cameras.md).

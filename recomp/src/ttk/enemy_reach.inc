@@ -39,6 +39,16 @@
 //   with; only then, so a class the game itself clears is left alone). Within the
 //   original radius it is
 //   the original enemy; shot or caught in a blast it wakes for good.
+// - D52: with the cap full, the spawn check asks the replacement 0x80099048
+//   for the farthest live enemy (largest 0x800675d4 distance from Duke) and
+//   replaces it unless the new spawner is farther. Past 32768 units on an
+//   axis that distance saturates to 0x7fffffff, so far spawners tied and each
+//   replaced the last: one actor hopped between them every tick and their
+//   enemies showed one frame in six (security monitors, distant views). With
+//   the cap full a spawner now counts as in reach only if the enemy that
+//   replacement would remove (worked out here with the original's saturated
+//   distances) is farther from Duke than the spawner by exact distance, so
+//   every replacement brings a nearer enemy in and none can repeat.
 // Developer: DNTTK_ENEMY_REACH=0 keeps the original spawner range.
 static const DistanceGuard reach_guards[]={
     {0x80099164,0x58,"66356f6fc46dbb1e47c505564f0f50d792c179430bb225a19fd595b73bb5e9c9"},
@@ -46,10 +56,12 @@ static const DistanceGuard reach_guards[]={
     {0x8009934c,0xb4,"e55a581f179a5f7858131d7f7f0da5864c54e10e112e60533a6de590bfea8f97"},
     {0x80099530,0xe4,"d81fb9a6de284246bebd1087651b0f470557352c586900d55cfb93e3667ffbc7"},
     {0x80025ac8,0x1d4,"ce0ba458f4fc8518425e9b5b3144d9cfb83e1cf82d06c7af45a1a8c9d59f0206"},
+    {0x80099048,0x11c,"d88d5e063bd93cf473a293616ff3fb7a7aef4c34be41227f88e1d7fe98286863"},
+    {0x800675d4,0xa8,"32e7b08ed2721b9c6f60a4ef56d6c4f0b22213c2fe388bb5869a1763ab503cbc"},
 };
-static std::array<std::vector<uint32_t>,5> reach_words;
+static std::array<std::vector<uint32_t>,7> reach_words;
 static uint64_t reach_spawn_in=0,reach_spawn_out=0,reach_kept=0,reach_removed=0,reach_refusals=0;
-static uint64_t reach_held=0,reach_woken=0,reach_healed=0;
+static uint64_t reach_held=0,reach_woken=0,reach_healed=0,reach_churn=0;
 static uint32_t reach_far_point=0;
 struct ReachActor {uint32_t record,actor;int16_t health;bool woken,dormant;};
 static std::vector<ReachActor> reach_actors;
@@ -68,6 +80,30 @@ static double reach_distance2(uint32_t a,uint32_t b) {
     for(int i=0;i<3;++i) {const double x=(double)(int32_t)psx_mod_read_word(a+4*i)-(int32_t)psx_mod_read_word(b+4*i);d+=x*x;}
     return d;
 }
+// D52: 0x800675d4 (squared distance, 0x7fffffff once an axis differs by
+// 32768) and the replacement 0x80099048 (the record of the farthest live enemy
+// whose actor +0 lacks bit 2, or 0 when the new record is farther).
+static uint32_t reach_saturated(uint32_t a,uint32_t b) {
+    int32_t d[3];uint32_t any=0;
+    for(int i=0;i<3;++i) {d[i]=(int32_t)(psx_mod_read_word(b+4*i)-psx_mod_read_word(a+4*i));any|=(uint32_t)(d[i]<0?-d[i]:d[i]);}
+    if((int32_t)any>>15) return 0x7fffffffu;
+    uint32_t r=0;for(int i=0;i<3;++i) r+=(uint32_t)d[i]*(uint32_t)d[i];
+    return r;
+}
+static uint32_t reach_victim(uint32_t duke,uint32_t record) {
+    const uint32_t records=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800c56a0);
+    if(records<0x80010000u || count>512 || records>0x80200000u-count*0x30) return 0;
+    uint32_t most=0,victim=0;
+    for(uint32_t i=0;i<count;++i) {
+        const uint32_t row=records+0x30*i,actor=psx_mod_read_word(row+4);
+        if(!(psx_mod_read_word(row+0x14)&1)) continue;
+        if(actor<0x80010000u || actor>0x801ffc00u || (actor&3)) return 0;
+        if(psx_mod_read_word(actor)&2) continue;
+        const uint32_t d=reach_saturated(duke,actor+4);
+        if(most<d) {most=d;victim=row;}
+    }
+    return victim && most>=reach_saturated(duke,record+8) ? victim : 0;
+}
 // The range test, by caller: spawn (0x800991ec, 0x80099288) or removal
 // (0x80099310). The three types the original never tests (0x3d, 0x385, 0x3e)
 // and every other caller are left to it.
@@ -81,7 +117,11 @@ static void reach_range(CPUState* cpu) {
     if(type==0x3d || type==0x385 || type==0x3e) return;
     const double reach=reach_extended()+(remove?4096.0:0.0);
     if(reach<=4096) {++reach_refusals;return;}
-    const bool in=reach_distance2(duke,record+8)<=reach*reach;
+    bool in=reach_distance2(duke,record+8)<=reach*reach;
+    if(in && spawn && (int32_t)psx_mod_read_word(0x800c56a4)>=(int32_t)psx_mod_read_word(0x800c56a8)) {
+        const uint32_t victim=reach_victim(duke,record);
+        if(victim && victim!=record && reach_distance2(duke,psx_mod_read_word(victim+4)+4)<=reach_distance2(duke,record+8)) {in=false;++reach_churn;}
+    }
     if(in) cpu->gpr[4]=record+8;
     else {
         if(!reach_far_point) reach_far_point=psx_mod_alloc_guest_memory(16,16);
@@ -153,12 +193,12 @@ static void reach_release(CPUState* cpu) {
     }
 }
 static const char* enemy_reach_debug_json() {
-    static char buffer[320];
+    static char buffer[384];
     unsigned dormant=0;for(const auto& a:reach_actors) dormant+=a.dormant;
     std::snprintf(buffer,sizeof buffer,"{\"spawn_in\":%llu,\"spawn_out\":%llu,\"kept\":%llu,\"removed\":%llu,\"refusals\":%llu,"
-        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u}",
+        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"churn\":%llu,\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u}",
         (unsigned long long)reach_spawn_in,(unsigned long long)reach_spawn_out,(unsigned long long)reach_kept,
         (unsigned long long)reach_removed,(unsigned long long)reach_refusals,(unsigned long long)reach_held,
-        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8));
+        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned long long)reach_churn,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8));
     return buffer;
 }

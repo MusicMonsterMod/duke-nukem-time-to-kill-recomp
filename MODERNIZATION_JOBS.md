@@ -1,5 +1,54 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - Backlog intake: sleeping enemies (D17BF)
+
+From the D52 discussion. TTK only creates enemies near Duke (12 live in
+level 0), so security monitors and distant views show empty rooms. User:
+"we dont want the enemies live, we want them like duke3d. not live, but
+visible", and a shot that hits one should create the real enemy and count,
+"basically how duke3d works". D17BF: host-drawn sleeping copies of
+spawn-point enemies without a live actor, handed over to the real enemy
+when the game spawns it or when a shot or blast hits the copy. Todo; not
+started.
+
+## 2026-11-09 - D52 accepted and closed
+
+User: "I can confirm the cams are now stable, and cams 2 and 3 show no
+enemies", then "lock this job in and close it out". D52 is Done: monitor
+views redraw smoothly at 120/180 Hz from the camera they are drawn from,
+the camera housing slab is gone, and far spawners no longer swap one enemy
+between them every tick, so the feeds are steady. Those far rooms show no
+enemy, as in the original; sleeping enemies on the feeds and in distant
+views are the new job D17BF.
+
+## 2026-11-09 - D52 security camera screens (Needs playtest)
+
+User, slot 9: the security cameras "display at a seemingly low framerate,
+and display graphical glitches over them". Cause 1: the 120/180 Hz redraws
+interpolated only the player's camera, but a monitor view is drawn from the
+alternate camera `0x800d7010`, so its picture moved at the game's 30 fps
+and stepped back and forth between the newer and older frame. Cause 2: the
+object near clip drew the camera's own housing faces (all nearer than H,
+which the original drops) as a dark slab across the middle camera's picture.
+Fix, game-wide for game-owned views: redraws follow the camera the
+composition draws from (no mouse late view on it), and the near clip leaves
+those faces to the original. 180 Hz after: smooth in-between steps, no
+repeated images; slab gone in matched shots. Ordinary play unchanged.
+[Note 430](documentation/430-d52-security-cameras.md).
+
+Revision 2 (user: "the enemies on the security feed seem to glitch in and
+out", monitors 2 and 3). Cause 3, not the renderer: the game itself drew
+the enemy one tick in six (also at 60 Hz, in Classic and in the build from
+before D52). D17AQ's dormant enemies spawn far spawners with the live cap
+full; the original replacement `0x80099048` compares saturated distances
+(`0x7fffffff` past 32768 units on an axis), so far spawners tied and each
+replaced the last, and one actor hopped between them every tick. Fix
+(`enemy_reach.inc`, Modernized Extended only): with the cap full a spawner
+counts as in reach only if the enemy the replacement would remove is
+farther by exact distance. After: the actor stays put, both monitors show
+a steady picture (no enemy there now, as in the original, whose range never
+reaches those rooms).
+
 ## 2026-11-09 - D08A42 accepted and closed
 
 User: "lock it in and close it out". D08A42 is Done: the Laser Gatling's ammo
@@ -8286,6 +8335,130 @@ by `input_modernized()`. `ttk-input-test`, `ttk-aim-test` pass;
 `ttk-controls-test` stops at the known D14 HUD check. User playtest accepted
 2026-11-08: "lock it in, close it out, that is fixed!"
 
+### D52 - Security camera screens: low frame rate and glitches over them
+
+**Status: Done (user-accepted 2026-11-09: "I can confirm the cams are now stable, and cams 2 and 3 show no enemies"; closeout authorized 2026-11-09; [note 430](documentation/430-d52-security-cameras.md)). Dependencies: none known. Follow-up: D17BF.**
+User: "slot 9, the security cameras display at a seemingly low framerate,
+and display graphical glitches over them. check the 3 security cams and then
+investigate why this is happening, and then fix the security camera". Work
+only on a private copy of UI slot 9 (file 8); never the player's saves or
+cards. Find the three camera screens, measure how often each screen's image
+changes against the game and display rates, capture the glitches, and name
+the owner of each fault with evidence (original game behaviour, the 120/180
+Hz redraw workers, Polymorph, D17 host visibility or culling, D41 lighting,
+the D46 target-depth fix). Fix it game-wide (every security camera, not just
+these three), Modernized default; Vanilla unchanged in play. Acceptance:
+matched before/after shots of all three screens at 60 and 180 Hz, a measured
+screen update rate, and the user's playtest in slot 9.
+
+**Work log (2026-11-09, Needs playtest).** Lab `recomp/analysis/d52/lab.py`,
+private copy of UI slot 9. The monitors open with the action (left mouse);
+the view is the alternate camera `0x800d7010` (Duke +0x224 bit
+`0x20000000`, D35K). Two faults. (1) Frame rate: the composition draws from
+`0x800da488`, the alternate camera or the player's camera
+(`0x8002620c..0x8002626c`), but the 120/180 Hz redraws interpolated only
+`0x800d6eb0`, and recorded objects only drawn through it. So the security
+picture moved at the game's 30 fps, and with the late camera the newer- and
+older-list redraws (D10H8) alternated between two camera positions. Old
+build, 180 Hz: pan in whole 0/3/6 px game-frame steps, 7 of 39 shot pairs
+identical. (2) Glitch: a dark slab across the middle camera's picture, from
+the object near clip drawing faces wholly nearer than H, which the original
+drops: the camera's own housing (only `DNTTK_NEAR_CLIP=0` or `=world`
+removes it). Fix: `composition_camera()` and `game_camera_view()`
+(near_clip.cpp); redraws capture, interpolate and write the drawn camera
+(switches are cuts; late mouse view, body camera and room walk only for the
+player's camera), and record objects drawn through it; in a game-owned view
+the object near clip leaves all-near faces to the original. After, 180 Hz:
+no identical pairs, 1-2 px in-between steps, about 500 game-camera blends a
+run, first and third person and Classic; the slab is gone in matched shots
+at camera heading 350; exit back to Duke's view clean; ordinary play takes
+the same paths (`game_camera_blends` 0). The right camera's see-through
+block is the original's water. `ttk-near-test`, `ttk-aim-test` pass;
+`ttk-input-test` (no D52 file) hung on the desktop display after its
+rebuild. Remaining: user playtest; Vanilla not compared on screen (pad
+injection did not move Duke); other levels' cameras and `0x800da488`
+scripted views not visited.
+
+**Work log (2026-11-09, revision 2, Needs playtest).** User: "while it
+currently looks better than before with the higher frame rate, the enemies
+on the security feed seem to glitch in and out. this seems to affect only
+monitors 2 and 3". Reproduced at 180 Hz on the middle monitor: an enemy in
+2 of every 8 shots while the camera barely moves; the same at 60 Hz (no
+redraws), with every host renderer switch off, in Classic and in the build
+from before D52. A per-tick list of the actors the game drew showed actor
+`0x801cff94` (draw kind `0x80032e78`) in 3 ticks of 18, its position and
+room different almost every tick (rooms 43, 76, 31, 48, 34, 67, 54...),
+each one a spawner record (`*0x800de720`, type 26 and 123). With
+`DNTTK_ENEMY_REACH=0` it stopped. Cause: D17AQ dormant enemies spawn far
+spawners while the live cap (12 in level 0) is full, so the spawn check
+`0x8009926c` asks the replacement `0x80099048`, which keeps the farthest
+live enemy by the `0x800675d4` distance and replaces it unless the new
+spawner is farther. That distance is `0x7fffffff` once an axis differs by
+32768, so every far spawner tied with the far enemy and replaced it: one
+actor round-robined between them, and an enemy in a watched room existed
+one tick in six. Vanilla could not be compared on screen (the savestate
+loads frozen there), but the original's spawn radius (about 25552) never
+reaches saturated distances. Fix (`recomp/src/ttk/enemy_reach.inc`, in the
+existing range-test hook, Modernized Extended only): with the cap full, a
+spawner counts as in reach only if the enemy that replacement would remove,
+worked out on the host with the original's saturated distances, is farther
+from Duke than the spawner by exact distance; every replacement now brings
+a nearer enemy in, so none can repeat. Guards added for `0x80099048` and
+`0x800675d4`; counter `churn` in the reach debug JSON. No new game hook, no
+regenerated code. After: the actor keeps one position, the middle monitor's
+enemy pixels stay 0 in 40 shots at 180 Hz, the right monitor draws the same
+16 objects every tick; slot 9 walking and turning: cap 12, live 12, 10
+dormant, 474 tie replacements refused. Those far rooms now show no enemy,
+as in the original. `ttk-near-test` and `ttk-aim-test` pass;
+`ttk-controls-test` does not link (`gpu_vram_peek` from
+`level_lights.inc`, D41D1, before this change). Strips in
+`research/before-after/D52/enemy-flicker-*.png` (local). Remaining: user
+playtest.
+
+### D17BF - Sleeping enemies: visible, not live, as in Duke 3D
+
+**Status: Todo (intake 2026-11-09, from D52). Dependencies: D17AQ, D17AZ, D52 (Done).**
+TTK creates spawn-point enemies only near Duke, up to a per-level cap of
+live enemies (`0x800c56a8`, 12 in level 0); every other spawn point is a
+stored position (`*0x800de720`, 48-byte records: +0 type, +4 live actor, +8
+position, +0x14 flags). So security monitors and distant views show empty
+rooms, and D17AQ spends real slots on far dormant enemies just to show them.
+User: "we dont want the enemies live, we want them like duke3d. not live,
+but visible"; on a shot creating the real enemy: "this is basically how
+duke3d works yes".
+
+Wanted (Modernized; Vanilla and the "original" draw distance unchanged):
+- **Sleeping copies.** For each spawn point with no live enemy (and not
+  killed or disabled), the host draws that type's model at the record's
+  position and heading in a standing pose, through the game's own actor
+  renderer with a stand-in actor in mod memory: no game slot, no AI. The
+  record is the truth, so a removed enemy's saved position moves its copy.
+- **Everywhere the world is drawn.** Security monitors and other game-owned
+  views (D52) and distant views; room visibility as the game's (D17AZ-style
+  reach draws), nearest first under a per-frame budget, lit like real
+  enemies (D41), steady in 120/180 Hz redraws.
+- **Handover.** When the game spawns the real enemy, its copy disappears the
+  same frame at the same spot and, ideally, pose.
+- **Hits wake them, as in Duke 3D.** A bullet, blast or projectile that hits
+  a sleeping copy creates the real enemy there (at the cap the farthest
+  dormant enemy gives way, as the original rule does) and the hit is
+  applied through the game's own damage path, so it reacts and wakes for
+  good. Auto-aim may target copies as Duke 3D allows. If every slot holds an
+  awake enemy near Duke the shot passes and the copy sleeps (verify how
+  often that can happen).
+- **Combat unchanged.** Enemies near Duke, their count and their AI stay
+  the original's; revisit whether D17AQ's far dormant actors are still
+  needed once copies cover distant views.
+
+Start report-only: pose source (the game's pose routine on the stand-in, or
+a captured standing pose of the type), how killed and disabled records are
+marked (flag 0x10, script-held +0x16 rows), visibility and draw budget, and
+the hit paths (hitscan, radius damage, projectiles in flight, auto-aim; see
+D10H3 and D49). Then a prototype on the slot 9 monitors (UI slot 9, file 8,
+private copies only). Acceptance: enemies visible asleep on monitors 2 and
+3 and in a distant view, no pop on handover, a shot copy wakes as a real
+damaged enemy, combat counts unchanged, Vanilla unchanged, user playtest.
+
 ### D08T10 - Slot-5 box repeat grab after pulling
 
 **Status: Done (user-accepted; closeout authorized 2026-10-29). Dependencies: D08T3, D08T7, D08T9 (Done).** Selected
@@ -9498,6 +9671,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17BC | Classic: lightweight visibility (over-the-walls region rule from D17BB, slot-10 moat; other Classic reductions) | Done (user-accepted 2026-11-03; note 372) | D17BB, D40 |
 | D17BD | PIG FACTORY water does not cover the whole area: its texture is missing over part of it (UI slot 10) | Done (user-accepted 2026-11-06; Modernized draws all four missing pool surfaces; note 401) | - |
 | D17BE | TIME TO KILL street car: a small sliver near the rear left wheel disappears (UI slot 10) | Done (user-accepted 2026-11-06; folded prop quads draw their front half; note 404) | - |
+| D17BF | Sleeping enemies: spawn-point enemies drawn asleep where none is live (monitors, distant views); a hit creates the real enemy | Todo | D17AQ, D17AZ, D52 |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
@@ -9607,6 +9781,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49F | Laser Gatling bolts bend from the gun's direction to the crosshair in first person | Done | D49E |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
+| D52 | Security camera screens (UI slot 9): low frame rate and glitches drawn over them | Done (user-accepted 2026-11-09; note 430) | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

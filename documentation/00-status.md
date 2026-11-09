@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D52 accepted and closed
+
+User: "I can confirm the cams are now stable, and cams 2 and 3 show no
+enemies", then "lock this job in and close it out". D52 is Done: monitor
+views redraw smoothly at 120/180 Hz from the camera they are drawn from,
+the camera housing slab is gone, and far spawners no longer swap one enemy
+between them every tick, so the feeds are steady. Those far rooms show no
+enemy, as in the original; sleeping enemies on the feeds and in distant
+views are the new job D17BF.
+
+## 2026-11-09 - D52 security camera screens (Needs playtest)
+
+User, slot 9: the security cameras "display at a seemingly low framerate,
+and display graphical glitches over them". Cause 1: the 120/180 Hz redraws
+interpolated only the player's camera, but a monitor view is drawn from the
+alternate camera `0x800d7010`, so its picture moved at the game's 30 fps
+and stepped back and forth between the newer and older frame. Cause 2: the
+object near clip drew the camera's own housing faces (all nearer than H,
+which the original drops) as a dark slab across the middle camera's picture.
+Fix, game-wide for game-owned views: redraws follow the camera the
+composition draws from (no mouse late view on it), and the near clip leaves
+those faces to the original. 180 Hz after: smooth in-between steps, no
+repeated images; slab gone in matched shots. Ordinary play unchanged.
+[Note 430](430-d52-security-cameras.md).
+
+Revision 2 (user: "the enemies on the security feed seem to glitch in and
+out", monitors 2 and 3). Cause 3, not the renderer: the game itself drew
+the enemy one tick in six (also at 60 Hz, in Classic and in the build from
+before D52). D17AQ's dormant enemies spawn far spawners with the live cap
+full; the original replacement `0x80099048` compares saturated distances
+(`0x7fffffff` past 32768 units on an axis), so far spawners tied and each
+replaced the last, and one actor hopped between them every tick. Fix
+(`enemy_reach.inc`, Modernized Extended only): with the cap full a spawner
+counts as in reach only if the enemy the replacement would remove is
+farther by exact distance. After: the actor stays put, both monitors show
+a steady picture (no enemy there now, as in the original, whose range never
+reaches those rooms).
+
 ## 2026-11-09 - D41J1 accepted and closed
 
 User: "lock it in and close it out". D41J1 is Done: the Laser Gatling's

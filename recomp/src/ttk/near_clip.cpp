@@ -331,6 +331,7 @@ uint32_t region_address(uint32_t offset) {
 constexpr uint32_t viewmodel_slot=1;
 
 uint64_t viewmodel_meshes,viewmodel_packets,viewmodel_discards;
+uint64_t game_view_drops;   // D52: object faces left to the original in a game-owned view
 
 // DNTTK_NEAR_CLIP (developer A/B, not a saved preference): 0 off, "world" or
 // "object" for one renderer only; anything else, or unset, both.
@@ -2004,6 +2005,7 @@ void object(CPUState* cpu) {
     const bool borrowed=sky_borrow_owns(mesh) && sky_borrow_owns(vertices) && sky_borrow_owns(list);
     if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    const bool game_view=game_camera_view();   // D52
     f.glow=!glow_meshes.empty() && std::binary_search(glow_meshes.begin(),glow_meshes.end(),mesh);
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
@@ -2069,7 +2071,12 @@ void object(CPUState* cpu) {
             }
             // The original drops a polygon whose corners are all nearer than
             // H; in the eye view that made props see-through up close, so such
-            // polygons are drawn here too.
+            // polygons are drawn here too. D52: not in a game-owned view
+            // (security monitors, scripted cameras): their camera sits inside
+            // its own housing model, whose faces the original drops; drawn
+            // here they lay a dark slab across the picture. They stay with the
+            // original routine, which drops them.
+            if(all_near && game_view) {++game_view_drops;trace_face(f,cursor,corners,"native_kept");group.kept.push_back(cursor);continue;}
             unsafe|=all_near || oversize(f,idx,corners) || viewmodel || body || forced;
             trace_face(f,cursor,corners,(any || forced) && unsafe?"host_candidate":"native_kept");
             if(unsafe) taken.push_back({cursor,type}); else group.kept.push_back(cursor);
@@ -2575,6 +2582,19 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     }
     return out;
 }
+// D52 (near_clip.h): the composition's camera, as 0x80026164..0x8002626c
+// chooses it (player stride 0x8a4, camera stride 0xb0).
+uint32_t composition_camera() {
+    if(psx_mod_read_half(0x800c3c4cu)) return 0x800da488u;
+    const uint32_t index=psx_mod_read_word(0x800d2654u);
+    if(index>1) return 0x800d6eb0u;
+    const uint32_t player=0x800d7198u+index*0x8a4u;
+    return ((psx_mod_read_word(player+0x224)&0x20000000u) ? 0x800d7010u : 0x800d6eb0u)+index*0xb0u;
+}
+bool game_camera_view() {
+    const uint32_t index=psx_mod_read_word(0x800d2654u);
+    return composition_camera()!=0x800d6eb0u+(index>1?0u:index)*0xb0u;
+}
 const char* near_clip_debug_json() {
     static char buffer[4096];
     auto part=[](const Stats& s,char* out,size_t n){
@@ -2583,7 +2603,7 @@ const char* near_clip_debug_json() {
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -2596,7 +2616,7 @@ const char* near_clip_debug_json() {
         (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
         (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
-        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads);
+        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)game_view_drops);
     return buffer;
 }
 }

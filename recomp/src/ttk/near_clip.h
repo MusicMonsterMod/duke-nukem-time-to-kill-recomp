@@ -48,6 +48,14 @@ void near_clip_counters(uint64_t out[8]);
 // D17AR2 host visibility. True when a room-walk piece would be drawn here
 // whole (Modernized unified geometry with the near path live).
 bool near_clip_host_world_live();
+// D52: the camera the view composition (0x80026164) draws from, read from
+// guest memory (live frame or a redraw worker's image): 0x800da488 while
+// 0x800c3c4c is set, the player's alternate camera 0x800d7010 (+0xb0 per
+// player) while the player's +0x224 has the script bit 0x20000000 (security
+// monitors, scripted views), else the player's camera 0x800d6eb0 (+0xb0).
+uint32_t composition_camera();
+// D52: true while that camera is not the player's own (a game-owned view).
+bool game_camera_view();
 // D41D1: the object animation table last seen while objects drew (0 if none).
 uint32_t near_clip_object_animation();
 // D41D1: neon sign prop meshes (level_lights.inc); dynamic lights skip them,

@@ -184,8 +184,10 @@ constexpr int max_actors=64, max_joints=48;
 struct Mat {int16_t m[9]; int16_t pad; int32_t t[3];};
 static_assert(sizeof(Mat)==0x20,"PsyQ MATRIX");
 struct ActorState {uint32_t actor=0, mats=0, model=0; int joints=0; Mat mat[max_joints];};
+// D52: base is the camera's address (camera_base, or the game-owned camera
+// the composition draws from: security monitors, scripted views).
 struct CameraState {int16_t rot[9]; int16_t distance; int32_t anchor[3]; uint32_t room;
-                   int16_t view[9]; int32_t view_t[3]; int32_t pos[3];};
+                   int16_t view[9]; int32_t view_t[3]; int32_t pos[3]; uint32_t base;};
 // D17AY: object positions (+4..+12) and headings (+0x1c, 4096 a turn) of Duke,
 // the objects he holds or climbs (+0x290, +0x17c) and the drawn actors. Game
 // ticks update them; host draw hooks read them through draw_object_pose, which
@@ -212,14 +214,19 @@ Mat read_mat(uint32_t a) {
     for(int i=0;i<3;++i) m.t[i]=(int32_t)psx_mod_read_word(a+0x14+4*i);
     return m;
 }
-void read_camera(CameraState& c) {
-    for(int i=0;i<9;++i) c.rot[i]=(int16_t)psx_mod_read_half(camera_base+2*i);
-    c.distance=(int16_t)psx_mod_read_half(camera_base+0x42);
-    for(int i=0;i<3;++i) c.anchor[i]=(int32_t)psx_mod_read_word(camera_base+0x64+4*i);
-    c.room=psx_mod_read_word(camera_base+0x90);
-    for(int i=0;i<9;++i) c.view[i]=(int16_t)psx_mod_read_half(camera_base+0x20+2*i);
-    for(int i=0;i<3;++i) c.view_t[i]=(int32_t)psx_mod_read_word(camera_base+0x34+4*i);
-    for(int i=0;i<3;++i) c.pos[i]=(int32_t)psx_mod_read_word(camera_base+0x14+4*i);
+void read_camera(CameraState& c,uint32_t base=camera_base) {
+    c.base=base;
+    for(int i=0;i<9;++i) c.rot[i]=(int16_t)psx_mod_read_half(base+2*i);
+    c.distance=(int16_t)psx_mod_read_half(base+0x42);
+    for(int i=0;i<3;++i) c.anchor[i]=(int32_t)psx_mod_read_word(base+0x64+4*i);
+    c.room=psx_mod_read_word(base+0x90);
+    for(int i=0;i<9;++i) c.view[i]=(int16_t)psx_mod_read_half(base+0x20+2*i);
+    for(int i=0;i<3;++i) c.view_t[i]=(int32_t)psx_mod_read_word(base+0x34+4*i);
+    for(int i=0;i<3;++i) c.pos[i]=(int32_t)psx_mod_read_word(base+0x14+4*i);
+}
+// D52: the camera a redraw may write (the player's or a game-owned one).
+bool known_camera(uint32_t base) {
+    return base==camera_base || base==camera_base+0xb0u || base==0x800d7010u || base==0x800d7010u+0xb0u || base==0x800da488u;
 }
 bool read_actor(uint32_t actor,ActorState& a) {
     if(!ram_ok(actor,0x44)) return false;
@@ -233,7 +240,11 @@ bool read_actor(uint32_t actor,ActorState& a) {
     return true;
 }
 void capture_state(InterpState& st) {
-    read_camera(st.camera);
+    // D52: the camera this frame is drawn from. Before, only the player's
+    // camera was captured, so a game-owned view (security monitors) kept its
+    // 30 fps steps in every redraw, and redraws of the newer and older frame
+    // lists (D10H8) alternated between its two positions.
+    read_camera(st.camera,composition_camera());
     st.has_pivot=late_pivot(st.pivot);
     st.nactors=0;
     auto add=[&](uint32_t actor){
@@ -433,6 +444,7 @@ struct Params {
 };
 struct MatPatch {uint32_t addr; Mat mat;};
 constexpr uint32_t params_max=60000;
+uint64_t game_camera_blends=0;   // D52: in-betweens of a game-owned camera
 uint64_t blended_poses=0,blended_mats=0,skipped_actors=0,camera_cuts=0,pending_flips=0,blended_xf=0,skipped_objects=0,substituted=0,sub_misses=0;
 Frame* rec_frame=nullptr;      // live frame whose transforms are being recorded
 uint32_t xf_obj=0; uint16_t xf_seq=0;
@@ -448,7 +460,8 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
     // Camera: a jump in the anchor (cut, teleport) keeps the base camera.
     CameraState c=a.camera;
     long dx=(long)b.camera.anchor[0]-a.camera.anchor[0],dy=(long)b.camera.anchor[1]-a.camera.anchor[1],dz=(long)b.camera.anchor[2]-a.camera.anchor[2];
-    const bool cut=dx*dx+dy*dy+dz*dz>(long)2048*2048;
+    // D52: a switch between the player's and a game-owned camera is a cut.
+    const bool cut=dx*dx+dy*dy+dz*dz>(long)2048*2048 || a.camera.base!=b.camera.base;
     if(!cut && blend_rot(a.camera.rot,b.camera.rot,ar,c.rot)) {
         for(int i=0;i<3;++i) c.anchor[i]=lerp_x(a.camera.anchor[i],b.camera.anchor[i],alpha,z?&z->camera.anchor[i]:nullptr);
         c.distance=(int16_t)lerp_i(a.camera.distance,b.camera.distance,ar);
@@ -457,7 +470,8 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         c.room=a.camera.room;
         // Developer check DNTTK_ROOM_WALK=always|off.
         static const int walk_mode=[]{const char* t=std::getenv("DNTTK_ROOM_WALK");return !t?1:(!std::strcmp(t,"always")||!std::strcmp(t,"probe"))?2:!std::strcmp(t,"off")?0:1;}();
-        if(walk_mode==2 || (walk_mode==1 && a.camera.room!=b.camera.room)) p.flags|=2;
+        // D52: the walk starts from Duke, so only for the player's camera.
+        if(a.camera.base==camera_base && (walk_mode==2 || (walk_mode==1 && a.camera.room!=b.camera.room))) p.flags|=2;
         if(walk_mode==0) c.room=alpha<0.5 ? a.camera.room : b.camera.room;
         if(!blend_view(a.camera.view,b.camera.view,ar,c.view))
             for(int i=0;i<9;++i) c.view[i]=(int16_t)lerp_i(a.camera.view[i],b.camera.view[i],ar);
@@ -465,6 +479,7 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         for(int i=0;i<3;++i) c.pos[i]=lerp_x(a.camera.pos[i],b.camera.pos[i],alpha,z?&z->camera.pos[i]:nullptr);
         p.camera=c;
         p.flags|=1;
+        game_camera_blends+=c.base!=camera_base;
     } else ++camera_cuts;
     // D17AY: objects present in both frames; a jump (teleport, respawn,
     // reused slot) keeps the base pose.
@@ -839,7 +854,8 @@ float last_late_yaw=999.0f;
 // or the orbit pivot (third person). False keeps the interpolated camera.
 bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p,double look_ms) {
     double ly=0,lp=0;
-    if(!(p.flags&1) || !late_view(ly,lp,look_ms)) return false;
+    // D52: the mouse never turns a game-owned camera (security monitors).
+    if(!(p.flags&1) || p.camera.base!=camera_base || !late_view(ly,lp,look_ms)) return false;
     CameraState& c=p.camera;
     double ra[9];
     for(int r=0;r<3;++r) {
@@ -1595,18 +1611,25 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // Developer mask DNTTK_INTERP_CAM: 1 rotation, 2 anchor/distance/room,
     // 4 view matrix +0x20/+0x34, 8 eye position +0x14 (default all).
     static const unsigned cam_mask=[]{const char* t=std::getenv("DNTTK_INTERP_CAM");return t?(unsigned)std::strtoul(t,nullptr,0):15u;}();
+    // D52: the camera the base frame was drawn from (a game-owned view keeps
+    // the player's camera untouched); only the player's gets the body camera
+    // and the room walk from Duke.
+    const uint32_t cb=p.camera.base;
+    if((p.flags&1) && !known_camera(cb)) p.flags&=~1u;
+    const bool own=cb==camera_base;
+    if(!own) p.flags&=~(2u|8u|16u);
     if(p.flags&1) {
-        if(cam_mask&1) for(int i=0;i<9;++i) psx_mod_write_half(camera_base+2*i,(uint16_t)p.camera.rot[i]);
+        if(cam_mask&1) for(int i=0;i<9;++i) psx_mod_write_half(cb+2*i,(uint16_t)p.camera.rot[i]);
         if(cam_mask&2) {
-            psx_mod_write_half(camera_base+0x42,(uint16_t)p.camera.distance);
-            for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x64+4*i,(uint32_t)p.camera.anchor[i]);
-            psx_mod_write_word(camera_base+0x90,p.camera.room);
+            psx_mod_write_half(cb+0x42,(uint16_t)p.camera.distance);
+            for(int i=0;i<3;++i) psx_mod_write_word(cb+0x64+4*i,(uint32_t)p.camera.anchor[i]);
+            psx_mod_write_word(cb+0x90,p.camera.room);
         }
         if(cam_mask&4) {
-            for(int i=0;i<9;++i) psx_mod_write_half(camera_base+0x20+2*i,(uint16_t)p.camera.view[i]);
-            for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x34+4*i,(uint32_t)p.camera.view_t[i]);
+            for(int i=0;i<9;++i) psx_mod_write_half(cb+0x20+2*i,(uint16_t)p.camera.view[i]);
+            for(int i=0;i<3;++i) psx_mod_write_word(cb+0x34+4*i,(uint32_t)p.camera.view_t[i]);
         }
-        if(cam_mask&8) for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x14+4*i,(uint32_t)p.camera.pos[i]);
+        if(cam_mask&8) for(int i=0;i<3;++i) psx_mod_write_word(cb+0x14+4*i,(uint32_t)p.camera.pos[i]);
         body_camera={}; beam_follow_job=false;
         if((p.flags&8) && (cam_mask&5)==5) {
             body_camera.valid=true;
@@ -2304,7 +2327,9 @@ void logo_entry(CPUState* cpu,uint32_t address) {
 // matrix actors), 0x80031c14, all called (camera, object, ...).
 uint32_t drawing_kind[max_actors];
 void actor_draw(CPUState* cpu,uint32_t address) {
-    if(!interp_replay || cpu->gpr[4]!=camera_base) return;
+    // D52: objects drawn through the composition's camera (a game-owned view
+    // too); a mirror's stacked camera stays out.
+    if(!interp_replay || cpu->gpr[4]!=composition_camera()) return;
     xf_obj=cpu->gpr[5]; xf_seq=0;
     if(psx_mod_replay_active()) {
         if(quality_profile()) {quality_actor_end(nullptr,0);quality_actor_start=SDL_GetPerformanceCounter();++quality_actor_count;}
@@ -2317,9 +2342,10 @@ void actor_draw(CPUState* cpu,uint32_t address) {
 // 0x800292a0(camera, matrix): one transform load inside an object's draw.
 // Live frames record it; a worker's redraw substitutes the interpolated one.
 void transform_load(CPUState* cpu,uint32_t) {
-    if(!interp_replay || cpu->gpr[4]!=camera_base) return;
+    if(!interp_replay || cpu->gpr[4]!=composition_camera()) return;
     const uint32_t sky_ra=cpu->gpr[31];
-    const bool sky=sky_transform_call(cpu->gpr[4],sky_ra);
+    // D52: the sky is built around whichever camera draws it.
+    const bool sky=sky_transform_call(camera_base,sky_ra);
     static SkyRenderIdentity sky_identity;
     static const bool sky_native=[]{const char* t=std::getenv("DNTTK_SKY_CAMERA");return !(t && !std::strcmp(t,"0"));}();
     static const bool sky_trace=std::getenv("DNTTK_SKY_TRACE")!=nullptr;
@@ -2673,12 +2699,12 @@ const char* frame_replay_debug_json() {
     uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
     gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
     int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"impact\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
-        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
+        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"game_camera_blends\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
         world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),impact_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,
-        (unsigned long long)skipped_actors,(unsigned long long)camera_cuts,ndrawn,(unsigned long long)pending_flips,(unsigned long long)blended_xf,(unsigned long long)skipped_objects,
+        (unsigned long long)skipped_actors,(unsigned long long)camera_cuts,(unsigned long long)game_camera_blends,ndrawn,(unsigned long long)pending_flips,(unsigned long long)blended_xf,(unsigned long long)skipped_objects,
         (unsigned long long)substituted,(unsigned long long)sub_misses,late_camera()?"true":"false",
         (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,pace_backoff,pace_clean,pace_last_ratio,(unsigned long long)pace_mid,shed_steps,shed_backoff,(unsigned long long)shed_probes,(unsigned long long)shed_failed_probes,(unsigned long long)pace_changes,(unsigned long long)emu_sheds,(unsigned long long)audio_sheds,
         (unsigned long long)ahead_hist[0],(unsigned long long)ahead_hist[1],(unsigned long long)ahead_hist[2],(unsigned long long)ahead_hist[3],

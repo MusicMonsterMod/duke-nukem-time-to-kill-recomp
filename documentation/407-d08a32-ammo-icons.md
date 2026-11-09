@@ -120,3 +120,13 @@ earlier `energy-N` frames are kept. Animation rules unchanged (a shot plays
 Modernized 16:9 framed, 60 Hz): held fire drew cells 40-47 and settled on the
 rest pose. User-accepted in play: "its perfect".
 
+
+## D08A42 Laser Gatling icon: A in rich red
+
+User (2026-11-09): switch the Laser Gatling (record 28) from candidate B to
+candidate A, with A's pink reworked to "richer red tones". A's pink ramp was
+remapped colour for colour onto a red ramp (exact PSX colours); shapes, frames
+and the energy weapon's shot timing are unchanged. B is kept locally in
+`research/d08a40-candidates/`. Offscreen private run: rest on frame 0, held
+fire cycles 1-7 and settles; the regular Gatling keeps its belt. User-accepted
+2026-11-09.

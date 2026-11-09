@@ -152,16 +152,16 @@
    "slot": 28,
    "name": "LASER GATLING",
    "frames": [
-    "laser-gatling-b-0-15col.png",
-    "laser-gatling-b-1-15col.png",
-    "laser-gatling-b-2-15col.png",
-    "laser-gatling-b-3-15col.png",
-    "laser-gatling-b-4-15col.png",
-    "laser-gatling-b-5-15col.png",
-    "laser-gatling-b-6-15col.png",
-    "laser-gatling-b-7-15col.png"
+    "laser-gatling-a-0-15col.png",
+    "laser-gatling-a-1-15col.png",
+    "laser-gatling-a-2-15col.png",
+    "laser-gatling-a-3-15col.png",
+    "laser-gatling-a-4-15col.png",
+    "laser-gatling-a-5-15col.png",
+    "laser-gatling-a-6-15col.png",
+    "laser-gatling-a-7-15col.png"
    ],
-   "note": "D08A40: the Gatling's upgrade (record 28, shown while slot 7 has inventory bit 8). An industrial laser charge: a steady beam in the window and a beam between two emitters. Frame 0 rest; a shot plays 1-7 at 60 ms then 0 (the energy weapon's timing); held fire keeps cycling."
+   "note": "D08A40: the Gatling's upgrade (record 28, shown while slot 7 has inventory bit 8). A laser energy cell on the diagonal, rich red, with a surge along its charge (D08A42: user switched from B to A and asked for richer red over pink). Frame 0 rest; a shot plays 1-7 at 60 ms then 0 (the energy weapon's timing); held fire keeps cycling."
   }
  ]
 }

@@ -1,5 +1,18 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D08A42 accepted and closed
+
+User: "lock it in and close it out". D08A42 is Done: the Laser Gatling's ammo
+box shows candidate A, the laser energy cell, in rich red (same frames and
+shot animation); the regular Gatling keeps its belt.
+
+## 2026-11-09 - D08A42 Laser Gatling icon: A in rich red (Needs playtest)
+
+User: switch the Laser Gatling ammo icon to option A and rework A from pink to
+"richer red tones". Record 28 now shows the laser energy cell in a deep red
+ramp (same frames and shot animation); B is kept locally. Before/after on the
+ammo icon artifact. Offscreen check passes; needs the user's playtest.
+
 ## 2026-11-09 - D41D1 accepted and closed
 
 User: "lock it in and close it out". D41D1 is Done: glowing props give real
@@ -4957,6 +4970,34 @@ local `research/d08a40-candidates/`. Offscreen check (level 0, borderless,
 `test_ui_art.py` (12) and `--check` pass. Needs the user's playtest (framed
 HUD and other scales not checked separately; same draw path as D08A32).
 
+### D08A42 - Laser Gatling ammo icon: candidate A in rich red
+
+**Status: Done (user-accepted 2026-11-09: "lock it in and close it out"). Dependencies: D08A40.**
+User, 2026-11-09: "change the laser gatling gun icon to our option A. can you
+also just work over our option A again to make the colors more red, as this to
+my eyes reads more on the pink scale unfortunately. I prefer the richer red
+tones." Replace D08A40's chosen B (laser charge canister) with candidate A
+(laser energy cell) on record 28, recoloured from its pink ramp to rich reds.
+Acceptance: the user approves the red A on the ammo icon artifact
+(https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu) and in play; same
+animation and HUD path as D08A40; regular Gatling and Vanilla unchanged.
+
+**Work log (2026-11-09, Needs playtest).** A's seven pink colours (hue about
+340) were mapped one to one onto a red ramp in exact PSX 5-bit colours
+(57,8,16 -> 49,0,0; 107,8,41 -> 107,0,0; 165,16,57 -> 165,8,0; 222,41,90 ->
+222,16,8; 255,90,140 -> 247,33,24; 255,165,198 -> 255,99,90; core 255,247,247
+-> 255,239,239); gunmetal, shapes and the eight frames unchanged, still at
+most 15 colours. A first pass leaned orange in the light tints and was pulled
+back to pure red. `laser-gatling-a-0..7` (and `-15col`) are now in
+`recomp/assets/ui/ammo/`, `ammo.json` record 28 lists them, B moved to local
+`research/d08a40-candidates/`; `build_ammo_icons.py` regenerated
+`ammo_icons.h` (`--check` passes), `test_ui_art.py` 12 OK. Rebuilt; offscreen
+private run (`analysis/d08a40/hudlab.py`, level 0, borderless, 60 Hz, player
+card hashes unchanged): regular Gatling shows the belt (view -1), upgraded
+rests on frame 0, held fire cycled 1-7 over 9 shots and settled on 0; the red
+sits next to the HUD's red counters. Before/after on the artifact. Not
+checked: framed HUD and other scales separately (same draw path), 180 Hz.
+
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 
 **Status: Done (user-accepted 2026-11-02). Dependencies: D14B, D14G, D36K1, D11F.** In first-person
@@ -9641,6 +9682,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
 | D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Done (user-accepted 2026-11-08) | - |
 | D08A40 | Laser Gatling ammo icon (still shows the Gatling's ammunition belt; review on the ammo icon artifact) | Done (user-accepted 2026-11-09) | D08A32, D08A38 |
+| D08A42 | Laser Gatling ammo icon: candidate A (laser energy cell) in rich red instead of B; "reads more on the pink scale" | Done (user-accepted 2026-11-09) | D08A40 |
 | D08A41 | Easy walk-over pickups: the UI slot 8 atomic health in a corner is often not picked up when Duke walks into it | Done (user-accepted 2026-11-09; note 427) | D26H |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |

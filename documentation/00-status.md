@@ -1,5 +1,12 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D08A42 Laser Gatling icon: A in rich red (Done)
+
+User: switch the Laser Gatling ammo icon to option A and rework A from pink to
+"richer red tones". Record 28 now shows the laser energy cell in a deep red
+ramp (same frames and shot animation); B is kept locally. Before/after on the
+ammo icon artifact. Offscreen check passes; user-accepted ("lock it in and close it out").
+
 ## 2026-11-09 - D41D1 accepted and closed
 
 User: "lock it in and close it out". D41D1 is Done: glowing props give real

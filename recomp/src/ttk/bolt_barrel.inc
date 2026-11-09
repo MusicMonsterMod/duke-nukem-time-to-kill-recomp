@@ -100,8 +100,16 @@ void bolt_at_barrel(CPUState* cpu) {
             e[k]=(int32_t)psx_mod_read_word(camera_base+0x14+4*k);dq[k]=q[k]-e[k];dt[k]=tail[k]-e[k];nq+=dq[k]*dq[k];nt+=dt[k]*dt[k];dd+=dq[k]*dt[k];}
         // Seen from the eye: degrees between the drawn barrel and the native tail.
         const double seen=std::acos(std::clamp(dd/std::sqrt(nq*nt+1e-9),-1.0,1.0))*57.29577951308232;
-        std::fprintf(stderr,"[TTK bolt] %08x flown %d len %d replay %d fp %d head %.0f,%.0f,%.0f xf %.0f tail %.0f,%.0f,%.0f barrel %.0f,%.0f,%.0f (%.0f) zrow %.0f dot %.3f new %.0f seen %.2f\n",
-            a,flown,len,psx_mod_replay_active(),fp?1:0,head[0],head[1],head[2],std::sqrt(hd),tail[0],tail[1],tail[2],q[0],q[1],q[2],std::sqrt(td),cn,dot,vn,seen);
+        // D49F straightness: the bend where the first tick's streak (drawn
+        // barrel to head) meets the flight line (u), and how far the drawn
+        // barrel sits off that line.
+        double bh[3],bn=0,bu=0,off=0;
+        for(int k=0;k<3;++k) {bh[k]=head[k]-q[k];bn+=bh[k]*bh[k];bu+=bh[k]*u[k];}
+        bn=std::sqrt(bn);
+        for(int k=0;k<3;++k) {const double x=q[k]-tail[k];double along=0;for(int j=0;j<3;++j) along+=(q[j]-tail[j])*u[j];const double y=x-along*u[k];off+=y*y;}
+        const double kink=bn>1 ? std::acos(std::clamp(bu/bn,-1.0,1.0))*57.29577951308232 : 0.0;
+        std::fprintf(stderr,"[TTK bolt] %08x flown %d len %d replay %d fp %d head %.0f,%.0f,%.0f xf %.0f tail %.0f,%.0f,%.0f barrel %.0f,%.0f,%.0f (%.0f) zrow %.0f dot %.3f new %.0f seen %.2f kink %.2f off %.0f\n",
+            a,flown,len,psx_mod_replay_active(),fp?1:0,head[0],head[1],head[2],std::sqrt(hd),tail[0],tail[1],tail[2],q[0],q[1],q[2],std::sqrt(td),cn,dot,vn,seen,kink,std::sqrt(off));
     }
     if(std::fabs(dot)<0.95 || hd>600.0*600.0 || vn<64 || vn>4.0*len) return;
     for(int k=0;k<3;++k) v[k]/=vn;

@@ -1,5 +1,21 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D49F accepted and closed
+
+User: "lock it in and close it out". D49F is Done: first-person Laser
+Gatling bolts fly straight from the drawn barrel to the crosshair, and both
+Gatlings are held turned in so the barrel points where the bolts go.
+
+## 2026-11-09 - D49F Laser Gatling bolts fly from the barrel (Needs playtest)
+
+Selected with "work on D49F - decision is: Option 3, with 4 if the gun still
+looks off". Both are in: in first person the Laser Gatling's bolts launch
+from the drawn barrel toward the crosshair point (bend 14.5 deg to 0.03 deg
+on taps at 180 Hz), and the gun is turned in so its barrel lines up with the
+bolts on screen (30.4 deg to 0); at the user's request the regular Gatling
+is held in the same new position. Console `boltlaunch` compares with the
+old state. [Note 426](documentation/426-d49f-laser-bolts-from-barrel.md).
+
 ## 2026-11-09 - D49F added (Laser Gatling bolts bend to the crosshair)
 
 User, after the D49E closeout: "in first person, the lasers appear to fire
@@ -7619,7 +7635,7 @@ run (code is Modernized only).
 
 ### D49F - Laser Gatling bolts bend from the gun to the crosshair
 
-**Status: Todo (user, 2026-11-09, after the D49E closeout: "in first person, the lasers appear to fire from the direction of the gun and then bend to the direction of the crosshair. I need some real help with that one as i cant even think of the solution here"). Dependencies: D49E.**
+**Status: Done (user-accepted 2026-11-09: "lock it in and close it out"; user chose Option 3, with Option 4 if the gun still looks off, 2026-11-09; both implemented, regular Gatling in the same pose at the user's request, [note 426](documentation/426-d49f-laser-bolts-from-barrel.md); user, 2026-11-09, after the D49E closeout: "in first person, the lasers appear to fire from the direction of the gun and then bend to the direction of the crosshair. I need some real help with that one as i cant even think of the solution here"). Dependencies: D49E.**
 In first person the Laser Gatling's bolts (type 27) leave the drawn barrel
 along one line, then turn onto the line to the crosshair. Likely cause, from
 the D49E work (to confirm by measuring): D49E only redraws the streak's first
@@ -7651,6 +7667,49 @@ kink is found there) and Vanilla unchanged; keep the D41J bolt lights with
 the bolts. Test with `dnupgrade` at 180 Hz, with `boltbarrel on|off` for A/B.
 Acceptance: measured path straightness before and after, matched stills in
 `research/before-after/D49F/`, user playtest.
+
+**Work log (2026-11-09, Needs playtest).** Cause confirmed by measuring: the
+bolt launched from the skeleton muzzle `player+0xbc`, 400-850 units under
+and beside the drawn barrel (about 1050 units ahead of the eye), and D49E
+drew only its first tick from the barrel, so the path bent about one tick
+out (180 Hz first person, `boltlaunch off`: 14.5 deg median on taps, the drawn
+barrel 340 units off the bolt's line; 4.3 deg held; 3.1 deg held while
+turning). Option 3 (`weapon_aim.cpp`, gun path, record 28, first person,
+Modernized): the origin is the drawn barrel tip (the muzzle flash's point,
+D49 `first_person_drawn_muzzle`) placed under the view the shot aims from
+(D10G3 shown view, whose whole rotation `frame_replay.cpp` now keeps, or the
+game camera at 60 Hz); the direction is still the crosshair point's. Guards:
+body-to-origin cover (existing), eye-to-barrel floor and ceiling, and a
+step-back toward the eye when the line would leave more than 20 deg off the
+view or meet the world short of the point (looking down 36 deg the bolt
+grazed the floor and struck 30-90 units past the crosshair point; now 1
+unit). After: taps 0.03 deg (barrel 1 unit off the line), held 0.27, turning
+0.91 (the view moving after the shot, D49D's EDuke32 behaviour); 60 Hz 0.04
+and 0.30. Option 4 was needed: slot 7's yaw of -26 put the barrel 30.4 deg
+off the bolts' line on screen. The Laser Gatling now has its own tilt
+(-12, -8.8, 16): slot 7's pose turned in by yaw alone, keeping the accepted
+raise and side view; on screen the barrel now lines up with the bolts (0.0
+deg; the axis meets the view ray about 2700 units out). The barrel axis was
+taken from the mesh (hexagonal prism along the hand's +y). Regular Gatling
+keeps slot 7's pose. `boltlaunch on|off|default` / `DNTTK_BOLT_LAUNCH=0`
+switch launch and toe-in together (exact pre-D49F state; redraw workers via
+the render state). Hits: 1-6 units from the crosshair point at walls; a
+pinned pig cop took 7/7 bolts at 1580 units and 6/6 at 2227. Third person and
+the regular Gatling: no barrel launches. `ttk-aim-test` (new D49F case) and
+`ttk-input-test` pass. Matched stills `research/before-after/D49F/`. Limits:
+cover between the barrel and the target now decides what the bolt meets (as
+drawn); targets inside the barrel's depth (about 1100 units) keep the
+original retraction to the body; enemy laser bolts, rockets and fireballs
+unchanged; Vanilla not run (code is Modernized only, asserted in the suite).
+Needs the user's playtest at 180 Hz with `dnupgrade`.
+
+**Work log (2026-11-09, part 2, Needs playtest).** User: "duke should hold the
+non-upgraded gatling gun in the same new position too". Slot 7's tilt itself
+is now (-12, -8.8, 16), so both Gatlings share it (the Laser Gatling's own
+entry removed; override `DNTTK_FP_WEAPON_TILT7`); `boltlaunch off` shows the
+old pose (-12, -26, 16) for both. Lab: the regular Gatling logs the same pose
+matrix as the Laser Gatling, its rounds are unchanged; stills
+`research/before-after/D49F/fp180-gatling-*`. Suites pass.
 
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
@@ -9368,7 +9427,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Done 2026-11-08 | D49 |
 | D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
 | D49E | Laser Gatling bolts leave from the true muzzle, in step with the gun | Done (user-accepted 2026-11-09) | D10H8, D49B, D41J |
-| D49F | Laser Gatling bolts bend from the gun's direction to the crosshair in first person | Todo (choose an option first) | D49E |
+| D49F | Laser Gatling bolts bend from the gun's direction to the crosshair in first person | Done | D49E |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |

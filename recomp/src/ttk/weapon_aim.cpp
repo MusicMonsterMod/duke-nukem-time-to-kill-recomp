@@ -636,6 +636,70 @@ static void follow_flight(CPUState* cpu) {
     ++follow_shifts;last_follow_shift=step;
     if(diagnostics())std::fprintf(stderr,"ttk-round-follow projectile=%08x actor=%08x step=%.0f,%.0f,%.0f\n",a,actor,d[0],d[1],d[2]);
 }
+// D49F: in first person the Laser Gatling (record 28) launches its bolts
+// from the drawn barrel. The gun is shown in its own presentation pose
+// (D12/D36), so the third-person skeleton's muzzle the round started at
+// (player +0xbc) sat 400-800 units under and beside the drawn barrel, and the
+// bolt's line ran from there to the crosshair point. D49E draws the bolt's
+// first tick from the drawn barrel to its first position, so the shot left
+// the barrel along one line and then flew along another: a bend about one
+// tick (2000 units) out. Now the round itself starts at the drawn barrel tip
+// (Duke's draw records it in the view frame, D49 first_person_drawn_muzzle,
+// the muzzle flash's point), placed in the world under the view on screen
+// (D10G3, or the game camera at 60 Hz), and aims at the crosshair point as
+// before, so it flies one straight line from the barrel to where the
+// crosshair is. Gameplay: the hit still lands at the crosshair point; only
+// the line toward it starts elsewhere, so cover between the barrel and the
+// target now decides what the bolt meets, as it is drawn. The usual wall
+// guard (body to origin) keeps a barrel pushed through a wall on Duke's
+// side, and an eye-to-barrel check keeps it out of floors and ceilings when
+// looking steeply. Modernized, first person, the Laser Gatling only (the
+// other guns' rounds are not drawn; rockets and fireballs keep the accepted
+// D49B/D10H8 feel). DNTTK_BOLT_LAUNCH=0 or console "boltlaunch off" keeps the
+// skeleton's muzzle (A/B).
+static std::atomic<int> bolt_launch_override{-1};
+static bool bolt_launch_enabled() {
+    const int o=bolt_launch_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=ttk_live_env("DNTTK_BOLT_LAUNCH");return !(v && v[0]=='0' && !v[1]);
+}
+bool aim_bolt_launch_enabled() {return bolt_launch_enabled();}
+static bool barrel_launch_record(unsigned weapon) {return weapon==28;}
+static unsigned barrel_launches,barrel_refused,barrel_guarded,barrel_steps;
+static double last_barrel_offset,last_barrel_step;
+// The drawn barrel tip in the world: the eye and view rows the shot aims from
+// (the shown view, or the game camera when the shot uses it).
+static bool drawn_barrel(const double* eye,bool screen,double* out) {
+    double vm[3],rows[9];
+    if(!first_person_drawn_muzzle(vm))return false;
+    if(screen) {if(!shot_view_rows(rows))return false;}
+    else for(int r=0;r<3;++r) {
+        double row[3]={0,0,0};
+        for(int k=0;k<3;++k)row[k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k));
+        if(!normal(row))return false;
+        for(int k=0;k<3;++k)rows[3*r+k]=row[k];
+    }
+    // In front of the eye and within reach of the held gun (its presentation
+    // anchor sits past the near cull, about 1050 units ahead).
+    if(vm[2]<16 || vm[0]*vm[0]+vm[1]*vm[1]+vm[2]*vm[2]>2048.0*2048.0)return false;
+    for(int k=0;k<3;++k)out[k]=eye[k]+rows[k]*vm[0]+rows[3+k]*vm[1]+rows[6+k]*vm[2];
+    return true;
+}
+bool bolt_launch_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"boltlaunch") && std::strncmp(line,"boltlaunch ",11))return false;
+    close=false;
+    if(line[10]) {
+        const char* value=line+11;
+        if(!std::strcmp(value,"on"))bolt_launch_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))bolt_launch_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))bolt_launch_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: boltlaunch [on|off|default] (on: first-person Laser Gatling bolts fly from the drawn barrel; session only)");return true;}
+        close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,"Bolt launch %s: first-person Laser Gatling bolts fly from %s (session only). Default on.",
+        bolt_launch_enabled()?"on":"off",bolt_launch_enabled()?"the drawn barrel":"Duke's skeleton muzzle");
+    say(text);return true;
+}
 static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(address==0x8001ca4c) {beam_finish(cpu);return;}
     if(address==0x8006dd2c && input_modernized() && !g_ls_mode && !g_psx_call_bail)follow_flight(cpu);
@@ -669,9 +733,22 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     read_vector(camera+0x14,eye);read_vector(continuous?player+0x80c:player+0xbc,muzzle);
     for(int i=0;i<3;++i)forward[i]=(int16_t)psx_mod_read_half(camera+12+2*i);
     screen_view(eye,forward);
-    if(free_look_aim(eye,forward))last_screen_view=false;
+    const bool free_look=free_look_aim(eye,forward);
+    if(free_look)last_screen_view=false;
     bool ok=normal(forward);int kind=0;
     for(int i=0;i<3;++i)target[i]=eye[i]+forward[i]*16384;
+    // D49F: the drawn barrel, before the cover guard and the aim below.
+    bool barrel=false;
+    double native_muzzle[3];std::copy(muzzle,muzzle+3,native_muzzle);
+    if(ok && gun && !free_look && barrel_launch_record(cpu->gpr[7]) && bolt_launch_enabled() && first_person_view_live()) {
+        double q[3],d=0;
+        if(drawn_barrel(eye,last_screen_view,q)) {
+            for(int i=0;i<3;++i)d+=(q[i]-muzzle[i])*(q[i]-muzzle[i]);
+            d=std::sqrt(d);
+            if(d<2048) {std::copy(q,q+3,muzzle);barrel=true;last_barrel_offset=d;last_barrel_step=0;}
+        }
+        if(!barrel)++barrel_refused;
+    }
     read_vector(player+4,body);body[1]=muzzle[1];
     // The screen ray begins at Duke's depth. Geometry behind the character
     // (between the follow camera and Duke) must not turn a shot backwards.
@@ -711,7 +788,18 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     // Keep the physical origin. Guard a muzzle protruding through thin cover
     // with a body-to-muzzle segment before committing a new direction.
     int cover=0;
+    if(ok && barrel) {
+        // Looking steeply down or up, the barrel can sit past a floor or
+        // ceiling the level body-to-muzzle segment never meets.
+        int floor_kind=0;double hit[3];
+        if(trace(cpu,eye,muzzle,hit,floor_kind) && floor_kind==1) {
+            double back[3];for(int i=0;i<3;++i)back[i]=eye[i]-hit[i];
+            if(normal(back)) {for(int i=0;i<3;++i)muzzle[i]=hit[i]+back[i]*8;body[1]=muzzle[1];++barrel_guarded;}
+            else {std::copy(native_muzzle,native_muzzle+3,muzzle);body[1]=muzzle[1];barrel=false;}
+        }
+    }
     ok=ok && trace(cpu,body,muzzle,safe,cover);
+    if(barrel && cover)++barrel_guarded;
     if(ok && cover==2) {
         // An intersecting actor is not a wall. Start on Duke's side of the
         // entire overlap, so the original sweep enters the enemy from outside.
@@ -734,6 +822,39 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
         std::copy(body,body+3,muzzle);++close_retractions;
         double remaining=0;for(int i=0;i<3;++i)remaining+=(target[i]-muzzle[i])*forward[i];
         if(remaining<64)for(int i=0;i<3;++i)target[i]+=forward[i]*(64-remaining);
+    }
+    if(ok && barrel && cover!=2 && convergence>=64) {
+        // D49F: the barrel sits about 1050 units ahead of the eye and to the
+        // side, so a close target, or a floor ahead when looking down, puts
+        // its line to the crosshair point far off the view: a bolt leaving
+        // the gun sideways, and from just above a floor a grazing line whose
+        // impact lands 30-90 units past the point. Step the origin back
+        // toward the eye (which reaches the point) until the line is within
+        // barrel_max_angle of the view and meets no wall short of the point.
+        // Such shots arrive within one game tick, where D49E still draws the
+        // bolt from the drawn barrel. Actors in the way end the check: the
+        // bolt meets them, as drawn.
+        static constexpr double barrel_max_angle=20;
+        auto reaches=[&](const double* from) {
+            double u[3];for(int i=0;i<3;++i)u[i]=target[i]-from[i];
+            if(!normal(u))return true;
+            double c=0;for(int i=0;i<3;++i)c+=u[i]*forward[i];
+            if(c<std::cos(barrel_max_angle*3.141592653589793/180))return false;
+            double hit[3];int k=0;
+            // A miss into open sky ends outside every room (room -1), which
+            // the query reports as not ok: nothing stands in the way.
+            if(!trace(cpu,from,target,hit,k))return k==0;
+            double d=0;for(int i=0;i<3;++i)d+=(hit[i]-target[i])*(hit[i]-target[i]);
+            return k!=1 || d<=24.0*24.0;
+        };
+        if(!reaches(muzzle)) {
+            const double from[3]={muzzle[0],muzzle[1],muzzle[2]};
+            for(double t:{0.25,0.5,0.75,1.0}) {
+                double q[3];for(int i=0;i<3;++i)q[i]=from[i]+(eye[i]-from[i])*t;
+                if(t==1.0 || reaches(q)) {std::copy(q,q+3,muzzle);last_barrel_step=t;break;}
+            }
+            ++barrel_steps;
+        }
     }
     double dir[3];for(int i=0;i<3;++i)dir[i]=target[i]-muzzle[i];
     ok=ok && normal(dir);
@@ -772,6 +893,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             beam_target=duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):view_actor;
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
+        if(barrel)++barrel_launches;
+        if(barrel && diagnostics())std::fprintf(stderr,"ttk-barrel-launch weapon=%u origin=%.0f,%.0f,%.0f native=%.0f,%.0f,%.0f offset=%.0f cover=%d step=%.2f view=%s\n",cpu->gpr[7],muzzle[0],muzzle[1],muzzle[2],native_muzzle[0],native_muzzle[1],native_muzzle[2],last_barrel_offset,cover,last_barrel_step,last_screen_view?"screen":"game");
         if(gun)follow_arm(duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):kind==2?view_actor:0,muzzle,target);
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
         int check_kind=-1;uint32_t check_actor=0;double tpos[3]={0,0,0};
@@ -936,8 +1059,8 @@ bool test_move_console_command(const char* line,void (*say)(const char*),bool& c
     std::snprintf(text,sizeof text,"Test mover: actor %08x, %.0f u/s, span %.0f%s.",actor,speed,span,move_late?", late":"");say(text);close=true;return true;
 }
 const char* aim_debug_json() {
-    static char out[2816];
-    std::snprintf(out,sizeof out,"{\"round_test\":%u,\"round_follow\":%s,\"follow_arms\":%u,\"follow_shifts\":%u,\"last_follow_shift\":%.0f,\"auto_aim\":\"%s\",\"duke_aim_cone\":%d,\"duke_aim_shots\":%u,\"duke_aim_searches\":%u,\"duke_aim_misses\":%u,\"last_duke_aim_actor\":\"%08x\",\"last_duke_aim_angle\":%.2f,\"last_duke_aim_candidates\":%d,\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",round_test(),round_follow_enabled()?"true":"false",follow_arms,follow_shifts,last_follow_shift,ttk_live_env("DNTTK_AIM_ASSIST")?ttk_live_env("DNTTK_AIM_ASSIST"):"off",duke_aim_cone.load(std::memory_order_relaxed),duke_aim_shots,duke_aim_searches,duke_aim_misses,last_duke_aim_actor,last_duke_aim_angle,last_duke_aim_candidates,shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[3072];
+    std::snprintf(out,sizeof out,"{\"bolt_launch\":%s,\"barrel_launches\":%u,\"barrel_refused\":%u,\"barrel_guarded\":%u,\"barrel_steps\":%u,\"last_barrel_offset\":%.0f,\"round_test\":%u,\"round_follow\":%s,\"follow_arms\":%u,\"follow_shifts\":%u,\"last_follow_shift\":%.0f,\"auto_aim\":\"%s\",\"duke_aim_cone\":%d,\"duke_aim_shots\":%u,\"duke_aim_searches\":%u,\"duke_aim_misses\":%u,\"last_duke_aim_actor\":\"%08x\",\"last_duke_aim_angle\":%.2f,\"last_duke_aim_candidates\":%d,\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",bolt_launch_enabled()?"true":"false",barrel_launches,barrel_refused,barrel_guarded,barrel_steps,last_barrel_offset,round_test(),round_follow_enabled()?"true":"false",follow_arms,follow_shifts,last_follow_shift,ttk_live_env("DNTTK_AIM_ASSIST")?ttk_live_env("DNTTK_AIM_ASSIST"):"off",duke_aim_cone.load(std::memory_order_relaxed),duke_aim_shots,duke_aim_searches,duke_aim_misses,last_duke_aim_actor,last_duke_aim_angle,last_duke_aim_candidates,shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

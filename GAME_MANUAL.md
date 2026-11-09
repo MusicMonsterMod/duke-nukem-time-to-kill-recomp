@@ -1592,6 +1592,20 @@ a second, in first and third person. Its green and white stripes still flicker
 at the original rate. To compare, type `beamanim off` in the backtick console
 (session only); `beamanim on` or `beamanim default` turns it back on.
 
+**Laser Gatling bolts fly straight from the barrel (Modernized, D49F).** In
+first person the Laser Gatling's bolts now start at the tip of the barrel you
+see and fly one straight line to the crosshair, and the gun is turned in a
+little so its barrel points where the bolts go. The regular Gatling Gun is
+held in the same turned-in position. Before, a bolt left the barrel
+along one line and then bent onto the line to the crosshair. Bolts still land
+on the crosshair. When the barrel would be in a wall, below a floor you are
+looking down at, or far off to the side of a very close target, the bolt
+starts a little nearer your eye instead, so it still lands where you aim. The
+regular Gatling Gun's rounds, third person and Vanilla are unchanged. To
+compare, open the backtick console and type `boltlaunch off` (session only,
+also restores the old pose of both Gatlings); `boltlaunch on` or `boltlaunch
+default` turns it back on.
+
 **Rounds that leave on an enemy land (Modernized, D10H2).** The crosshair now
 asks the same question as the round itself: it is "on" an enemy only where
 the enemy's body is, not the slightly wider outline the game uses for other

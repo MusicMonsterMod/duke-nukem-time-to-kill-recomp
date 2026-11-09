@@ -35,6 +35,10 @@ namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,
 // D10G3: the view the last present showed.
 static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}
 // D10G4: where that view drew the fixture actor.
+// D49F: the drawn barrel tip (view frame) and the shown view's rows.
+static bool dm_ok;static double dm_view[3];bool first_person_drawn_muzzle(double* v){if(!dm_ok)return false;for(int i=0;i<3;++i)v[i]=dm_view[i];return true;}
+bool shot_view_rows(double* r){if(!sv_ok)return false;for(int i=0;i<9;++i)r[i]=i%4==0;return true;}
+bool bolt_launch_console_command(const char*,void (*)(const char*),bool&);
 static int sp_n;static uint32_t sp_obj;static double sp_pos[3];int shot_view_poses(uint32_t* o,double (*q)[3],int max){if(!sv_ok||!sp_n||max<1)return 0;o[0]=sp_obj;for(int i=0;i<3;++i)q[0][i]=sp_pos[i];return 1;}}
 // D10G4 fixture: an actor (sphere radius 150) at its position in RAM; the
 // query records the joint translation it saw.
@@ -130,6 +134,33 @@ int main(int argc,char**argv) {
     }
     psx_mod_write_word(cam+0x1c,0);psx_mod_write_word(p+0xc4,0);
     std::puts("PASS: D10G1 point-blank rounds stay within 35 degrees of the view, continuous with distance");
+    {   // D49F: first person, the Laser Gatling (28) launches from the drawn
+        // barrel (view frame, game camera rows) toward the crosshair point on
+        // the wall 1000 ahead; the regular Gatling, third person, a missing
+        // barrel and "boltlaunch off" keep the muzzle (100,0,0). A barrel whose
+        // line leaves more than 20 degrees off the view steps back toward the eye.
+        psx_mod_write_half(cam+0,4096);psx_mod_write_half(cam+2,0);psx_mod_write_half(cam+4,0);
+        psx_mod_write_half(cam+6,0);psx_mod_write_half(cam+8,4096);psx_mod_write_half(cam+10,0);
+        bool closed=false;auto quiet=[](const char*){};
+        auto fire=[&](unsigned weapon,double* o){seed();c.gpr[31]=0x8004fa88;c.gpr[7]=weapon;callback(&c,0x8003c500);
+            for(int i=0;i<3;++i)o[i]=(int32_t)psx_mod_read_word(sp+0x40+4*i);c.gpr[31]=0x8004f7b4;c.gpr[7]=4;};
+        auto aims_at_wall=[&](const double* o){double d[3];for(int i=0;i<3;++i)d[i]=(int32_t)psx_mod_read_word(c.gpr[6]+4*i);
+            return std::abs(o[0]+(1000-o[2])*d[0]/d[2])<2 && std::abs(o[1]+(1000-o[2])*d[1]/d[2])<2;};
+        double o[3];
+        ttk::fp_view=true;ttk::dm_ok=true;ttk::dm_view[0]=-60;ttk::dm_view[1]=40;ttk::dm_view[2]=400;
+        fire(28,o);assert(o[0]==-60 && o[1]==40 && o[2]==400 && aims_at_wall(o));
+        fire(7,o);assert(o[0]==100 && o[1]==0 && o[2]==0);                  // regular Gatling
+        ttk::fp_view=false;fire(28,o);assert(o[0]==100 && o[2]==0);ttk::fp_view=true;   // third person
+        ttk::dm_ok=false;fire(28,o);assert(o[0]==100 && o[2]==0);ttk::dm_ok=true;       // no drawn barrel
+        assert(ttk::bolt_launch_console_command("boltlaunch off",quiet,closed) && closed);
+        fire(28,o);assert(o[0]==100 && o[2]==0);
+        assert(ttk::bolt_launch_console_command("boltlaunch default",quiet,closed) && closed);
+        ttk::dm_view[0]=-300;ttk::dm_view[1]=0;fire(28,o);                     // 26.6 degrees off: a quarter back
+        assert(std::abs(o[0]+225)<1 && std::abs(o[2]-300)<1 && aims_at_wall(o));
+        ttk::fp_view=false;ttk::dm_ok=false;
+        for(int i=0;i<6;++i)psx_mod_write_half(cam+2*i,0);
+    }
+    std::puts("PASS: D49F first-person Laser Gatling bolts launch from the drawn barrel, others keep the muzzle");
     // D10G3: game camera eye 0,0,0 looking +z, muzzle 100 to the side, wall
     // 1000 ahead. A fresh shown view aims from the screen eye and forward; a
     // stale (over 60 ms), cut (over 1536 away) or switched-off one does not.

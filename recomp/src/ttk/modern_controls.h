@@ -191,6 +191,7 @@ bool replay_late_rotation(int16_t rot[9]);
 // long ago it was presented, ms (frame_replay.cpp). False when that image was
 // not a late-view redraw (60 Hz, game-owned camera, frontend).
 bool shot_view(double eye[3],double forward[3],double& age_ms);
+bool shot_view_rows(double rows[9]);
 // D10G4: the objects that view drew and where (position +4..+12 as shown);
 // 0 when shot_view has none.
 int shot_view_poses(uint32_t obj[],double pos[][3],int max);

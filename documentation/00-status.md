@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D49F accepted and closed
+
+User: "lock it in and close it out". D49F is Done: first-person Laser
+Gatling bolts fly straight from the drawn barrel to the crosshair, and both
+Gatlings are held turned in so the barrel points where the bolts go.
+
+## 2026-11-09 - D49F Laser Gatling bolts fly from the barrel (Done)
+
+In first person the Laser Gatling's bolts launch from the drawn barrel tip
+toward the crosshair point (`weapon_aim.cpp`; guards for walls, floors and
+close targets step the start toward the eye), and the Gatlings get a toe-in
+(tilt -12, -8.8, 16) so the barrel lines up with the bolts on screen; the
+regular Gatling is held in the same new position (user request). Bend at
+180 Hz: taps 14.5 to 0.03 deg, held 4.3 to 0.27, turning 3.1 to 0.91; barrel
+to bolt on screen 30.4 to 0 deg. Console `boltlaunch` (launch and pose
+together). Regular Gatling, third person and Vanilla unchanged. Stills in
+`research/before-after/D49F/`; [note 426](426-d49f-laser-bolts-from-barrel.md).
+
 ## 2026-11-09 - D49E and D08A40 closed
 
 User: "lock it all in and close us out". D49E (Laser Gatling bolts drawn from

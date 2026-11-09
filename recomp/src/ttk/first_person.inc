@@ -624,7 +624,21 @@ static constexpr double weapon_slot_offset[32][3]={
 // the muzzle right; roll),
 // applied about the grip in the level frame. Developer override:
 // DNTTK_FP_WEAPON_TILT<n>=pitch,yaw,roll.
-static constexpr double weapon_slot_tilt[32][3]={{},{-30,-20,40},{-40,0,0},{},{-10,0,0},{-16,-15,6},{-6,0,0},{-12,-26,16},{42,0,0},{},{-12,0,0},{-12,-10,0}};
+static constexpr double weapon_slot_tilt[32][3]={{},{-30,-20,40},{-40,0,0},{},{-10,0,0},{-16,-15,6},{-6,0,0},{-12,-8.8,16},{42,0,0},{},{-12,0,0},{-12,-10,0}};
+// D49F: slot 7 (the Gatling Gun, and its upgrade the Laser Gatling, record
+// 28, which shares the framing) was yawed -26 so its side showed. Once the
+// Laser Gatling's bolts flew visibly from the drawn barrel to the crosshair
+// point, that put the barrel 30 degrees (on screen) off the bolts' line. Both
+// Gatlings now use the same pose turned in by yaw alone (-26 to -8.8), so the
+// barrel's line on screen runs through the crosshair (its axis meets the view
+// ray about 2700 units out); pitch and roll, and with them the accepted raised
+// muzzle and side view, are kept. Display only.
+// With "boltlaunch off" both Gatlings keep the old pose, so one switch
+// compares before and after; redraw workers take the live frame's switch from
+// the render state.
+static constexpr double gatling_old_tilt[3]={-12,-26,16};
+static int laser_toe_in_replay=-1;
+static bool laser_toe_in() {return laser_toe_in_replay>=0 ? laser_toe_in_replay!=0 : aim_bolt_launch_enabled();}
 static const double* slot_tilt(unsigned slot) {
     static double table[32][3];
     static const bool parsed=[]{
@@ -1235,8 +1249,10 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     {
         // Per-weapon tilt: pitch about x (muzzle up is negative about x, game Y
         // down), yaw about y, roll about z, all in the level frame.
-        const unsigned tslot=weapon_view_slot();
+        unsigned tslot=weapon_view_slot();
+        // D49F: "boltlaunch off" shows both Gatlings in the old pose.
         const double* tilt=tslot<32 ? slot_tilt(tslot) : weapon_slot_tilt[0];
+        if(tslot==7 && !laser_toe_in()) tilt=gatling_old_tilt;
         if(tilt[0] || tilt[1] || tilt[2]) {
             const double d=3.14159265358979/180,p=-tilt[0]*d,y=tilt[1]*d,r=tilt[2]*d;
             const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
@@ -1285,6 +1301,9 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         }
         for(int r=0;r<3;++r) fp_muzzle_view[r]=c[r][0]*pw[0]+c[r][1]*pw[1]+c[r][2]*pw[2];
         fp_muzzle_ok=ws<32;
+        static const bool axis_trace=std::getenv("DNTTK_FP_AXIS_TRACE")!=nullptr;
+        if(axis_trace) std::fprintf(stderr,"[TTK fp axis] slot %u m %.0f,%.0f,%.0f lh %.3f,%.3f,%.3f / %.3f,%.3f,%.3f / %.3f,%.3f,%.3f v %.0f,%.0f,%.0f tip %.0f,%.0f,%.0f\n",ws,m[0],m[1],m[2],
+            lh[0][0],lh[0][1],lh[0][2],lh[1][0],lh[1][1],lh[1][2],lh[2][0],lh[2][1],lh[2][2],v[0],v[1],v[2],fp_muzzle_view[0],fp_muzzle_view[1],fp_muzzle_view[2]);
     }
     if(present_trace_enabled()) {
         double hand[3];
@@ -2106,6 +2125,8 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
         const double scale=slot_scale(weapon_view_slot());
         if(scale!=1) cpu->gpr[7]=(uint32_t)(int32_t)std::lround((int16_t)cpu->gpr[7]*scale);
         ++weapon_draws;
+        static const bool axis_trace=std::getenv("DNTTK_FP_AXIS_TRACE")!=nullptr;
+        if(axis_trace) std::fprintf(stderr,"[TTK fp mesh] slot %u mesh %08x scale %d\n",weapon_view_slot(),cpu->gpr[5],(int16_t)cpu->gpr[7]);
     }
     else if(address==0x800341e4 && ra==0x80035348) {
         // Record this weapon's firing pose (live animation, not the displayed one).

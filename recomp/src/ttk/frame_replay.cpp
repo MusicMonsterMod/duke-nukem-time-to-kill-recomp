@@ -377,6 +377,7 @@ struct Frame {
     // view owned it; the shot reads it once the redraw is presented.
     bool view_ok[max_jobs];
     double view_eye[max_jobs][3], view_fwd[max_jobs][3];
+    int16_t view_rot[max_jobs][9];   // D49F: the whole view rotation (rows)
     int njobs=0;
     InterpState state;
     uint8_t render[8192];   // modern_controls draw-time state (render_state_save)
@@ -970,6 +971,7 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
                 if(view_at>=0) {
                     base.view_ok[view_at]=true;
                     for(int i=0;i<3;++i) {base.view_eye[view_at][i]=p.camera.pos[i];base.view_fwd[view_at][i]=p.camera.rot[6+i];}
+                    for(int i=0;i<9;++i) base.view_rot[view_at][i]=p.camera.rot[i];
                 }
             } else ++late_skipped;
         }
@@ -1923,7 +1925,7 @@ TraceEntry trace_ring[128]; unsigned trace_n=0;
 // Presents and the game update run on the emulation thread.
 // D10G4: with it, where that image drew each object (build_params' blend of
 // the base frame toward the next at the redraw's alpha).
-struct ShownView {bool ok=false; double eye[3]{}, fwd[3]{}; std::chrono::steady_clock::time_point at{}; int nposes=0; ObjectPose pose[max_poses];} shown_view_state;
+struct ShownView {bool ok=false; double eye[3]{}, fwd[3]{}; int16_t rot[9]{}; std::chrono::steady_clock::time_point at{}; int nposes=0; ObjectPose pose[max_poses];} shown_view_state;
 void shown_poses(const Frame& f,int shown) {
     const Frame* n=frame_by_serial(f.serial+1);
     const double alpha=interp_off ? 0.0 : interp_full ? 1.0 : f.alpha[shown];
@@ -1953,6 +1955,7 @@ void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,b
         shown_view_state.ok=f->view_ok[shown];
         if(shown_view_state.ok) {
             for(int i=0;i<3;++i) {shown_view_state.eye[i]=f->view_eye[shown][i];shown_view_state.fwd[i]=f->view_fwd[shown][i];}
+            for(int i=0;i<9;++i) shown_view_state.rot[i]=f->view_rot[shown][i];
             shown_poses(*f,shown);
         }
         shown_view_state.at=std::chrono::steady_clock::now();
@@ -2417,6 +2420,17 @@ bool shot_view(double eye[3],double forward[3],double& age_ms) {
     if(!shown_view_state.ok) return false;
     age_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-shown_view_state.at).count();
     for(int i=0;i<3;++i) {eye[i]=shown_view_state.eye[i];forward[i]=shown_view_state.fwd[i];}
+    return true;
+}
+// D49F: the rows of the view shot_view returned (right, down, forward), each
+// normalized as the D49 beam roots normalize the draw's camera rows.
+bool shot_view_rows(double rows[9]) {
+    if(!shown_view_state.ok) return false;
+    for(int r=0;r<3;++r) {
+        double n=0; for(int k=0;k<3;++k) n+=(double)shown_view_state.rot[3*r+k]*shown_view_state.rot[3*r+k];
+        n=std::sqrt(n); if(n<1024) return false;
+        for(int k=0;k<3;++k) rows[3*r+k]=shown_view_state.rot[3*r+k]/n;
+    }
     return true;
 }
 int shot_view_poses(uint32_t obj[],double pos[][3],int max) {

@@ -2224,6 +2224,8 @@ struct RenderState {
     LightView lights;
     // D08A32: the ammo box icon cell the live frame chose (-1 the game's belt).
     int ammo_view;
+    // D49F: the live frame's "boltlaunch" switch (the Laser Gatling's toe-in).
+    bool laser_toe_in;
 };
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
@@ -2292,6 +2294,7 @@ void render_state_save(void* out) {
     r.quake=quake_view;
     r.lights=light_view;
     r.ammo_view=ammo_view;
+    r.laser_toe_in=aim_bolt_launch_enabled();
     std::memcpy(out,&r,sizeof r);
 }
 void render_state_blend_mask(void* out,const void* next,double alpha) {
@@ -2384,6 +2387,7 @@ void render_state_load(const void* in) {
     quake_view=r.quake;
     light_view=r.lights;
     override_ammo_view=r.ammo_view;
+    laser_toe_in_replay=r.laser_toe_in?1:0;
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;

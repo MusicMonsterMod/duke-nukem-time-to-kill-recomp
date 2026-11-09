@@ -470,3 +470,38 @@ when the visible flames have shrunk; light still passes through walls
 (D41F); the laser gatling (27) and the unseen category 5 types take the
 default warm flash; level fires (braziers, burning barrels) light only if
 the game sets the same flag on them, and lamps and other emitters are D41D.
+
+## 12. D41J - Upgraded weapon light colours (accepted and closed 2026-11-09)
+
+User, D10H9 playtest: "the upgraded flamethrower glows blue, but our
+lighting doesnt change from the regular flamethrower"; scope added: "also
+check out the upgraded laser gatling gun, make sure the colors on the laser
+lights are right too".
+
+- **Owners.** The held byte `player+0x3b9` stays 7 or 9; `0x8003df40`
+  resolves it with the inventory upgrade bit 8 (`+0x2c4+4*slot`) to record
+  28 (Laser Gatling) or 27 (HiTemp). The hand flame draw (`0x8003cd30`)
+  picks blue sprites for record 27; the flame record draw `0x8006cfd8`
+  picks blue sprites for pool type 26. The Laser Gatling launches
+  projectile type 27, which had no entry and took the default warm flash
+  and spark.
+- **Burns.** A pig cop set alight by the HiTemp reads flag `0x803`, the same
+  as one lit by the regular flamethrower, and burns with the same orange
+  joint sprites (matched lab stills), so burning objects keep the warm fire
+  light.
+- **Values.** Colours sampled from offscreen stills (blue or violet pixels of
+  the HiTemp flame: 0.67 0.24 1.00; the laser bolts: 1.00 0.18 0.41), scaled
+  like the warm fire values. HiTemp hand flash 0.75 0.38 1.20 x flicker,
+  radius 5200; HiTemp flames in flight 0.72 0.34 1.18 x flicker, radius
+  about 2400. Laser Gatling (type 27): muzzle 1.20 0.26 0.52, 3000, 2 tics;
+  spark 1.25 0.32 0.56, 1300, 2 tics; in flight 1.05 0.22 0.45, 1500.
+- **Evidence.** Lab `recomp/analysis/d41j/lab.py shots` (`UP=1` upgrade by
+  `dnupgrade`, `WANT=9` or `7`), 60 Hz third person and 180 Hz first person,
+  before and after: the HiTemp stream lights the street blue-violet, the
+  Laser Gatling's muzzle and wall hits light pink; the regular flamethrower,
+  regular Gatling (type 7) and burning pig cops are unchanged.
+  `ttk-input-test` and `ttk-aim-test` pass. Executable
+  `d4a2a11f5f052be8a105acad30122ce16b5d4d812a9e51ccb5691e3933f5ad36`.
+- **Accepted.** User: "this current job at hand is fully accepted". The first-person nozzle pilot flame of the
+  HiTemp is drawn orange by the game itself (not a light); unchanged.
+

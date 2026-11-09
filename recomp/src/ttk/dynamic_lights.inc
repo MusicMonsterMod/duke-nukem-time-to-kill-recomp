@@ -22,6 +22,8 @@
 //   beam, flamethrower) light Duke's hand flash (player word 0 bit 3).
 // - D41I fire: flames in flight from the flamethrowers and burning objects
 //   (enemies, Duke; flag word bit 0x800) as flickering fire lights.
+// - D41J upgrades: the HiTemp Flamethrower's flames and hand flash light
+//   blue and the Laser Gatling's bolts red-pink, as they are drawn.
 // - console "light": a test light at Duke ("light", "light <r> <g> <b>
 //   [radius]", "light off").
 // The per-image list (LightView) travels to redraw workers in RenderState and
@@ -104,6 +106,10 @@ static constexpr ShotLight shot_lights[]={
     {8,{1.00f,0.62f,0.30f},4800,4,{0,0,0},0,0,{0.95f,0.55f,0.22f},2800},          // RPG rocket (its blast lights the hit)
     {13,{0.55f,0.50f,1.25f},3000,3,{0.60f,0.60f,1.30f},1900,4,{0.50f,0.45f,1.15f},1800}, // freezer: violet-blue, as its shots
     {15,{0.45f,1.15f,0.40f},3200,3,{0.50f,1.25f,0.45f},2300,4,{0.40f,1.05f,0.35f},2200}, // energy round: green, as the weapon's own glow
+    // D41J: the Laser Gatling (record 28) launches type 27, red-pink laser
+    // bolts (sampled 1.00 0.18 0.41 from the drawn bolts): the Gatling's
+    // flash and spark sizes in the bolts' colour, and each bolt glows.
+    {27,{1.20f,0.26f,0.52f},3000,2,{1.25f,0.32f,0.56f},1300,2,{1.05f,0.22f,0.45f},1500},
     // D41I enemy guns (lab census, note 413 section 11): the type each enemy
     // launches. Rounds without a coloured effect of their own take the warm
     // gun flash, sized by the gun; the gunship's bolts (31, the freezer's
@@ -137,8 +143,7 @@ static constexpr ShotLight shot_lights[]={
     {17,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
     {18,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
 };
-// Other types (not seen launched in the D41I census: the laser gatling 27,
-// flyers 44 and 847/848/901, which did not fire there) take a warm flash and
+// Other types (not seen launched in the D41I census: flyers 44 and 847/848/901, which did not fire there) take a warm flash and
 // spark.
 static constexpr ShotLight shot_light_default={255,{0.80f,0.56f,0.28f},3000,3,{1.00f,0.78f,0.42f},1200,2,{0,0,0},0};
 static const ShotLight& shot_light(unsigned type) {
@@ -167,7 +172,7 @@ static unsigned lights_flight(PSXModLight* out,unsigned room) {
 // burns. Objects are the level's placement rows (*0x800de720, 48 bytes, +4
 // the live object; spawner and object rows up to the count 0x800de724).
 // Collected once per game tick into light_fire; the flicker changes per tick.
-struct FireLight {float p[3];float k;double radius;};
+struct FireLight {float p[3];float k;double radius;bool blue;};
 static FireLight light_fire[8];static unsigned light_fire_count;
 static uint64_t light_burning_ticks,light_flame_ticks;
 static float light_flicker(uint32_t seed) {
@@ -199,7 +204,7 @@ static void lights_fire_collect() {
         const uint32_t a=burn[j].a;FireLight& f=light_fire[light_fire_count++];
         // The flames rise from the body: the light sits 450 above its feet.
         f.p[0]=(float)(int32_t)psx_mod_read_word(a+4);f.p[1]=(float)(int32_t)psx_mod_read_word(a+8)-450;f.p[2]=(float)(int32_t)psx_mod_read_word(a+12);
-        f.k=light_flicker(a);f.radius=3600*(0.92+0.08*f.k);
+        f.k=light_flicker(a);f.radius=3600*(0.92+0.08*f.k);f.blue=false;
     }
     if(nb) ++light_burning_ticks;
     // Flames in flight: the pool's live flame records, oldest to newest.
@@ -214,6 +219,10 @@ static void lights_fire_collect() {
         const uint32_t a=fl[nf<=3?j:(j*(nf-1))/2];FireLight& f=light_fire[light_fire_count++];
         f.p[0]=(float)(int32_t)psx_mod_read_word(a+4);f.p[1]=(float)(int32_t)psx_mod_read_word(a+8);f.p[2]=(float)(int32_t)psx_mod_read_word(a+12);
         f.k=0.75f*light_flicker(a);f.radius=2400*(0.9+0.1*f.k);
+        // D41J: the HiTemp Flamethrower's flames (type 26) are drawn blue
+        // (0x8006cfd8 picks their own sprites); burns stay orange (same flag
+        // word and flame sprites whichever flamethrower lit them).
+        f.blue=psx_mod_read_byte(a+0x30)==26;
     }
 }
 static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint32_t owner);
@@ -223,7 +232,9 @@ static void lights_publish() {
     for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
-        l.r=1.15f*f.k;l.g=0.58f*f.k;l.b=0.22f*f.k;l.flags=0;
+        if(f.blue) {l.r=0.72f*f.k;l.g=0.34f*f.k;l.b=1.18f*f.k;}  // D41J: sampled 0.67 0.24 1.00
+        else {l.r=1.15f*f.k;l.g=0.58f*f.k;l.b=0.22f*f.k;}
+        l.flags=0;
     }
     for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const LightSrc& s=light_srcs[i];
@@ -332,12 +343,17 @@ static void lights_tick() {
         // Weapons without rounds (D41B probe): the energy weapon's beam is
         // green like its own glow; the flamethrower's jet is a flickering fire light carried
         // ahead of the nozzle, toward the middle of the flame.
-        const unsigned w=base_weapon(psx_mod_read_byte(player+0x3b9));
+        const unsigned held=psx_mod_read_byte(player+0x3b9),w=base_weapon(held);
         if(w==10) light_add(p,0.45f,1.15f,0.40f,3200,3,light_kind_muzzle);
         else if(w==9) {
             const float k=0.85f+0.3f*(float)((light_ticks*2654435761u>>24)&255)/255.0f;
             if(fl>1e-3) {p[0]+=f[0]/fl*700;p[2]+=f[2]/fl*700;}
-            light_add(p,1.15f*k,0.62f*k,0.24f*k,5200,2,light_kind_muzzle);
+            // D41J: the HiTemp Flamethrower (0x8003df40 resolves 9 with the
+            // upgrade bit 8 to record 27; its hand draw picks the blue
+            // flame sprites) lights blue.
+            const bool hitemp=held==27 || (held==9 && (psx_mod_read_half(player+0x2c4+4*9)&8));
+            if(hitemp) light_add(p,0.75f*k,0.38f*k,1.20f*k,5200,2,light_kind_muzzle);
+            else light_add(p,1.15f*k,0.62f*k,0.24f*k,5200,2,light_kind_muzzle);
         } else light_add(p,0.80f,0.56f,0.28f,3400,3,light_kind_muzzle);
         ++light_muzzles;
         if(std::getenv("DNTTK_LIGHT_TRACE")) std::fprintf(stderr,"[TTK light] flash (no round) weapon %u at %.0f %.0f %.0f\n",psx_mod_read_byte(player+0x3b9),p[0],p[1],p[2]);

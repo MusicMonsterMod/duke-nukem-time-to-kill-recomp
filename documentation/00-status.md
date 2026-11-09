@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D41J closed; D49E and D08A40 added
+
+User: "this current job at hand is fully accepted". D41J is Done. New jobs:
+D49E (Laser Gatling bolts from the true muzzle, in step with the gun) and
+D08A40 (Laser Gatling ammo icon instead of the ammunition belt).
+
+## 2026-11-09 - D41J upgraded weapon light colours (Done)
+
+The HiTemp Flamethrower's hand flash and flames in flight (pool type 26)
+now light blue-violet (0.72 0.34 1.18 x flicker, sampled 0.67 0.24 1.00 from
+the drawn flame), and the Laser Gatling's type 27 bolts light red-pink
+(muzzle, spark and a glow in flight; sampled 1.00 0.18 0.41), with the same
+sizes, flicker and cost as before. Burns lit by the HiTemp stay warm: the
+burning enemy has the same flag word and orange flame sprites. Regular
+weapons, other lights and Vanilla unchanged.
+[Note 413 section 12](413-d41-lighting-case-study.md).
+
 ## 2026-11-09 - D10H9 press to fire on the energy weapon and flamethrower (Done)
 
 User chose proposals 1-3. WEAPON FEEL RETRO now latches the click, runs the

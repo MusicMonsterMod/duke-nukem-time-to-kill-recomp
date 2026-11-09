@@ -1,5 +1,15 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D41J accepted and closed; D49E and D08A40 added
+
+User: "this current job at hand is fully accepted", closeout authorized.
+D41J is Done: the HiTemp Flamethrower's hand flash and flames in flight
+light blue-violet and the Laser Gatling's bolts red-pink, as they are drawn;
+burns, regular weapons and Vanilla unchanged. New jobs from the same
+message: D49E (the Laser Gatling's bolts leave from the true muzzle, in step
+with the gun) and D08A40 (a Laser Gatling ammo icon in place of the
+ammunition belt; review on the ammo icon artifact).
+
 ## 2026-11-08 - D08A39 accepted and closed
 
 User: "lock it in and close it out. this is a winner". D08A39 is Done.
@@ -4779,6 +4789,21 @@ designs for the user's review before any game integration.
 shows its own ammo icon in the bottom-right box, framed and borderless HUD,
 all HUD scales; tracked or disc-derived sources per D24A; Vanilla unchanged.
 
+### D08A40 - Laser Gatling ammo icon
+
+**Status: Todo (user, 2026-11-09: "the laser gatling gun ammo icon needs to change, as it still shows the default ammunition belt"). Dependencies: D08A32, D08A38.**
+With the upgrade (record 28) the bottom-right ammo box still shows the
+regular Gatling's ammunition belt. Design a Laser Gatling ammo icon in the
+D08A32 process and style (14x14 in a 16x16 canvas, original TTK-style art,
+flat orthographic look, red-pink to match its laser bolts), add the
+candidates to the ammo icon review artifact
+(https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu) for the user's choice,
+then show it in game when the Gatling's upgrade is held. Check the other
+upgraded records (HiTemp Flamethrower 27, Incendiary RPG 29) for the same
+fallback and report. Acceptance: user-approved icon on the artifact, then
+in game, framed and borderless HUD, all HUD scales; regular Gatling and
+Vanilla unchanged.
+
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 
 **Status: Done (user-accepted 2026-11-02). Dependencies: D14B, D14G, D36K1, D11F.** In first-person
@@ -7462,9 +7487,9 @@ only while it burns and the wall stays dark after; a burning pig cop still
 lights for its whole burn (about 6 s). The user's separate report of the
 mission item text overlap is D08A39.
 
-### D41J - Upgraded flamethrower light is blue
+### D41J - Upgraded weapon light colours (HiTemp Flamethrower, Laser Gatling)
 
-**Status: Todo (user report 2026-11-09, D10H9 acceptance: "the upgraded flamethrower glows blue, but our lighting doesnt change from the regular flamethrower"). Dependencies: D41I.**
+**Status: Done (user-accepted 2026-11-09: "this current job at hand is fully accepted"; closeout authorized; [note 413](documentation/413-d41-lighting-case-study.md) section 12; user report 2026-11-09, D10H9 acceptance: "the upgraded flamethrower glows blue, but our lighting doesnt change from the regular flamethrower"). Dependencies: D41I.**
 The upgraded (hi-temp) flamethrower's flames are drawn blue, but the D41
 dynamic lights from its stream, hand flash and flames in flight use the
 regular flamethrower's warm, flickering fire colour. Lead:
@@ -7477,6 +7502,40 @@ flamethrower are included if their drawn flames are blue too. Regular
 flamethrower, other lights and Vanilla unchanged. Test: matched stills of
 both flamethrowers firing at a wall and burning an enemy, first and third
 person, 180 Hz (spawn the upgrade with the console). Acceptance: user
+playtest.
+
+Scope added (user, 2026-11-09): "also check out the upgraded laser gatling
+gun, make sure the colors on the laser lights are right too". The Laser
+Gatling (slot 28, the Gatling's upgrade) gets the same check: its muzzle
+flash, rounds in flight and impact lights match the colour of its drawn
+laser shots; the regular Gatling is unchanged.
+
+**Work log (2026-11-09, Needs playtest).** `dynamic_lights.inc`. Owners:
+the held byte stays 7/9 and `0x8003df40` resolves the upgrade bit to records
+28/27; the hand and flame record draws pick blue sprites for record 27 and
+pool type 26; the Laser Gatling launches type 27, which took the default warm
+flash. Now the HiTemp hand flash and flames in flight light blue-violet
+(sampled from the drawn flame), and type 27 has a red-pink muzzle, spark and
+glow in flight (sampled from the bolts), same sizes, flicker and cost. Burns
+lit by the HiTemp stay warm: same flag word (`0x803`) and orange flame
+sprites as the regular flamethrower. Lab stills (60 Hz third person, 180 Hz
+first person, before/after): the HiTemp lights the street blue-violet and the
+Laser Gatling lights pink; regular weapons and burns unchanged.
+`ttk-input-test`, `ttk-aim-test` pass. [Note 413](documentation/413-d41-lighting-case-study.md)
+section 12. Needs the user's playtest (`dnupgrade` upgrades both).
+
+### D49E - Laser Gatling bolts leave from the true muzzle
+
+**Status: Todo (user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
+The Laser Gatling (record 28, the Gatling's upgrade; launches projectile
+type 27) does not appear to fire from its drawn muzzle the way the other
+guns now do after the D10H8/D49B muzzle work (rounds drawn from the barrel,
+in step with the gun). Find where its bolts are drawn and placed in their
+first frames, in first and third person at 180 Hz, compared with the regular
+Gatling (type 7), and make the bolts start at the Laser Gatling's drawn
+barrel and stay in step with its spin and fire animation. Game-wide, not
+level-specific; regular Gatling, other weapons and Vanilla unchanged; keep
+the D41J bolt lights with the bolts. Test with `dnupgrade`. Acceptance: user
 playtest.
 
 ### D46 - Apartment mirror shows the outside when Duke turns left
@@ -9178,7 +9237,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
-| D41J | Upgraded flamethrower light is blue: its stream, hand flash and flames in flight take the regular warm fire colour | Todo | D41I |
+| D41J | Upgraded weapon light colours: the HiTemp Flamethrower's blue flames (stream, hand flash, flames in flight, burns) and the Laser Gatling's laser shots take the regular weapons' warm light | Done (user-accepted 2026-11-09) | D41I |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -9194,6 +9253,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Done 2026-11-08 (covered by D10H8; note 424) | D49 |
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Done 2026-11-08 | D49 |
 | D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
+| D49E | Laser Gatling bolts leave from the true muzzle, in step with the gun | Todo | D10H8, D49B, D41J |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
@@ -9309,6 +9369,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
 | D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Done (user-accepted 2026-11-08) | - |
+| D08A40 | Laser Gatling ammo icon (still shows the Gatling's ammunition belt; review on the ammo icon artifact) | Todo | D08A32, D08A38 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

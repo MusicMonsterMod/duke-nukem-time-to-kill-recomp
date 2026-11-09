@@ -1,5 +1,85 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D53 accepted and closed
+
+User: "lock it in and close it out". D53 is Done: in Modernized (Polymorph),
+SECURITY MONITORS: DUKE 3D draws the monitors as larger Duke 3D-style TVs
+(original art in Photon: bezel, glass screen reading SECURITY / FEED LIVE /
+LINK SECURE / TAPE REC, glow ring), lights the wall in front of them, frames
+camera views with Duke 3D's corners, REC and record light, lights usable
+keypads, and makes power-switch signs pulse with electric light. TTK keeps
+the originals; Classic and Vanilla unchanged. The lingering low-res picture
+continues as D53A; props in dynamic light as D41K; memory growth as D23I.
+
+## 2026-11-09 - D53 revision 7: a glow ring around the screens
+
+A soft olive haze now surrounds each TV screen, drawn additively and self-lit
+so the bezel no longer goes dark with the room. [Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - Backlog intake: props in dynamic light (D41K)
+
+From D53: dynamic lights barely brighten props in Polymorph (strength 25
+over the console only greyed it) while walls react well. Stood up as an
+investigation for later; not started.
+
+## 2026-11-09 - D53 revision 6: brighter TV screens
+
+The TV screens themselves glow brighter (self-lit level 140 to 230); the
+bezel, the box and the wall light are unchanged. [Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 5: the power switch glows
+
+Slot 10's power switch: its keypad is lit, and the lightning sign above it
+pulses with an electric breath and crackle, throwing a blue halo on the
+wall. Any usable keypad now glows. [Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - Backlog intake: memory growth in long sessions (D23I)
+
+The user's session logs show memory climbing 14 to 23 MB a minute (402 to
+893 MB in 21 minutes), far past D23H's 3 MB a minute. Stood up as an
+investigation for later; not started.
+
+## 2026-11-09 - D53 revision 4: generic screen text
+
+The TV screens now read FEED LIVE / LINK SECURE / TAPE REC (user's choice B)
+instead of CAM 1-3, so the same screen suits any security monitor.
+[Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 3: only the keypad glows, TV light stays on
+
+Only the console's keypad (the part you use) glows now, drawn self-lit; the
+broad console light is gone. The TV screen light no longer switches off far
+from the control room. [Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 2: no edge pop, real TV sides, console light
+
+User feedback on the first playtest. The TVs no longer vanish at the edge of
+view (the game culled them by TTK's smaller panel bounds; monitor props now
+carry the TV's bounds in the Duke 3D look), the box sides have their own
+textures instead of a stretched one, the record light lost its glow, and
+the control console by the first level's door glows green over its controls.
+[Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 Duke 3D security monitors (Needs playtest)
+
+Design approved (TV face B, 4:3 frame, screen light), then reworked with the
+user to match Duke 3D's security screen and bezel closely, with generic
+screen text. In Modernized (Polymorph), SECURITY MONITORS: DUKE 3D (default)
+draws each TTK monitor as a larger 620x620 TV in Duke 3D's style and colours
+(warm grey bezel, glass screen, olive SECURITY, blinking cursor) from the
+second texture bank, lights the wall in the screen's olive, and frames camera
+views with Duke 3D's corners, REC and blinking record light. TTK keeps the
+originals; Classic and Vanilla unchanged. OPTIONS > GAMEPLAY > SECURITY
+MONITORS, schema 72, `--security-monitors`. Art: original, Photon Studio.
+[Note 432](documentation/432-d53-security-monitors.md).
+
+## 2026-11-09 - Backlog intake: Duke 3D security monitors (D53, D53A)
+
+User, slot 9: bring the security monitors "back to duke": a Duke 3D camera
+overlay, screen art with a TV bezel, screen light and a TTK / Duke 3D
+toggle (D53, In progress: design proposal first), and the screen keeping a
+low-res live picture as you walk away (D53A, Todo).
+
 ## 2026-11-09 - D17BF accepted and closed
 
 User: "it's absolutely perfect!! i can see everything i want in the security
@@ -7835,6 +7915,25 @@ Before/after in `research/before-after/d41j1/` (local). Regular Gatling
 [Note 413](documentation/413-d41-lighting-case-study.md) section 13. Needs
 the user's playtest (`dnupgrade`).
 
+
+### D41K - Props respond to dynamic light like walls do
+
+**Status: Todo (stood up 2026-11-09 at the user's request; investigation first). Dependencies: D41A, D41H (Done).**
+Seen in D53 (note 432, revisions 2 and 3): in Polymorph a dynamic light
+barely brightens props. A light over the LEVEL00 control console at
+strength 25, radius 600 only greyed the desk top, while the same light
+setting lights walls clearly (the TV screen light, the power sign halo).
+Hypothesis to confirm, not a finding: props are already bright from their
+own vertex colour, and the shader's soft shoulder (D41A) leaves little room
+to add light; or the prop path weighs the light differently.
+
+Plan: measure one light at fixed distances on a wall and on several props
+(console, crates, signs) and characters, logging the shader inputs; find
+where the response is lost; fix it renderer-wide (Polymorph only), so blasts,
+muzzle flashes, lamps, signs and the D53 lights all light props as they light
+walls. Check characters and Duke (D41C), which share the model path, and
+Classic/Vanilla unchanged. Acceptance: matched before/after shots of props
+under a blast and a lamp, user playtest.
 ### D49E - Laser Gatling bolts leave from the true muzzle
 
 **Status: Done (user-accepted 2026-11-09: "lock it all in and close us out"; user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
@@ -8354,6 +8453,123 @@ walking forward in open space, unrelated to walls. Vanilla: the swap is gated
 by `input_modernized()`. `ttk-input-test`, `ttk-aim-test` pass;
 `ttk-controls-test` stops at the known D14 HUD check. User playtest accepted
 2026-11-08: "lock it in, close it out, that is fixed!"
+
+### D53 - Security monitors, Duke 3D style: camera overlay, screen art, light, toggle
+
+**Status: Done (user-accepted 2026-11-09: "lock it in and close it out"; revisions 1-7: Duke 3D TV and camera frame, edge culling fix, keypad and power-switch glow, FEED screen text, brighter screens, glow ring; [note 432](documentation/432-d53-security-monitors.md)). Dependencies: D52 (Done), D41D1 (Done). Follow-ups: D53A, D41K.**
+User, slot 9: "In duke3d, there was a recognizable UI over the security
+cameras, you knew you were looking at the security cam view. Duke TTK doesnt
+really have that." And: "Many times have I just walked past those screens in
+the subway because that design just doesnt play into my mental model at all.
+So let's bring this back to duke!" Scope, game-wide (every security monitor
+and camera view, not slot 9 only):
+
+- **Camera overlay.** While a monitor view is up (composition camera is the
+  alternate camera, D52), draw the Duke 3D camera overlay: four corner
+  brackets, the "REC" lettering in the top left bracket and the blinking red
+  record light (EDuke32 `G_DrawCameraText`, CAMCORNER 2482/2483 and CAMLIGHT
+  2484, blink on `totalclock & 16`). Original TTK-style art, made in Photon
+  Studio, not the retail tiles.
+- **Monitor screen art.** Replace the dark glass of the TTK monitor face with
+  a screen in the spirit of Duke 3D's VIEWSCREEN (tile 502: black terminal
+  with "SECURITY" and status lines) inside a TV-style bezel like tile 638,
+  so the screens read as screens. Original art per the D08A28 texel density
+  and style guide (note 265); verify in game.
+- **Screen light.** The screens give off a soft cool light (D41D1 texture
+  emitters).
+- **Settings toggle.** "Security monitors: TTK / Duke 3D" (Modernized default
+  Duke 3D). TTK draws the original screens and no overlay. Vanilla
+  unchanged.
+
+Process: research (EDuke32 source and the "securitycam" save, user screenshot
+`research/screencaps/Screenshot_2026-11-09_11-56-20.png`, reference tiles
+`research/screencaps/tile0502.png`, `tile0638.png`), then a design proposal
+artifact for user approval, then buildout. Acceptance: user playtest in slot
+9 with both toggle values.
+
+**Work log (2026-11-09, Needs playtest).** Proposal artifact approved: TV
+face B, overlay in the 4:3 area, screen light. User during the buildout: TVs
+"a little bigger than those in TTK"; then "go a lot closer to how duke3d's
+security screen worked ... even match the colors"; the bezel's bottom "doesnt
+connect/line up well. study the duke3d one even more"; and "lose the subway
+thing ... i want this to be a generic asset". Built: `security_monitor.cpp`
+swaps the LEVEL00 monitor mesh (found by shape) for a guest copy of a 620x620
+TV mesh at the near-clip object entry, drawn from the second texture bank
+(TV atlas at x 0..255, shared with the D17AO1 sky); the original is restored
+whenever the host path cannot take it. Glass unlit by room and dynamic light,
+cursor blink, faint flicker, an olive light per TV (0.9, radius 1800), and
+the camera frame in the present pass (framework patch). Art: original,
+Photon Studio (`recomp/assets/ui/security-monitor`), painted in Duke 3D's
+style and palette values, no tile pixels. Option: OPTIONS > GAMEPLAY >
+SECURITY MONITORS, schema 72, `--security-monitors`. Lab (private slot 9
+copy): DUKE 3D at 60/180 Hz, first and third person, camera frame and blink,
+TTK and Vanilla originals; `ttk-near-test`, `ttk-aim-test`, profile and UI
+art tests pass; `ttk-controls-test` still fails to link (`gpu_vram_peek`,
+D41D1, known). Before/after in `research/before-after/D53/` (local).
+Remaining: user playtest in slot 9 both ways; light strength tuning; other
+levels' monitor meshes (LEVEL05/09) unverified.
+
+**Revision 2 (2026-11-09, Needs playtest).** User after the first
+playtest: the TV "disappears" entering peripheral vision, the box sides look
+like stretched pixels, the record dot's white glow does not work, and the
+console by the door should light at its controls. Cause of the vanish
+confirmed: props are culled by their own bounds (+0x4c), TTK's smaller panel;
+monitor props now carry the TV's bounds in the Duke 3D look (composition
+hook, restored for TTK). New 128x32 / 32x128 side strips, flat recess, glow
+removed from the record light, and a green console light (type 17 console,
+found by shape, 1.8 / radius 900, DYNAMIC LIGHTS). Lab: matched 180 Hz edge
+sweep with and without the bounds fix, monitor use still works, console and
+side before/after in `research/before-after/D53/`; `ttk-near-test` passes.
+
+**Revision 3 (2026-11-09, Needs playtest).** User: only the console's
+controls should glow, and the TV light went off far from the control room.
+The controls are a separate one-quad prop (type 477 keypad on the console's
+right section); it is now drawn self-lit (a guest copy as a gouraud quad at
+colour 255, no dynamic light) when found lying on the console; the console
+light is removed (point lights barely brighten these props). The 9000-unit
+TV light range cut is removed. Lab: keypad 1.7x-2x brighter, desk unchanged;
+3 TV lights published along a walk to the far door.
+
+**Revision 4 (2026-11-09, Needs playtest).** Screen text made generic (any
+number of cameras): of four mocked-up row sets the user chose B, "it's gotta
+be B feed!": FEED LIVE / LINK SECURE / TAPE REC. Atlas rebuilt in Photon,
+checked in game (slot 9).
+
+**Revision 5 (2026-11-09, Needs playtest).** User, slot 10: make the power
+button and the sign above it emit light, "make it look really cool". Usable
+keypads (type 477, subtype set) glow on walls as on the console; the
+lightning power sign (type 481) beside one is self-lit with an electric
+breath and crackle, and a pulsing electric blue light throws a halo on the
+wall. Lab at the user's slot 10 save: before/after and pulse strip in
+`research/before-after/D53/power-*.png`; console keypad unchanged.
+
+**Revision 6 (2026-11-09, Needs playtest).** User, slot 9: brighter
+screens, "just the screens". Screen faces' self-lit level 140 to 230
+(`DNTTK_SCREEN_LEVEL`); bezel, box and wall light unchanged. Matched shots:
+text about 1.6x brighter, bezel and wall equal.
+
+**Revision 7 (2026-11-09, Needs playtest).** User: the border is too dark
+when the lights go off; "a touch of light haze around it". Added a self-lit
+additive glow ring: a haze gradient layer in the atlas (Photon) and four
+mitred strips in front of the bezel, sorted just nearer than the TV's opaque
+faces (translucent faces are painter-only). Lab: full ring, steady at 180 Hz,
+third person fine. Also stood up D41K (props in dynamic light).
+
+### D53A - Security monitors keep a low-res live picture as you walk away
+
+**Status: Todo (split from D53 at intake, 2026-11-09). Dependencies: D53 (Done).**
+User: "in duke3d, when you arent watching the screen anymore, it shows a low
+res image on the screen still as you walk away until it resets. i'd love
+this, so much". EDuke32: after the use key, the VIEWSCREEN sprite stays
+active and keeps rendering its camera into a small tile (refresh every
+`ud.camera_time` clock ticks, 4 by default, about 30 per second) while the
+player is within `VIEWSCREEN_ACTIVE_DISTANCE` 8192 units; past that the
+screen resets to tile 502 (`actors.cpp` VIEWSCREEN case, `sector.cpp`
+viewscreen refresh, `game.cpp` tsprite swap). For TTK: after leaving a
+camera view, draw that camera's view at low resolution into the monitor's
+screen face until Duke walks out of range, then back to the D53 idle
+screen. Needs a second scene pass to an offscreen target in Polymorph.
+Duke 3D toggle value only. Acceptance: user playtest in slot 9.
 
 ### D52 - Security camera screens: low frame rate and glitches over them
 
@@ -9847,6 +10063,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
 | D41J | Upgraded weapon light colours: the HiTemp Flamethrower's blue flames (stream, hand flash, flames in flight, burns) and the Laser Gatling's laser shots take the regular weapons' warm light | Done (user-accepted 2026-11-09) | D41I |
 | D41J1 | Laser Gatling light reads red: its muzzle, spark and bolt lights wash to pale pink-white on the street; give them a clear red, as the freezer's blue and the energy weapon's green | Done (user-accepted 2026-11-09) | D41J |
+| D41K | Props respond to dynamic light like walls do (a light over a console barely brightens it; investigation first) | Todo | D41A, D41H |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -9867,6 +10084,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D52 | Security camera screens (UI slot 9): low frame rate and glitches drawn over them | Done (user-accepted 2026-11-09; note 430) | - |
+| D53 | Security monitors, Duke 3D style: camera overlay (corners, REC, record light), screen art with TV bezel, screen light, TTK / Duke 3D toggle; glowing keypads and power switch | Done (user-accepted 2026-11-09; note 432) | D52, D41D1 |
+| D53A | Security monitors keep a low-res live picture after you leave the view, until you walk out of range | Todo | D53 |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -10154,6 +10373,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Done (user-accepted 2026-11-02; step 5 Vanilla flag cost, note 356; step 3 closed 2026-11-02 by user decision: measured, no saving to win, no code change, note 355; part 2 user-accepted 2026-11-01, note 354; part 1 accepted 2026-10-30, note 331; step 5 remains) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
+| D23I | Memory growth in long sessions: 14-23 MB a minute in 2026-11-09 sessions (investigation; rule D53 in or out first) | Todo | D23, D23H |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Done (user-accepted; closed 2026-10-30) | D24A |
@@ -21064,6 +21284,33 @@ Executable `c6c221d1...`. Remaining: the user's long play session; Unlimited's
 own repeat backoff still does not decay; saves still cost about 90 ms on the
 emulation thread (no longer affects the rate); RSS rose 400 -> 466 MB over 21
 min (rate unaffected, not investigated).
+
+### D23I - Memory growth in long sessions (investigation)
+
+**Status: Todo (stood up 2026-11-09 at the user's request; investigation first, no fix chosen). Dependencies: D23, D23H (Done).**
+The user's session logs of 2026-11-09 (`recomp/build-local/logs`, `[TTK
+pace] minute` lines) show resident memory climbing steadily in every
+Modernized session at 180 Hz, first person, Polymorph: 401 to 511 MB in 8
+minutes, 395 to 506 MB in 7, 402 to 893 MB in 21, 374 to 498 MB in 6, about
+14 to 23 MB a minute. D23H measured 3 MB a minute over 21 minutes (note 106,
+"worth a look in a longer session"); D23 traced earlier growth to the SIO and
+audio history rings, bounded below about 84 MiB together (note 252). Today's
+growth is well past that and unexplained. Every kept log postdates D53, so it
+is not known whether D53 is involved.
+
+Plan:
+1. Rule D53 in or out: two matched offscreen runs (private save copies,
+   same slot and inputs, a few minutes each) with `--security-monitors
+   duke3d` and `ttk`, comparing growth.
+2. Measure as D23 did: combined PSS of the game and its redraw workers,
+   `/proc/PID/smaps` and pagemap attribution of new pages, separating bounded
+   history rings from heap, mod memory, GL/driver mappings and worker
+   re-forks (9 to 15 spawns per session in the logs).
+3. Bisect against recent builds or switches (dynamic lights, sleeping
+   enemies, sky, near clip) if the cause is not obvious.
+Acceptance: the cause named with evidence; then a bounded fix or a reasoned
+ceiling, agreed with the user, and a long-session run showing growth
+flattening.
 
 ### D24 — Linux / Windows player build and disc import
 

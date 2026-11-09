@@ -484,6 +484,22 @@ generated line, codegen hash unchanged, savestates load. Diagnostics:
 `render_replay` reports `plugin.quake`. See
 [note 397](397-d44a-earthquakes.md).
 
+## Security monitors (D53)
+
+Profile schema 72 adds the Modernized `security_monitors` choice: `duke3d`
+(default) or `ttk`. `run.py --security-monitors VALUE` saves it; the launcher
+passes `DNTTK_SECURITY_MONITORS` (always `ttk` for Vanilla). The build makes
+`ttk-security-monitor.pack` next to the executable from
+`recomp/assets/ui/security-monitor` (`tools/local/build_ttk_security_monitor.py`,
+every build, no disc input). No new hooks and no regeneration: the TV swap sits
+in the near-clip object entry `0x80010000`. Framework edit: the GL present pass
+draws the camera frame (`ttk_security_overlay_piece`). Developer switches:
+`DNTTK_SECURITY_PACK` (pack path), `DNTTK_SECURITY_LIGHT="strength radius"`
+(screen light, default `0.9 1800`), `DNTTK_KEYPAD_GLOW` (keypad self-lit
+level, 64..255, default 255), `DNTTK_POWER_LIGHT` (power sign light, `1.8 1200`),
+`DNTTK_SCREEN_LEVEL` (TV screen self-lit level, 64..251, default 230), `DNTTK_SECURITY_BOUNDS=0` (no TV bounds, A/B), `DNTTK_SECURITY_TRACE=1`. See
+[note 432](432-d53-security-monitors.md).
+
 ## Dynamic lights (D41A)
 
 Profile schema 71 adds the Modernized `dynamic_lights` choice: `on` (default)

@@ -22,6 +22,7 @@
 // unauthenticated routine: nothing changes. DNTTK_SKY_BORROW=0 (developer)
 // turns it off.
 #include "sky_borrow.h"
+#include "security_monitor.h"
 #include "sky_render.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -193,7 +194,21 @@ void hook(CPUState* cpu,uint32_t address) {
 
 // Second texture bank for the OpenGL renderer (near_clip marks the borrowed
 // meshes' polygons with psx_mod_gpu_host_vertex_foreign).
-extern "C" const uint16_t* ttk_foreign_vram(void) {return pack_ok()?pack.vram.data():nullptr;}
+// The second bank: Duke Hill at x 512..1023 when the sky pack is there, and
+// D53's security TV atlas at x 0..255 (security_monitor.cpp). Built once, on
+// the renderer's first upload.
+extern "C" const uint16_t* ttk_foreign_vram(void) {
+    static std::vector<uint16_t> bank;
+    static std::once_flag once;
+    std::call_once(once,[]{
+        const bool sky=pack_ok();
+        bank=sky?pack.vram:std::vector<uint16_t>(1024*512,0);
+        if(security_tv_paint_bank) security_tv_paint_bank(bank.data());
+        bool any=sky;for(size_t i=0;!any && i<bank.size();++i) any=bank[i]!=0;
+        if(!any) bank.clear();
+    });
+    return bank.empty()?nullptr:bank.data();
+}
 }
 
 PSX_MOD_CONSTRUCTOR(register_ttk_sky_borrow) {

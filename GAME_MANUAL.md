@@ -341,6 +341,24 @@ only (`renderer` alone names the current one). `--world-renderer
 polymorph|classic` saves the choice from the launcher. A screen flash in
 progress stops when you switch to Classic. Vanilla always uses Classic.
 
+### Security monitors (Modernized, Polymorph, D53)
+
+With **SECURITY MONITORS** set to **DUKE 3D** (the default), the game's
+security monitors look and work like Duke Nukem 3D's: each is a larger TV in
+the style of Duke 3D's own, with a warm grey bezel and a glass screen showing
+SECURITY in olive letters, the feed's status and a blinking cursor. The
+screen gives off a soft olive light onto the wall around it. Use a monitor
+(the action button) and the camera view gets Duke 3D's camera frame: four
+corner marks, REC and a blinking red record light, so you always know you are
+looking through a security camera. Use it again to step back. The monitors
+work the same as before; only their look changes. Keypads you can use are lit up
+too, so the part you use stands out, and the lightning power sign beside a
+power switch pulses with electric blue light on the wall (either setting). **TTK** keeps the original
+monitors and camera views. Change it in **OPTIONS > GAMEPLAY > SECURITY
+MONITORS** (it switches at once and saves) or with the launcher's
+`--security-monitors duke3d|ttk`. The Classic renderer and Vanilla always
+show the original monitors.
+
 ### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I)
 
 With **DYNAMIC LIGHTS** on (the default), blasts and Duke's muzzle flash put

@@ -1,5 +1,66 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D53 accepted and closed
+
+User: "lock it in and close it out". D53 is Done: in Modernized (Polymorph),
+SECURITY MONITORS: DUKE 3D draws the monitors as larger Duke 3D-style TVs
+(original art in Photon: bezel, glass screen reading SECURITY / FEED LIVE /
+LINK SECURE / TAPE REC, glow ring), lights the wall in front of them, frames
+camera views with Duke 3D's corners, REC and record light, lights usable
+keypads, and makes power-switch signs pulse with electric light. TTK keeps
+the originals; Classic and Vanilla unchanged. The lingering low-res picture
+continues as D53A; props in dynamic light as D41K; memory growth as D23I.
+
+## 2026-11-09 - D53 revision 7: a glow ring around the screens
+
+A soft olive haze now surrounds each TV screen, drawn additively and self-lit
+so the bezel no longer goes dark with the room. [Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 6: brighter TV screens
+
+The TV screens themselves glow brighter (self-lit level 140 to 230); the
+bezel, the box and the wall light are unchanged. [Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 5: the power switch glows
+
+Slot 10's power switch: its keypad is lit, and the lightning sign above it
+pulses with an electric breath and crackle, throwing a blue halo on the
+wall. Any usable keypad now glows. [Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 4: generic screen text
+
+The TV screens now read FEED LIVE / LINK SECURE / TAPE REC (user's choice B)
+instead of CAM 1-3, so the same screen suits any security monitor.
+[Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 3: only the keypad glows, TV light stays on
+
+Only the console's keypad (the part you use) glows now, drawn self-lit; the
+broad console light is gone. The TV screen light no longer switches off far
+from the control room. [Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 revision 2: no edge pop, real TV sides, console light
+
+User feedback on the first playtest. The TVs no longer vanish at the edge of
+view (the game culled them by TTK's smaller panel bounds; monitor props now
+carry the TV's bounds in the Duke 3D look), the box sides have their own
+textures instead of a stretched one, the record light lost its glow, and
+the control console by the first level's door glows green over its controls.
+[Note 432](432-d53-security-monitors.md).
+
+## 2026-11-09 - D53 Duke 3D security monitors (Needs playtest)
+
+Design approved (TV face B, 4:3 frame, screen light), then reworked with the
+user to match Duke 3D's security screen and bezel closely, with generic
+screen text. In Modernized (Polymorph), SECURITY MONITORS: DUKE 3D (default)
+draws each TTK monitor as a larger 620x620 TV in Duke 3D's style and colours
+(warm grey bezel, glass screen, olive SECURITY, blinking cursor) from the
+second texture bank, lights the wall in the screen's olive, and frames camera
+views with Duke 3D's corners, REC and blinking record light. TTK keeps the
+originals; Classic and Vanilla unchanged. OPTIONS > GAMEPLAY > SECURITY
+MONITORS, schema 72, `--security-monitors`. Art: original, Photon Studio.
+[Note 432](432-d53-security-monitors.md).
+
 ## 2026-11-09 - D17BF accepted and closed
 
 User: "it's absolutely perfect!! i can see everything i want in the security

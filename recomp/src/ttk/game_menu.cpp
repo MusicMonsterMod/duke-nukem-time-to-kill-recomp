@@ -433,6 +433,9 @@ std::vector<Screen> make_screens() {
         // D44A: Duke 3D's map-wide earthquake for TNT barrels and characters blown apart.
         {"EARTHQUAKES",Section::Controls,"earthquakes","DNTTK_EARTHQUAKES",true,"TNT AND VEST BOMBS SHAKE THE LEVEL, DUKE 3D STYLE",
          {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
+        // D53: Duke 3D-style security monitors (larger lit TVs, camera frame).
+        {"SECURITY MONITORS",Section::Controls,"security_monitors","DNTTK_SECURITY_MONITORS",true,"DUKE 3D: BIG LIT SCREENS AND A REC FRAME. POLYMORPH ONLY",
+         {{"DUKE 3D","duke3d","\"duke3d\""},{"TTK","ttk","\"ttk\""}},0},
     }};
     s[3]={"ADVANCED",{
         heading("CAMERA AND AIM"),

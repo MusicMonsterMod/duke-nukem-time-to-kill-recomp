@@ -526,3 +526,10 @@ lighting ... can we give more of a red tone".
   person and 60 Hz third person, before/after in
   `research/before-after/d41j1/` (local).
 - **Accepted.** User: "lock it in and close it out".
+
+## 14. D41K - Props in dynamic light (accepted and closed 2026-11-09)
+
+The soft shoulder of section 5 is replaced: the painted colour stays as it
+is and only the added light is soft-limited, on its brightest channel (hue
+kept). The D41D1 neon rule leaves only neon faces unlit, not their whole
+prop. [Note 434](434-d41k-props-in-light.md).

@@ -48,6 +48,7 @@ static bool light_smooth_on() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_SMOOTH_LIGHT");return !(t && t[0]=='0');}();return v;
 }
 static float light_console_rgb[3]={1.0f,0.85f,0.6f};static double light_console_radius=4000;
+static bool light_console_at;static double light_console_pos[3];   // D41K: "light at x y z ..."
 static uint64_t light_blasts,light_muzzles,light_uploads,light_enemy_muzzles,light_sparks;
 static uint32_t light_ticks,light_duke_launch_tick=~0u;  // D41B: game tics; Duke's last launch
 static bool light_duke_flash_pending;
@@ -324,7 +325,7 @@ static void lights_tick() {
     const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
     switch(light_console.exchange(0)) {
     case 1: {
-        const double p[3]={duke[0],duke[1]-900,duke[2]};
+        const double p[3]={light_console_at?light_console_pos[0]:duke[0],light_console_at?light_console_pos[1]:duke[1]-900,light_console_at?light_console_pos[2]:duke[2]};
         light_add(p,light_console_rgb[0],light_console_rgb[1],light_console_rgb[2],light_console_radius,0,light_kind_test);
         break;
     }
@@ -463,6 +464,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
         l[i].x=(float)(light_view.l[i].x-eye[0]);l[i].y=(float)(light_view.l[i].y-eye[1]);l[i].z=(float)(light_view.l[i].z-eye[2]);
     }
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
+    near_clip_light_probe_lights(l,(int)n,light_view.amb);
 }
 // Backtick console: "light" (a test light at Duke), "light <r> <g> <b>
 // [radius]" (colour 0..4 each, radius 500..30000), "light off" (test lights
@@ -494,6 +496,19 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
         else if(*v) {say("Light: light fire [on|off]");return true;}
         say(light_fire_on.load()?"Light: fire lights on":"Light: fire lights off (session only)");
         return true;
+    }
+    // D41K: "light at <x> <y> <z> <r> <g> <b> [radius]" - a test light at a
+    // world position (colour 0-32, for measurements).
+    light_console_at=false;
+    if(!std::strncmp(arg,"at ",3)) {
+        double x,y,z;float r,g,b;double radius=light_console_radius;
+        const int got=std::sscanf(arg+3,"%lf %lf %lf %f %f %f %lf",&x,&y,&z,&r,&g,&b,&radius);
+        if(got<6 || r<0 || g<0 || b<0 || r>32 || g>32 || b>32 || radius<100 || radius>30000) {say("Light: light at <x> <y> <z> <r> <g> <b> [radius] (colour 0-32, radius 100-30000)");return true;}
+        light_console_rgb[0]=r;light_console_rgb[1]=g;light_console_rgb[2]=b;light_console_radius=radius;
+        light_console_pos[0]=x;light_console_pos[1]=y;light_console_pos[2]=z;light_console_at=true;
+        light_console.store(1);
+        char reply[128];std::snprintf(reply,sizeof reply,"Light: %.2f %.2f %.2f radius %.0f at %.0f %.0f %.0f",r,g,b,radius,x,y,z);
+        say(reply);close=true;return true;
     }
     if(*arg) {
         float r,g,b;double radius=light_console_radius;

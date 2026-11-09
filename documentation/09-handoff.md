@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-11-09 - D41K accepted and closed
+
+User: "lock it in. close it out". D41K is Done: in Modernized (Polymorph,
+DYNAMIC LIGHTS), props brighten under lamps, blasts and coloured lights like
+the walls beside them; the shader soft-limits only the added light on its
+brightest channel (hue kept, painted colour untouched), and the neon rule
+leaves only neon faces unlit. Curve constants (knee 0.35, ceiling +1.0)
+stay open to tuning. [Note 434](434-d41k-props-in-light.md).
+
+## 2026-11-09 - D41K: props take light like walls (Needs playtest)
+
+In Modernized (Polymorph, DYNAMIC LIGHTS), props brighten under lamps,
+blasts and coloured lights as much as walls: the shader keeps the painted
+colour and soft-limits only the added light on its brightest channel (a
+strong green light no longer greys a prop), and the neon rule leaves only
+the neon face unlit instead of the whole prop. Club lamps on a table: +9 ->
++24 levels over lights off; floor +36 -> +42. Needs the user's playtest.
+[Note 434](434-d41k-props-in-light.md).
+
 ## 2026-11-09 - D23I accepted and closed
 
 User: "in that case, you've done all the testing this time around. i'm playing

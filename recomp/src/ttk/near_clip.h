@@ -38,6 +38,8 @@ void near_clip_flip();
 // for world positions of lit corners (relative to the eye); valid false
 // stops them (dynamic_lights.inc).
 void near_clip_light_frame(bool valid,const double m[9],bool smooth=false);
+// D41K: DNTTK_LIGHT_PROBE=1 (developer): the image's lights for the probe.
+void near_clip_light_probe_lights(const void* lights,int n,float amb); // PSXModLight[n]
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();
@@ -58,9 +60,11 @@ uint32_t composition_camera();
 bool game_camera_view();
 // D41D1: the object animation table last seen while objects drew (0 if none).
 uint32_t near_clip_object_animation();
-// D41D1: neon sign prop meshes (level_lights.inc); dynamic lights skip them,
-// so a sign gives light but none falls on its letters. Emulation thread.
-void near_clip_set_glow_meshes(std::vector<uint32_t> meshes);
+// D41D1, D41K: neon sign faces of static props (face record addresses,
+// level_lights.inc); dynamic lights skip those faces, so a sign gives light
+// but none falls on its letters, while the rest of the prop takes light.
+// Emulation thread.
+void near_clip_set_glow_faces(std::vector<uint32_t> faces);
 // The one RAM effect drawing a world piece in a non-flat room has (the
 // colour-index nibble clear), for a redraw-only live frame that draws none.
 void near_clip_host_world_unlit(uint32_t mesh);

@@ -39,6 +39,19 @@ keypads, and makes power-switch signs pulse with electric light. TTK keeps
 the originals; Classic and Vanilla unchanged. The lingering low-res picture
 continues as D53A; props in dynamic light as D41K; memory growth as D23I.
 
+## 2026-11-09 - D41K accepted and closed
+
+User: "lock it in. close it out". D41K is Done: props take dynamic light
+like walls, strong coloured light keeps its colour, and only neon faces stay
+unlit. [Note 434](documentation/434-d41k-props-in-light.md).
+
+## 2026-11-09 - D41K: props take light like walls (Needs playtest)
+
+Props now brighten under lamps, blasts and coloured lights as much as the
+walls beside them, a strong coloured light keeps its colour instead of
+greying, and only a neon sign's own face stays unlit (not the panel or
+shelves it sits on). [Note 434](documentation/434-d41k-props-in-light.md).
+
 ## 2026-11-09 - D53 revision 7: a glow ring around the screens
 
 A soft olive haze now surrounds each TV screen, drawn additively and self-lit
@@ -7946,7 +7959,7 @@ the user's playtest (`dnupgrade`).
 
 ### D41K - Props respond to dynamic light like walls do
 
-**Status: Todo (stood up 2026-11-09 at the user's request; investigation first). Dependencies: D41A, D41H (Done).**
+**Status: Done (user-accepted 2026-11-09: "lock it in. close it out"; [note 434](documentation/434-d41k-props-in-light.md)). Dependencies: D41A, D41H (Done).**
 Seen in D53 (note 432, revisions 2 and 3): in Polymorph a dynamic light
 barely brightens props. A light over the LEVEL00 control console at
 strength 25, radius 600 only greyed the desk top, while the same light
@@ -7962,6 +7975,32 @@ muzzle flashes, lamps, signs and the D53 lights all light props as they light
 walls. Check characters and Duke (D41C), which share the model path, and
 Classic/Vanilla unchanged. Acceptance: matched before/after shots of props
 under a blast and a lamp, user playtest.
+
+**Work log (2026-11-09, Needs playtest).** Props were lit (the subway
+train's polygons all carry the lit flag, positions and normals; white light
+brightens it steadily), but three things held them back. (1) The D41A soft
+shoulder worked per channel on painted colour plus light, so a strong
+coloured light washed to grey (green strength 25 on the train: (96, 122, 98);
+the D53 "greyed desk top"). (2) It started at the neutral 0.5 where prop
+corners sit (128), so prop light was compressed from its first unit while
+dark walls (about 0.28) took it linearly, and painted colours above 0.5
+dimmed whenever any light was in the image. Club, lamps only, over lights
+off: table +9, floor +36. (3) The D41D1 neon rule listed whole meshes, so a
+control panel with a small screen (type 478), the bar's shelves (2, 4),
+light boxes (79) and red lamps (170) took no light at all. Fix: the shader
+(`lit_col`, framework patch) keeps the painted colour and soft-limits only
+the added light, linear to 0.35 then toward +1.0, on its brightest channel
+(hue kept); the neon scan lists face records (`near_clip_set_glow_faces`,
+`Poly::glow`) so only neon faces stay unlit (level 0: 234 -> 68 faces).
+After: green strength 25 on the train (47, 103, 48); club lamps on props
+table +24, lamp shade +26, floor +42; a real RPG blast looks the same on
+walls (frame means equal from the frame after the peak). 180 Hz: 1833
+redraws, 0 misses. `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test`
+PASS; framework patch exported and verified against the pin. Developer:
+`DNTTK_LIGHT_PROBE=1`, console `light at x y z r g b [radius]`. Stills
+`research/before-after/D41K/`. Not measured in place: the D53 console (no
+save near it). Needs the user's playtest (lamps, blasts, coloured lights on
+props).
 ### D49E - Laser Gatling bolts leave from the true muzzle
 
 **Status: Done (user-accepted 2026-11-09: "lock it all in and close us out"; user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
@@ -10091,7 +10130,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
 | D41J | Upgraded weapon light colours: the HiTemp Flamethrower's blue flames (stream, hand flash, flames in flight, burns) and the Laser Gatling's laser shots take the regular weapons' warm light | Done (user-accepted 2026-11-09) | D41I |
 | D41J1 | Laser Gatling light reads red: its muzzle, spark and bolt lights wash to pale pink-white on the street; give them a clear red, as the freezer's blue and the energy weapon's green | Done (user-accepted 2026-11-09) | D41J |
-| D41K | Props respond to dynamic light like walls do (a light over a console barely brightens it; investigation first) | Todo | D41A, D41H |
+| D41K | Props respond to dynamic light like walls do (a light over a console barely brightens it; investigation first) | Done | D41A, D41H |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |

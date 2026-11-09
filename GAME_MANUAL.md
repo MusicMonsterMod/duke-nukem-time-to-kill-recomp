@@ -359,7 +359,7 @@ MONITORS** (it switches at once and saves) or with the launcher's
 `--security-monitors duke3d|ttk`. The Classic renderer and Vanilla always
 show the original monitors.
 
-### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I)
+### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I, D41K)
 
 With **DYNAMIC LIGHTS** on (the default), blasts and Duke's muzzle flash put
 real light into the world: rockets, grenades, pipe bombs, dynamite, TNT
@@ -384,7 +384,10 @@ the game's own painted lighting stays underneath. Duke himself, his
 first-person weapon, arms and legs take the light too (while a power-up
 effect plays on him he keeps his original look). Light rounds smoothly over
 characters and props instead of showing their flat facets, and lights only
-the side of a figure that faces it. It is a first version: the light still
+the side of a figure that faces it. Props (consoles, tables, machines, the
+subway train) brighten under a light as much as the walls beside them, and a
+strongly coloured light keeps its colour on them instead of washing to grey.
+It is a first version: the light still
 passes through walls. Turn it off in **OPTIONS > DISPLAY >
 DYNAMIC LIGHTS** (it switches at once and saves); the launcher accepts
 `--dynamic-lights on|off` and terminal `--settings` uses **I Dynamic
@@ -393,7 +396,9 @@ lights**. The Classic renderer and Vanilla have no dynamic lights.
 The backtick console's `light` places a warm test light above Duke where he
 stands; `light <r> <g> <b> [radius]` picks its colour (0 to 4 for each, 1 is
 about as strong as a lamp) and reach (500 to 30000 units, 4000 by default),
-and `light off` removes the test lights. `light smooth off` shows the
+and `light off` removes the test lights. `light at <x> <y> <z> <r> <g> <b>
+[radius]` puts the test light at a world position instead (colour up to 32,
+reach 100 to 30000), for measuring. `light smooth off` shows the
 faceted light on models for comparison until `light smooth on` (or the next
 launch), and `light fire off` / `light fire on` turns the fire lights
 (flames and burning) off and on for the session.
@@ -430,7 +435,9 @@ backtick console edits them:
   session (to compare); `lamp gate on` restores the rule.
 
 Signs and neon keep their own look under any light: they give light, and
-neon signs take none on their letters, so they stay as crisp as drawn. Lamps still shine through walls (shadows are a
+neon signs take none on their letters, so they stay as crisp as drawn. Only
+the neon face itself is left out: the rest of the prop it sits on (a control
+panel beside its screen, the bar's shelves) takes light. Lamps still shine through walls (shadows are a
 later job).
 
 ### Portable steroids (Modernized)

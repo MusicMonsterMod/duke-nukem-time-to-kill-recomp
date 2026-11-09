@@ -57,6 +57,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <mutex>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -402,6 +403,7 @@ struct Poly {
     // D41H: smoothed world normal per corner (zero: the face's own) and
     // whether the face is seen from both sides (light from either side).
     float n[4][3]{};bool two_sided=false;
+    bool glow=false; // D41K: a neon sign face (glow_faces): gives light, never lit
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
     double key_z;
@@ -634,9 +636,71 @@ bool light_frame=false,light_smooth=false;double light_inv[9];
 // lights reach them where the player sees them. The first-person layer's
 // translucent faces (the muzzle flash itself) keep their own colour.
 bool lit_frame(const Frame& f,const Poly& poly) {
-    if(!light_frame || f.sky || f.biomask || poly.depth_only || f.glow) return false;
+    if(!light_frame || f.sky || f.biomask || poly.depth_only || f.glow || poly.glow) return false;
     if(f.duke_lit) return unified() && !(f.viewmodel && (poly.command&0x02000000u));
     return unified_scene(f) && !f.viewmodel;
+}
+// D41K: DNTTK_LIGHT_PROBE=1 (developer): the shader's light terms evaluated
+// per lit corner (vertex colour, normal kind, N.L, falloff, gain after the
+// light limit), summed by owner (world, prop, actor) and by prop mesh, with
+// why prop polygons went unlit (sky, glow face, ...) and the image's lights,
+// logged every 120 images, to compare how one light reaches walls and props.
+struct LightProbe { double n=0,base=0,add=0,gain=0,nl=0,reach=0,one=0,two=0,flat=0; };
+std::vector<uint32_t> glow_faces; // D41D1/D41K, sorted face records (near_clip_set_glow_faces)
+bool light_probe_on() {static const bool v=std::getenv("DNTTK_LIGHT_PROBE")!=nullptr;return v;}
+unsigned light_probe_why[8];std::mutex light_probe_lock;LightProbe light_probe[3];PSXModLight light_probe_l[PSX_MOD_MAX_LIGHTS];int light_probe_n=0;float light_probe_amb=1;unsigned light_probe_frames=0;
+double probe_limit(double m) {return m>0.35?0.35+0.65*(1.0-std::exp(-(m-0.35)/0.65)):m;}   // gpu_gl_renderer.c lit_col (D41K)
+std::unordered_map<uint32_t,LightProbe> light_probe_mesh;std::unordered_map<uint32_t,std::array<unsigned,2>> light_probe_polys;thread_local uint32_t light_probe_cur;
+void light_probe_corner(int kind,uint32_t mesh,const double rgb[3],const float w[3],const double fnrm[3],const double* nv) {
+    double nn[3]={nv[0],nv[1],nv[2]};const double nl2=nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2];
+    const bool smooth=nl2>0.05*0.05,one=nl2>0.36;
+    if(!smooth) {nn[0]=fnrm[0];nn[1]=fnrm[1];nn[2]=fnrm[2];}
+    const double len=std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2]);if(len<=1e-9) return;
+    for(double& x:nn) x/=len;
+    const double base=std::max(rgb[0],std::max(rgb[1],rgb[2]))/255.0;
+    double add=0,nlsum=0,reach=0;
+    for(int i=0;i<light_probe_n;++i) {
+        const PSXModLight& L=light_probe_l[i];
+        const double d[3]={L.x-w[0],L.y-w[1],L.z-w[2]},dist=std::sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]);
+        if(dist>=L.radius || dist<1e-3) continue;
+        double a=1-dist/L.radius;a*=a;
+        const double dot=(nn[0]*d[0]+nn[1]*d[1]+nn[2]*d[2])/dist;
+        const double nl=one?std::clamp((dot+0.25)/1.25,0.0,1.0):std::fabs(dot);
+        const double c=std::max(L.r,std::max(L.g,L.b));
+        add+=c*a*(nl*0.85+0.15);nlsum+=nl;reach+=a;
+    }
+    if(reach<=0) return;
+    std::lock_guard<std::mutex> g(light_probe_lock);
+    for(LightProbe* pp:{&light_probe[kind],kind>=1?&light_probe_mesh[mesh|(kind==2?1u:0u)]:nullptr}) {
+        if(!pp) continue;LightProbe& p=*pp;
+        p.n+=1;p.base+=base;p.add+=add;p.nl+=nlsum;p.reach+=reach;
+        const double b0=base*light_probe_amb;
+        p.gain+=b0>1e-4?(b0+probe_limit(add))/b0:0;
+        (one?p.one:smooth?p.two:p.flat)+=1;
+    }
+}
+void light_probe_frame() {
+    std::lock_guard<std::mutex> g(light_probe_lock);
+    if(++light_probe_frames%120) return;
+    static const char* names[3]={"world","prop","actor"};
+    for(int k=0;k<3;++k) {
+        const LightProbe& p=light_probe[k];
+        if(p.n>0) std::fprintf(stderr,"[TTK light probe] %s corners %.0f base %.3f add %.3f gain %.2fx nl %.2f falloff %.3f normals one %.0f two %.0f flat %.0f lights %d\n",
+            names[k],p.n,p.base/p.n,p.add/p.n,p.gain/p.n,p.nl/p.n,p.reach/p.n,p.one,p.two,p.flat,light_probe_n);
+        light_probe[k]=LightProbe{};
+    }
+    std::fprintf(stderr,"[TTK light probe] prop polys lit %u sky %u biomask %u depth %u glow %u not-scene %u not-unified %u other %u glow-faces %zu\n",
+        light_probe_why[0],light_probe_why[1],light_probe_why[2],light_probe_why[3],light_probe_why[4],light_probe_why[5],light_probe_why[6],light_probe_why[7],glow_faces.size());
+    std::memset(light_probe_why,0,sizeof light_probe_why);
+    for(int j=0;j<light_probe_n;++j) {const PSXModLight& L=light_probe_l[j];std::fprintf(stderr,"[TTK light probe] light %d at %.0f %.0f %.0f r %.0f rgb %.2f %.2f %.2f flags %.0f\n",j,L.x,L.y,L.z,L.radius,L.r,L.g,L.b,L.flags);}
+    std::vector<std::pair<uint32_t,LightProbe>> ms(light_probe_mesh.begin(),light_probe_mesh.end());
+    std::sort(ms.begin(),ms.end(),[](const auto& a,const auto& b){return a.second.n>b.second.n;});
+    for(size_t i=0;i<ms.size() && i<12;++i) {const LightProbe& p=ms[i].second;
+        std::fprintf(stderr,"[TTK light probe]   mesh %08x corners %.0f base %.3f add %.3f gain %.2fx nl %.2f falloff %.3f one %.0f two %.0f\n",
+            ms[i].first,p.n,p.base/p.n,p.add/p.n,p.gain/p.n,p.nl/p.n,p.reach/p.n,p.one,p.two);}
+    light_probe_mesh.clear();
+    {std::string t;char buf[48];for(const auto& kv:light_probe_polys) {std::snprintf(buf,sizeof buf," %08x:%u/%u",kv.first,kv.second[0],kv.second[1]);t+=buf;}
+     std::fprintf(stderr,"[TTK light probe] prop meshes lit/unlit:%s\n",t.c_str());light_probe_polys.clear();}
 }
 // D41C: Duke's third-person body is host-drawn (like the screen-door body)
 // while this image carries lights, so it takes them and the dimmed painted
@@ -683,6 +747,12 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     // D17AM2: translucent faces keep painter order (no depth test or write).
     const bool painter=f.viewmodel || f.sky || (unified_scene(f) && (poly.command&0x02000000u));
     const bool lit=lit_frame(f,poly);
+    if(light_probe_on() && light_frame && f.object && !f.viewmodel) {
+        std::lock_guard<std::mutex> g(light_probe_lock);
+        const int why=lit?0:f.sky?1:f.biomask?2:poly.depth_only?3:(f.glow||poly.glow)?4:!f.scene?5:!unified()?6:7;
+        ++light_probe_why[why];
+        ++light_probe_polys[light_probe_cur|(poly.actor?1u:0u)][lit?0:1];
+    }
     {
         for(unsigned i=0;i<n;++i) {
             const uint32_t addr=prim+8+stride*i,word=psx_mod_read_word(addr);
@@ -710,6 +780,14 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                 const double* p=v[i].p;const double* m=light_inv;
                 const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]);
                 const double* nv=v[i].n;
+                if(light_probe_on() && n>=3) {
+                    double q[3][3];
+                    for(int c=0;c<3;++c) {const double* r=v[c].p;for(int k=0;k<3;++k) q[c][k]=m[3*k]*r[0]+m[3*k+1]*r[1]+m[3*k+2]*r[2];}
+                    const double e1[3]={q[1][0]-q[0][0],q[1][1]-q[0][1],q[1][2]-q[0][2]},e2[3]={q[2][0]-q[0][0],q[2][1]-q[0][1],q[2][2]-q[0][2]};
+                    const double fn[3]={e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]};
+                    const float w3[3]={wx,wy,wz};
+                    light_probe_corner(!f.object?0:poly.actor?2:1,light_probe_cur,v[i].rgb,w3,fn,nv);
+                }
                 if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
@@ -1228,7 +1306,6 @@ extern uint64_t coplanar_hits,coplanar_builds;
 inline uint64_t coplanar_mix(uint64_t h,uint32_t w);
 uint64_t unified_downgrades,fallback_kind[3],near_fallbacks;
 uint32_t last_object_animation; // D41D1
-std::vector<uint32_t> glow_meshes; // D41D1, sorted (near_clip_set_glow_meshes)
 // Bytes a mesh's taken faces are expected to need before it is taken over.
 // Unified scene geometry: about one packet per face (most are unclipped quads).
 // D17AR2: a distant host piece (every vertex 4096+ away) is never cut by the
@@ -2012,8 +2089,8 @@ void object(CPUState* cpu) {
     if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed && !tv && !glow_copy)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     const bool game_view=game_camera_view();   // D52
-    f.glow=!glow_meshes.empty() && std::binary_search(glow_meshes.begin(),glow_meshes.end(),mesh);
-    f.glow|=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
+    light_probe_cur=mesh;
+    f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
     static SkyRenderIdentity sky_identity;
@@ -2123,6 +2200,8 @@ void object(CPUState* cpu) {
         &open_model_faces_of(mesh,vertices,list,count) : nullptr;
     for(const auto& [record,type]:taken) {
         Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;
+        // D41K: a neon sign face takes no light; the rest of its prop does.
+        p.glow=!glow_faces.empty() && std::binary_search(glow_faces.begin(),glow_faces.end(),record);
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
         const bool textured=type==0x24 || type==0x2c || type==0x34 || type==0x3c;
@@ -2367,8 +2446,8 @@ void near_clip_host_world_unlit(uint32_t mesh) {
     if(count && count<=1024 && mesh>=0x80010000u && mesh+0x1c+8*((count+2)/3*3)<=0x80200000u) clear_color_index(mesh,count);
 }
 uint32_t near_clip_object_animation() {return last_object_animation;}
-void near_clip_set_glow_meshes(std::vector<uint32_t> meshes) {
-    std::sort(meshes.begin(),meshes.end());glow_meshes.swap(meshes);
+void near_clip_set_glow_faces(std::vector<uint32_t> faces) {
+    std::sort(faces.begin(),faces.end());faces.erase(std::unique(faces.begin(),faces.end()),faces.end());glow_faces.swap(faces);
 }
 bool near_clip_host_world_live() {
     const bool clip_live=first_person_view_live() || third_person_camera_live() || widescreen_near_clip_live();
@@ -2404,7 +2483,14 @@ void near_clip_prepare() {
         }
     }
 }
-void near_clip_flip() {region_chosen=false;model_end();light_frame=false;}
+void near_clip_flip() {region_chosen=false;model_end();light_frame=false;if(light_probe_on()) light_probe_frame();}
+void near_clip_light_probe_lights(const void* lights,int n,float amb) {
+    const PSXModLight* l=(const PSXModLight*)lights;
+    if(!light_probe_on()) return;
+    std::lock_guard<std::mutex> g(light_probe_lock);
+    light_probe_n=std::min(n,(int)PSX_MOD_MAX_LIGHTS);light_probe_amb=amb;
+    for(int i=0;i<light_probe_n;++i) light_probe_l[i]=l[i];
+}
 void near_clip_light_frame(bool valid,const double m[9],bool smooth) {
     light_frame=false;light_smooth=smooth;
     if(!valid) return;

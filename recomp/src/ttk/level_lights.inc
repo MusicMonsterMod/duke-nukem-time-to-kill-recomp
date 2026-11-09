@@ -386,10 +386,12 @@ static std::vector<ScanCand> level_lamps_scan(int threshold) {
 // fraction) reaches sign_min_glow gets one lamp sign_offset in front of its
 // glowing faces (outward = minus the corner cross product: TTK's faces wind
 // that way, 3104 of 3462 closed-model faces on level 0), in their colour.
-// Neon signs are never lit: a prop with a face of neon on a dark ground (40%
-// of texels darker than 0.2, 10% at max 0.7 or more and saturation 0.5 or
-// more, flame hues 12-70 degrees left out) is left out of dynamic light (near_clip lit_frame,
-// near_clip_set_glow_meshes). Its lamp still lights the room around it; no
+// Neon signs are never lit: a face of neon on a dark ground (40% of texels
+// darker than 0.2, 10% at max 0.7 or more and saturation 0.5 or more, flame
+// hues 12-70 degrees left out) is left out of dynamic light (near_clip
+// lit_frame, near_clip_set_glow_faces). D41K: only that face; the rest of
+// the prop (a control panel beside its screen, the bar's shelves)
+// takes light like any prop. Its lamp still lights the room around it; no
 // light falls on its letters, which the D41D per-texel rule cannot hold when
 // the neon is stored dim and brightened by the corner colour (the club's
 // inner Bootylicious sign, type 51; user report, UI slot 7). Lanterns,
@@ -451,7 +453,7 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
     };
     // Per mesh, in model space: glowing area, its weighted centre, outward
     // direction and colour.
-    struct Glow {bool neon=false;double e=0,animated=0,c[3]={0,0,0},out[3]={0,0,0},col[3]={0,0,0},hw[12]={},hrgb[12][3]={};};
+    struct Glow {std::vector<uint32_t> neon;double e=0,animated=0,c[3]={0,0,0},out[3]={0,0,0},col[3]={0,0,0},hw[12]={},hrgb[12][3]={};};
     std::map<uint32_t,Glow> meshes;
     auto mesh_glow=[&](uint32_t mesh)->const Glow& {
         if(auto it=meshes.find(mesh);it!=meshes.end()) return it->second;
@@ -500,7 +502,7 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
                 for(int b=0;b<12;++b) {g.hw[b]+=per*t.hw[b];for(int a=0;a<3;++a) g.hrgb[b][a]+=per*t.hrgb[b][a];}
                 // Neon on a dark ground (40% of texels below 0.2, 10% at
                 // max 0.7 and saturation 0.5): a neon sign (see below).
-                if(!animated && t.n>=64 && t.dark>=0.4*t.n && t.neon>=0.1*t.n) g.neon=true; // flames (animated) are not signs
+                if(!animated && t.n>=64 && t.dark>=0.4*t.n && t.neon>=0.1*t.n) g.neon.push_back(cur); // flames (animated) are not signs
                 double frac=t.n>0?t.w/t.n:0;
                 if(frac>=0.01 && t.dark>=0.4*t.n) frac=std::min(1.0,frac*3);
                 if(frac<0.05) continue;
@@ -534,7 +536,9 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
             const uint32_t mesh=psx_mod_read_word(o+0x44);
             if(mesh<0x80010000u || mesh>0x801ffff0u || (mesh&3)) continue;
             const Glow& g=mesh_glow(mesh);
-            if(neon && g.neon) neon->push_back(mesh);
+            if(neon) neon->insert(neon->end(),g.neon.begin(),g.neon.end());
+            if(std::getenv("DNTTK_LAMP_TRACE") && !g.neon.empty())
+                std::fprintf(stderr,"[TTK lamp]   prop %08x type %u mesh %08x: %zu neon faces (first %08x)\n",o,type,mesh,g.neon.size(),g.neon[0]);
             if(std::getenv("DNTTK_LAMP_TRACE") && g.e>0)
                 std::fprintf(stderr,"[TTK lamp]   prop %08x type %u room %u glow %.0f animated %.0f (table %08x)\n",o,type,r,g.e,g.animated,near_clip_object_animation());
             if(g.e<sign_min_glow) continue;
@@ -734,15 +738,15 @@ static void level_lamps_update(CPUState* cpu) {
     // animation table first shows up (animated signs).
     static unsigned neon_level=~0u,neon_loads=~0u;static uint32_t neon_due;static bool neon_had_table;
     if(const unsigned loads=psx_mod_savestate_loads();level!=neon_level || loads!=neon_loads) {
-        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_meshes({});
+        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});
     }
     if((neon_due && light_ticks>=neon_due) || (!neon_due && !neon_had_table && near_clip_object_animation())) {
         neon_due=0;neon_had_table=near_clip_object_animation()!=0;
         const auto t0=std::chrono::steady_clock::now();
         std::vector<uint32_t> neon;level_lamps_signs(&neon);
         const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
-        std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign meshes take no dynamic light (%.1f ms%s)\n",level,neon.size(),ms,neon_had_table?"":", animated faces not yet known");
-        near_clip_set_glow_meshes(std::move(neon));
+        std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (%.1f ms%s)\n",level,neon.size(),ms,neon_had_table?"":", animated faces not yet known");
+        near_clip_set_glow_faces(std::move(neon));
     }
     std::deque<std::string> todo;
     {std::lock_guard<std::mutex> g(level_lamp_mutex);todo.swap(level_lamp_queue);}

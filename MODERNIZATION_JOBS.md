@@ -2590,7 +2590,7 @@ the user asks.
 
 ### D10H9 - Press to fire on the energy weapon and flamethrower
 
-**Status: Todo (user report 2026-11-08, D49B playtest: "there feels to be a lag between mouse click down, and actual firing, for the energy weapon, and the flamethrower"). Dependencies: D10H4.**
+**Status: Done (user-accepted 2026-11-09: "this one is fully accepted. great work", "lock it in and close it out!!"; user chose proposals 1-3: "we go with your exact recommendation!"; [note 425](documentation/425-d10h9-stream-weapon-press.md); user report 2026-11-08, D49B playtest: "there feels to be a lag between mouse click down, and actual firing, for the energy weapon, and the flamethrower"). Dependencies: D10H4.**
 D10H4 latched the press and kept the gun up for the Duke 3D analogs, but
 left TTK-only weapons, including the flamethrower, on their native timing
 (user, 2026-11-05: "the dynamic on those is actually pretty good"). The
@@ -2604,6 +2604,44 @@ propose cuts to the user before changing native timing. Modernized only,
 behind the D10H4 WEAPON FEEL switch where it changes timing; ammo, damage
 and Vanilla unchanged. Acceptance: user playtest clicking and holding fire
 with both weapons.
+
+**Work log (2026-11-08, measured, proposals to the user).** No gameplay
+change; diagnostic trace `DNTTK_FEEL_TRACE=1` (`ttk-feel-upd` per player
+update). Lab `recomp/analysis/d10h9/` (private apartment card copies, 180 Hz,
+RETRO). Press to the first round, first person: flamethrower 430-457 ms from
+rest and 594-599 ms 0.3 s after a release; energy weapon 289-350 and 458-464
+(third person similar). EDuke32 freezer 81, pistol 58; the D10H4 guns 50-82.
+Both weapons fire from the ready pose 23 while fire is held (stream flag
+`+0x224 0x400`). Before that, the raise 24 takes about 265 ms, after one
+update to see the press and one more before the raise starts. The
+flamethrower then ramps `+0x81c` to 100 over 3 updates (about 100 ms, nothing
+drawn) before the first fireball. A release starts the lowering at once, and
+a new press waits for the full lowering and raise. 60 ms and 150 ms clicks
+fire nothing (0 of 12 each). The flamethrower stream drops the game to 50 ms
+updates (about 20 fireballs/s). Proposals in note 425: (1) latch the press and
+run the raise out on the next update, (2) stay ready about 1 s after a
+release, (3) cut the flame ramp to 1 update, (4) optional fire CPU under the
+flame (changes damage per second). Awaiting the user's choice.
+
+**Work log (2026-11-09, Needs playtest).** User: "we go with your exact
+recommendation!" (1-3). `weapon_feel.inc`, RETRO only. A press with the
+Flamethrower or Energy Weapon drawn latches fire until the stream starts. The
+raise (track 24 forward) runs out and carries into the ready pose 23, and a
+lowering in progress runs out first. The original's ready timer `+0x23a` is
+kept at 1 s while firing and after its own 333 ms write, so the gun stays up
+after a release. The flame charge `+0x81c` is precharged to 68, so ignition
+takes one update. Lab, first person, 180 Hz: Energy Weapon about 82 ms from
+rest (was 289-350) and 48-50 within a second of a release (was about 460);
+Flamethrower 83-130 (was 430-457) and 48-84 (was about 595). Third person is
+similar. 60 ms clicks fire every time (were 0 of 12). Held streams, MODERN
+(430-605 ms as before) and weapon switching are unchanged. `ttk-input-test`
+and `ttk-aim-test` pass. Executable
+`381b62070b0bc842475199f487339cafeb25d1cfbd3550bc130040f64355de28`. Needs the
+user's playtest clicking and holding fire with both weapons.
+
+**Accepted (2026-11-09).** User playtest: "this one is fully accepted. great
+work". The user's lighting observation from the same playtest (the upgraded
+flamethrower glows blue, its light stays warm) is D41J.
 
 ### D08K15 - Duke jerks upright when the box he crouches on is kicked apart
 
@@ -7424,6 +7462,23 @@ only while it burns and the wall stays dark after; a burning pig cop still
 lights for its whole burn (about 6 s). The user's separate report of the
 mission item text overlap is D08A39.
 
+### D41J - Upgraded flamethrower light is blue
+
+**Status: Todo (user report 2026-11-09, D10H9 acceptance: "the upgraded flamethrower glows blue, but our lighting doesnt change from the regular flamethrower"). Dependencies: D41I.**
+The upgraded (hi-temp) flamethrower's flames are drawn blue, but the D41
+dynamic lights from its stream, hand flash and flames in flight use the
+regular flamethrower's warm, flickering fire colour. Lead:
+`recomp/src/ttk/dynamic_lights.inc` already names the hi-temp flame records
+(pool type 26, besides 14) and the weapon's hand flash; find where the
+upgraded weapon (slot 27) and its type 26 records take the warm values, and
+give them a blue that matches the drawn flame (sample it from captures), with
+the same flicker, size and cost. Burning enemies set alight by the upgraded
+flamethrower are included if their drawn flames are blue too. Regular
+flamethrower, other lights and Vanilla unchanged. Test: matched stills of
+both flamethrowers firing at a wall and burning an enemy, first and third
+person, 180 Hz (spawn the upgrade with the console). Acceptance: user
+playtest.
+
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
 **Status: Done (user-accepted 2026-11-08: "fully accepted. excellent work! absolutely superb. lock it in, close it out"; [note 414](documentation/414-d46-mirror-portal-depth.md)). Dependencies: none known.** User, after the
@@ -9123,6 +9178,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
+| D41J | Upgraded flamethrower light is blue: its stream, hand flash and flames in flight take the regular warm fire colour | Todo | D41I |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -9277,7 +9333,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H7 | Queue redraws at their exact lead | Done | D10H5 |
 | D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
 | D10H8 | EDuke32-close world delay in first person (draw the world nearer the present) | Done (user-accepted 2026-11-08; note 419) | D10H5, D10H7 |
-| D10H9 | Press to fire on the energy weapon and flamethrower (click-down lag) | Todo | D10H4 |
+| D10H9 | Press to fire on the energy weapon and flamethrower (click-down lag) | Done (user-accepted 2026-11-09; note 425) | D10H4 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Done | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

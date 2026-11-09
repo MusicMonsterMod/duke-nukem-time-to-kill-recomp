@@ -132,6 +132,91 @@ static bool weapon_feel_armed() {
     unsigned raise,fire;weapon_feel_tracks(psx_mod_read_byte(player+0x3b9),raise,fire);
     return fire!=0;
 }
+// D10H9: the stream weapons, Flamethrower (9, upgraded 27) and Energy Weapon
+// (10), fire from the ready pose 23 on every update fire is held there
+// (23 handler 0x8004f184 sets +0x224 0x400; per-update tick 0x8003d6b4). From
+// rest the original sees the press, waits an update, plays the raise 24 (80
+// units, about 265 ms) and fires only if fire is still held at its end, so
+// 60-150 ms clicks fired nothing; a release lowers at once (24 backwards)
+// and a new press waited for the whole lowering and raise (410-600 ms); the
+// Flamethrower then ramps +0x81c 0..100 over three more updates
+// (0x8003d2d0, nothing drawn) before its first fireball. RETRO:
+//  - Latch: a press holds the fire pad until the stream has started (+0x224
+//    0x800, the Energy Weapon's beam sound or the Flamethrower at full) and
+//    one update more, so every click fires (at most 30 updates).
+//  - Raise: until then the raise runs out on its first update and carries
+//    into 23, where the original starts the stream; a lowering in progress
+//    runs 4x.
+//  - Ready: the original's own hold timer +0x23a keeps 23 up while it is set
+//    (0x80058284 counts it down by the clock). It is 0 while streaming, so a
+//    release lowered at once; the original then sets it to 100 (about
+//    333 ms), too late. It is kept at 1 s (300 clock units,
+//    DNTTK_WEAPON_FEEL_READY) while fire is held in 23 and raised to that
+//    again after the original's write, so a press within a second of letting
+//    go fires on the next update.
+//  - Ignition: +0x81c is precharged to 68 as the raise runs out (or raised to
+//    68 after a ramp's first step), so the first ramp step reaches full: the
+//    first fireball two updates after the raise instead of four. The ignition
+//    sounds still play; no ammo is spent in the ramp.
+// Ammo, damage, the beam's lock and reach and fireball flight stay original.
+static std::atomic<bool> feel_stream_hold{false};
+static bool feel_stream_pending;
+static unsigned feel_stream_updates,feel_stream_after;
+static bool feel_raise_forward;      // the direction track 24 plays (key order)
+static bool feel_raise_turned;       // a lowering was run out: the next 24 is the raise
+static bool feel_ready_pending;      // fire was held in 23; refresh the hold when the stream ends
+static unsigned feel_raise_prev_upper,feel_raise_prev_key;
+static uint64_t feel_stream_presses,feel_stream_started,feel_stream_expired,feel_ready_holds,feel_ramp_cuts,feel_stream_raises;
+static bool weapon_feel_stream_weapon(unsigned weapon) {return weapon==9 || weapon==27 || weapon==10;}
+static bool weapon_feel_stream_armed() {
+    return weapon_feel_retro() && player_identity_ready() && psx_mod_read_byte(player+0x3b8)==2 && weapon_feel_stream_weapon(psx_mod_read_byte(player+0x3b9));
+}
+static int weapon_feel_env_int(const char* name,int fallback,int low,int high) {
+    const char* v=ttk_live_env(name);char* end=nullptr;
+    const long x=v?std::strtol(v,&end,10):fallback;
+    return v && end!=v ? (int)std::clamp<long>(x,low,high) : fallback;
+}
+// Player update: the D10H9 latch's end, the ready hold and the ignition cut.
+static void weapon_feel_stream_update(bool fire_held) {
+    if(feel_stream_pending) {
+        if(!weapon_feel_stream_armed() || ++feel_stream_updates>30) {feel_stream_pending=false;++feel_stream_expired;}
+        else if(psx_mod_read_word(player+0x224)&0x800) {
+            if(++feel_stream_after>=2) {feel_stream_pending=false;++feel_stream_started;}
+        }
+        if(!feel_stream_pending)feel_stream_hold.store(false);
+    }
+    // Track 24 is the raise forward and the lowering backwards: entered on
+    // its first key it is the raise, on its last the lowering; then key order.
+    const unsigned upper=psx_mod_read_half(player+0x74),key=psx_mod_read_half(player+0x7a);
+    if(upper==24) {
+        FeelLoop raise;
+        if(feel_raise_turned)feel_raise_forward=true;
+        else if(feel_raise_prev_upper!=24 && weapon_feel_keys(24,raise))feel_raise_forward=(int)key!=raise.first+raise.count-1;
+        else if(feel_raise_prev_upper==24 && key!=feel_raise_prev_key)feel_raise_forward=key>feel_raise_prev_key;
+    }
+    feel_raise_turned=false;feel_raise_prev_upper=upper;feel_raise_prev_key=key;
+    if(!weapon_feel_stream_armed())return;
+    const int ready=weapon_feel_env_int("DNTTK_WEAPON_FEEL_READY",300,0,3000);
+    const uint32_t flags=psx_mod_read_word(player+0x224);
+    // The original sets +0x23a to 100 (about 333 ms) once as the stream
+    // ends; raise it to the ready time on the first update after that.
+    if(upper!=23)feel_ready_pending=false;
+    else if(fire_held) {
+        // Set while streaming, so the 23 handler's first update without fire
+        // stays up instead of lowering.
+        feel_ready_pending=ready>0;
+        if(ready>0 && (int16_t)psx_mod_read_half(player+0x23a)<ready)psx_mod_write_half(player+0x23a,(uint16_t)ready);
+    } else if(feel_ready_pending && !(flags&0x800)) {
+        feel_ready_pending=false;
+        if((int16_t)psx_mod_read_half(player+0x23a)<ready) {psx_mod_write_half(player+0x23a,(uint16_t)ready);++feel_ready_holds;}
+    }
+    const unsigned weapon=psx_mod_read_byte(player+0x3b9);
+    const int charge=(int)psx_mod_read_word(player+0x81c);
+    if((weapon==9 || weapon==27) && !(flags&0x800) && charge>0 && charge<68 && fire_held &&
+       weapon_feel_env_int("DNTTK_WEAPON_FEEL_IGNITION",1,0,1)) {
+        psx_mod_write_word(player+0x81c,68);++feel_ramp_cuts;
+    }
+}
 // Input thread: a fire press edge in captured Modernized gameplay.
 void weapon_feel_press() {if(weapon_feel_retro())feel_press_serial.fetch_add(1);}
 // D08J8: a sidearm drawn by held fire inside a climb (climb_fire.inc) gets
@@ -143,7 +228,7 @@ static void weapon_feel_draw_press() {
 // Input thread: hold the fire pad while a press is unseen by the game or latched.
 bool weapon_feel_latched_fire() {
     const uint64_t serial=feel_press_serial.load();
-    return weapon_feel_retro() && (serial!=feel_press_seen.load() || feel_updates.load()<feel_latch_until.load());
+    return weapon_feel_retro() && (serial!=feel_press_seen.load() || feel_updates.load()<feel_latch_until.load() || feel_stream_hold.load());
 }
 // Gun call 0x8003c500 for the player (weapon_aim.cpp), in any aim mode.
 void weapon_feel_shot() {
@@ -203,20 +288,65 @@ static void weapon_feel_bump(CPUState* cpu) {
 static void weapon_feel_update(bool fire_held) {
     const uint64_t updates=feel_updates.fetch_add(1)+1;
     weapon_feel_cpu(updates,fire_held);
+    // D10H9 lab: one line per player update (diagnostic, never set by run.py).
+    static const bool trace=[]{const char* v=std::getenv("DNTTK_FEEL_TRACE");return v && !std::strcmp(v,"1");}();
+    if(trace && player_identity_ready())
+        std::fprintf(stderr,"ttk-feel-upd n=%llu held=%d armed=%u weapon=%u lower=%u upper=%u key=%u left=%d end=%u hold=%d charge=%d flags=%08x clock=%u\n",
+            (unsigned long long)updates,(int)fire_held,psx_mod_read_byte(player+0x3b8),psx_mod_read_byte(player+0x3b9),
+            psx_mod_read_half(player+0x60),psx_mod_read_half(player+0x74),psx_mod_read_half(player+0x7a),(int16_t)psx_mod_read_half(player+0x76),
+            psx_mod_read_half(player+0x78),(int16_t)psx_mod_read_half(player+0x23a),(int)psx_mod_read_word(player+0x81c),
+            psx_mod_read_word(player+0x224),psx_mod_read_word(0x800d21fc));
     const uint64_t serial=feel_press_serial.load();
     if(serial!=feel_press_seen.load()) {
         feel_press_seen.store(serial);++feel_presses;
         if(weapon_feel_armed()) {
             feel_latch_until.store(updates+2);++feel_latches;
             feel_pending=true;feel_pending_updates=0;
+        } else if(weapon_feel_stream_armed()) { // D10H9
+            feel_stream_hold.store(true);feel_stream_pending=true;feel_stream_updates=feel_stream_after=0;
+            ++feel_stream_presses;++feel_latches;
+            // Gun already up (the ready hold): precharge the ramp as the raise
+            // does, so this update's ramp step reaches full.
+            const unsigned weapon=psx_mod_read_byte(player+0x3b9);
+            if(psx_mod_read_half(player+0x74)==23 && (weapon==9 || weapon==27) && !psx_mod_read_word(player+0x81c) &&
+               !(psx_mod_read_word(player+0x224)&0x800) && weapon_feel_env_int("DNTTK_WEAPON_FEEL_IGNITION",1,0,1))
+                {psx_mod_write_word(player+0x81c,68);++feel_ramp_cuts;}
         }
     }
+    weapon_feel_stream_update(fire_held || feel_stream_hold.load());
     // A press the original refuses (pump, reload, a hit reaction, a switch)
     // stops waiting after about a second of game updates.
     if(feel_pending && (!weapon_feel_armed() || ++feel_pending_updates>30)) {feel_pending=false;++feel_expired;}
 }
 // Upper track (0x80059db0 from 0x8005a5a8): this update's delta (unchanged when none).
 static int weapon_feel_delta(unsigned upper,int delta,bool fire_held) {
+    if(feel_stream_pending && upper==24 && weapon_feel_stream_armed() &&
+       (movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready())) {
+        // D10H9: the raise runs out and carries into 23; a lowering runs
+        // out so the original's next update starts the raise.
+        FeelLoop raise;
+        const int scaled=(int)std::lround(delta*weapon_feel_factor("DNTTK_WEAPON_FEEL_RAISE",4));
+        if(!weapon_feel_keys(24,raise))return scaled;
+        int rest=-1;
+        if(feel_raise_forward)rest=weapon_feel_rest(raise);
+        else {
+            const int active=(int16_t)psx_mod_read_half(player+0x7a)-raise.first,left=(int16_t)psx_mod_read_half(player+0x76);
+            if(active>=0 && active<raise.count && left>=0 && left<=raise.duration[active]) {
+                rest=left;
+                for(int i=0;i<active;++i)rest+=raise.duration[i];
+                feel_raise_turned=true;
+            }
+        }
+        if(rest<0)return scaled;
+        ++feel_stream_raises;
+        // The Flamethrower's ramp starts in the 23 handler's update, after
+        // this call: precharged, its first step reaches full.
+        const unsigned weapon=psx_mod_read_byte(player+0x3b9);
+        if(feel_raise_forward && (weapon==9 || weapon==27) && !psx_mod_read_word(player+0x81c) &&
+           !(psx_mod_read_word(player+0x224)&0x800) && weapon_feel_env_int("DNTTK_WEAPON_FEEL_IGNITION",1,0,1))
+            {psx_mod_write_word(player+0x81c,68);++feel_ramp_cuts;}
+        return std::max(scaled,rest+1);
+    }
     if(!weapon_feel_armed())return delta;
     if(!(movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready() || climb_shot_ready()))return delta;
     const unsigned weapon=psx_mod_read_byte(player+0x3b9);
@@ -351,11 +481,13 @@ static const char* trav_drive_debug_json() {
     return buffer;
 }
 static const char* weapon_feel_debug_json() {
-    static char buffer[480];
-    std::snprintf(buffer,sizeof buffer,"{\"profile\":\"%s\",\"presses\":%llu,\"latches\":%llu,\"shots\":%llu,\"boosted_shots\":%llu,\"boost_updates\":%llu,\"expired\":%llu,\"pending\":%s,\"latched\":%s,\"cadence_updates\":%llu,\"last_gap\":%u,\"cpu_boost\":%s,\"cpu_boost_updates\":%llu,\"bumps_stopped\":%llu}",
+    static char buffer[768];
+    std::snprintf(buffer,sizeof buffer,"{\"profile\":\"%s\",\"presses\":%llu,\"latches\":%llu,\"shots\":%llu,\"boosted_shots\":%llu,\"boost_updates\":%llu,\"expired\":%llu,\"pending\":%s,\"latched\":%s,\"cadence_updates\":%llu,\"last_gap\":%u,\"cpu_boost\":%s,\"cpu_boost_updates\":%llu,\"bumps_stopped\":%llu,\"stream\":{\"presses\":%llu,\"started\":%llu,\"expired\":%llu,\"raises\":%llu,\"ready_holds\":%llu,\"ramp_cuts\":%llu,\"pending\":%s}}",
         weapon_feel_retro()?"retro":"modern",(unsigned long long)feel_presses,(unsigned long long)feel_latches,(unsigned long long)feel_shots,
         (unsigned long long)feel_boosted_shots,(unsigned long long)feel_boost_updates,(unsigned long long)feel_expired,
         feel_pending?"true":"false",weapon_feel_latched_fire()?"true":"false",(unsigned long long)feel_cadence_updates,feel_last_gap,
-        feel_cpu_on?"true":"false",(unsigned long long)feel_cpu_updates,(unsigned long long)feel_bumps_stopped);
+        feel_cpu_on?"true":"false",(unsigned long long)feel_cpu_updates,(unsigned long long)feel_bumps_stopped,
+        (unsigned long long)feel_stream_presses,(unsigned long long)feel_stream_started,(unsigned long long)feel_stream_expired,
+        (unsigned long long)feel_stream_raises,(unsigned long long)feel_ready_holds,(unsigned long long)feel_ramp_cuts,feel_stream_pending?"true":"false");
     return buffer;
 }

@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-11-09 - D10H9 press to fire on the energy weapon and flamethrower (Done)
+
+User chose proposals 1-3. WEAPON FEEL RETRO now latches the click, runs the
+raise out on the next update, keeps the gun up 1 s after a release (the
+original's own `+0x23a` timer) and cuts the Flamethrower's ignition to one
+update. Lab, first person, 180 Hz: Energy Weapon about 82 ms from rest (was
+289-350) and about 48 after a release (was about 460); Flamethrower 83-130
+(was 430-457) and 48-84 (was about 595). Every 60 ms click fires (was none).
+MODERN and Vanilla are unchanged. [Note 425](425-d10h9-stream-weapon-press.md).
+User-accepted: "this one is fully accepted. great work". New job D41J: the
+upgraded flamethrower glows blue but its dynamic light stays the regular warm
+fire colour.
+
+## 2026-11-08 - D10H9 press to fire on the energy weapon and flamethrower (In progress, measured)
+
+Measured, no gameplay change yet. Press to the first round, first person,
+180 Hz: flamethrower 430-457 ms from rest and about 595 ms just after a
+release; energy weapon 289-350 and about 460 (EDuke32 freezer 81, pistol 58).
+Where the time goes: the shotgun's raise (about 265 ms) after two updates, a
+3-update invisible ignition ramp on the flamethrower, and a lowering that
+starts at release and must finish before a new raise. Clicks of 60 and 150 ms
+fire nothing. Four proposals await the user's choice
+([note 425](425-d10h9-stream-weapon-press.md)). Diagnostic trace
+`DNTTK_FEEL_TRACE=1` added.
+
 ## 2026-11-08 - D49B launched rounds leave the gun (Done, no code change)
 
 D49B was scoped to draw new fireballs, rockets and other launched rounds

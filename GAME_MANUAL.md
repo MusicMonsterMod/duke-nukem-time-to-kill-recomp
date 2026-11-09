@@ -2448,7 +2448,7 @@ always uses the original. The launcher accepts
 `--third-person-kick quick|original` (saves the preference); terminal
 `--settings` uses **Q Third-person kick**.
 
-### Weapon feel (D10H4, D10H6)
+### Weapon feel (D10H4, D10H6, D10H9)
 
 **OPTIONS > ADVANCED > COMBAT > WEAPON FEEL** chooses how the guns with a Duke
 Nukem 3D counterpart answer the fire button: the Desert Eagle (key 2), Combat
@@ -2470,12 +2470,23 @@ Shotgun (3), Gatling Gun (4), RPG (5) and Freezer (0).
     longer stumbles and lowers the gun, so you keep firing.
   - In water the game itself slows down while you fire, so held shots there
     can come a little early or late (the average rate holds).
+  - **Energy Weapon (key 7) and Flamethrower (key 8):** every click fires too.
+    The gun comes up at once and the beam starts on the game's next update
+    (about 50-100 ms instead of about 300). The Flamethrower ignites in one
+    update instead of three, so its first fireball comes after about
+    80-140 ms instead of about 450. After you let go, the gun stays up for a
+    second, so a click in that time fires within about 50 ms (Energy Weapon)
+    or 50-85 ms (Flamethrower); before, the gun lowered at once and a click
+    waited for it to lower and come back up (about 450-600 ms). Their held
+    stream is unchanged.
 - **MODERN** keeps the original timing: the original raise speed and fire
   rates (with their uneven spacing), and a tap shorter than one game update
-  may not fire.
+  may not fire. On the Energy Weapon and Flamethrower a click shorter than
+  their raise (about 300 / 450 ms) fires nothing.
 
-Ammo, damage and spread are unchanged, and so are the Crossbow, Buffalo Rifle,
-Flamethrower, Energy Weapon and the throwables. Vanilla always uses the original
+Ammo, damage and spread are unchanged, and so are the Energy Weapon's lock and
+reach and the Flamethrower's fireballs. The Crossbow, Buffalo Rifle and the
+throwables keep their original timing. Vanilla always uses the original
 timing. The launcher accepts `--weapon-feel retro|modern` (saves the
 preference); terminal `--settings` uses **H Weapon feel**. A profile saved by
 the first build (which called RETRO "EDUKE32") keeps the choice under the new

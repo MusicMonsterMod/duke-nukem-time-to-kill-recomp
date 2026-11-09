@@ -505,3 +505,24 @@ lights are right too".
 - **Accepted.** User: "this current job at hand is fully accepted". The first-person nozzle pilot flame of the
   HiTemp is drawn orange by the game itself (not a light); unchanged.
 
+## 13. D41J1 - Laser Gatling light reads red (accepted and closed 2026-11-09)
+
+User: "the laser gatling gun i think reads more white in hts projectile
+lighting ... can we give more of a red tone".
+
+- **Cause.** One type 27 light was the sampled red-pink; the shader adds it
+  correctly (a pure red console test light adds about 44 red, 1.5 green).
+  The Laser Gatling's fire rate overlaps several muzzle flashes and bolt
+  glows near the gun; the soft shoulder caps red near 1.1 while green and
+  blue grow linearly, so the stack turned pale pink-white, and the blue-grey
+  street added lavender.
+- **Values.** Type 27 muzzle 1.25 0.05 0.02 (3000, 2 tics), spark 1.30 0.07
+  0.03 (1300, 2 tics), in flight 1.05 0.04 0.02 (1500). Keeping some green
+  and blue (0.12-0.14, 0.05-0.08) still stacked to salmon in first person.
+- **Rule for coloured lights that fire fast.** Keep the off channels near
+  zero; the shoulder means a stack saturates the main channel and then only
+  the others can grow.
+- **Evidence.** `recomp/analysis/d41j/lab.py shots` and `probe`, 180 Hz first
+  person and 60 Hz third person, before/after in
+  `research/before-after/d41j1/` (local).
+- **Accepted.** User: "lock it in and close it out".

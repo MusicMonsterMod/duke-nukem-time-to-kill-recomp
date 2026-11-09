@@ -23,7 +23,7 @@
 // - D41I fire: flames in flight from the flamethrowers and burning objects
 //   (enemies, Duke; flag word bit 0x800) as flickering fire lights.
 // - D41J upgrades: the HiTemp Flamethrower's flames and hand flash light
-//   blue and the Laser Gatling's bolts red-pink, as they are drawn.
+//   blue and the Laser Gatling's bolts red (D41J1).
 // - D41D level lamps (level_lights.inc): placed lights per level.
 // - console "light": a test light at Duke ("light", "light <r> <g> <b>
 //   [radius]", "light off").
@@ -107,10 +107,14 @@ static constexpr ShotLight shot_lights[]={
     {8,{1.00f,0.62f,0.30f},4800,4,{0,0,0},0,0,{0.95f,0.55f,0.22f},2800},          // RPG rocket (its blast lights the hit)
     {13,{0.55f,0.50f,1.25f},3000,3,{0.60f,0.60f,1.30f},1900,4,{0.50f,0.45f,1.15f},1800}, // freezer: violet-blue, as its shots
     {15,{0.45f,1.15f,0.40f},3200,3,{0.50f,1.25f,0.45f},2300,4,{0.40f,1.05f,0.35f},2200}, // energy round: green, as the weapon's own glow
-    // D41J: the Laser Gatling (record 28) launches type 27, red-pink laser
-    // bolts (sampled 1.00 0.18 0.41 from the drawn bolts): the Gatling's
-    // flash and spark sizes in the bolts' colour, and each bolt glows.
-    {27,{1.20f,0.26f,0.52f},3000,2,{1.25f,0.32f,0.56f},1300,2,{1.05f,0.22f,0.45f},1500},
+    // D41J: the Laser Gatling (record 28) launches type 27, red laser bolts:
+    // the Gatling's flash and spark sizes, and each bolt glows. D41J1: the
+    // sampled red-pink (1.00 0.18 0.41) read pale pink-white in play. Its
+    // fast fire stacks several flashes and bolt glows near the muzzle; red
+    // tops out in the shader's soft shoulder while green and blue keep
+    // climbing, and the blue-grey street adds blue. Near-pure red keeps the
+    // stack red (a single light was already right), as the freezer is blue.
+    {27,{1.25f,0.05f,0.02f},3000,2,{1.30f,0.07f,0.03f},1300,2,{1.05f,0.04f,0.02f},1500},
     // D41I enemy guns (lab census, note 413 section 11): the type each enemy
     // launches. Rounds without a coloured effect of their own take the warm
     // gun flash, sized by the gun; the gunship's bolts (31, the freezer's

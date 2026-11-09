@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-11-09 - D41J1 accepted and closed
+
+User: "lock it in and close it out". D41J1 is Done: the Laser Gatling's
+muzzle, spark and bolt lights are near-pure red and stay red when its fast
+fire stacks them.
+
+## 2026-11-09 - D41J1 Laser Gatling light reads red (Needs playtest)
+
+User: the Laser Gatling's projectile lighting "reads more white"; give it a
+red tone like the freezer's blue and the energy weapon's green. Cause: its
+fast fire stacks lights near the gun; red tops out in the shader's soft
+shoulder while the pink's green and blue kept climbing, so the floor went
+pale pink-white. Type 27 muzzle, spark and bolt glow are now near-pure red
+(same sizes and lives); floor, pole and walls in front of the gun light deep
+red at 180 Hz first person and in third person. `ttk-aim-test` fails on the
+committed source too (not this job). [Note 413](413-d41-lighting-case-study.md)
+section 13.
+
 ## 2026-11-09 - D08A42 Laser Gatling icon: A in rich red (Done)
 
 User: switch the Laser Gatling ammo icon to option A and rework A from pink to

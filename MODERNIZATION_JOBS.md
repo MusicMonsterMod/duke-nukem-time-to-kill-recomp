@@ -7728,6 +7728,44 @@ Laser Gatling lights pink; regular weapons and burns unchanged.
 `ttk-input-test`, `ttk-aim-test` pass. [Note 413](documentation/413-d41-lighting-case-study.md)
 section 12. Needs the user's playtest (`dnupgrade` upgrades both).
 
+### D41J1 - Laser Gatling light reads red
+
+**Status: Done (user-accepted 2026-11-09: "lock it in and close it out"; user, 2026-11-09: "the laser gatling gun i think reads more white in hts projectile lighting. the same way we gave the energy weapon green and the freeze thrower blue light, can we give more of a red tone to the laser gatling gun's lighting"). Dependencies: D41J.**
+D41J gave the Laser Gatling's projectile type 27 a red-pink muzzle flash,
+wall spark and glow in flight (`recomp/src/ttk/dynamic_lights.inc`
+`shot_lights`), sampled from the drawn bolts. In play the light reads
+whitish: the pink keeps a strong blue part, the street's blue-grey base
+adds to it, and the fast fire stacks lights into the shader's soft shoulder,
+where red tops out first and green and blue catch up. Give type 27 a clear
+red light that reads as red the way the freezer reads blue and the energy
+weapon green, same sizes, lives and cost. Regular Gatling, other weapons and
+Vanilla unchanged. Test: matched before/after stills of the Laser Gatling
+firing at a wall, third person 60 Hz and first person 180 Hz (`dnupgrade`).
+Acceptance: user playtest.
+
+**Work log (2026-11-09, Needs playtest).** Cause, measured: a single
+D41J light was red-pink as intended (console test light on the street: a
+pure red light adds only red), but the Laser Gatling fires fast, so two or
+three muzzle flashes and several bolt glows overlap near the gun. The
+Polymorph light sum's soft shoulder tops red out near 1.1 while green and
+blue keep climbing, so the D41J colour (blue 0.52, green 0.26) stacked toward
+pale pink-white on the floor in front of Duke; the blue-grey street pushed
+it toward lavender. Fix: `recomp/src/ttk/dynamic_lights.inc` `shot_lights`
+type 27 is near-pure red: muzzle 1.25 0.05 0.02, spark 1.30 0.07 0.03, in
+flight 1.05 0.04 0.02; sizes, lives and cost unchanged. A first try that kept
+some green and blue (1.30 0.12-0.14 0.05-0.08) still stacked to salmon. Lab
+`recomp/analysis/d41j/lab.py shots` (`UP=1 WANT=7`, `NSHOT` burst frames,
+`LIGHTSOFF=1` baseline) and `probe` (test-light colours), first person
+180 Hz and third person 60 Hz: the floor, pole and wall in front of the gun
+now light deep red; the game's own drawn muzzle sprite is unchanged.
+Before/after in `research/before-after/d41j1/` (local). Regular Gatling
+(type 7), other weapons and Vanilla untouched. `ttk-input-test` passes;
+`ttk-aim-test` fails its line 100 assertion on the committed source as well
+(not from this job). Executable
+`1c6addcdf5ba8f47b84704d7d6ce59f9bd6cd39e88c3968eb0d1e582c031b153`.
+[Note 413](documentation/413-d41-lighting-case-study.md) section 13. Needs
+the user's playtest (`dnupgrade`).
+
 ### D49E - Laser Gatling bolts leave from the true muzzle
 
 **Status: Done (user-accepted 2026-11-09: "lock it all in and close us out"; user, 2026-11-09, D41J acceptance: "the laser gatling gun appears to not shoot from the true muzzle like we've been working on, i'd like that to be tightened up and look better, synced properly with the laser gatling gun"). Dependencies: D10H8, D49B, D41J.**
@@ -9549,6 +9587,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
 | D41J | Upgraded weapon light colours: the HiTemp Flamethrower's blue flames (stream, hand flash, flames in flight, burns) and the Laser Gatling's laser shots take the regular weapons' warm light | Done (user-accepted 2026-11-09) | D41I |
+| D41J1 | Laser Gatling light reads red: its muzzle, spark and bolt lights wash to pale pink-white on the street; give them a clear red, as the freezer's blue and the energy weapon's green | Done (user-accepted 2026-11-09) | D41J |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |

@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-11-09 - D17BF accepted and closed
+
+User: "it's absolutely perfect!! i can see everything i want in the security
+cams", then "lock it in and close it out". D17BF is Done: spawn points past
+the live-enemy cap show their enemy asleep on monitors and in distant views,
+and the real enemy takes the copy's place when the game spawns it. The kill
+test in slot 2 exposed far enemies trading the last slot every 19 frames
+(hovering Necro); fixed and confirmed on the user's repeat. Hits waking
+copies continue as D17BF1.
+
+## 2026-11-09 - D17BF step 1: sleeping enemies drawn (Needs playtest)
+
+Plan approved ("yes proceed"). Spawn points past the live-enemy cap now show
+their enemy asleep (Modernized, Extended): a stand-in actor in mod memory,
+built by the game's own type setup and drawn by its actor renderer in the
+rooms the object pass draws, also in 120/180 Hz redraws. Slot 9: enemies on
+both monitor views where the original shows empty rooms; the real enemy
+takes the copy's place at its spot and facing when the game spawns it.
+Shots do not wake copies yet (step 2). [Note 431](documentation/431-d17bf-sleeping-enemies-report.md).
+
 ## 2026-11-09 - D52 accepted and closed
 
 User: "I can confirm the cams are now stable, and cams 2 and 3 show no

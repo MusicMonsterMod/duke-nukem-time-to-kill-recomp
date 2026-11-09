@@ -1,5 +1,25 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D17BF accepted and closed
+
+User: "it's absolutely perfect!! i can see everything i want in the security
+cams", then "lock it in and close it out". D17BF is Done: spawn points past
+the live-enemy cap show their enemy asleep on monitors and in distant views,
+and the real enemy takes the copy's place when the game spawns it. The kill
+test in slot 2 exposed far enemies trading the last slot every 19 frames
+(hovering Necro); fixed and confirmed on the user's repeat. Hits waking
+copies continue as D17BF1.
+
+## 2026-11-09 - D17BF step 1: sleeping enemies drawn (Needs playtest)
+
+Plan approved ("yes proceed"). Spawn points past the live-enemy cap now show
+their enemy asleep (Modernized, Extended): a stand-in actor in mod memory,
+built by the game's own type setup and drawn by its actor renderer in the
+rooms the object pass draws, also in 120/180 Hz redraws. Slot 9: enemies on
+both monitor views where the original shows empty rooms; the real enemy
+takes the copy's place at its spot and facing when the game spawns it.
+Shots do not wake copies yet (step 2). [Note 431](documentation/431-d17bf-sleeping-enemies-report.md).
+
 ## 2026-11-09 - Backlog intake: sleeping enemies (D17BF)
 
 From the D52 discussion. TTK only creates enemies near Duke (12 live in
@@ -8415,9 +8435,26 @@ as in the original. `ttk-near-test` and `ttk-aim-test` pass;
 `research/before-after/D52/enemy-flicker-*.png` (local). Remaining: user
 playtest.
 
+### D17BF1 - Sleeping enemies wake when hit
+
+**Status: Todo (split from D17BF at its closeout, 2026-11-09). Dependencies: D17BF (Done).**
+Steps 2-4 of the D17BF plan ([note 431](documentation/431-d17bf-sleeping-enemies-report.md)
+sections 5 and 7). A round, rocket, kick, beam lock or auto-aim that would
+hit a sleeping copy creates the real enemy at the copy (at the cap the
+farthest live enemy gives way, as the original rule does) and applies the
+hit through the game's own damage path, so it wakes for good. Rounds and
+rockets through the existing sweep hook `0x8006dd2c`; kick, beam lock and
+auto-aim host-side; then blasts (`0x800a9bf8`) and flames (`0x800a9ee0`),
+which need new entry hooks (check the codegen hash so savestates still
+load). Check first that host-called creation works where `spawn enemy 26`
+fails (level 0). Then review whether D17AQ's far dormant live enemies are
+still needed now that copies cover distant views. Modernized Extended only;
+Vanilla unchanged. Acceptance: a shot copy wakes as a real damaged enemy in
+slot 2 and slot 9, combat counts unchanged, user playtest.
+
 ### D17BF - Sleeping enemies: visible, not live, as in Duke 3D
 
-**Status: Todo (intake 2026-11-09, from D52). Dependencies: D17AQ, D17AZ, D52 (Done).**
+**Status: Done (user-accepted 2026-11-09: "it's absolutely perfect!! i can see everything i want in the security cams"; closeout authorized 2026-11-09: "lock it in and close it out"; [note 431](documentation/431-d17bf-sleeping-enemies-report.md)). Delivered: sleeping copies drawn (step 1) and the slot churn fix. Hits waking copies, blasts/flames and the D17AQ review moved to D17BF1.** Dependencies: D17AQ, D17AZ, D52 (Done).**
 TTK creates spawn-point enemies only near Duke, up to a per-level cap of
 live enemies (`0x800c56a8`, 12 in level 0); every other spawn point is a
 stored position (`*0x800de720`, 48-byte records: +0 type, +4 live actor, +8
@@ -8458,6 +8495,53 @@ D10H3 and D49). Then a prototype on the slot 9 monitors (UI slot 9, file 8,
 private copies only). Acceptance: enemies visible asleep on monitors 2 and
 3 and in a distant view, no pop on handover, a shot copy wakes as a real
 damaged enemy, combat counts unchanged, Vanilla unchanged, user playtest.
+
+**Work log (2026-11-09, report).** [Note 431](documentation/431-d17bf-sleeping-enemies-report.md).
+No game code changed. Slot 9 (private copy, level 0): 71 rows, 12 live
+(cap 12), 25 eligible for a copy (`flags & 0x17 == 0`), 15 dead (0x4,
+carried from the actor, inferred), 18 disabled (0x10). The actor renderer
+`0x80032e78` reads no lists and rebuilds the joints each call from the
+skeleton at +0x40, so a stand-in actor in mod memory can be drawn the D17AZ
+way (CPU copy, render state saved); pose from the type's skeleton template
+or, if that is a bind pose, a captured idle pose. Rows carry facing (+0x18
+quaternion). TTK rounds are projectiles: the existing sweep hook
+`0x8006dd2c` can wake copies for rounds and rockets; blasts (`0x800a9bf8`)
+and flames (`0x800a9ee0`) need new entry hooks; beam lock, auto-aim and kick
+are host-side. Found: `spawn enemy 26` fails in level 0 (also without
+D17AQ). Next: user approves the plan (render-only prototype first).
+
+**Work log (2026-11-09, step 1 drawing, Needs playtest).** User: "yes
+proceed". New `recomp/src/ttk/sleeping_enemies.inc` ([note 431](documentation/431-d17bf-sleeping-enemies-report.md)
+section 8), Modernized Extended only; no new hook, no regenerated code.
+Up to 48 nearest eligible rows get a stand-in actor in mod memory, built by
+the creation's own type setup `0x80095504` (flag 0x10 during the call, no
+list entry), placed at the row or its position slot, facing from the row,
+resting height learned per type from live enemies; listed in a mod-memory
+table the redraw workers also see; drawn by `0x80032e78` at the object pass
+in the pass's rooms and host-shown rooms, nearest 16 a frame. Slot 9: copies
+on both monitor views (empty with `DNTTK_SLEEPING_ENEMIES=0`), steady in a
+180 Hz burst; slot 2: 20 handovers at the copy's x/z and facing, height 0
+(type 57) / 17 (Necro) off; about 0.45 ms per visible copy, fields 60/s
+unchanged; Vanilla builds nothing. `ttk-near-test`, `ttk-aim-test`,
+`ttk-input-test` pass; `ttk-controls-test` link failure predates this.
+Manual updated. Remaining: hits waking copies (step 2), blasts and flames
+(step 3), D17AQ review (step 4), distant view seen on screen, user playtest.
+
+**User playtest (2026-11-09).** "it's absolutely perfect!! i can see
+everything i want in the security cams." Slot 2, watched read-only on the
+debug port: the distant static Necro the user saw was a live D17AQ dormant
+enemy (row 0, 32539 away), not a copy; two rockets took it 8000 to 1048
+(woke, `woken` 1) to 111, then dead. After the kill the D52 tie rule let a
+hovering Necro (row 28) and a type 57 (row 38) trade the last slot every 19
+frames: actor positions were compared with row positions, and the Necro
+hovers about 1100 above its row. Fix (`enemy_reach.inc`): the enemy that
+would give way counts at the nearer of where it stands and its row's place,
+so a replacement can never be reversed. Offscreen slots 2 and 9: 0 spawner
+changes in 6 s windows, live 12 of cap 12. User repeated the kill on the
+new build (watched read-only): rockets 8000 to 1154, dead at frame 2642;
+the freed slot went to row 18, then nearer rows 23 and 29 within 10 frames
+(each replacement brings a nearer enemy), then no change for the remaining
+975 frames until the user closed the game (before: a swap every 19 frames).
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -9671,7 +9755,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17BC | Classic: lightweight visibility (over-the-walls region rule from D17BB, slot-10 moat; other Classic reductions) | Done (user-accepted 2026-11-03; note 372) | D17BB, D40 |
 | D17BD | PIG FACTORY water does not cover the whole area: its texture is missing over part of it (UI slot 10) | Done (user-accepted 2026-11-06; Modernized draws all four missing pool surfaces; note 401) | - |
 | D17BE | TIME TO KILL street car: a small sliver near the rear left wheel disappears (UI slot 10) | Done (user-accepted 2026-11-06; folded prop quads draw their front half; note 404) | - |
-| D17BF | Sleeping enemies: spawn-point enemies drawn asleep where none is live (monitors, distant views); a hit creates the real enemy | Todo | D17AQ, D17AZ, D52 |
+| D17BF | Sleeping enemies: spawn-point enemies drawn asleep where none is live (monitors, distant views); a hit creates the real enemy | Done | D17AQ, D17AZ, D52 |
+| D17BF1 | Sleeping enemies wake when hit: rounds, rockets, kick, beam lock, auto-aim, then blasts and flames; review D17AQ far live enemies | Todo | D17BF |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

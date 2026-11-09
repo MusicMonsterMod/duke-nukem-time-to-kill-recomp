@@ -1232,6 +1232,7 @@ static bool facing_ready() {
 #include "muzzle_settle.inc"
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
+#include "sleeping_enemies.inc"
 #include "spawn.inc"
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
@@ -2623,7 +2624,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D17AQ dormant enemies: spawner range, spawner tick, actor prep, the empty
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);ttk::sleeping_update(cpu);});
     // D41B: every round's launch and impact (shot lights).
     psx_mod_register_function_entry_plugin("ttk.lights",0x800718ac,[](CPUState* cpu,uint32_t){ttk::lights_launch(cpu);});
     psx_mod_register_function_entry_plugin("ttk.lights",0x8006f1b8,[](CPUState* cpu,uint32_t){ttk::lights_impact(cpu);});
@@ -2640,7 +2641,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::lights_shake(cpu);ttk::earthquake_native_shake(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);ttk::sleeping_draw(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006cefc,[](CPUState*,uint32_t){ttk::reach_restore();});
     // D08O2A: a shared matrix routine; its own hook keeps the per-joint cost to a few compares.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);ttk::climb_aim_arm(cpu);});

@@ -48,7 +48,9 @@
 //   the cap full a spawner now counts as in reach only if the enemy that
 //   replacement would remove (worked out here with the original's saturated
 //   distances) is farther from Duke than the spawner by exact distance, so
-//   every replacement brings a nearer enemy in and none can repeat.
+//   every replacement brings a nearer enemy in and none can repeat. D17BF:
+//   the victim is measured at the nearer of its position and its row's, as a
+//   hovering Necro and a ground enemy otherwise traded the last slot forever.
 // Developer: DNTTK_ENEMY_REACH=0 keeps the original spawner range.
 static const DistanceGuard reach_guards[]={
     {0x80099164,0x58,"66356f6fc46dbb1e47c505564f0f50d792c179430bb225a19fd595b73bb5e9c9"},
@@ -120,7 +122,15 @@ static void reach_range(CPUState* cpu) {
     bool in=reach_distance2(duke,record+8)<=reach*reach;
     if(in && spawn && (int32_t)psx_mod_read_word(0x800c56a4)>=(int32_t)psx_mod_read_word(0x800c56a8)) {
         const uint32_t victim=reach_victim(duke,record);
-        if(victim && victim!=record && reach_distance2(duke,psx_mod_read_word(victim+4)+4)<=reach_distance2(duke,record+8)) {in=false;++reach_churn;}
+        // D17BF: the victim counts at the nearer of where it stands and where
+        // its row places it. Actor positions alone swapped a hovering Necro
+        // (about 1100 above its row) and a settled ground enemy back and forth
+        // every 19 frames; with the nearer of the two a replacement can never
+        // be undone by the reverse one.
+        if(victim && victim!=record) {
+            const double stand=reach_distance2(duke,psx_mod_read_word(victim+4)+4),placed=reach_distance2(duke,victim+8);
+            if(std::min(stand,placed)<=reach_distance2(duke,record+8)) {in=false;++reach_churn;}
+        }
     }
     if(in) cpu->gpr[4]=record+8;
     else {
@@ -192,13 +202,14 @@ static void reach_release(CPUState* cpu) {
         return;
     }
 }
+static const char* sleeping_debug_json();
 static const char* enemy_reach_debug_json() {
-    static char buffer[384];
+    static char buffer[768];
     unsigned dormant=0;for(const auto& a:reach_actors) dormant+=a.dormant;
     std::snprintf(buffer,sizeof buffer,"{\"spawn_in\":%llu,\"spawn_out\":%llu,\"kept\":%llu,\"removed\":%llu,\"refusals\":%llu,"
-        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"churn\":%llu,\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u}",
+        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"churn\":%llu,\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u,\"sleeping\":%s}",
         (unsigned long long)reach_spawn_in,(unsigned long long)reach_spawn_out,(unsigned long long)reach_kept,
         (unsigned long long)reach_removed,(unsigned long long)reach_refusals,(unsigned long long)reach_held,
-        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned long long)reach_churn,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8));
+        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned long long)reach_churn,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8),sleeping_debug_json());
     return buffer;
 }

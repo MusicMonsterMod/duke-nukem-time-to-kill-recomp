@@ -315,6 +315,11 @@ original range, or until you hurt it (a shot, a kick or a blast wakes it for
 good). Near you the game plays as the original: the same enemies, the same
 limit on how many are alive at once.
 
+Past that limit of live enemies, every other enemy the level places is shown
+asleep where it waits: standing still, not yet in play, on security monitors
+and in distant views alike. When the game brings that enemy into play it takes
+the sleeping one's place. Shooting a sleeping enemy does not wake it yet.
+
 `original` keeps the original limits and behavior. Choose **D** in
 `--settings` or `--draw-distance original|extended`; it applies on the next
 launch and saves your preference. Vanilla always uses the original. A very

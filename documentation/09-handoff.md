@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-11-09 - D08A41 accepted and closed
+
+User: "much smoother. great work! lock it in and close it out". D08A41 is
+Done: the level 0 atomic health sits out of its corner in Modernized and is
+picked up by walking into it; Vanilla keeps the original spot.
+
+## 2026-11-09 - D08A41 atomic health out of its corner (Done)
+
+The level 0 atomic health in the stone room corner (user's UI slot 8) was hard
+to pick up: the walls keep Duke's centre about 100 and 170-220 units off it,
+inside a 256 reach, leaving a 150 x 85 unit pocket. Modernized moves it +128 X,
+-160 Z (`pickup_nudge.inc`, also in existing saves); Vanilla keeps it.
+Private slot 8 copy: walk-ins 5 of 5 and faster, corner slides 3 of 3 (was 2
+of 3). [Note 427](427-d08a41-atomic-health-corner.md).
+
 ## 2026-11-09 - D49F accepted and closed
 
 User: "lock it in and close it out". D49F is Done: first-person Laser

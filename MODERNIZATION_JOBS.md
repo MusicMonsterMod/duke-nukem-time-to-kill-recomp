@@ -1,5 +1,33 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-09 - D08A41 accepted and closed
+
+User: "much smoother. great work! lock it in and close it out". D08A41 is
+Done: the level 0 atomic health sits out of its corner in Modernized and is
+picked up by walking into it; Vanilla keeps the original spot.
+
+## 2026-11-09 - D08A41 atomic health out of its corner (Done)
+
+User, after the job was started: "i really dont mind if you just bring the
+atomic health forward!" Done that way. Cause: the pickup loop needs Duke's
+centre within 256 of the item on X and Z, and the walls stop him about 100
+and 170-220 units off it, leaving a pocket of about 150 x 85 units; corner
+wall slides could miss it. The level 0 atomic health (type 581, at -2907,
+19306) is moved +128 X, -160 Z in Modernized (`pickup_nudge.inc`), also in
+existing saves; Vanilla keeps it. Private slot 8 copy: walk-ins 5 of 5 (152
+to 170 frames, was 171 to 203 at the edge of reach); corner slides 3 of 3
+(was 2 of 3). [Note 427](documentation/427-d08a41-atomic-health-corner.md).
+
+## 2026-11-09 - D08A41 added (easy walk-over pickups; In progress)
+
+User, UI slot 8: "the hitbox for this atomic health means it's difficult to
+pick up. i think the original devs put it slightly too far into the corner
+... you can test by simply walking into the atomic health and duke wont
+always pick it up ... should be very simple to pick up this item. stand up a
+new job and get to work on it." Logged as D08A41 and started. Acceptance:
+walking into the slot 8 atomic health picks it up every time, through a
+game-wide rule (not a per-item move); Vanilla unchanged.
+
 ## 2026-11-09 - D49F accepted and closed
 
 User: "lock it in and close it out". D49F is Done: first-person Laser
@@ -9544,6 +9572,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
 | D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Done (user-accepted 2026-11-08) | - |
 | D08A40 | Laser Gatling ammo icon (still shows the Gatling's ammunition belt; review on the ammo icon artifact) | Done (user-accepted 2026-11-09) | D08A32, D08A38 |
+| D08A41 | Easy walk-over pickups: the UI slot 8 atomic health in a corner is often not picked up when Duke walks into it | Done (user-accepted 2026-11-09; note 427) | D26H |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

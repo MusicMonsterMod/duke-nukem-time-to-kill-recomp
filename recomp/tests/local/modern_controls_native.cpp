@@ -301,6 +301,7 @@ extern "C" void gl_renderer_replay_diag(uint64_t* p,uint64_t* r,uint64_t* m,doub
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
 namespace ttk {void replay_beam_roots(){}} // D49: late first-person redraws only
+namespace ttk {bool aim_bolt_launch_enabled(){return false;}} // D49F: test stub
 namespace ttk {void replay_body_camera(bool){}void replay_quake_camera(bool){}void replay_quake_restore(){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only
 // D17AY: a redraw's in-between object poses (frame_replay.cpp); empty = a live draw.
 struct TestDrawPose {uint32_t obj; double pos[3]; double yaw;};

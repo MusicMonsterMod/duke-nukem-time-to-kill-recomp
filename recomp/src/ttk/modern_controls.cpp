@@ -1225,6 +1225,7 @@ static bool facing_ready() {
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
 #include "spawn.inc"
+#include "pickup_nudge.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;
@@ -1557,6 +1558,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             weapon_update_sp=sp;weapon_transition_boost=false;quick_takeoff_boost=false;
             cheats_update(cpu);
             spawn_update(cpu);
+            pickup_nudge_update(cpu); // D08A41
             steroids_beat(cpu); // D08A10
             console_idle_hold(); // D26K
             weapon_feel_update(f.held[fire] && !switch_fire_masked()); // D10H4

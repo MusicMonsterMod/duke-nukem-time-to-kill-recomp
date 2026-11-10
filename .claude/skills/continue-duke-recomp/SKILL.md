@@ -24,6 +24,7 @@ When the selection above is empty:
 
 - Present the current job IDs, short names and statuses, grouped by domain. Include all unfinished jobs; summarize completed and cancelled jobs separately.
 - Layout (user preference, 2026-10-20): one `###` heading per domain, then one bullet per job, `- **ID** - short name`, with any non-Todo status or blocking dependency in brackets after the name, e.g. `(**Blocked**)` or `(waits on D21)`. No tables and no several jobs crammed onto one line. After the unfinished jobs, a short `## Finished` section (Done count with recent IDs, Accepted-not-closed count, Cancelled IDs), then `## Suggested starting points` with two or three short bullets, then the question.
+- Jobs marked **Monitoring** wait on a user report (for example D07H, the red dot). List them with `(**Monitoring** - waits for your report)`, never suggest them as starting points, and do not investigate, build or test them until the user reports a recurrence or selects them with new evidence.
 - Identify ready jobs from their dependencies and suggest a useful starting point. Explain any existing In progress job or blocker.
 - Ask which job the user wants to work on and **wait for their choice**. End the turn there. Listing jobs does not authorize starting one. Do not edit files, build, launch the game or mark a job In progress just to show the list.
 
@@ -44,7 +45,7 @@ To test, set up the scenario directly instead of hunting for it in saves (user, 
 
 Test according to the selected acceptance criteria and regression risk. Distinguish build/test results, observed gameplay and user reports. The earlier security-card freeze did not reproduce on the user's successful retest; do not claim its exact cause was established. A linked executable or first-level pass does not establish full campaign fidelity.
 
-Update the board and append a work-log entry with implementation, evidence and remaining limitations. Use Needs playtest when required gameplay acceptance remains unverified, Blocked with a concrete reason when appropriate, and Done only when the job's actual criteria are met. Update status/handoff and focused engineering notes as needed; update `GAME_MANUAL.md` when player-facing behavior or controls change.
+Update the board and append a work-log entry with implementation, evidence and remaining limitations. Use Needs playtest when required gameplay acceptance remains unverified, Monitoring when a job stays open only to catch a recurrence, Blocked with a concrete reason when appropriate, and Done only when the job's actual criteria are met. Update status/handoff and focused engineering notes as needed; update `GAME_MANUAL.md` when player-facing behavior or controls change.
 
 Write with ASCII hyphen-minus `-` only; never U+2014 or U+2013.
 

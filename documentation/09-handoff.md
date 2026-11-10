@@ -1,5 +1,16 @@
 # Next-session handoff
 
+## 2026-11-10 - D07H: red dot leak diagnostic (Monitoring)
+
+Live report: with RED DOT off the original dot showed on the 180 Hz redraws
+(weapon 8, level-1 rooftop) while the game hid it every frame. The cause is not
+reproduced offscreen; a frozen worker identity verdict is refuted. The build now
+logs `[TTK red dot] off but drawn in game|redraw PID ...` with the reason when a
+dot gets through (silent otherwise). Next: when the dot reappears, read that line
+in `recomp/build-local/logs/session-*.log` and fix by its reason. Monitoring:
+not to be worked on until the user reports the dot again. See the D07H
+work log in MODERNIZATION_JOBS.md.
+
 ## 2026-11-10 - D41L accepted and closed
 
 User: "i cant believe how good it looks. i love the haze on the wood burner in front. the position is perfect, and so is the style. lock it in and close it out". D41L is Done. [Note 436](436-d41l-saloon-light.md).

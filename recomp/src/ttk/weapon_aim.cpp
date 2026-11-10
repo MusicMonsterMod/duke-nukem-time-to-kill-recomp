@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 #include <algorithm>
 extern "C" {extern int g_precise_mode,g_ls_mode,g_psx_call_bail;}
 namespace ttk {
@@ -400,16 +401,42 @@ static bool duke_aim(CPUState* cpu,const double* eye,const double* forward,const
     if(n)++duke_aim_misses;
     return false;
 }
+// D07H: a red dot that is off but still drawn is reported by the process
+// that drew it (the game or a redraw worker), with why it was not hidden.
+// Silent while every requested dot is hidden.
+namespace {
+enum MarkerLeak {leak_state,leak_stack,leak_return,leak_primitive,leak_code,leak_other_path,leak_kinds};
+unsigned marker_leaks[leak_kinds],marker_leak_total;uint32_t marker_leak_ra;
+void marker_leak(MarkerLeak kind,uint32_t ra) {
+    ++marker_leaks[kind];marker_leak_ra=ra;
+    if(marker_leak_total++%1800)return;
+    std::fprintf(stderr,"[TTK red dot] off but drawn in %s %d: %u times (state %u, stack %u, return %u, primitive %u, code %u, other path %u, last ra %08x); hidden %u\n",
+        psx_mod_replay_active()?"redraw":"game",(int)getpid(),marker_leak_total,marker_leaks[leak_state],marker_leaks[leak_stack],
+        marker_leaks[leak_return],marker_leaks[leak_primitive],marker_leaks[leak_code],marker_leaks[leak_other_path],marker_leak_ra,hidden_markers);
+}
+// The original marker quad: FT4, CLUT 0x6870, texture page 0x001f, first UV (c8,f8).
+bool marker_quad(uint32_t primitive) {
+    return primitive>=0x80010000 && primitive<=0x801fffd8 && !(primitive&3) && psx_mod_read_byte(primitive+3)==9 &&
+        (psx_mod_read_byte(primitive+7)&0xfc)==0x2c && psx_mod_read_word(primitive+12)==0x6870f8c8u &&
+        (psx_mod_read_word(primitive+20)>>16)==0x001fu;
+}
+bool red_dot_off() {const char* v=ttk_live_env("DNTTK_RED_DOT");return v && !std::strcmp(v,"0") && input_modernized();}
+}
 static void marker_hook(CPUState* cpu,uint32_t address) {
-    if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
-    const char* visible=ttk_live_env("DNTTK_RED_DOT");
-    if(!visible || std::strcmp(visible,"0") || !input_modernized() || g_ls_mode || g_psx_call_bail || busy)return;
-    const uint32_t sp=cpu->gpr[29],primitive=cpu->gpr[5];
-    if(sp<0x801f4000 || sp>0x801fffb0 || (sp&3) ||
-        psx_mod_read_word(sp+0x40)!=0x8003543c ||
-        cpu->gpr[4]!=0 || primitive!=cpu->gpr[16] || primitive<0x80010000 || primitive>0x801fffd8 ||
+    if(address!=0x8002bc18)return;
+    if(cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player) {
+        if(marker_quad(cpu->gpr[5]) && red_dot_off())marker_leak(leak_other_path,cpu->gpr[31]);
+        return;
+    }
+    if(!red_dot_off())return;
+    const uint32_t sp=cpu->gpr[29],primitive=cpu->gpr[5],ra=cpu->gpr[31];
+    if(g_ls_mode || g_psx_call_bail || busy) {marker_leak(leak_state,ra);return;}
+    if(sp<0x801f4000 || sp>0x801fffb0 || (sp&3)) {marker_leak(leak_stack,ra);return;}
+    if(psx_mod_read_word(sp+0x40)!=0x8003543c) {marker_leak(leak_return,ra);return;}
+    if(cpu->gpr[4]!=0 || primitive!=cpu->gpr[16] || primitive<0x80010000 || primitive>0x801fffd8 ||
         (primitive&3) || psx_mod_read_byte(primitive+3)!=9 ||
-        (psx_mod_read_byte(primitive+7)&0xfc)!=0x2c || !identity())return;
+        (psx_mod_read_byte(primitive+7)&0xfc)!=0x2c) {marker_leak(leak_primitive,ra);return;}
+    if(!identity()) {marker_leak(leak_code,ra);return;}
     // Collapse only this textured quad to zero area before original OT enqueue.
     // No aim fields, selection flags, saved game option or global texture changes.
     for(uint32_t offset:{8u,16u,24u,32u})psx_mod_write_word(primitive+offset,0);

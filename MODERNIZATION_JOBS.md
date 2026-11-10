@@ -1,5 +1,29 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D07H moved to Monitoring
+
+User decision: keep D07H open as Monitoring and work normally; resume only when the
+dot reappears in play. Session closed out with the diagnostic build committed.
+`continue-duke-recomp` now lists Monitoring jobs as waiting on a report and does not
+suggest them as starting points.
+
+## 2026-11-10 - D07H: red dot leak diagnostic (Needs playtest)
+
+Selected from the user's live report (see the D07H job entry). Evidence: the main game hides
+the dot every frame, but nearly every presented frame at 180 Hz is a redraw, so
+the leak is in what the redraws draw. A frozen per-worker identity verdict was
+refuted (workers re-check per redraw). Offscreen 180 Hz runs on a private slot-6
+copy with the player's controls never leaked. Implementation
+(`recomp/src/ttk/weapon_aim.cpp`, `marker_hook`): unchanged hiding, plus a leak
+report. Each process (game or redraw worker) prints `[TTK red dot] off but drawn
+in game|redraw PID: N times (state, stack, return, primitive, code, other path,
+last ra); hidden M` on its first leak and every 1800th after; the original quad
+(FT4, CLUT 0x6870, texture page 0x001f, UV c8,f8) also counts when it arrives
+from another caller. Silent while every dot is hidden (180 Hz weapon-8 run: 0
+lines, 61 hidden per 2 s). Forced leak check: one line from the game and each
+of the three workers. Remaining: reproduce in normal play and read the session
+log line; then fix by its reason.
+
 ## 2026-11-10 - D41L accepted and closed
 
 User: "i cant believe how good it looks. i love the haze on the wood burner in front. the position is perfect, and so is the style. lock it in and close it out". D41L is Done: woodburners burn (ember glow and haze in front of the
@@ -10148,6 +10172,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07E | Shots on a stale movement lease fall back to the original auto-aim; `original` weapon aim keeps a stale aim vector | Done (user-accepted 2026-10-19) | D07C, D22D |
 | D07F | Airborne shots ignore the crosshair: jump and fire looking down, the blast lands ahead of Duke (RPG, shotgun) | Done (user-accepted 2026-10-20) | D07C, D08Z |
 | D07G | Readable crosshair scaling in windowed mode | Done (user-accepted 2026-10-26) | D07B, D08A22 |
+| D07H | Red dot off but drawn at 180 Hz: the game hides it, the redraws still show it (weapon 8, rooftop, 2026-11-10) | Monitoring (diagnostic build; waits for the user to report the dot again) | D07D, D17 |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -11893,6 +11918,35 @@ aspect ratios on supported renderer paths; user playtest decides readability.
 User accepted: "perfect, lock it in and close it out". Implementation and documentation
 commit/push authorized. [Note 276](documentation/276-d07g-crosshair-scaling.md) records
 the completed verification and remaining platform coverage limits.
+
+### D07H - Red dot off but drawn on the 180 Hz redraws
+
+**Status: Monitoring (diagnostic build; cause not reproduced).** Kept open but not
+to be actively worked on until the user reports the dot again (user, 2026-11-10).
+The dot had not been seen since early development before this report. When it
+returns, read the `[TTK red dot]` line in that session's log and fix by its reason;
+if it stays away through normal play, close as not reproduced and keep the silent
+report.
+
+User report, 2026-11-10 (live, video `research/screencaps/Video_2026-11-10_00-38-20.mp4`,
+local): with RED DOT off the original aim dot reappears above and left of the
+modern crosshair. Live session (profile Modernized, AUTO AIM EDUKE32, WEAPON AIM
+view, GEOMETRY PRECISION corrected, 180 Hz AUTO): weapon 8 (key 5), on a level-1
+rooftop near (40727, -3580, -8171) after jetpack, push grabs and four pause/resume
+cycles. Debug port: the marker hook hid one dot per game frame (63 in 64 frames)
+while 380 of 380 presents in the same window were redraw-worker images, and the
+dot was on screen in every desktop grab. Worker spawns 15 (3 + four re-forks).
+
+Not established: why the redraw workers do not hide it in that session. Ruled out
+offscreen at 180 Hz (private copy of the session's slot 6, the player's controls
+and precision settings, weapon 8 idle and firing): workers hide every dot and
+re-run the code identity check per redraw (a frozen fork-time verdict was the first
+hypothesis and is refuted). Scripted pause, cheats, view toggles and walking did
+not re-fork workers there.
+
+Acceptance: with RED DOT off in Modernized, the original dot never shows in game
+or redraw images at any frame rate, for every weapon and state; RED DOT on and
+Vanilla unchanged; hiding must not change aim assistance or damage.
 
 ### D07A — View-aligned Duke facing and weapon presentation
 

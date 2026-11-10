@@ -16,73 +16,73 @@
 27065 22048 39888  1.00 0.53 0.53  5459  0.60  steady  # scan room 33
 16765 21773 27648  1.00 0.57 0.19  4418  0.60  steady  # scan room 12
 93409 21389 77530  1.00 0.55 0.28  3901  0.60  steady  # scan room 28
-74197 21414 76686  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated
-71671 20609 74855  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated
-67717 20161 74855  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated
-2100 111 -4501  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated
-1 111 -1051  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated
-1 111 -3001  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated
-4068 111 -4501  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated
-2160 -328 4359  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated
-3978 -328 7277  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated
-3978 -328 2582  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated
-5478 111 12731  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-5455 111 13975  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-216 111 18310  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-5989 111 18309  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-648 111 8821  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-5557 111 8845  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated
-0 2552 30411  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 4
-101211 19887 23654  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated
-107356 19887 23654  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated
-109794 19887 26491  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated
-103685 19887 26491  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated
-25705 21292 9486  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated
-25705 21292 11518  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated
-31224 21292 20546  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated
-29619 21292 5218  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated
-34733 21292 5216  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated
-809 7679 26034  1.00 0.07 0.07  1977  1.00  steady  # sign type 971 room 17
-0 12792 30411  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 17
--1536 6646 33385  1.00 0.06 0.06  2007  1.00  steady  # sign type 827 room 17
-126869 23393 49455  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 20 animated
-121750 23393 53551  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 20 animated
-110897 23393 52330  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 21 animated
-105578 23393 54988  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 22 animated
-103319 23393 55595  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 22 animated
-92415 23009 47239  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-87122 23009 52517  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-87122 23009 57738  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-97121 23009 52887  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-97121 23009 58295  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-93289 23009 63389  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-90385 23009 63389  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated
-98321 21473 68524  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated
-93030 21473 66656  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated
-86718 21473 68524  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated
-104668 21553 69754  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 27 animated
-99581 21553 72842  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 28 animated
-105559 21553 67289  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-105559 21553 73455  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-112487 21553 74055  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-112527 21305 70946  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-112487 21553 67898  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-107172 21553 74658  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-110250 21553 74658  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated
-75784 21871 77297  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated
-75784 21871 74249  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated
-80967 21871 72261  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated
-82716 21871 72261  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated
-10970 -625 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-16068 -1260 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-23234 -2194 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-19740 -1668 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-14652 -1045 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-8488 -257 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated
-34133 21292 43778  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated
-29019 21292 43778  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated
-25705 21292 39133  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated
-25705 21292 37101  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated
-30152 21292 23656  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated
-31583 21292 25492  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated
-28488 21292 25492  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated
+74197 21414 76686  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated prop 535 74497 21604 76693
+71671 20609 74855  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated prop 535 71371 20799 74848
+67717 20161 74855  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 0 animated prop 535 67417 20351 74848
+2100 111 -4501  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated prop 484 2083 540 -4807
+1 111 -1051  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated prop 484 307 540 -1068
+1 111 -3001  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated prop 484 307 540 -3018
+4068 111 -4501  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 1 animated prop 484 4051 540 -4807
+2160 -328 4359  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated prop 535 2153 -138 4659
+3978 -328 7277  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated prop 535 3985 -138 6977
+3978 -328 2582  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 2 animated prop 535 3985 -138 2282
+5478 111 12731  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 5784 540 12714
+5455 111 13975  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 5761 540 13958
+216 111 18310  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 420 540 18081
+5989 111 18309  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 5761 540 18104
+648 111 8821  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 420 540 8616
+5557 111 8845  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 3 animated prop 484 5761 540 8616
+0 2552 30411  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 4 prop 792 0 2552 30711
+101211 19887 23654  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated prop 535 100911 20077 23647
+107356 19887 23654  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated prop 535 107056 20077 23647
+109794 19887 26491  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated prop 535 110094 20077 26498
+103685 19887 26491  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 5 animated prop 535 103985 20077 26498
+25705 21292 9486  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated prop 535 25698 21482 9786
+25705 21292 11518  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated prop 535 25698 21482 11818
+31224 21292 20546  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated prop 535 31431 21482 20763
+29619 21292 5218  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated prop 535 29319 21482 5211
+34733 21292 5216  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 14 animated prop 535 34433 21482 5209
+809 7679 26034  1.00 0.07 0.07  1977  1.00  steady  # sign type 971 room 17 prop 971 809 7868 25675
+0 12792 30411  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 17 prop 792 0 12792 30711
+-1536 6646 33385  1.00 0.06 0.06  2007  1.00  steady  # sign type 827 room 17 prop 827 -1536 6656 33712
+126869 23393 49455  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 20 animated prop 535 126876 23583 49155
+121750 23393 53551  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 20 animated prop 535 121757 23583 53251
+110897 23393 52330  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 21 animated prop 535 110597 23583 52323
+105578 23393 54988  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 22 animated prop 535 105571 23583 55288
+103319 23393 55595  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 22 animated prop 535 103326 23583 55295
+92415 23009 47239  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 92115 23199 47232
+87122 23009 52517  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 87115 23199 52817
+87122 23009 57738  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 87115 23199 58038
+97121 23009 52887  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 97128 23199 52587
+97121 23009 58295  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 97128 23199 57995
+93289 23009 63389  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 93589 23199 63396
+90385 23009 63389  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 23 animated prop 535 90685 23199 63396
+98321 21473 68524  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated prop 535 98621 21663 68531
+93030 21473 66656  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated prop 535 92730 21663 66649
+86718 21473 68524  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 26 animated prop 535 87018 21663 68531
+104668 21553 69754  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 27 animated prop 535 104368 21743 69747
+99581 21553 72842  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 28 animated prop 535 99281 21743 72835
+105559 21553 67289  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 105552 21743 67589
+105559 21553 73455  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 105552 21743 73755
+112487 21553 74055  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 112494 21743 73755
+112527 21305 70946  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 112534 21495 70646
+112487 21553 67898  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 112494 21743 67598
+107172 21553 74658  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 107472 21743 74665
+110250 21553 74658  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 30 animated prop 535 110550 21743 74665
+75784 21871 77297  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated prop 484 76090 22300 77280
+75784 21871 74249  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated prop 484 76090 22300 74232
+80967 21871 72261  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated prop 484 80950 22300 71955
+82716 21871 72261  1.00 0.69 0.22  1829  1.00  candle  # sign type 484 room 31 animated prop 484 82699 22300 71955
+10970 -625 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 11270 -435 -1161
+16068 -1260 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 16368 -1070 -1161
+23234 -2194 -1168  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 23534 -2004 -1161
+19740 -1668 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 19440 -1478 -3011
+14652 -1045 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 14352 -855 -3011
+8488 -257 -3004  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 32 animated prop 535 8188 -67 -3011
+34133 21292 43778  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated prop 535 34433 21482 43785
+29019 21292 43778  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated prop 535 29319 21482 43785
+25705 21292 39133  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated prop 535 25698 21482 39433
+25705 21292 37101  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 33 animated prop 535 25698 21482 37401
+30152 21292 23656  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated prop 535 29852 21482 23649
+31583 21292 25492  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated prop 535 31883 21482 25499
+28488 21292 25492  1.00 0.69 0.22  1851  1.00  candle  # sign type 535 room 34 animated prop 535 28788 21482 25499

@@ -24,76 +24,76 @@
 4047 2394 13089  0.54 1.00 0.75  3141  0.60  steady  # scan room 17
 -40960 -1331 30382  1.00 0.92 0.66  2500  0.60  steady  # scan room 21
 33792 13632 -15360  1.00 0.88 0.60  2500  0.60  steady  # scan room 47
-39651 981 33239  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 0 animated
-39674 981 30237  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 0 animated
-36678 1475 30616  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 0 animated
-32568 1475 28561  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 1 animated
-28777 1475 24334  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated
-26963 1475 27445  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated
-28511 1475 30386  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated
-25924 1475 20298  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 3 animated
-41461 76 22977  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 4 animated
-41489 76 19943  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 4 animated
-32867 1475 20155  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 5 animated
-30457 1475 17327  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 6 animated
-37917 981 7724  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated
-37886 981 14819  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated
-40421 981 10736  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated
-40421 981 12817  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated
-34453 1475 11994  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 8 animated
-29916 1475 14048  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 9 animated
-26919 1475 15178  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 9 animated
-10040 3523 17734  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 15 animated
-10890 3523 21704  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 15 animated
-4979 3523 21713  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 16 animated
-1975 3029 17610  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated
-3456 3029 12677  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated
-6626 2470 16340  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated
--42476 -1258 30686  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 21 animated
--42476 -1258 20497  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 21 animated
-78149 12573 -12965  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated
-78543 12573 -9571  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated
-82217 12573 -13473  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated
-82612 12573 -9049  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated
--7700 -1972 26598  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--7700 -1972 31743  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--8448 -1972 36324  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--12075 -1972 36324  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--12765 -1972 31723  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--12765 -1972 26578  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated
--22955 11265 2560  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--24147 11265 2560  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--22955 11265 -5632  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--24147 11265 -5632  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--22955 11265 10752  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--24147 11265 10752  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28
--33360 3962 31232  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 34
--32168 3962 31232  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 34
--28156 3962 36436  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 35
--28156 3962 35244  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 35
-24064 1 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37
-16896 -1024 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37
-10752 -1024 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37
--36109 2845 23582  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 40 animated
--36109 4142 30920  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 40 animated
--38886 -1258 34270  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 41 animated
--39438 -55 24620  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 41 animated
-7876 8643 -9568  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated
-7482 8643 -12962  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated
-14138 8643 -12450  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated
-14532 8643 -10080  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated
-67109 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-60443 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-52872 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-67175 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-60508 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-52937 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated
-24378 8643 -12450  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 52 animated
-24772 8643 -10080  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 52 animated
-51679 6519 -9724  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated
-51679 6519 -12796  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated
-39472 7132 -12766  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated
-39407 7132 -9764  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated
--12421 19251 -17531  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 56 animated
--6029 19251 -17527  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 56 animated
--9390 -5640 4632  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 59 animated
+39651 981 33239  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 0 animated prop 376 39657 1287 33545
+39674 981 30237  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 0 animated prop 376 39668 1287 29931
+36678 1475 30616  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 0 animated prop 371 36877 1436 30840
+32568 1475 28561  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 1 animated prop 371 32767 1436 28785
+28777 1475 24334  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated prop 371 28553 1436 24533
+26963 1475 27445  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated prop 371 26739 1436 27644
+28511 1475 30386  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 2 animated prop 371 28710 1436 30610
+25924 1475 20298  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 3 animated prop 371 25700 1436 20497
+41461 76 22977  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 4 animated prop 376 41467 382 23283
+41489 76 19943  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 4 animated prop 376 41483 382 19637
+32867 1475 20155  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 5 animated prop 371 32643 1436 20354
+30457 1475 17327  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 6 animated prop 371 30233 1436 17526
+37917 981 7724  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated prop 376 37911 1287 7418
+37886 981 14819  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated prop 376 37892 1287 15125
+40421 981 10736  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated prop 376 40727 1287 10730
+40421 981 12817  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 7 animated prop 376 40727 1287 12811
+34453 1475 11994  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 8 animated prop 371 34229 1436 12193
+29916 1475 14048  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 9 animated prop 371 29692 1436 14247
+26919 1475 15178  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 9 animated prop 371 26695 1436 15377
+10040 3523 17734  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 15 animated prop 371 10264 3484 17535
+10890 3523 21704  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 15 animated prop 371 11114 3484 21505
+4979 3523 21713  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 16 animated prop 371 5203 3484 21514
+1975 3029 17610  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated prop 376 1762 3335 17831
+3456 3029 12677  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated prop 376 3235 3335 12465
+6626 2470 16340  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 17 animated prop 376 6932 2776 16334
+-42476 -1258 30686  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 21 animated prop 376 -42782 -952 30692
+-42476 -1258 20497  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 21 animated prop 376 -42782 -952 20503
+78149 12573 -12965  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated prop 371 78348 12534 -12741
+78543 12573 -9571  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated prop 371 78344 12534 -9795
+82217 12573 -13473  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated prop 371 82416 12534 -13249
+82612 12573 -9049  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 22 animated prop 371 82413 12534 -9273
+-7700 -1972 26598  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -7394 -1666 26592
+-7700 -1972 31743  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -7394 -1666 31737
+-8448 -1972 36324  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -8442 -1666 36630
+-12075 -1972 36324  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -12069 -1666 36630
+-12765 -1972 31723  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -13071 -1666 31729
+-12765 -1972 26578  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 24 animated prop 376 -13071 -1666 26584
+-22955 11265 2560  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -22591 11264 2560
+-24147 11265 2560  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -24511 11264 2560
+-22955 11265 -5632  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -22591 11264 -5632
+-24147 11265 -5632  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -24511 11264 -5632
+-22955 11265 10752  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -22591 11264 10752
+-24147 11265 10752  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 28 prop 768 -24511 11264 10752
+-33360 3962 31232  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 34 prop 768 -33724 3961 31232
+-32168 3962 31232  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 34 prop 768 -31804 3961 31232
+-28156 3962 36436  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 35 prop 768 -28156 3961 36800
+-28156 3962 35244  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 35 prop 768 -28156 3961 34880
+24064 1 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37 prop 768 24064 0 -1024
+16896 -1024 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37 prop 768 16896 -1024 -1024
+10752 -1024 -660  0.31 1.00 0.99  2773  1.00  steady  # sign type 768 room 37 prop 768 10752 -1024 -1024
+-36109 2845 23582  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 40 animated prop 371 -35905 2806 23362
+-36109 4142 30920  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 40 animated prop 371 -35905 4103 30700
+-38886 -1258 34270  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 41 animated prop 376 -38880 -952 34576
+-39438 -55 24620  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 41 animated prop 376 -39744 251 24626
+7876 8643 -9568  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated prop 371 7677 8604 -9792
+7482 8643 -12962  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated prop 371 7681 8604 -12738
+14138 8643 -12450  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated prop 371 14337 8604 -12226
+14532 8643 -10080  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 44 animated prop 371 14333 8604 -10304
+67109 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 67115 12929 -7410
+60443 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 60449 12929 -7410
+52872 12623 -7716  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 52878 12929 -7410
+67175 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 67169 12929 -15128
+60508 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 60502 12929 -15128
+52937 12623 -14822  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 51 animated prop 376 52931 12929 -15128
+24378 8643 -12450  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 52 animated prop 371 24577 8604 -12226
+24772 8643 -10080  1.00 0.68 0.26  1534  1.00  candle  # sign type 371 room 52 animated prop 371 24573 8604 -10304
+51679 6519 -9724  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated prop 376 51985 6825 -9730
+51679 6519 -12796  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated prop 376 51985 6825 -12802
+39472 7132 -12766  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated prop 376 39466 7438 -13072
+39407 7132 -9764  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 53 animated prop 376 39413 7438 -9458
+-12421 19251 -17531  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 56 animated prop 376 -12642 19557 -17743
+-6029 19251 -17527  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 56 animated prop 376 -5817 19557 -17748
+-9390 -5640 4632  1.00 0.68 0.24  2280  1.00  candle  # sign type 376 room 59 animated prop 376 -9396 -5334 4326

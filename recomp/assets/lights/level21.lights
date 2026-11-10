@@ -1,4 +1,4 @@
 # D41D level 21 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
 # x y z  r g b  radius  strength  style  # note
 14570 -218 -5120  1.00 1.00 1.00  2527  0.60  steady  # scan room 6
--8 2629 -5440  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 9
+-8 2629 -5440  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 9 prop 179 0 2944 -5121

@@ -24,47 +24,47 @@
 -62464 -6810 24559  1.00 0.48 0.23  2853  0.60  steady  # scan room 35
 -58092 717 5491  0.53 0.50 1.00  3557  0.60  steady  # scan room 60
 -27930 -13773 25014  1.00 0.45 0.45  2729  0.60  steady  # scan room 55
--4774 -9772 6435  1.00 0.06 0.06  2007  1.00  steady  # sign type 832 room 1
--4306 -9600 9679  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 1 animated
--888 -9138 3328  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated
--232 -9163 5079  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated
--1377 -11650 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated
--3520 -11609 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated
-5420 -9600 6091  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 2 animated
-1507 -9838 1725  1.00 0.87 0.00  2686  1.00  candle  # sign type 220 room 2 animated
-19756 -9600 971  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 4 animated
-13637 -11531 4834  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated
-13637 -11554 2663  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated
-16668 -11657 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated
-18812 -11627 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated
-6139 -11088 -651  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 12
-6756 -10239 -7450  1.00 0.47 0.31  4094  1.00  steady  # sign type 4 room 17
--17095 -10062 -15360  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
--17095 -10062 -13824  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
--17095 -10062 -14592  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18
--12607 -9938 -13912  0.31 1.00 0.25  1710  1.00  steady  # sign type 178 room 18
--16541 -9731 -6410  0.22 0.13 1.00  4658  1.00  steady  # sign type 16 room 20
--31339 -10798 -330  1.00 0.00 0.00  1661  1.00  steady  # sign type 728 room 24
--42390 -11742 5453  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 29
--62472 -6587 35027  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 31
--54383 -8643 17989  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33
--54383 -8643 20966  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33
--54403 -6272 19307  1.00 0.00 0.00  2683  1.00  steady  # sign type 732 room 33
--49489 -7623 19396  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 34
--52841 -8354 10573  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
--51533 -8354 12749  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
--50867 -8271 15900  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37
--45546 -9784 11955  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 39
--39601 -11742 7724  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40
--38221 -11533 10567  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40
-15274 -9600 -6497  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 41 animated
-9103 -10233 -742  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41
-15904 -10187 -4685  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41
-11264 -10820 -3189  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41
-11264 -10820 -5003  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41
--54272 -10752 -5835  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51
--51353 -10368 -10097  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 51
--53963 -10752 0  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51
--36716 -10368 1173  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 53
--28161 -5843 25073  1.00 0.09 0.36  1791  1.00  steady  # sign type 176 room 55
--59904 302 -15366  0.26 0.19 1.00  1758  1.00  steady  # sign type 177 room 68
+-4774 -9772 6435  1.00 0.06 0.06  2007  1.00  steady  # sign type 832 room 1 prop 832 -5101 -9762 6435
+-4306 -9600 9679  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 1 animated prop 449 -4606 -9600 9732
+-888 -9138 3328  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated prop 217 -1137 -9144 3079
+-232 -9163 5079  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 1 animated prop 217 -171 -9169 4732
+-1377 -11650 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated prop 216 -1377 -11550 6651
+-3520 -11609 7003  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 1 animated prop 216 -3520 -11509 6651
+5420 -9600 6091  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 2 animated prop 449 5120 -9600 6144
+1507 -9838 1725  1.00 0.87 0.00  2686  1.00  candle  # sign type 220 room 2 animated prop 220 1691 -9590 1489
+19756 -9600 971  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 4 animated prop 449 19456 -9600 1024
+13637 -11531 4834  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated prop 217 13989 -11537 4834
+13637 -11554 2663  1.00 0.86 0.00  1631  1.00  candle  # sign type 217 room 4 animated prop 217 13989 -11560 2663
+16668 -11657 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated prop 216 16668 -11557 7557
+18812 -11627 7909  1.00 0.86 0.00  1629  1.00  candle  # sign type 216 room 5 animated prop 216 18812 -11527 7557
+6139 -11088 -651  1.00 0.00 0.00  2720  1.00  steady  # sign type 171 room 12 prop 171 6142 -11088 -319
+6756 -10239 -7450  1.00 0.47 0.31  4094  1.00  steady  # sign type 4 room 17 prop 4 6658 -10971 -7698
+-17095 -10062 -15360  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18 prop 818 -17395 -9856 -15360
+-17095 -10062 -13824  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18 prop 818 -17395 -9856 -13824
+-17095 -10062 -14592  1.00 0.00 0.00  1576  1.00  steady  # sign type 818 room 18 prop 818 -17395 -9856 -14592
+-12607 -9938 -13912  0.31 1.00 0.25  1710  1.00  steady  # sign type 178 room 18 prop 178 -12607 -9958 -13913
+-16541 -9731 -6410  0.22 0.13 1.00  4658  1.00  steady  # sign type 16 room 20 prop 16 -17119 -9216 -6410
+-31339 -10798 -330  1.00 0.00 0.00  1661  1.00  steady  # sign type 728 room 24 prop 728 -31688 -10799 -330
+-42390 -11742 5453  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 29 prop 851 -42331 -11774 5152
+-62472 -6587 35027  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 31 prop 179 -62464 -6272 35346
+-54383 -8643 17989  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33 prop 170 -54383 -8690 17989
+-54383 -8643 20966  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 33 prop 170 -54383 -8690 20966
+-54403 -6272 19307  1.00 0.00 0.00  2683  1.00  steady  # sign type 732 room 33 prop 732 -54289 -7168 19456
+-49489 -7623 19396  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 34 prop 851 -49188 -7655 19455
+-52841 -8354 10573  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37 prop 851 -52782 -8386 10272
+-51533 -8354 12749  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37 prop 851 -51232 -8386 12808
+-50867 -8271 15900  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 37 prop 851 -51168 -8303 15841
+-45546 -9784 11955  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 39 prop 851 -45605 -9816 12256
+-39601 -11742 7724  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40 prop 851 -39902 -11774 7665
+-38221 -11533 10567  1.00 0.12 0.12  1714  1.00  steady  # sign type 851 room 40 prop 851 -37920 -11565 10626
+15274 -9600 -6497  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 41 animated prop 449 14974 -9600 -6444
+9103 -10233 -742  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41 prop 79 9103 -9677 -742
+15904 -10187 -4685  1.00 0.47 0.31  3862  1.00  steady  # sign type 79 room 41 prop 79 15904 -9631 -4685
+11264 -10820 -3189  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41 prop 193 11264 -11120 -3200
+11264 -10820 -5003  1.00 0.00 0.90  4224  1.00  steady  # sign type 193 room 41 prop 193 11264 -11120 -4992
+-54272 -10752 -5835  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51 prop 792 -54272 -10752 -6135
+-51353 -10368 -10097  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 51 prop 729 -51204 -11264 -10211
+-53963 -10752 0  1.00 1.00 0.00  4525  1.00  steady  # sign type 792 room 51 prop 792 -54263 -10752 0
+-36716 -10368 1173  1.00 0.96 0.00  2683  1.00  steady  # sign type 729 room 53 prop 729 -36830 -11264 1024
+-28161 -5843 25073  1.00 0.09 0.36  1791  1.00  steady  # sign type 176 room 55 prop 176 -28162 -5862 25073
+-59904 302 -15366  0.26 0.19 1.00  1758  1.00  steady  # sign type 177 room 68 prop 177 -59905 282 -15366

@@ -3,23 +3,23 @@
 -567 826 -962  1.00 0.31 0.26  6000  0.60  steady  # scan room 6
 51 -5325 -9608  1.00 0.63 0.19  3342  0.60  steady  # scan room 6
 8323 -3994 0  1.00 0.60 0.22  3001  0.60  steady  # scan room 6
--1761 -1144 -10759  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
-690 -1144 -10742  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
--1770 -1144 11801  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
-689 -1144 11801  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
--11800 -1144 1720  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
--11800 -1144 -740  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
-7651 -1144 -700  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
-7647 -1144 1751  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated
--1761 -518 -10759  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
-690 -518 -10742  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
--1770 -518 11800  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
-689 -518 11801  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
--11800 -518 1720  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
--11800 -518 -740  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
-7650 -518 -700  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
-7648 -518 1751  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated
--11657 -444 247  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6
-7586 -444 247  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6
--536 -444 -11115  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6
--536 -444 11346  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6
+-1761 -1144 -10759  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 -2061 -1144 -10759
+690 -1144 -10742  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 990 -1144 -10742
+-1770 -1144 11801  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 -2070 -1144 11801
+689 -1144 11801  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 989 -1144 11801
+-11800 -1144 1720  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 -11800 -1144 2020
+-11800 -1144 -740  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 -11800 -1144 -1040
+7651 -1144 -700  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 7651 -1144 -1000
+7647 -1144 1751  0.14 0.93 1.00  1802  1.00  flicker  # sign type 1015 room 6 animated prop 1015 7647 -1144 2051
+-1761 -518 -10759  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 -2061 -518 -10759
+690 -518 -10742  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 990 -518 -10742
+-1770 -518 11800  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 -2070 -518 11800
+689 -518 11801  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 989 -518 11801
+-11800 -518 1720  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 -11800 -518 2020
+-11800 -518 -740  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 -11800 -518 -1040
+7650 -518 -700  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 7650 -518 -1000
+7648 -518 1751  0.14 0.93 1.00  2672  1.00  flicker  # sign type 1014 room 6 animated prop 1014 7648 -518 2051
+-11657 -444 247  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6 prop 179 -11649 -129 566
+7586 -444 247  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6 prop 179 7594 -129 566
+-536 -444 -11115  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6 prop 179 -528 -129 -10796
+-536 -444 11346  0.35 0.63 1.00  2458  1.00  steady  # sign type 179 room 6 prop 179 -528 -129 11665

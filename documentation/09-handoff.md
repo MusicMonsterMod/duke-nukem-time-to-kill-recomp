@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-11-10 - D54 accepted and closed
+
+User: "this is awesome. i'm so happy with it. this step definitely works fine so i'd say commit right here". D54 is Done: a light-emitting prop that breaks takes its light with it, game-wide (sign lamps in every level file, D41L and D53 lights), across savestates. The original painted light stays (a possible follow-up). [Note 437](documentation/437-d54-broken-lights.md).
+
+## 2026-11-10 - D54: broken lights go out (Needs playtest)
+
+Shooting a prop that gives light now puts its light out: the light sputters
+for 0.4 s and stays dark, also after loading a save made after the break.
+Covered: D41D1 sign lamps (all 922 on 21 levels now carry their props in the
+level files), D41L woodburner and chandelier lights, D53 screen and power-sign
+lights. UI slot 6: both traffic lights and the fire barrel go out in play.
+The original painted (baked) light on the walls stays; see
+[note 437](437-d54-broken-lights.md) for the limits.
+
 ## 2026-11-10 - D07H: red dot leak diagnostic (Monitoring)
 
 Live report: with RED DOT off the original dot showed on the 180 Hz redraws

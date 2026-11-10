@@ -31,6 +31,7 @@
 // tools/local/build_ttk_security_monitor.py into ttk-security-monitor.pack.
 // TTK, Classic and Vanilla: nothing changes.
 #include "security_monitor.h"
+#include "prop_state.h"
 #include "live_env.h"
 #include "pc_input.h"
 #include "mod_plugins.h"
@@ -338,22 +339,25 @@ bool keypad_mesh(uint32_t mesh) {
     return psx_mod_read_word(vp)==0x0060ff80u && psx_mod_read_half(vp+4)==0 && psx_mod_read_word(list)==0x0001002cu &&
            psx_mod_read_word(vp+16)==0xffa00080u;   // third corner (128, -96)
 }
-struct Emitter {double p[3];float rgb[3];float strength,radius;bool tv,pulse;};
+// D54: ref is the prop (the TV, or the power sign); when it breaks
+// (prop_state.h) the light sputters out from broke_ms (standing 0).
+struct Emitter {double p[3];float rgb[3];float strength,radius;bool tv,pulse;PropRef ref;int standing=1;uint32_t broke_ms=0;};
 std::vector<Emitter> emitters;
 std::vector<uint32_t> monitor_props;
-uint32_t scan_level=~0u,scan_frame=0,frames=0;
+uint32_t scan_level=~0u,scan_frame=0,frames=0,scan_loads=~0u;
+uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 int bounds_look=-1;          // the look the monitor props' bounds were last set for
 uint64_t bounds_writes=0;
 // DNTTK_SECURITY_LIGHT="strength radius" (developer tuning of the TV light).
 float tv_strength=0.9f,tv_radius=1800;
 float power_strength=1.8f,power_radius=1200;   // DNTTK_POWER_LIGHT="strength radius"
 void scan_props() {
-    emitters.clear();monitor_props.clear();
+    emitters.clear();monitor_props.clear();scan_sig=0;
     unsigned found=0;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     std::vector<uint32_t> seen;
-    struct Place {double p[3];double yaw;uint32_t mesh;};
+    struct Place {double p[3];double yaw;uint32_t mesh,o;};
     std::vector<Place> keypads,signs;
     for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
         uint32_t node=psx_mod_read_word(table+88*r+head_at);
@@ -363,13 +367,13 @@ void scan_props() {
             if(o<0x80010000u || o>0x801fff00u || (o&3)) continue;
             if(std::find(seen.begin(),seen.end(),o)!=seen.end()) continue;
             seen.push_back(o);
-            if(psx_mod_read_byte(o+0x14)!=1) continue;
+            if(psx_mod_read_byte(o+0x14)!=1 || prop_broken_flag(o)) continue;   // D54: broken props give no light
             const uint32_t mesh=psx_mod_read_word(o+0x44);
             const bool tv=monitor_mesh(mesh),sign=!tv && sign_mesh(mesh);
             // A keypad counts when the game makes it usable (subtype +0x34).
             const bool keypad=!tv && !sign && keypad_mesh(mesh) && psx_mod_read_byte(o+0x34)!=0;
             if(!tv && !sign && !keypad) continue;
-            Place pl{};pl.mesh=mesh;for(int k=0;k<3;++k) pl.p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
+            Place pl{};pl.mesh=mesh;pl.o=o;for(int k=0;k<3;++k) pl.p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             pl.yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*3.14159265358979/4096);
             if(keypad) {keypads.push_back(pl);continue;}
             if(sign) {signs.push_back(pl);continue;}
@@ -377,7 +381,7 @@ void scan_props() {
             // Model to world: yaw +0x1c (4096 a turn, 0 = +Z, 1024 = +X).
             const double ca=std::cos(pl.yaw),sa=std::sin(pl.yaw);
             Emitter e{};const double c[3]={-420*sa,0,-420*ca};   // 420 out in front of the screen (model -z)
-            e.rgb[0]=0.92f;e.rgb[1]=0.95f;e.rgb[2]=0.66f;e.strength=tv_strength;e.radius=tv_radius;e.tv=true;
+            e.rgb[0]=0.92f;e.rgb[1]=0.95f;e.rgb[2]=0.66f;e.strength=tv_strength;e.radius=tv_radius;e.tv=true;e.ref=prop_ref(o);
             for(int k=0;k<3;++k) e.p[k]=pl.p[k]+c[k];
             emitters.push_back(e);
         }
@@ -395,6 +399,7 @@ void scan_props() {
         Emitter e{};const double c[3]={-260*sa,110,-260*ca};  // in front of the panel (model -z), between sign and keypad
         for(int i=0;i<3;++i) e.p[i]=g.p[i]+c[i];
         e.rgb[0]=0.38f;e.rgb[1]=0.62f;e.rgb[2]=1.0f;e.strength=power_strength;e.radius=power_radius;e.pulse=true;   // electric blue-white
+        e.ref=prop_ref(g.o);
         emitters.push_back(e);
         break;
     }
@@ -405,7 +410,11 @@ void scan_props() {
 // TTK's 400x500 panel, so the larger TV left the view early. In the Duke 3D
 // look they are the TV's; in the TTK look the mesh's own again.
 void apply_bounds(bool duke) {
+    // D54: never write into a monitor that has broken or been unlinked (its
+    // memory can be reused).
+    const PropSnapshot& snap=prop_snapshot_take();
     for(uint32_t o:monitor_props) {
+        if(auto it=snap.linked.find(o);it==snap.linked.end() || !it->second) continue;
         uint32_t w[4];
         if(duke) {
             const int radius=(int)std::lround(std::sqrt(double(W*W+H*H+F*F)));
@@ -425,7 +434,8 @@ void composition_hook(CPUState*,uint32_t) {
     ++frames;
     const uint32_t level=psx_mod_read_word(0x800be570u);
     const bool modern=input_modernized();
-    if(level!=scan_level || frames-scan_frame>300) {scan_level=level;scan_frame=frames;scan_props();bounds_look=-1;}
+    const uint32_t loads=psx_mod_savestate_loads();   // D54: a load rescans (props broken or standing again)
+    if(level!=scan_level || loads!=scan_loads || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();bounds_look=-1;}
     static const bool bounds_off=[]{const char* t=std::getenv("DNTTK_SECURITY_BOUNDS");return t && t[0]=='0';}();   // developer A/B
     const int look=modern && duke_look() && !bounds_off?1:0;
     if(look!=bounds_look || frames%60==0) {apply_bounds(look==1);bounds_look=look;}
@@ -436,10 +446,18 @@ unsigned lights(PSXModLight* out,unsigned room) {
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke_p[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const float flick=flicker_level()/(float)screen_base;   // the wall light follows the flicker, not the level
+    // D54: a broken TV or power sign's light sputters out.
+    const uint32_t ms=(uint32_t)SDL_GetTicks();
+    const PropSnapshot& snap=prop_snapshot_take();
+    if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
+        e.standing=0;e.broke_ms=ms;
+        std::fprintf(stderr,"[TTK security] %s light goes out: its prop %08x broke\n",e.tv?"screen":"power sign",e.ref.o);
+    }
     struct Near {double d;const Emitter* e;};
     std::vector<Near> near;
     for(const Emitter& e:emitters) {
         if(e.tv && !duke) continue;
+        if(!e.standing && ms-e.broke_ms>=prop_dying_ticks*34u) continue;
         const double dx=e.p[0]-duke_p[0],dy=e.p[1]-duke_p[1],dz=e.p[2]-duke_p[2],d=dx*dx+dy*dy+dz*dz;
         near.push_back({d,&e});   // no range cut: a lit screen lights its wall seen from afar too
     }
@@ -447,7 +465,8 @@ unsigned lights(PSXModLight* out,unsigned room) {
     unsigned n=0;
     for(const Near& q:near) {
         if(n>=room || n>=6) break;
-        const Emitter& e=*q.e;const float k=e.strength*(e.tv?flick:e.pulse?0.45f+0.55f*power_pulse():1.0f);
+        const Emitter& e=*q.e;float k=e.strength*(e.tv?flick:e.pulse?0.45f+0.55f*power_pulse():1.0f);
+        if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.ref.o);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.radius;
         l.r=e.rgb[0]*k;l.g=e.rgb[1]*k;l.b=e.rgb[2]*k;l.flags=0;

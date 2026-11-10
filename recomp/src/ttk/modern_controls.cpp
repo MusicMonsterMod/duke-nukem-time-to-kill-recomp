@@ -27,6 +27,7 @@
 #include "near_clip.h"
 #include "security_monitor.h"
 #include "prop_lights.h"
+#include "prop_state.h"
 #include "screen_flash.h"
 #include "pgxp.h"
 #include "gpu.h"

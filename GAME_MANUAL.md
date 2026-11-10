@@ -412,8 +412,11 @@ lanterns) in its own colour. Lanterns flicker like flames; where the original
 light ripples (the game's own animated light), its lamps ripple with it.
 Level 0 (Los Angeles) also keeps its flickering pink lamp at the club sign. A
 lamp lights only while its room is in view, so a sign behind a wall does not
-tint the room in front of it. They come and go with DYNAMIC LIGHTS. The
-backtick console edits them:
+tint the room in front of it. Break a prop that gives light (a traffic light,
+a fire barrel, a neon sign, a red light) and its light sputters out with it
+and stays out, also after loading a save made after the break; a save from
+before brings it back. They come and go with DYNAMIC LIGHTS. The backtick
+console edits them:
 
 - `lamp list` shows the level's lamps; `lamp off` / `lamp on` hides and shows
   them for the session (to compare).
@@ -433,6 +436,12 @@ backtick console edits them:
   placed.
 - `lamp gate off` lets every nearby lamp light through walls again for the
   session (to compare); `lamp gate on` restores the rule.
+- `lamp bind` makes the selected lamp go out with the prop nearest the
+  crosshair (for lamps you placed at a light fitting), `lamp unbind` undoes
+  it, and `lamp bind all` binds every lamp whose note names a prop type. The
+  scans bind their sign lamps themselves. `lamp breaks off` keeps lamps lit
+  when their props break, for the session (to compare); `lamp breaks on`
+  restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners and
   chandeliers for the session (to compare).
 
@@ -442,7 +451,8 @@ the floor and walls in front of it. Every candle chandelier is lit: a small
 flame dances on each candle, the ceiling around it glows warm and its light
 falls softly on the room below (in the level 1 saloon, on the stage). The
 glow and flames show whatever DYNAMIC LIGHTS is set to; the light they cast
-needs DYNAMIC LIGHTS on. Vanilla and Classic keep the original look.
+needs DYNAMIC LIGHTS on. If one is broken, its light goes out. Vanilla and
+Classic keep the original look.
 
 Signs and neon keep their own look under any light: they give light, and
 neon signs take none on their letters, so they stay as crisp as drawn. Only

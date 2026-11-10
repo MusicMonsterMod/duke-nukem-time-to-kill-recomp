@@ -35,6 +35,8 @@
 // File format, one lamp per line ('#' starts a comment):
 //   x y z  r g b  radius  strength  style  [# note]
 // style: steady flicker pulse candle strobe broken, or wave:P:D
+// D54: the note's "prop TYPE x y z" entries name the props the lamp belongs
+// to; it goes out when they break (prop_state.h).
 // (Standard headers are included at the top of modern_controls.cpp.)
 #ifndef TTK_LIGHTS_DIR
 #define TTK_LIGHTS_DIR ""
@@ -42,7 +44,13 @@
 // room: the room the lamp belongs to (-2 not yet known, -1 none): from its
 // note ("... room N", written by the scans) or else the smallest room whose
 // piece bounds hold it.
-struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;};
+// D54 (documentation/437-d54-broken-lights.md): props, from the note's
+// "prop TYPE x y z" entries, are the props whose light this is (a stack of
+// props can share one lamp). The lamp lights while any of them stands
+// (prop_state.h); when the last breaks it sputters out and stays dark.
+// standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
+struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
+                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;};
 enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_styles};
 static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
@@ -61,6 +69,26 @@ static constexpr float level_lamp_gate_fade=8;
 static std::vector<float> level_lamp_vis;             // per lamp, 0-1
 static uint32_t level_lamp_vis_tick;
 static std::string level_lamps_path_used;
+// D54: lamps out with their props (console "lamp breaks off" compares).
+static std::atomic<int> level_lamps_breaks{1};
+static uint32_t level_lamp_prop_loads=~0u;            // savestate loads when the lamps' prop states were last known
+static uint64_t level_lamp_prop_sig;                  // the level the lamps' props were seen on (prop_state.h)
+// The "prop TYPE x y z" entries of a lamp's note.
+static void level_lamp_parse_props(LevelLamp& l) {
+    l.props.clear();l.standing=-1;
+    for(size_t at=l.note.find("prop ");at!=std::string::npos;at=l.note.find("prop ",at+5)) {
+        PropRef r;unsigned type=0;
+        if(std::sscanf(l.note.c_str()+at+5,"%u %d %d %d",&type,&r.p[0],&r.p[1],&r.p[2])==4 && type<0x10000u) {r.type=(uint16_t)type;l.props.push_back(r);}
+    }
+}
+// The note without its prop entries, then the props written back.
+static void level_lamp_set_props(LevelLamp& l,const std::vector<PropRef>& props) {
+    if(auto at=l.note.find(" prop ");at!=std::string::npos) l.note.resize(at);
+    else if(!l.note.compare(0,5,"prop ")) l.note.clear();
+    char b[48];
+    for(const PropRef& r:props) {std::snprintf(b,sizeof b,"%sprop %u %d %d %d",l.note.empty()?"":" ",r.type,r.p[0],r.p[1],r.p[2]);l.note+=b;}
+    level_lamp_parse_props(l);
+}
 // Console thread -> game thread.
 static std::mutex level_lamp_mutex;
 static std::deque<std::string> level_lamp_queue;
@@ -112,7 +140,7 @@ static std::string lamp_style_text(const LevelLamp& l) {
     char b[32];std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
 }
 static void level_lamps_load(unsigned level) {
-    level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;
+    level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;level_lamp_prop_sig=0;
     level_lamps_path_used=level_lamps_path(level);
     std::ifstream f(level_lamps_path_used);
     if(!f) return;
@@ -129,7 +157,7 @@ static void level_lamps_load(unsigned level) {
         l.style=lamp_steady;
         if(n>=9 && !lamp_style_parse(style,l)) {++bad;continue;}
         for(float& c:l.rgb) c=std::clamp(c,0.0f,4.0f);
-        l.k=std::clamp(l.k,0.0f,4.0f);l.note=note;
+        l.k=std::clamp(l.k,0.0f,4.0f);l.note=note;level_lamp_parse_props(l);
         level_lamps.push_back(l);
     }
     std::fprintf(stderr,"[TTK lamp] level %u: %zu lamps from %s%s\n",level,level_lamps.size(),level_lamps_path_used.c_str(),bad?" (some lines skipped)":"");
@@ -264,11 +292,42 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         float& v=level_lamp_vis[near[j].i];
         v=v<target?std::min(target,v+step):std::max(target,v-step);
     }
+    // D54: a lamp whose props have all broken sputters out. After a load
+    // (level or savestate) the state is taken as found, without the sputter.
+    const bool breaks=level_lamps_breaks.load(std::memory_order_relaxed)!=0;
+    if(const uint32_t loads=psx_mod_savestate_loads();loads!=level_lamp_prop_loads) {
+        level_lamp_prop_loads=loads;level_lamp_prop_sig=0;for(LevelLamp& l:level_lamps) l.standing=-1;
+    }
+    // Every bound lamp, near or not, so one broken out of sight does not
+    // sputter when Duke comes back.
+    // Not this level's props (loading): kept as they are. A fingerprint that
+    // stays different for 2 s is taken anew.
+    const PropSnapshot& props=prop_snapshot_take();
+    static uint32_t mismatch_since;
+    const bool usable=prop_snapshot_usable(props,level_lamp_prop_sig);
+    if(usable) mismatch_since=0;
+    else if(props.valid) {
+        if(!mismatch_since) mismatch_since=light_ticks|1;
+        else if(light_ticks-mismatch_since>60) {level_lamp_prop_sig=0;mismatch_since=0;}
+    }
+    for(unsigned i=0;usable && i<level_lamps.size();++i) {
+        LevelLamp& l=level_lamps[i];
+        if(l.props.empty()) continue;
+        bool stands=false;
+        for(const PropRef& r:l.props) stands|=prop_standing_at(props,r.type,r.p);
+        if(stands) l.standing=1;
+        else if(l.standing!=0) {
+            l.broke_tick=l.standing<0 ? light_ticks-prop_dying_ticks : light_ticks;
+            l.standing=0;
+            if(l.broke_tick==light_ticks) std::fprintf(stderr,"[TTK lamp] lamp %u goes out: its prop broke (%s)\n",i,l.note.c_str());
+        }
+    }
     unsigned k=0;
     for(unsigned j=0;j<n && k<std::min(room,level_lamp_max);++j) {
         const LevelLamp& l=level_lamps[near[j].i];
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,near[j].i));
         e*=(float)std::clamp((level_lamp_margin-near[j].d)/level_lamp_fade,0.0,1.0);
+        if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,near[j].i);
         if((int)near[j].i!=level_lamp_selected) e*=level_lamp_vis[near[j].i];
         if((int)near[j].i==level_lamp_selected && light_ticks<level_lamp_flash_until)
             e=(light_ticks/6)&1 ? std::max(e,1.2f) : 0.0f;  // editor: the selected lamp blinks
@@ -403,7 +462,7 @@ static std::vector<ScanCand> level_lamps_scan(int threshold) {
 // candle style when warm (lantern and torch flames) or flicker (neon).
 // gpu_vram_peek: gpu.h (through the backend, which syncs its copy first).
 static constexpr double sign_min_glow=3000,sign_offset=300;
-struct SignCand {double p[3];double rgb[3];double radius,glow;unsigned type,room;bool animated;};
+struct SignCand {double p[3];double rgb[3];double radius,glow;unsigned type,room;bool animated;std::vector<PropRef> props;};
 static inline double lamp_ss(double a,double b,double x) {const double t=std::clamp((x-a)/(b-a),0.0,1.0);return t*t*(3-2*t);}
 static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullptr) {
     std::vector<SignCand> out;
@@ -547,7 +606,7 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
             auto rot=[&](const double* v,double* w){w[0]=v[0]*ca+v[2]*sa;w[1]=v[1];w[2]=-v[0]*sa+v[2]*ca;};
             double c[3],dir[3];rot(g.c,c);rot(g.out,dir);
             const double dl=std::sqrt(dir[0]*dir[0]+dir[1]*dir[1]+dir[2]*dir[2]);
-            SignCand s{};s.type=type;s.room=r;s.glow=g.e;s.animated=g.animated*2>g.e;
+            SignCand s{};s.type=type;s.room=r;s.glow=g.e;s.animated=g.animated*2>g.e;s.props.push_back(prop_ref(o));
             for(int k=0;k<3;++k) s.p[k]=(int32_t)psx_mod_read_word(o+4+4*k)+c[k]+(dl>0.3?dir[k]/dl*sign_offset:0);
             const double m=std::max({g.col[0],g.col[1],g.col[2],1e-6});
             for(int k=0;k<3;++k) s.rgb[k]=g.col[k]/m;
@@ -561,7 +620,8 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
         if(d<600.0*600.0 && dc<0.35) {
             const double t=out[i].glow+out[j].glow;
             for(int k=0;k<3;++k) {out[i].p[k]=(out[i].p[k]*out[i].glow+out[j].p[k]*out[j].glow)/t;out[i].rgb[k]=(out[i].rgb[k]*out[i].glow+out[j].rgb[k]*out[j].glow)/t;}
-            out[i].radius=std::max(out[i].radius,out[j].radius);out[i].glow=t;out.erase(out.begin()+j);
+            out[i].radius=std::max(out[i].radius,out[j].radius);out[i].glow=t;
+            out[i].props.insert(out[i].props.end(),out[j].props.begin(),out[j].props.end());out.erase(out.begin()+j);
         } else ++j;
     }
     return out;
@@ -572,6 +632,55 @@ static size_t level_lamps_drop_notes(const char* prefix) {
     level_lamps.erase(std::remove_if(level_lamps.begin(),level_lamps.end(),[&](const LevelLamp& l){return !l.note.compare(0,n,prefix);}),level_lamps.end());
     level_lamp_selected=-1;
     return level_lamps.size();
+}
+
+// D54 "lamp bind all": gives each lamp that names its prop type ("sign type
+// N", "type N") and has no props yet the props it belongs to, on a level as
+// loaded (every prop standing). The scans put a lamp at the same place in
+// the model of every prop of one type, so per type: the median model-space
+// offset from each lamp to its nearest prop, then each lamp takes every prop
+// of that type that would put its lamp within 700 of it (a stack). Returns
+// lamps bound; unbound counts lamps of a type with no fit.
+static size_t level_lamps_bind_all(unsigned& unbound) {
+    unbound=0;
+    const PropSnapshot& snap=prop_snapshot_take(true);
+    if(!snap.valid) return 0;
+    auto yaw_of=[](const PropRef& r){return (int16_t)psx_mod_read_half(r.o+0x1c)*(2*3.14159265358979/4096);};
+    std::map<unsigned,std::vector<unsigned>> by_type;
+    for(unsigned i=0;i<level_lamps.size();++i) {
+        const LevelLamp& l=level_lamps[i];
+        if(!l.props.empty()) continue;
+        const size_t at=l.note.find("type ");
+        if(at==std::string::npos) continue;
+        by_type[(unsigned)std::atoi(l.note.c_str()+at+5)].push_back(i);
+    }
+    size_t bound=0;
+    for(const auto& [type,lamps]:by_type) {
+        std::vector<const PropRef*> cands;
+        for(const PropRef& r:snap.standing) if(r.type==type) cands.push_back(&r);
+        if(cands.empty()) {unbound+=lamps.size();continue;}
+        std::vector<double> off[3];
+        for(unsigned i:lamps) {
+            const LevelLamp& l=level_lamps[i];const PropRef* best=nullptr;double bd=1e300;
+            for(const PropRef* r:cands) {double d=0;for(int k=0;k<3;++k) d+=(l.p[k]-r->p[k])*(l.p[k]-r->p[k]);if(d<bd) {bd=d;best=r;}}
+            const double a=yaw_of(*best),ca=std::cos(a),sa=std::sin(a),w[3]={l.p[0]-best->p[0],l.p[1]-best->p[1],l.p[2]-best->p[2]};
+            off[0].push_back(w[0]*ca-w[2]*sa);off[1].push_back(w[1]);off[2].push_back(w[0]*sa+w[2]*ca);
+        }
+        double m[3];
+        for(int k=0;k<3;++k) {std::sort(off[k].begin(),off[k].end());m[k]=off[k][off[k].size()/2];}
+        for(unsigned i:lamps) {
+            LevelLamp& l=level_lamps[i];std::vector<PropRef> mine;
+            for(const PropRef* r:cands) {
+                const double a=yaw_of(*r),ca=std::cos(a),sa=std::sin(a);
+                const double e[3]={r->p[0]+m[0]*ca+m[2]*sa,r->p[1]+m[1],r->p[2]-m[0]*sa+m[2]*ca};
+                double d=0;for(int k=0;k<3;++k) d+=(l.p[k]-e[k])*(l.p[k]-e[k]);
+                if(d<700.0*700.0) mine.push_back(*r);
+            }
+            if(mine.empty()) {++unbound;std::fprintf(stderr,"[TTK lamp]   bind: lamp %u (%s) fits no prop of type %u\n",i,l.note.c_str(),type);continue;}
+            level_lamp_set_props(l,mine);++bound;
+        }
+    }
+    return bound;
 }
 
 // The aim point: where the view meets the world within 12000, backed off 250
@@ -664,7 +773,27 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
         level_lamp_describe(b,sizeof b,level_lamp_selected);level_lamp_notice("Lamp: %s",b);
     } else if(!std::strcmp(verb,"note")) {
         if(!need_sel()) return;
-        s->note=rest;level_lamps_dirty=true;level_lamp_notice("Lamp %d note: %s",level_lamp_selected,rest);
+        const std::vector<PropRef> keep=s->props;
+        s->note=rest;level_lamp_set_props(*s,keep);level_lamps_dirty=true;level_lamp_notice("Lamp %d note: %s",level_lamp_selected,s->note.c_str());
+    } else if(!std::strcmp(verb,"bind") && !std::strcmp(rest,"all")) {
+        unsigned unbound=0;const size_t n=level_lamps_bind_all(unbound);
+        if(n) level_lamps_dirty=true;
+        level_lamp_notice("Lamp bind: %zu lamps now go out with their props, %u fit none (lamp save keeps them)",n,unbound);
+        std::fprintf(stderr,"[TTK lamp] bind level %u: %zu bound, %u unbound\n",level_lamps_level,n,unbound);
+    } else if(!std::strcmp(verb,"bind")) {
+        // The selected lamp goes out with the standing prop nearest the crosshair.
+        if(!need_sel()) return;
+        double aim[3];level_lamp_aim(cpu,aim);
+        const PropSnapshot& snap=prop_snapshot_take(true);
+        const PropRef* best=nullptr;double bd=3000.0*3000.0;
+        for(const PropRef& r:snap.standing) {double d=0;for(int k=0;k<3;++k) d+=(aim[k]-r.p[k])*(aim[k]-r.p[k]);if(d<bd) {bd=d;best=&r;}}
+        if(!best) {level_lamp_notice("Lamp: no standing prop near the crosshair");return;}
+        std::vector<PropRef> v=s->props;v.push_back(*best);level_lamp_set_props(*s,v);level_lamps_dirty=true;
+        level_lamp_describe(b,sizeof b,level_lamp_selected);level_lamp_notice("Lamp bound: %s",b);
+    } else if(!std::strcmp(verb,"unbind")) {
+        if(!need_sel()) return;
+        level_lamp_set_props(*s,{});level_lamps_dirty=true;
+        level_lamp_describe(b,sizeof b,level_lamp_selected);level_lamp_notice("Lamp unbound: %s",b);
     } else if(!std::strcmp(verb,"del")) {
         if(!need_sel()) return;
         level_lamps.erase(level_lamps.begin()+level_lamp_selected);level_lamps_dirty=true;
@@ -697,6 +826,7 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
             const bool warm=k.rgb[0]>=0.99 && k.rgb[1]>=0.4 && k.rgb[2]<0.5;
             l.radius=std::round(k.radius);l.k=1.0f;l.style=k.animated?(warm?lamp_candle:lamp_flicker):lamp_steady;
             char note[48];std::snprintf(note,sizeof note,"sign type %u room %u%s",k.type,k.room,k.animated?" animated":"");l.note=note;
+            level_lamp_set_props(l,k.props);   // D54: out when they break
             level_lamps.push_back(l);
         }
         level_lamps_dirty=true;
@@ -770,6 +900,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
         say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken wave [phase] [depth]");
+        say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
         say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");
         return true;
@@ -778,6 +909,8 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!std::strcmp(arg,"on")) {level_lamps_shown.store(1);say("Lamp: level lights shown");return true;}
     if(!std::strcmp(arg,"props off")) {prop_lights_enabled.store(false);say("Lamp: woodburners and chandeliers dark (session)");return true;}
     if(!std::strcmp(arg,"props on") || !std::strcmp(arg,"props")) {prop_lights_enabled.store(true);say("Lamp: woodburners and chandeliers lit");return true;}
+    if(!std::strcmp(arg,"breaks off")) {level_lamps_breaks.store(0);say("Lamp: lamps stay lit when their props break (session, to compare)");return true;}
+    if(!std::strcmp(arg,"breaks on") || !std::strcmp(arg,"breaks")) {level_lamps_breaks.store(1);say("Lamp: a lamp goes out when its prop breaks");return true;}
     if(!std::strcmp(arg,"gate off")) {level_lamps_gate.store(0);say("Lamp: lamps light through walls from unseen rooms (session)");return true;}
     if(!std::strcmp(arg,"gate on") || !std::strcmp(arg,"gate")) {level_lamps_gate.store(1);say("Lamp: a lamp lights only while its room is shown");return true;}
     if(!std::strcmp(arg,"list")) {
@@ -786,7 +919,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         for(const std::string& r:level_lamp_listing) say(r.c_str());
         return true;
     }
-    static const char* const verbs[]={"add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs"};
+    static const char* const verbs[]={"add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind"};
     bool known=false;for(const char* v:verbs) {const size_t n=std::strlen(v);if(!std::strncmp(arg,v,n) && (!arg[n] || arg[n]==' ')) known=true;}
     if(!known) {say("Lamp: unknown command (type lamp for help)");return true;}
     {std::lock_guard<std::mutex> g(level_lamp_mutex);if(level_lamp_queue.size()<64) level_lamp_queue.emplace_back(arg);}

@@ -1,5 +1,19 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D54 accepted and closed
+
+User: "this is awesome. i'm so happy with it. this step definitely works fine so i'd say commit right here". D54 is Done: a light-emitting prop that breaks takes its light with it, game-wide (sign lamps in every level file, D41L and D53 lights), across savestates. The original painted light stays (a possible follow-up). [Note 437](documentation/437-d54-broken-lights.md).
+
+## 2026-11-10 - D54: broken lights go out (Needs playtest)
+
+Selected from the user's report (UI slot 6: a barrel and two traffic lights
+keep their light when destroyed). TTK marks a broken prop with bit 2 of
+`+0x00` (health `+0x32` at 0) and then unlinks it from its room; our lights
+now follow that (`prop_state.h`), bound by prop type and place. Sign lamps in
+every level file carry `prop TYPE x y z`; D41L and D53 lights check their
+prop each image. Verified in play on the slot 6 copy and across savestates;
+original painted light unchanged. [Note 437](documentation/437-d54-broken-lights.md).
+
 ## 2026-11-10 - D07H moved to Monitoring
 
 User decision: keep D07H open as Monitoring and work normally; resume only when the
@@ -8744,6 +8758,58 @@ screen face until Duke walks out of range, then back to the D53 idle
 screen. Needs a second scene pass to an offscreen target in Polymorph.
 Duke 3D toggle value only. Acceptance: user playtest in slot 9.
 
+### D54 - Broken lights go out
+
+**Status: Done (accepted 2026-11-10; [note 437](documentation/437-d54-broken-lights.md)).**
+
+User, UI slot 6 (level 5 street): "In front of you is a barrel and two
+traffic lights ... destroy all of them and you'll see that the lighting
+effects remain ... when Breaking an object that Emits light then the light
+should also get destroyed ... that's actually game wide". Scope:
+
+- Find how TTK breaks a prop (object freed, mesh or kind swapped, a broken
+  model) and every source of our light tied to a prop: D41D1 sign lamps
+  (level files, `sign type N` notes), hand-placed lamps on a prop, D41L
+  prop lights by model, D53 screen lights, and any other glow drawn for a
+  prop.
+- Bind each such light to its prop at run time; when the prop breaks, the
+  light goes out (a short dying flicker, not a pop) and stays out, also
+  after a savestate load in the broken state.
+- Game-wide rule, not a list per level. Painted vertex light (the original's
+  baked light) is reported, not changed, unless the investigation shows a
+  safe way.
+- Modernized Polymorph only; Vanilla and Classic unchanged.
+
+Acceptance: in UI slot 6 the barrel and both traffic lights lose their light
+when destroyed; other light-emitting props checked on other levels; user
+playtest.
+
+**Work log (2026-11-10, Needs playtest).** Investigation in a private copy of
+UI slot 6 (file slot 5): the traffic lights (type 217) and the fire barrel
+(type 220) broken by gunfire. At the breaking hit the prop's health (`+0x32`)
+reaches 0 and bit 2 of `+0x00` is set; shortly after, the object is unlinked
+from its room lists; type, place and mesh stay in memory. Our lights tied to
+props: D41D1 sign lamps (fixed places in the level files, lit for good), D41L
+woodburner and chandelier lights and D53 screen and power-sign lights (rescan
+every 300 frames). Built: `recomp/src/ttk/prop_state.h`, a shared snapshot of
+standing props (linked, kind 1, bit 2 clear, same type and place) with a room
+table fingerprint so a level change does not read as every prop breaking.
+Lamps take `prop TYPE x y z` entries in their notes; `lamp signs` writes them
+and `lamp bind all` added them to every existing file (922 sign lamps, 21
+levels, none unbound, lamp values unchanged). A light whose props all break
+sputters out over 0.4 s and stays dark; loads take the state as found (no
+sputter). D41L and D53 emitters check their prop each image and skip broken
+props when scanning, and rescan on a savestate load; the D53 bounds writer
+skips broken or unlinked monitors. Console: `lamp bind`, `unbind`, `bind
+all`, `breaks off|on`. Evidence: the three lamps go out at their breaks
+(log and matched shots `research/before-after/D54/`, local); a lab save made
+after the breaks loads dark and the slot loads lit; flag set by hand on a
+level 1 woodburner and a level 0 monitor puts out the fire light, the screen
+light and the monitor's sign lamp; no false outs at level changes; build OK,
+`ttk-input-test` and `ttk-near-test` pass. Remaining: user playtest in UI slot
+6; the original baked (painted) light around a broken emitter stays (the
+orange on the wall over the barrel), a possible follow-up.
+
 ### D52 - Security camera screens: low frame rate and glitches over them
 
 **Status: Done (user-accepted 2026-11-09: "I can confirm the cams are now stable, and cams 2 and 3 show no enemies"; closeout authorized 2026-11-09; [note 430](documentation/430-d52-security-cameras.md)). Dependencies: none known. Follow-up: D17BF.**
@@ -10261,6 +10327,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D52 | Security camera screens (UI slot 9): low frame rate and glitches drawn over them | Done (user-accepted 2026-11-09; note 430) | - |
 | D53 | Security monitors, Duke 3D style: camera overlay (corners, REC, record light), screen art with TV bezel, screen light, TTK / Duke 3D toggle; glowing keypads and power switch | Done (user-accepted 2026-11-09; note 432) | D52, D41D1 |
 | D53A | Security monitors keep a low-res live picture after you leave the view, until you walk out of range | Todo | D53 |
+| D54 | Broken lights go out: a light-emitting prop that is shot or blown up takes its light with it (traffic lights, barrels, signs, lamps, props by model); game-wide | Done (note 437) | D41D1, D41L |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

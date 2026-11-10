@@ -20,6 +20,7 @@
 // path from the second texture bank (x 256..335, painted here). Classic and
 // Vanilla: nothing changes.
 #include "prop_lights.h"
+#include "prop_state.h"
 #include "live_env.h"
 #include "pc_input.h"
 #include "cpu_state.h"
@@ -90,9 +91,12 @@ constexpr float grate_x=150,grate_y0=1160,grate_y1=1305,grate_z=233;
 constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 
 // ---- props and their lights (game thread) --------------------------------
-struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;};
+// D54: ref is the prop; when it breaks (prop_state.h) the light sputters out
+// from broke_ms (standing 0) and the scans no longer find it.
+struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;};
+uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
-uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0;
+uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
 size_t stoves=0,chandeliers=0;
 void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     // Model to world: yaw +0x1c (4096 a turn); model -z goes to (-sin, -cos).
@@ -100,7 +104,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=0;
+    emitters.clear();stoves=chandeliers=0;scan_sig=0;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     std::vector<uint32_t> seen;
@@ -112,12 +116,12 @@ void scan_props() {
             if(o<0x80010000u || o>0x801fff00u || (o&3)) continue;
             if(std::find(seen.begin(),seen.end(),o)!=seen.end()) continue;
             seen.push_back(o);
-            if(psx_mod_read_byte(o+0x14)!=1) continue;
+            if(psx_mod_read_byte(o+0x14)!=1 || prop_broken_flag(o)) continue;   // D54: broken props give no light
             const int kind=kind_of(psx_mod_read_word(o+0x44));
             if(!kind) continue;
             double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             const double yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*pi/4096);
-            Emitter e{};e.room=r;e.seed=o;
+            Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
             if(kind==prop_light_stove) {
                 place(e.p,p,yaw,fire_at);e.tune=&fire_light;e.fire=true;emitters.push_back(e);++stoves;
             } else {
@@ -134,13 +138,21 @@ void composition_hook(CPUState*,uint32_t) {
     if(!input_modernized()) {emitters.clear();scan_level=~0u;return;}   // Vanilla: nothing
     ++frames;
     const uint32_t level=psx_mod_read_word(0x800be570u);
-    if(level!=scan_level || frames-scan_frame>300) {scan_level=level;scan_frame=frames;scan_props();}
+    // D54: a savestate load rescans too (a prop broken since, or standing again).
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(level!=scan_level || loads!=scan_loads || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     if(!room || emitters.empty() || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const uint32_t ms=now_ms();
+    // D54: a broken prop's light sputters out.
+    const PropSnapshot& snap=prop_snapshot_take();
+    if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
+        e.standing=0;e.broke_ms=ms;
+        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":"candle",e.ref.o);
+    }
     // Room gate: each light fades toward whether its room is shown (0.25 s).
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
     struct Near {double d;Emitter* e;};
@@ -150,7 +162,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         e.vis=e.vis<target?std::min(target,e.vis+step):std::max(target,e.vis-step);
         const double dx=e.p[0]-duke[0],dy=e.p[1]-duke[1],dz=e.p[2]-duke[2];
         const double d=std::sqrt(dx*dx+dy*dy+dz*dz)-e.tune->radius;
-        if(d<6000 && e.vis>0.01f) near.push_back({d,&e});
+        if(d<6000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
     }
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
     unsigned n=0;
@@ -159,6 +171,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         const Emitter& e=*q.e;
         float k=e.tune->k*e.vis*(float)std::clamp((6000-q.d)/2000,0.0,1.0);
         k*=e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);
+        if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.tune->radius;
         l.r=e.tune->rgb[0]*k;l.g=e.tune->rgb[1]*k;l.b=e.tune->rgb[2]*k;l.flags=0;

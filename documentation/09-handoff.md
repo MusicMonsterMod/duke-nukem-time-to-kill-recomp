@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-11-10 - D41F accepted and closed
+
+User: "excelent work. i couldnt even stop playing it. lock it in and close it out". D41F is Done: walls stop the dynamic lights (cube shadow maps for the 16 strongest lights near Duke, from the host's world-space room meshes; single-panel walls lit only on the side facing the light). D41E is now unblocked on D41F. [Note 439](documentation/439-d41f-shadows.md).
+
+## 2026-11-10 - D41F: shadows (Needs playtest)
+
+Selected before D41E (user: "Do D41F first"). Walls now stop the dynamic
+lights: the level's room meshes form a world shadow mesh, the 16 strongest
+lights near Duke (lamps, signs, screens, prop lamps, fire, rounds, blasts,
+test lights; not muzzle flashes or sparks) get cube shadow maps in a depth
+atlas per renderer instance, and the textured shader stops their light
+where a wall stands between. Single-panel walls take a shadowed light only
+on the side facing it. Console `light shadows [on|off|default]`.
+Evidence: matched shots (light behind a wall, a pillar's shadow, subway
+lamps with the room gate off) in `research/before-after/d41f-shadows/`;
+real display, 180 Hz: 0 missed redraws with shadows on and off, about 0.12
+ms host time per map, static lamps drawn once. Native tests pass; framework
+patch verified against the pinned checkout. Limits: props and actors cast
+no shadows, see-through faces cast solid ones, faint lines can remain at
+some wall corners. Not this job: a sandstone-room ceiling face drops out to
+black on some frames with shadows off too. Needs the user's playtest of the
+look and feel. [Note 439](documentation/439-d41f-shadows.md).
+
 ## 2026-11-10 - D55 accepted and closed
 
 User: "incredible work. lock it in and close it out". D55 is Done: traffic lights light the street in the colour they show and flash with it (lamp style `signal`, read live from the game's texture animation; levels 0, 5 and 9), level 29's pulsing neon pulses its light. [Note 438](documentation/438-d55-traffic-lights.md).

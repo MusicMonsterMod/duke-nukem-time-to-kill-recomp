@@ -38,7 +38,8 @@ enum {light_kind_blast=1,light_kind_muzzle=2,light_kind_test=3,light_kind_spark=
 static LightSrc light_srcs[24];static unsigned light_src_count;
 // D41H: smooth tells near_clip.cpp to give model corners smoothed normals
 // (console "light smooth on|off", DNTTK_SMOOTH_LIGHT=0 developer default off).
-struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];};
+// D41F: nsh shadowed lights (light_shadows.inc); their lights' flags name the slot.
+struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];};
 static LightView light_view;                 // this image's lights (RenderState)
 static std::atomic<int> light_console{0};    // 1 add test light, 2 clear
 static std::atomic<int> light_smooth{-1};     // D41H session override (-1 default)
@@ -234,8 +235,18 @@ static void lights_fire_collect() {
 static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint32_t owner);
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room); // D41D (level_lights.inc)
 static unsigned prop_lamps_publish(PSXModLight* out,unsigned room);  // D41L (level_lights.inc)
+// D41F (light_shadows.inc): which of the image's lights may cast shadows
+// (cand, one per light), then slots for the strongest of them near Duke.
+static void shadows_assign(LightView& v,const uint8_t* cand);
+static void shadow_mesh_tick();
+static double shadow_probe_eye[3];
+static bool shadows_console(const char* arg,void (*say)(const char*));
 static void lights_publish() {
     LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
+    uint8_t cand[PSX_MOD_MAX_LIGHTS]={};
+    // Rounds in flight, placed lamps, TV screens, prop lamps and fire cast
+    // shadows; of the sources below, blasts and test lights do (not muzzle
+    // flashes at a gun next to a wall, or sparks on the wall they hit).
     v.n=lights_flight(v.l,8);
     v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
     if(security_tv_lights) v.n+=security_tv_lights(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D53: TV screens
@@ -247,6 +258,7 @@ static void lights_publish() {
         else {l.r=1.15f*f.k;l.g=0.58f*f.k;l.b=0.22f*f.k;}
         l.flags=0;
     }
+    for(unsigned i=0;i<v.n;++i) cand[i]=1;
     for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const LightSrc& s=light_srcs[i];
         const double e=light_envelope(s);
@@ -256,7 +268,9 @@ static void lights_publish() {
         l.radius=(float)(s.radius*(s.kind==light_kind_blast?0.75+0.25*e:1.0));
         l.r=(float)(s.rgb[0]*e);l.g=(float)(s.rgb[1]*e);l.b=(float)(s.rgb[2]*e);
         l.flags=0;
+        cand[v.n-1]=s.kind==light_kind_blast || s.kind==light_kind_test;
     }
+    shadows_assign(v,cand);
     light_view=v;
 }
 
@@ -337,6 +351,7 @@ static void lights_tick() {
     }
     }
     ++light_ticks;
+    shadow_mesh_tick();   // D41F
     lights_fire_collect();
     if(std::getenv("DNTTK_LIGHT_PROBE")) lights_probe_report();
     if(std::getenv("DNTTK_PARTICLE_TRACE")) lights_particle_trace();
@@ -458,13 +473,15 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     // D41H: normals only matter where the shader lights (a light or a dimmed
     // ambient); otherwise lit triangles keep their original colour.
     near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f));
-    if(!valid || !lights_enabled()) {psx_mod_gpu_set_lights(nullptr,0,1.0f);return;}
+    if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);return;}
+    for(int i=0;i<3;++i) shadow_probe_eye[i]=eye[i];   // D41F developer probe
     PSXModLight l[PSX_MOD_MAX_LIGHTS];
     const unsigned n=std::min<unsigned>(light_view.n,PSX_MOD_MAX_LIGHTS);
     for(unsigned i=0;i<n;++i) {
         l[i]=light_view.l[i];
         l[i].x=(float)(light_view.l[i].x-eye[0]);l[i].y=(float)(light_view.l[i].y-eye[1]);l[i].z=(float)(light_view.l[i].z-eye[2]);
     }
+    psx_mod_gpu_set_shadows(light_view.sh,(int)light_view.nsh);   // D41F: before the lights that name them
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
     near_clip_light_probe_lights(l,(int)n,light_view.amb);
 }
@@ -478,6 +495,8 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
     if(ttk_world_classic()) {say("Light: dynamic lights need the Polymorph renderer");return true;}
     const char* arg=line+5;while(*arg==' ')++arg;
     if(!std::strcmp(arg,"off")) {light_console.store(2);say("Light: test lights removed");return true;}
+    // D41F: "light shadows [on|off|default]" (light_shadows.inc).
+    if(!std::strncmp(arg,"shadows",7) && (!arg[7] || arg[7]==' ')) return shadows_console(arg+7,say);
     // D41H: "light smooth [on|off|default]" - smooth or faceted light on
     // models for this session (matched comparisons).
     if(!std::strncmp(arg,"smooth",6) && (!arg[6] || arg[6]==' ')) {

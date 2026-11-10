@@ -1,5 +1,28 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D41F accepted and closed
+
+User: "excelent work. i couldnt even stop playing it. lock it in and close it out". D41F is Done: walls stop the dynamic lights (cube shadow maps for the 16 strongest lights near Duke, from the host's world-space room meshes; single-panel walls lit only on the side facing the light). D41E is now unblocked on D41F. [Note 439](documentation/439-d41f-shadows.md).
+
+## 2026-11-10 - D41F: shadows (Needs playtest)
+
+Selected before D41E (user: "Do D41F first"). Walls now stop the dynamic
+lights: the level's room meshes form a world shadow mesh, the 16 strongest
+lights near Duke (lamps, signs, screens, prop lamps, fire, rounds, blasts,
+test lights; not muzzle flashes or sparks) get cube shadow maps in a depth
+atlas per renderer instance, and the textured shader stops their light
+where a wall stands between. Single-panel walls take a shadowed light only
+on the side facing it. Console `light shadows [on|off|default]`.
+Evidence: matched shots (light behind a wall, a pillar's shadow, subway
+lamps with the room gate off) in `research/before-after/d41f-shadows/`;
+real display, 180 Hz: 0 missed redraws with shadows on and off, about 0.12
+ms host time per map, static lamps drawn once. Native tests pass; framework
+patch verified against the pinned checkout. Limits: props and actors cast
+no shadows, see-through faces cast solid ones, faint lines can remain at
+some wall corners. Not this job: a sandstone-room ceiling face drops out to
+black on some frames with shadows off too. Needs the user's playtest of the
+look and feel. [Note 439](documentation/439-d41f-shadows.md).
+
 ## 2026-11-10 - D55 accepted and closed
 
 User: "incredible work. lock it in and close it out". D55 is Done: traffic lights light the street in the colour they show and flash with it (lamp style `signal`, read live from the game's texture animation; levels 0, 5 and 9), level 29's pulsing neon pulses its light. [Note 438](documentation/438-d55-traffic-lights.md).
@@ -7946,7 +7969,7 @@ user plays relit levels and approves each one.
 
 ### D41F - Shadows
 
-**Status: Todo. Dependencies: D41A.** Research spike, then shadow maps for
+**Status: Done (2026-11-10; [note 439](documentation/439-d41f-shadows.md)). Selected as the D41E prerequisite. Dependencies: D41A.** Research spike, then shadow maps for
 chosen lights (blasts, placed lamps) rendered from the host's world-space room
 meshes, so light stops at walls; PCF filtering; cost limits at 180 Hz. GZDoom's
 1D shadow maps do not fit TTK's 3D rooms. Acceptance: matched shots of a light
@@ -10358,7 +10381,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Done (user-accepted 2026-11-09: lamps, editor, scan, level 0, signs keep their look; note 428; rest moved to D41D1) | D41A |
 | D41D1 | Level light sources, second part: signs and neon found by texture give real light, TTK's animated light tables as lamp styles, first lamp sets for more levels (user review per level) | Done (user-accepted 2026-11-09; note 429) | D41D |
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
-| D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
+| D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Done (note 439) | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
 | D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |

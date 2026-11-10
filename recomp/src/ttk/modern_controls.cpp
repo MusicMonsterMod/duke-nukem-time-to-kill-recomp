@@ -1233,6 +1233,7 @@ static bool facing_ready() {
 #include "gadget_hud.inc"
 #include "ammo_hud.inc"
 #include "dynamic_lights.inc"
+#include "light_shadows.inc"
 #include "muzzle_settle.inc"
 #include "draw_distance.inc"
 #include "enemy_reach.inc"

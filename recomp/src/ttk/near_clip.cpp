@@ -633,6 +633,15 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 // D41A: view to world (relative to the eye) for lit corners: v = M d / 4096,
 // so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
 bool light_frame=false,light_smooth=false;double light_inv[9];
+// D41F (DNTTK_SHADOW_PROBE=1, developer): unclipped world corners as emitted
+// (eye-relative), for light_shadows.inc to compare with the shadow mesh.
+std::mutex shadow_probe_lock;std::vector<std::array<float,3>> shadow_probe_samples;
+void shadow_probe_corner(float x,float y,float z) {
+    static const bool on=std::getenv("DNTTK_SHADOW_PROBE")!=nullptr;if(!on) return;
+    std::lock_guard<std::mutex> g(shadow_probe_lock);
+    if(shadow_probe_samples.size()<4096) shadow_probe_samples.push_back({x,y,z});
+}
+
 // D41C: Duke's own layers too (weapon, held item, display arms and legs):
 // their view-space corners are where they appear before the eye, so world
 // lights reach them where the player sees them. The first-person layer's
@@ -790,6 +799,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                     const float w3[3]={wx,wy,wz};
                     light_probe_corner(!f.object?0:poly.actor?2:1,light_probe_cur,v[i].rgb,w3,fn,nv);
                 }
+                if(!f.object && v[i].original>=0) shadow_probe_corner(wx,wy,wz);   // D41F developer probe
                 if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
@@ -2548,6 +2558,9 @@ void near_clip_light_probe_lights(const void* lights,int n,float amb) {
     std::lock_guard<std::mutex> g(light_probe_lock);
     light_probe_n=std::min(n,(int)PSX_MOD_MAX_LIGHTS);light_probe_amb=amb;
     for(int i=0;i<light_probe_n;++i) light_probe_l[i]=l[i];
+}
+std::vector<std::array<float,3>> near_clip_shadow_probe_take() {
+    std::lock_guard<std::mutex> g(shadow_probe_lock);std::vector<std::array<float,3>> r;r.swap(shadow_probe_samples);return r;
 }
 void near_clip_light_frame(bool valid,const double m[9],bool smooth) {
     light_frame=false;light_smooth=smooth;

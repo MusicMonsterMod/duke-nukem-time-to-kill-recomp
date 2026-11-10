@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <array>
 struct CPUState;
 namespace ttk {
 // D11B: world-mesh near clipping for the eye view (near_clip.cpp).
@@ -38,6 +39,8 @@ void near_clip_flip();
 // for world positions of lit corners (relative to the eye); valid false
 // stops them (dynamic_lights.inc).
 void near_clip_light_frame(bool valid,const double m[9],bool smooth=false);
+// D41F (DNTTK_SHADOW_PROBE=1, developer): emitted world corners (eye-relative) since the last call.
+std::vector<std::array<float,3>> near_clip_shadow_probe_take();
 // D41K: DNTTK_LIGHT_PROBE=1 (developer): the image's lights for the probe.
 void near_clip_light_probe_lights(const void* lights,int n,float amb); // PSXModLight[n]
 // Reserve draw-time scratch before replay workers fork.

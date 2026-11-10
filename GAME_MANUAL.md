@@ -403,6 +403,15 @@ faceted light on models for comparison until `light smooth on` (or the next
 launch), and `light fire off` / `light fire on` turns the fire lights
 (flames and burning) off and on for the session.
 
+**Shadows.** Walls stop the light: a lamp, a sign, a blast or a rocket in
+flight lights only what it can see, so light no longer bleeds through a wall
+into the next room, and pillars and doorways throw shadows. The strongest
+lights near Duke (up to 16 at once) cast shadows; muzzle flashes and wall
+sparks do not. The room walls cast shadows; props, enemies and Duke do not
+yet. Shadows come with DYNAMIC LIGHTS on the Polymorph renderer. In the
+backtick console, `light shadows off` / `light shadows on` compares without
+and with shadows for the session, and `light shadows` shows their state.
+
 **Level lights.** Levels can also have placed lights of their own, "lamps":
 neon signs, lamps and coloured rooms cast real light on walls, props, enemies
 and Duke, on top of the painted light. Every level has a first set, found

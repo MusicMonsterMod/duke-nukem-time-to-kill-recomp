@@ -994,7 +994,10 @@ keys or the wheel). **SIDEARM RETURN: AUTO** instead brings your weapon back
 by itself once you have been off the trigger for about 0.75 seconds (see
 Sidearm return below). Press **W/S** (or **A/D**) to
 climb on: Duke holsters by himself and keeps climbing. **Space** lets go with
-the weapon out. With no sidearm ammo, left click does nothing on a climb.
+the weapon out. With no sidearm ammo, left click on a climb fires nothing
+and shows DESERT EAGLE: EMPTY (or DESERT EAGLE: NOT FOUND if you have not
+picked it up) in the middle of the screen, in the same style as the cheat
+messages. Save, load and other notices appear there too.
 Number keys do not change weapons on a climb. In third person Duke keeps one
 hand on the rung, chain or wall hold while the sidearm is out: his chest and
 head turn toward where you aim (up to about 50 degrees for the chest), and

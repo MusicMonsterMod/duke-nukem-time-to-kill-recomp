@@ -29,6 +29,7 @@
 #include "screen_flash.h"
 #include "pgxp.h"
 #include "gpu.h"
+#include "host_osd.h"
 #include <algorithm>
 #include <array>
 #include <set>

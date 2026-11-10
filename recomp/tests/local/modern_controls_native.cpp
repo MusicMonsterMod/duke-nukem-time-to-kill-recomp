@@ -354,6 +354,8 @@ static InputFrame input;
 static Cheat pending_cheat=Cheat::None;
 Cheat input_take_cheat(){auto c=pending_cheat;pending_cheat=Cheat::None;return c;}
 void input_notice(const char*){}
+extern "C" void host_osd_push_centered(const char*,int){}
+extern "C" uint16_t gpu_vram_peek(int,int){return 0;}
 void input_request_interaction(){}
 unsigned inventory_announcements;
 void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool announce){inventory_announcements+=announce;}

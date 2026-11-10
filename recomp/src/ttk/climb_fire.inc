@@ -24,6 +24,7 @@ static unsigned climb_swap_from=climb_no_swap;
 static unsigned weapon_loop_stop_from;   // the weapon swapped out, 0 = none
 static unsigned weapon_loop_stops;
 static unsigned climb_fire_draws,climb_swaps,climb_restores,climb_ground_restores;
+static unsigned climb_empty_notices;static bool climb_empty_fire_held;
 // Ladder rungs 186-189, chain/pole 192-195, climbing wall 198-205: the
 // clips the climb dispatcher runs for a settled attachment (mounts, catches
 // and exits excluded).
@@ -103,8 +104,19 @@ static void climb_fire_request() {
         }
         psx_mod_write_byte(player+0x3ba,climb_sidearm);
         psx_mod_write_word(player+0x224,flags|4);++selections;++climb_fire_draws;
+        climb_empty_fire_held=true;
         return;
     }
+    // D08J6G: a new left click on a climb, holstered, with no usable sidearm
+    // (empty or not owned) says why nothing happens instead of staying silent.
+    if(f.held[fire] && !climb_empty_fire_held && !f.held[holster] && !f.held[interact] && !climbing_on &&
+       climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 && !usable_weapon(climb_sidearm)) {
+        const bool owned=psx_mod_read_half(player+0x2c4+4*climb_sidearm)&1;
+        const char* text=owned?"DESERT EAGLE: EMPTY":"DESERT EAGLE: NOT FOUND";
+        host_osd_push_centered(text,3000);++climb_empty_notices;
+        std::fprintf(stderr,"[TTK climb fire] %s (mode %u)\n",text,unsigned(psx_mod_read_byte(player+0x22c)));
+    }
+    climb_empty_fire_held=f.held[fire];
     const unsigned a=psx_mod_read_half(player+0x60);
     if(climb_swap_from!=climb_no_swap && climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 &&
        !(flags&0x2cd) && psx_mod_read_half(player+0x74)==a) {
@@ -285,11 +297,11 @@ static void climb_fire_ground_restore(const InputFrame& f,unsigned equipment,uin
 }
 static const char* climb_fire_debug_json() {
     static char buffer[512];
-    std::snprintf(buffer,sizeof buffer,"{\"ready\":%s,\"hang\":%s,\"ceiling\":%s,\"hold\":%s,\"stow\":%s,\"shot\":%s,\"swap_from\":%d,\"draws\":%u,\"swaps\":%u,\"restores\":%u,\"ground_restores\":%u,\"hang_drops\":%u,\"hang_drop_restores\":%u,\"armed_pullup\":%s,\"armed_pullup_late\":%s,\"armed_pullups\":%u,\"armed_pullup_restores\":%u,\"return_waits\":%u,\"return_cancels\":%u,\"onehand_weight\":%.3f,\"onehand_phase\":%.3f,\"onehand_writes\":%u}",
+    std::snprintf(buffer,sizeof buffer,"{\"ready\":%s,\"hang\":%s,\"ceiling\":%s,\"hold\":%s,\"stow\":%s,\"shot\":%s,\"swap_from\":%d,\"draws\":%u,\"swaps\":%u,\"restores\":%u,\"ground_restores\":%u,\"hang_drops\":%u,\"hang_drop_restores\":%u,\"armed_pullup\":%s,\"armed_pullup_late\":%s,\"armed_pullups\":%u,\"armed_pullup_restores\":%u,\"return_waits\":%u,\"return_cancels\":%u,\"onehand_weight\":%.3f,\"onehand_phase\":%.3f,\"onehand_writes\":%u,\"empty_notices\":%u}",
         climb_weapon_ready()?"true":"false",hang_weapon_ready()?"true":"false",ceiling_weapon_ready()?"true":"false",climb_fire_hold_ready()?"true":"false",climb_stow_ready()?"true":"false",
         climb_shot_ready()?"true":"false",climb_swap_from==climb_no_swap?-1:(int)climb_swap_from,
         climb_fire_draws,climb_swaps,climb_restores,climb_ground_restores,hang_drop_handoffs,hang_drop_restores,
-        armed_pullup?"true":"false",armed_pullup_shot_ready()?"true":"false",armed_pullups,armed_pullup_restores,sidearm_return_waits,sidearm_return_cancels,onehand_weight,onehand_phase,onehand_writes);
+        armed_pullup?"true":"false",armed_pullup_shot_ready()?"true":"false",armed_pullups,armed_pullup_restores,sidearm_return_waits,sidearm_return_cancels,onehand_weight,onehand_phase,onehand_writes,climb_empty_notices);
     return buffer;
 }
 // D08J7B (note 378 part B): fire never interrupts a climb over a lip. Fire

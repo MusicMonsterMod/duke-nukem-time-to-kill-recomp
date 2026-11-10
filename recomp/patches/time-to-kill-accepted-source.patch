@@ -310,13 +310,14 @@ index 9f64b4ab..712af1f4 100644
                                      int *history_frames,
                                      double *host_hz, double *target_hz,
 diff --git a/runtime/include/host_osd.h b/runtime/include/host_osd.h
-index e4e6f307..79c95aa1 100644
+index e4e6f307..1a80c2b4 100644
 --- a/runtime/include/host_osd.h
 +++ b/runtime/include/host_osd.h
 @@ -16,11 +16,52 @@ extern "C" {
   * when OSD is gated off.
   */
  
+-/* Top-left text toast. duration_ms <= 0 uses 2000. */
 +/* D07G: crosshair art uses fractional fitted-picture scaling, with a readable
 + * 2x floor. Round only the final extent, avoiding whole-scale resize jumps. */
 +static inline int host_osd_crosshair_extent(int texels, float picture_height) {
@@ -325,7 +326,7 @@ index e4e6f307..79c95aa1 100644
 +    return (int)(texels * scale + 0.5f);
 +}
 +
- /* Top-left text toast. duration_ms <= 0 uses 2000. */
++/* Text toast, centered in the notice style (TTK). duration_ms <= 0 uses 2000. */
  void host_osd_push(const char *msg, int duration_ms);
 +void host_osd_push_centered(const char *msg, int duration_ms);
 +int host_osd_text_centered(void);
@@ -7006,7 +7007,7 @@ index 5f66e0a9..b8b8c751 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..3a2b65c7 100644
+index 62c387d0..4a43fed4 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -7216,11 +7217,13 @@ index 62c387d0..3a2b65c7 100644
      void *locked = NULL;
      int pitch = 0;
  #if defined(PSX_SDL3)
-@@ -337,30 +470,241 @@ void host_osd_push(const char *msg, int duration_ms) {
+@@ -337,30 +470,243 @@ void host_osd_push(const char *msg, int duration_ms) {
      snprintf(s_msg, sizeof(s_msg), "%s", msg);
      s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
      s_active = 1;
-+    s_centered = 0;
++    /* TTK D08J6G: every toast (save/load, settings, fullscreen...) uses the
++     * centered notice style of the cheat messages. */
++    s_centered = 1;
      s_needs_clear = 0;
      s_img_dirty = 1;
  #endif
@@ -7465,7 +7468,7 @@ index 62c387d0..3a2b65c7 100644
  void host_osd_show_volume(int percent, int duration_ms) {
  #if !HOST_OSD_VISUAL
      (void)percent;
-@@ -398,7 +742,7 @@ int host_osd_needs_present(void) {
+@@ -398,7 +744,7 @@ int host_osd_needs_present(void) {
  #if !HOST_OSD_VISUAL
      return 0;
  #else
@@ -7474,7 +7477,7 @@ index 62c387d0..3a2b65c7 100644
      return s_needs_clear;
  #endif
  }
-@@ -410,21 +754,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -410,21 +756,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
      if (h) *h = 0;
      return 0;
  #else
@@ -7499,7 +7502,7 @@ index 62c387d0..3a2b65c7 100644
      if (pixels) *pixels = s_img;
      if (w) *w = s_img_w;
      if (h) *h = s_img_h;
-@@ -432,6 +769,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -432,6 +771,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
  #endif
  }
  
@@ -7560,7 +7563,7 @@ index 62c387d0..3a2b65c7 100644
  int host_osd_volume_image(const uint32_t **pixels, int *w, int *h) {
  #if !HOST_OSD_VISUAL
      if (pixels) *pixels = NULL;
-@@ -457,14 +848,63 @@ void host_osd_present_done(void) {
+@@ -457,14 +850,63 @@ void host_osd_present_done(void) {
  #if !HOST_OSD_VISUAL
      return;
  #else
@@ -7625,7 +7628,7 @@ index 62c387d0..3a2b65c7 100644
  #if HOST_OSD_VISUAL
      {
          const uint32_t *px;
-@@ -477,9 +917,158 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+@@ -477,9 +919,158 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
          if (ui < 1) ui = 1;
          if (ui > 8) ui = 8;
          margin = 8 * ui;

@@ -1,5 +1,50 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D08J6G accepted and closed
+
+User: "lock it in and close it out". D08J6G is Done: a left click on a climb
+with no usable Desert Eagle shows DESERT EAGLE: EMPTY (or NOT FOUND) in the
+centered cheat-notice style, and every host toast (save, load, slot empty,
+fullscreen and the rest) is centered the same way. The slot 7 case was an
+empty sidearm, not a fault. [Note 435](documentation/435-d08j6g-empty-sidearm-notice.md).
+
+## 2026-11-09 - D08J6G: empty sidearm on a climb now says so; every notice centered (Needs playtest)
+
+Cause (private copy of UI slot 7 = runtime slot 6): Duke is on a ladder (mode
+3) with the Desert Eagle owned but empty (0 rounds) and the Combat Shotgun
+(49) selected. Climb fire (D08J6A) only draws the sidearm and, as designed,
+refused silently without sidearm ammo; no code path was broken. User: "so it
+was user error :')", choosing "Feedback only".
+
+Change (Modernized): a new left click on a ladder, chain, climbing wall,
+ledge hang or monkey bars, holstered, with no usable Desert Eagle shows
+DESERT EAGLE: EMPTY (or DESERT EAGLE: NOT FOUND) for 3 s in the cheat notice
+style and logs `[TTK climb fire]`; `ttk_input` reports
+`climb_fire.empty_notices`. On the user's request every host toast
+(`host_osd_push`: Saved/Loaded slot N, Slot N is empty, Windowed/Fullscreen,
+fast forward, settings) is now centered in that same style (framework
+`host_osd.c`, runtime patch re-exported; `host_osd.h` is not in the codegen
+hash, so saves still load).
+
+Evidence (private offscreen and Xvfb runs, `recomp/analysis/ladder-fire/`):
+two clicks on the slot 7 ladder give two notices, centered at the top in the
+cheat font, as is LOADED SLOT 7; with 20 Desert Eagle rounds written in, the
+same click draws, fires all 20 and returns to the shotgun with no notice.
+`ttk-input-test` and `ttk-aim-test` pass. `ttk-controls-test` did not link
+before this job either (`gpu_vram_peek` undefined): stubs for it and
+`host_osd_push_centered` were added, and it now builds but every local
+LEVEL00 fixture copy fails its overlay identity assert, so it was not run to
+completion. Vanilla play unchanged (the notice is Modernized-only; the
+centered toasts are host presentation). Executable `2a5d4b2a5d4f71207cebacc14cfc3dc70767dff66dcaaa253243c95c744a16dd`.
+[Note 435](documentation/435-d08j6g-empty-sidearm-notice.md).
+
+## 2026-11-09 - D08J6G opened: cannot shoot while on a ladder
+
+User, UI slot 7 (saved 2026-11-09): "i cant shoot while on this ladder. stand up
+a job first, and then investigate it". D08J6A/F let Duke draw the sidearm and
+fire from ladders in Modernized; this save does not. Investigation on a private
+copy of the slot (runtime slot 6); the player's saves and cards are not used.
+
 ## 2026-11-09 - D23I accepted and closed
 
 User: "in that case, you've done all the testing this time around. i'm playing
@@ -10254,6 +10299,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
 | D08J6E | Monkey bars and chains: Duke turns to the aim while armed | Done | D08J6D, D08J4 |
 | D08J6F | Shots beyond the gun arc on climbs and hangs | Done | D08J6B, D08J6D, D08J6E |
+| D08J6G | Cannot shoot while on a ladder (user UI slot 7, 2026-11-09): empty sidearm, now explained by a notice; all notices centered | Done (user-accepted 2026-11-10; note 435) | D08J6A, D08J6F, D08Z9 |
 | D08J3A | Climb camera revisit with aiming | Done (closed 2026-11-07; note 400) | D08J3, D08J6B, D08J6D, D10F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |

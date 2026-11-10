@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-11-10 - D08J6G accepted and closed
+
+User: "lock it in and close it out". D08J6G is Done: a left click on a climb
+with no usable Desert Eagle shows DESERT EAGLE: EMPTY (or NOT FOUND) in the
+centered cheat-notice style, and every host toast (save, load, slot empty,
+fullscreen and the rest) is centered the same way. The slot 7 case was an
+empty sidearm, not a fault. [Note 435](435-d08j6g-empty-sidearm-notice.md).
+
+## 2026-11-09 - D08J6G: empty sidearm on a climb now says so (Needs playtest)
+
+User, UI slot 7: cannot shoot on a ladder. Cause: the Desert Eagle was empty
+(0 rounds; the shotgun selected) and climb fire, sidearm only, refused
+silently. Now a left click on a climb with no usable sidearm shows DESERT
+EAGLE: EMPTY in the centered cheat-notice style, and on the user's request
+every toast (save, load, slot empty, fullscreen...) is centered the same way
+(framework `host_osd_push`). Needs the user's playtest. [Note 435](435-d08j6g-empty-sidearm-notice.md).
+
 ## 2026-11-09 - D41K accepted and closed
 
 User: "lock it in. close it out". D41K is Done: in Modernized (Polymorph,

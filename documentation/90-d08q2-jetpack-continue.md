@@ -4,7 +4,7 @@
 The reported state and a controlled fresh interrupted-deployment/death/Continue
 sequence are repaired. Acceptance closes D08Q2; a natural map-pickup replay was
 not performed in the automated work. The separate jetpack aiming/missing-crosshair
-report is [D08Q3](../MODERNIZATION_JOBS.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair),
+report is [D08Q3](../jobs/traversal.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair),
 queued next and not started. Accepted implementation: `2f02967`.
 
 ## Cause and owned-game evidence

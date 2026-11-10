@@ -1,0 +1,1094 @@
+# Time to Kill jobs - Campaign, audio and performance
+
+Job descriptions and work logs for D18, D22, D23, D37, D45 and D50. Status and
+dependencies are on [the job board](../MODERNIZATION_JOBS.md); the dated
+session log is in the `log-YYYY-MM.md` files beside this one. Moved verbatim
+from the board on 2026-11-10 (D58), one section per job in ID order.
+
+## Jobs
+
+### D18 - FMV and audio presentation safeguards
+
+**Status: Done (research accepted by user 2026-10-27).** The user confirmed this was a completed research job. The following verification limits remain evidence limits, not outstanding D18 acceptance gates. All eight native-table clips covered, including guarded private fixtures for optional/ending clips. Skip, cadence, seek/read and clean debug-quit evidence recorded. Listening/sync, real desktop fullscreen/window-close and natural campaign ending routes remain open. No decoder/gameplay changes justified by this pass. [Note 281](documentation/281-d18-fmv-reliability.md) contains the matrix, diagnostic tool and limitations.
+
+Expand coverage beyond the opening movie: playback, skipping, transitions and return to gameplay. Preserve native movie cadence and audio synchronization through display/profile changes. Optional scaling must not invent a higher source frame rate or regress the fixed streaming path.
+
+**Acceptance:** a movie/transition matrix records tested clips, sync and underrun observations; repeated voice-bank playback does not return on the regression route. Both modes close cleanly during movie playback.
+
+### D18A — Voice/music/gunfire crackle investigation
+
+**Done — player closed (2026-09-28).** No crackle/artefacts in club play; reopen if
+it returns. Lab club starvation evidence remains historical in notes 46–47 and is
+not treated as an open player defect.
+
+**In progress.** Club no-poll starvation remains the positive lab reproduction; no
+audio repair has passed that capture. The 2026-09-27 player session reported no
+crackle in the club, which does **not** close the job. Keep producer/frame-time
+attribution and matched comparisons. See notes
+[46](documentation/46-turning-audio-inventory-progress.md) and
+[47](documentation/47-playtest-iteration.md).
+
+**In progress; output starvation reproduced in private club captures, no audio repair yet.** See [current comparisons and limitations](documentation/46-turning-audio-inventory-progress.md). User reports crackle during strip-club voice/music
+and gunfire at the station-facing ledge Pig Cop; regression versus pre-existing is
+unknown. **Acceptance:** reproduce/capture audible evidence, investigate mixing,
+streaming and callback timing, verify any supported fix on the same scenes without
+sync/latency regression. Dummy audio is insufficient. See [current brief](documentation/45-playtest-turning-audio-follow-up.md).
+
+### D18B — Concurrent voice with music (no music mute)
+
+**Done (user-accepted 2026-10-27; closeout, commit and push authorized).**
+Independent Modernized music now
+continues through native speech, using the existing SOUND controls.
+[Note 287](documentation/287-d18b-concurrent-music.md) records implementation,
+PCM/counter evidence and restoration/coverage limits. User accepted playback
+and explicitly requested lock-in and closeout.
+
+Original request: voice clips cut out music. Allow voice
+and music to play together at sensible relative levels, as a precursor to D21
+channel volume controls. Investigate original XA/SPU ducking versus host mixer
+policy before changing behavior. Do not hide D18A starvation by muting sources.
+
+**Acceptance:** documented overlapping voice+music route with music continuing;
+no new underruns/clipping on the tested scenes; Vanilla/default behavior policy
+recorded; volume-channel hooks prepared for D21 without requiring the full menu.
+
+### D18C - Load-sensitive crackle at construction signs and train ledge
+
+**Status: Done (user-confirmed 2026-10-30: no audio issues on repeated play of
+the scene "in a long time").** Closed on the user's playtest with no code
+change; no cause was isolated. Reopen if the crackle is heard again. The
+original report and acceptance plan below are retained as history.
+
+**Original report.** Current UI 1 (`cards-user8`, file 00): turn around, approach the
+construction signs, move/fire, then jump onto the ledge; user hears brief,
+self-resolving crackle. Current UI 10 (file 09): turn/move/jump around train
+platform ledge. Include UI 12 club movement as an audio stress comparison.
+D18A's older acceptance remains historical; this is a new, bounded follow-up.
+
+Slot 1's tested route had zero output underruns, which does not establish
+absence of an audible source/mixer/device defect. Slot 10 and some slot 12
+stress runs show production starvation. Missing-sample counters are not a
+count of audible crackles. Dummy-sink runs are diagnostics, not listening tests.
+
+**Acceptance:** reproduce/capture on the actual audio device at 120, correlate
+source/host PCM, producer/callback timing, queue fill, missing/dropped samples,
+loads and firing/jumps. Distinguish starvation from clipping/streaming/device
+issues. Verify any fix without increased audio latency, lost voice/music,
+FMV desynchronization or gameplay/frame-pacing regressions. Check 180 too;
+coordinate D17G/H without duplicating those movement fixes.
+
+### D18D - Music silent after death and Continue until Duke's next voice line
+
+**Done (user-accepted 2026-10-21: "i can confirm the music started with no further issue. lock it in, close it out").** Cause found in the emulated CD drive, not
+the menus: at Continue the game seeks back to the music's saved position a
+few sectors away from where death paused the drive. The runtime finished
+that near seek in 0x800 cycles, inside libcd's `CdControl`, before the game
+installed its seek callback (`0x8003b838`), so the music player stayed in
+state 1 with the CD muted until a voice line restarted it. Framework fix:
+near SeekL/SeekP now take Beetle's seek time (at least 20000 cycles, plus
+the restart from a paused drive); far seeks unchanged. Modernized and
+Vanilla both resume the music two frames after CONTINUE; level-start
+speech-to-music and the intro FMV unchanged; one load seek per level gets
+about 37 ms longer. Audible output, DuckStation/real hardware and other
+levels not checked by tooling; the user heard the music resume. Executable
+`23bea317011d6444d73fe58140fb80f5e8ae149bc0ea98c06b7b262bd911842a` is the regression baseline.
+[Note 182](documentation/182-d18d-music-after-continue.md).
+
+**Original report - user (2026-10-04).** After Duke is killed and the player
+chooses Continue, level music does not resume. It only starts once Duke says
+a voice line. Check whether Vanilla behaves the same and whether original
+hardware/DuckStation (portable copy only) does too, before assigning cause.
+
+**Investigation:** trace the Continue/respawn path for CD-XA music restart,
+SPU/CD mute or volume state and the voice-line path that apparently restores
+it. Distinguish an original-game behavior from a recomp/host audio defect.
+
+**Acceptance:** after death and Continue, level music resumes promptly in the
+tested levels without waiting for a voice line, if reference behavior shows
+that is correct; no regression to voice playback, FMV audio, D18A/D18C
+crackle routes or pause/menu audio. Use private save/card copies only.
+
+### D18E - Challenge stages have no music
+
+**Todo. User request, 2026-10-08:** "challenge level has no music. What are our
+options here? Would be ideal to reuse appropriate music from the game on these
+levels." User's suggested mapping:
+
+| Level | Stage | Setting | Music |
+| --- | --- | --- | --- |
+| 21 | Challenge Stage 1 | warehouse | Time to Kill music |
+| 22 | Challenge Stage 2 | industrial | Time to Kill music |
+| 23 | Challenge Stage 3 | castle | medieval music |
+| 24 | Challenge Stage 4 | castle 2 | medieval music |
+| 25 | Challenge Stage 5 | chicken warehouse | already has Time to Kill music |
+| 26 | Challenge Stage 6 | colosseum | Roman music |
+
+First: confirm against the original (DuckStation portable copy, not the
+flatpak) whether 21-24 and 26 are silent on real hardware too, or whether the
+recomp loses their music (compare D18D, music silent after Continue). Then
+find how a level selects its music (XA streams in `/SOUND/MUSIC*.IDF`, see
+[note 14](documentation/14-gameplay-voice-seek.md); the per-level table or
+call) and which track each era uses. Options to present before building: point
+the silent stages at existing tracks through the original music call
+(Modernized option, default on, Vanilla untouched), or leave the original
+silence. No new audio, no replaced disc files.
+
+**Acceptance:** findings documented (original silence or recomp loss; how
+levels pick music); with the chosen option each challenge stage plays the
+mapped track from level start, through death/Continue and restart, without
+breaking voice lines or the stage timer; stage 5 keeps its own music; Vanilla
+keeps the original; the user confirms.
+
+### D18F - Recomp-owned FMV playback and replacement/mod foundation
+
+**Status: Todo. Backlog only; not selected for implementation. Dependency: D18
+reliability evidence and outstanding playback acceptance. Requested 2026-10-27.**
+
+Give the recomp ownership of FMV playback, following the project's existing
+custom texture, model and sprite asset paths. Preserve the original movies as
+the default while gaining explicit control of timing, presentation and audio.
+Build a foundation for future enhancements, replacements and mod support;
+this request does not select remastering or replacement content now.
+
+Start from [D18 findings, note 281](documentation/281-d18-fmv-reliability.md):
+eight native table entries, original movie counts and sector selections,
+startup/optional/ending routes, XA audio, seek/teardown behavior and measured
+cadence. The fixture coverage does not prove natural campaign lifecycle or
+listening/sync acceptance. Carry those gaps and the unresolved offscreen audio
+starvation forward; they are not evidence that a new player already works.
+
+When selected, inspect the current asset override conventions and movie entry,
+completion, skip and audio ownership points. Design a host playback boundary
+that leaves game progression and eligibility gates intact, while the recomp
+owns media resolution, decoding/scheduling, presentation and audio delivery.
+Decide whether to reuse existing decoding components or add a backend based on
+measured fidelity and integration cost. Do not preselect a codec or renderer
+without that inspection.
+
+Planned scope:
+
+- Resolve movies by stable game-facing identity, with owned original assets as
+  the default and an optional external override path. Document format/version,
+  asset lookup/precedence, metadata and missing/invalid replacement behavior.
+  Keep original disc/media untouched; do not distribute extracted retail assets.
+- Use explicit timestamps and a documented clock/audio synchronization policy.
+  Preserve original playback speed, source cadence, aspect ratio and audio;
+  60/120 presentation must not accelerate the movie or invent source frames.
+  Keep enhanced scaling, interpolation and replacement audio opt-in future work.
+- Define start, skip, completion and cancellation contracts, buffer/decoder
+  cleanup and audio ownership transfer. Prevent overlapping original/host movie
+  audio, stale playback after skip, repeated speech-bank reads, or lost gameplay
+  music when control returns. Coordinate channel controls with D21 without
+  silently including that separate job.
+- Support display resize/fullscreen and clean exit during playback. Specify
+  focus-loss/pause and device-change behavior, with useful playback diagnostics.
+- Preserve Vanilla's existing playback path and provide a documented fallback
+  for Modernized if a replacement is absent, invalid or fails. Decide failure
+  timing and recovery explicitly so fallback cannot double-play audio or leave
+  game state waiting forever.
+
+**Acceptance:** the original eight-clip matrix passes on the owned assets with
+verified visual/audio fidelity, duration/cadence and listening/sync; startup,
+optional and natural ending/credits routes preserve their game gates and return
+states. Early/late skips, repeated playback, resize/fullscreen and quitting are
+safe at 60/120 presentation. Gameplay speech/music handoff remains correct;
+Vanilla is unchanged. A small non-retail test replacement demonstrates the
+lookup, metadata/timing and fallback contract without committing retail media.
+Document the authoring interface, supported formats, limitations and extension
+points for future mod/replacement work. Record hardware-backed results and
+remaining platform gaps; private fixtures alone do not close acceptance.
+
+No implementation, build or game launch authorized by this backlog intake.
+
+### D22 — Campaign fidelity and overlay coverage
+
+Maintain a level-by-level matrix for loading, progression items, enemies, weapons, bosses, saves, movies and end-game flow. Investigate missing native coverage according to observed correctness/performance needs. Treat extra game modes as explicit test scope, not implicitly supported features.
+
+**Acceptance:** the intended single-player campaign has recorded completion evidence and no known progression blocker; failures get reproduction steps and dedicated jobs. Record native/interpreted boundaries honestly. This long-running job must not prevent earlier prototypes.
+
+**Split 2026-10-30 (user request: smaller, manageable jobs; no work started).** D22 is now a parent tracker. Its work is divided into D22E-D22O below; D22 closes when they are Done and no known progression blocker remains. D22A-D22D are earlier bounded bugs and stay as recorded. The matrix lives in [note 330](documentation/330-d22e-campaign-matrix.md). Every sub-job uses private save/card copies and offscreen runs where possible, never the player's saves or memory cards; Vanilla stays unchanged. Failures found in any sub-job get their own dated job with reproduction steps rather than being fixed inside the survey job.
+
+### D22A - Portal transition loses Modernized controls and first person (slot 7)
+
+**Accepted (2026-10-04, user playtest).** "Level 2 is working and is completely
+playable. The teleport/level transition is functioning correctly." Cause found
+and fixed: the control lease
+authenticated only the LEVEL00 overlay body; the portal loads LEVEL01.OVR over
+the same base, so it failed closed. LEVEL01 is now an authenticated level
+overlay alongside LEVEL00. See the work log and
+[note 100](documentation/100-d22a-portal-level-identity.md).
+
+User report on 2026-10-03:
+load UI save slot 7 (file 06), walk into the portal and start the next level.
+Duke then loses all Modernized controls and first-person view. The user reports
+this as an easy reproduction; no independent reproduction or root-cause claim
+has been made in this documentation-only session.
+
+**Expected:** when playable control resumes in the next level, the selected
+Modernized movement, independent camera/aiming and first-person preference
+remain available. A temporary scripted camera during the transition must not
+permanently disable them or reset the player's saved preferences.
+
+Verify the current save identity and create a dated private copy before testing;
+do not assume an older slot-7 snapshot still represents this portal. Use
+background/offscreen tests with private cards/profiles. Trace the level/overlay
+transition, supported-code identity checks, modern-control lease, input capture
+and first-person activation/state restoration. Determine whether this is missing
+next-level coverage, transition state invalidation, or another cause before
+changing hooks. Do not bypass code/overlay guards to force controls on an
+unverified level. This bounded bug can be investigated without completing the
+whole D22 campaign audit; record any necessary verified coverage explicitly.
+
+**Acceptance:** reproduce the portal route from the private slot-7 copy,
+identify the cause and implement a guarded fix so Modernized controls and the
+selected first-person view work when gameplay resumes. Verify movement, mouse
+look, aiming/fire, capture/pause/resume and first-/third-person selection in the
+new level; repeat the transition and check the accepted first-level baseline.
+Vanilla stays original, preferences and player saves remain intact. User confirms
+control/view continuity. Do not infer full-campaign support from this one route.
+
+### D22B - Modern controls and first person in every level and transition
+
+**Accepted (2026-10-05, user: "Accepted.").** The user then played large parts
+of the game through `level N`: armed rolls (Ctrl) in Level 9 work, and general
+game-wide playability is "very encouraging". Executable
+`5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017` is the
+regression baseline. Candidate summary: all 21 selectable levels now authenticate
+(one rule derived from the owned disc by `tools/local/level_overlay_guards.py`);
+dodge rolls and steep-slope slides keep the mouse camera and view; the
+original's own back-steps/strafes are taken over by the lease; unowned jumps
+keep the camera in third person too. Transitions (statistics screen, savestate,
+pause, level select) return by themselves. Swimming first person is D11E.
+See the work log and [note 102](documentation/102-d22b-every-level.md).
+
+Selected as the follow-up to D26A, 2026-10-04. User, on
+accepting D26A: "the modern controls dont carry over, and first person etc. so
+stand up the next job ... as making all that work." D26A now reaches every
+level: `levels` / `level N` in the backtick console. Offscreen survey
+(documentation/101): Modernized controls and first person are live only in
+LEVEL00 (TIME TO KILL) and LEVEL01 (DUKE HILL). In the other 19 selectable
+levels (2, 3, 5-12, 21-29) the lease refuses (`[TTK identity] level overlay tag
+... is not an authenticated level`, `fp=lease`), so the original pad controls
+and third-person view return. Scope includes the selected first-/third-person
+view, mouse look, view aiming and the Modernized conveniences, not only
+movement.
+
+Earlier direction, 2026-10-04: "There should basically be no situation
+where the classic controls override modern controls ideally. We want full,
+total modernization, and full ownership of the controls system end to end."
+
+D22A made the lease accept one more authenticated level (LEVEL01). Every other
+level, and every state the lease does not yet cover, still drops back to the
+original pad layout. This job removes that as a normal player experience:
+
+- Level coverage: verify each LEVELxx.OVR (load base, tag word, run-time data
+  such as the LEVEL00/LEVEL01 scratch tail) and authenticate it in
+  `level_overlays[]`, or replace the per-level allowlist with an equally strict
+  but general rule derived from the owned disc. Use D26A to reach each level.
+  Keep the fail-closed principle for genuinely unknown code; the goal is to
+  verify it, not to bypass it.
+- State coverage: inventory every gameplay state where the lease refuses
+  today (for example ladders, scripted cameras, vehicles/turrets, cutscene
+  hand-offs, death/Continue, level start/end) and give each a modern
+  equivalent or a documented reason it must stay original.
+- Transitions: level loads, portals, Continue, savestate loads and menus
+  return to the same Modernized controls and view without player action.
+- Diagnostics: a lease refusal in normal play is a bug to report with its
+  reason (`[TTK lease]` / `[TTK identity]`), not a silent fallback.
+
+**Acceptance:** in every level `levels` lists, reached with D26A and through
+the natural transitions, Modernized controls (movement, mouse look, aiming,
+fire, jump/traversal) and the selected first- or third-person view stay in
+charge from level start to level exit, including transitions and savestates; any remaining original-control state is listed with its reason
+and a follow-up job. Vanilla stays original. Fix shared systems, not
+individual levels, wherever the evidence allows.
+
+### D22C - Level 11 starts with Legacy controls (control mode must persist)
+
+**Accepted (2026-10-05, user: "I accept this work").** Earlier: Needs playtest. Reproduced and fixed; not specific to Level
+11. An F10 release followed by an F10 recapture left automatic capture opted
+out, so the next host release (opening the backtick console for `level N`,
+menus) arrived in the new level with the mouse free and the original
+controls until F10. F10 that captures now opts back in. Candidate
+`f9d4a09a8a6c946f5717d4ca6eb20164f99bf7757bd88504e672ca60fd646c8b`. See the
+work log.
+
+User report, 2026-10-05 (D22B game-wide playtest): loading Level 11
+(LET THE GAMES BEGIN with `level 11`) unexpectedly started in Legacy controls;
+F10 restored Modern controls. Level transitions and the debug level select must
+not change the player's selected control scheme. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering.
+
+Investigate the reset path: level or player-state initialization, mouse
+capture (F10 is the capture toggle, so check whether capture was released
+rather than the mode changed), savestate/level-select behaviour, configuration
+reload, or a lease refusal specific to that level. The D22B offscreen survey
+reached Level 11 with the lease live, so reproduce with the user's real
+window/focus path too.
+
+**Acceptance:** Level 11, reached by `level 11` and by natural progression,
+starts in the selected control mode with capture as before; other levels
+unchanged; the user confirms.
+
+### D22D - Energy weapon fires but has no effect on enemies
+
+**Done (user-accepted 2026-10-19, user: "it's perfect!!").** Modernized
+view-aimed beams lock onto the enemy under the crosshair and damage it;
+executable `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98`
+is the regression baseline. See the work log below.
+
+**User report, 2026-10-08:** "The energy weapon in slot 7 does not work.
+It fires but it has no effect on enemies." (Key 7, weapon slot 10; its upgraded
+form, SUPER ZAPPER, upgrades in place.)
+
+First establish whether this is the original's behaviour or a recomp/
+modernization regression: compare Vanilla in the recomp and the original in
+the DuckStation portable copy on the same enemy, base and upgraded. Then
+check the modern aiming path (D07C projectile coverage, D08Q3 view aiming),
+whether the shot's hit test or damage call runs, ammo use, and whether some
+enemy types are immune by design. Fix the system, not one enemy.
+
+**Acceptance:** cause documented with evidence; the energy weapon damages
+enemies as in the original, base and upgraded, in first and third person, in
+at least two levels; other weapons and Vanilla unchanged; the user confirms.
+
+**Work log, 2026-10-19 - Needs playtest.** Cause: a D07C Modernized
+regression, not the original. The beam updater `0x800733C8` damages only the
+actor in projectile `+0x14`; D07C's beam completion cleared `+0x14` on every
+view-aimed beam, so no beam could damage. Same savestate, same pig cop:
+Vanilla locked 5 of 6 beams and killed it (flags `0x1` -> `0x803`); the
+Modernized baseline left 16 of 18 beams unlocked, enemy untouched. Fix in
+`weapon_aim.cpp`: the first beam locks onto the targetable actor under the
+crosshair (room targetable list, not dead, within the original reach of
+6000), or none (a miss, no auto-aim); the upgrade's extra beams keep the
+original's other locks inside 45 degrees of the view, never doubling the
+crosshair actor. The completion guard no longer races the host input
+sequence (up to 8 of 13 beams had kept the original auto-lock). Executable
+`3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98`. Lab:
+levels 1 and 0, enemy types 3 and 4, first and third person, kills after
+1-5 locks; 8 degrees off is a clean miss; upgraded extra beam verified;
+Vanilla unchanged. `ttk-aim-test` links again (D19J stubs) with a new D22D
+case; controls, input and Python (146 OK) suites pass. Not verified: the
+user's playtest, bosses and other enemy types, levels beyond 0 and 1. Found:
+D07E (stale-lease shots use the original auto-aim; `original` weapon aim
+keeps a stale aim vector). [Note 152](documentation/152-d22d-energy-beam.md).
+
+### D22E - Campaign matrix and evidence baseline (documentation first)
+
+**Status: Done (user-accepted with the D22E-D22O job list; closeout authorized 2026-10-30, [note 330](documentation/330-d22e-campaign-matrix.md)). Dependencies: D01.** Create one engineering note holding the campaign matrix: one row per campaign level (all 21 selectable levels, in the authoritative order from D26A/D26D where known) plus the ending. Columns: load, handoff to the next level, progression items, enemies, weapons, bosses, saves, movies/scripted sequences, native coverage and completed-by-play. Each cell carries an evidence label: user playtest (with date), automated/offscreen run, inferred from an earlier job, or unverified. Fill only what existing jobs, notes and the handoff already prove (D22A-D22D, D22B's every-level controls pass, D26A level select, D20B statistics screen, earlier level-specific jobs). No game runs, builds or code changes.
+
+**Acceptance:** the note exists, is linked from the board and status, and every cell is either filled from cited evidence or marked unverified. The remaining gaps define the scope of D22F-D22O.
+
+### D22F - Level load and level-to-level handoff sweep
+
+**Status: Todo. Dependencies: D22E.** For every level, using background/offscreen runs and the debug console (`level N`, `endlevel`): the level loads from a new game route and from level select, play starts in Modernized with controls and the selected view, and the level-complete/statistics screen hands off to the correct next level. Record any hang, wrong destination, missing overlay or fallback. Load and handoff only; it does not prove the level can be completed by play.
+
+**Acceptance:** matrix load and handoff columns filled for every level, with failures split into dedicated jobs.
+
+### D22G - Per-level native/interpreted coverage measurement
+
+**Status: Todo. Dependencies: D22E. Coordinate with D23G.** Per level, capture dispatch-miss, interpreter/fallback and dirty-code counters for a representative route (load, early play, one transition). Record which overlays and code paths run natively and which are interpreted, honestly and without claiming exhaustive dynamic coverage. Measurement only; making more code native and the fast-path work belong to D23G.
+
+**Acceptance:** the native coverage column is filled per level with the measured route named, and any correctness or performance problem traced to interpretation becomes a D23G item or a dedicated job.
+
+### D22H - Progression items and objectives per level
+
+**Status: Todo. Dependencies: D22E.** Per level, list the required keys, cards, switches and mission items (from data, notes and play) and confirm each can be obtained and used, and that the gate it opens works, in Modernized first and third person. Use private saves placed before each gate. Legibility is covered by the D08A5 mission inventory (D29 cancelled 2026-10-30); this job only checks that progression works.
+
+**Acceptance:** progression column filled per level; each item/gate is verified or has a dedicated blocker job.
+
+### D22I - Enemies and weapons per level
+
+**Status: Done (user-accepted, 2026-11-08: "they are your flying enemies. they are famous in this game for not being easy to kill, only really the energy weapon works on them. however with our hitscan logic, you can shoot them now with the desert eagle. this is amazing and a much welcomed change to the game. well done accepted"); closed 2026-11-08. [Note 412](documentation/412-d22i-enemies-weapons.md). Dependencies: D22E.** Result: all 14 weapons damaged an enemy in every non-boss level; every placed hostile type took damage except 540 (explosives only), 605 (none) and the flyers 44 (killed in play by the user with the Desert Eagle via hitscan) and the untestable 847/848; bosses take damage; no placed weapon or ammo pickup is missing. Split: D22I1; D22I2 resolved by the user (both turrets are the original design). Original scope: per level, confirm the enemy types present spawn, react, take damage and die, and that every weapon available there fires and damages correctly with Modernized aiming (D22D covered the energy weapon on levels 0 and 1 only). Note pickups and ammo that fail to appear. Bosses are D22J.
+
+**Acceptance:** enemies and weapons columns filled per level; failures split into dedicated jobs.
+
+### D22I1 - Spawn tool: path, wall and ceiling creatures and mounted turrets
+
+**Status: Todo. Dependencies: D22I.** `spawn enemy` cannot place classes 21, 27 and 52 (types 44, 847, 848): they leave the spawn point at once along fixed lines above or away from Duke and no shot can meet them. Type 44 is the flying enemy; the user killed them in play with the Desert Eagle via AUTO AIM HITSCAN (2026-11-08, private UI slot 8), so only 847 and 848 lack any damage evidence. Wall-mounted turrets (540) spawn in mid-air. After such spawns, later spawns in the same level often fail ("Spawn could not complete"). Find how the original places these (their spawn points, rails or mounts) and spawn them in a reachable, visible place, then run the D22I sweep (`recomp/analysis/d22i/sweep.py`) for those types. [Note 412](documentation/412-d22i-enemies-weapons.md), finding 3.
+
+**Acceptance:** each of 44, 847, 848 and 540 can be spawned visibly in front of Duke in its levels, later spawns keep working, and the sweep records whether each takes damage and dies.
+
+### D22I2 - Damage rules of turrets 540 and 605
+
+**Status: Done (resolved by user report 2026-11-08; no work). Dependencies: D22I.** The D22I sweep found the level 1 gatling turret (540) ignores bullets and dies to explosives, and the level 3 turret (605, health 60000) takes no damage at all. User: 540 "that's actually how the game plays. you have to destroy it with an explosive" (misleading after level 0's Desert Eagle turrets, but kept as is); 605 "is quite simply a turret. the turret cannot be harmed, you have to deactivate it". Both are the original design. [Note 412](documentation/412-d22i-enemies-weapons.md), findings 1-2.
+
+### D22J - Boss encounters
+
+**Status: Todo. Dependencies: D22E.** Identify every boss encounter and its level. For each: the encounter starts, the boss can be damaged and defeated with Modernized controls and aiming in first and third person, and defeat triggers the correct progression. Use private saves placed just before each boss; the user's playthrough confirms difficulty and feel where automation cannot.
+
+**Acceptance:** each boss has a recorded win (automated or user playtest) and correct progression, or a dedicated blocker job.
+
+### D22K - Save and load round-trips per level
+
+**Status: Todo. Dependencies: D22E.** Per level, verify SAVE GAME / LOAD GAME (savestates) and the statistics-screen save: saving mid-level and after completion, then loading, resumes in the right place with inventory, health, objectives and Modernized controls intact. Private cards and saves only.
+
+**Acceptance:** saves column filled per level; any lost state or failed load has a dedicated job.
+
+### D22L - Movies and scripted sequences per level
+
+**Status: Todo. Dependencies: D22E. Related: D18F.** Inventory the FMVs and in-engine scripted sequences tied to each level (intros, cutscenes, between-level movies) and confirm each plays once at the right time, with audio, and returns control correctly. Recomp-owned FMV playback and replacement is D18F, not this job.
+
+**Acceptance:** movies column filled per level; missing, repeated or stuck sequences get dedicated jobs.
+
+### D22M - End-game flow: final level, ending and return to title
+
+**Status: Todo. Dependencies: D22E, D22J.** Verify the final level's completion, the ending movie and credits, and the return to the title or menu, plus any post-game unlocks the original grants. Use a private save near the end.
+
+**Acceptance:** the ending plays through to its normal conclusion in Modernized with no hang, recorded in the matrix.
+
+### D22N - Extra modes: explicit test scope (challenge stages, two-player)
+
+**Status: Todo. Dependencies: D22E.** List the modes outside the single-player campaign (challenge stages 21-26, two-player split-screen per D34B/D34C, character selection) and record each as tested, partially tested or untested, with what was observed. These modes are not part of D22's campaign acceptance; this job prevents them from being implicitly claimed as supported. D18E (challenge music) stays separate.
+
+**Acceptance:** a short scope table in the matrix note with an honest status for every extra mode.
+
+### D22O - Completion playthrough evidence and closeout
+
+**Status: Todo. Dependencies: D22F, D22H-D22M.** Build a short checklist of the levels, bosses and the ending that still lack completed-by-play evidence and present it to the user for playtesting, which can be done in level groups across several sessions. Record each completion with its date and executable, update the matrix, and close D22 when every campaign level has completion evidence and no known progression blocker remains.
+
+**Acceptance:** completed-by-play column filled for the whole campaign; D22 parent marked Done with the user's confirmation.
+
+### D23 — Performance budgets and long-session stability
+
+Define representative hardware and scenes, then measure frame pacing, audio underruns, memory growth, loading and shutdown. Exercise repeated level transitions and a sustained session in each available mode.
+
+**Acceptance:** documented measurements satisfy the chosen budgets or identify explicit supported-setting limits; no unresolved leak, hang or audio regression in the tested route. Use profiling evidence before optimizing.
+
+### D23A — Modernized frame-budget regression (guard identity cost)
+
+**Done - 2026-09-29 (user-accepted):** "the in game stutter fix works fine".
+
+User: "that stuttering audio/slowness
+issue" before the D08Q playtest. Reproduced in isolation on this machine:
+Modernized **47.5–49.3 fps** with continuous audio underruns (output fill
+17–34 ms vs 180 ms target) while Vanilla ran 60.0 fps clean; the Sep-27
+build sat at 57.5. Root cause measured: `ttk::identity()` compared all
+106 guards (81 KB, 20,305 words) word-by-word through the guest bus on
+**every** call — 46 calls per frame × 108 µs = **5 ms/frame, 24 % of wall
+time**; the aim guards added a second copy. Fix: `memcmp` against the
+runtime RAM image with the exact per-word path as fallback (~28 µs), and a
+per-frame verdict memo keyed on the host frame and `g_dirty_ram_code_gen`
+(overlay loads/restores still invalidate at once). Result: **59.94 fps, 0
+underruns, fill 267 ms**, 1 check/frame, 0.17 % wall; jetpack flight 60.1.
+Debug JSON: `identity_calls/checks/us`. ttk-input/aim/controls tests PASS
+(new memo case). Likely the mechanism behind D18A's historical club
+starvation, not re-measured there. See
+[58-modernized-frame-budget.md](documentation/58-modernized-frame-budget.md).
+
+**Acceptance:** the user's session no longer stutters or slows in
+Modernized play (turret room, ledge, jetpack); `audio_stats.out.fill_ms`
+stays near/above target with flat underruns; Vanilla unchanged.
+
+### D23B - Intro FMV stutter: stranded native movie shard
+
+**Done - 2026-09-29.** User: "im still getting the stuttering, but only on
+the fmv at the beginning?" after D23A, then "make the playback more robust".
+Cause measured: the native MOVIE.OVR shard's cache folder is keyed by the
+`game.local.toml` overlay config hash, which includes the host hook list.
+The 28 Sep hook additions moved it from `gc01bd77ae` (last shard, 27 Sep) to
+`gc15256f69` (empty), so the intro's VLC decoder ran interpreted: ~52 fps,
+continuous underruns, 30 % interpreter share. The loader reported this only
+over the debug port. Shard rebuilt: 59.92 fps, 0 underruns, fill 267 ms,
+4 % interpreter; the user confirmed smooth playback. Hardening: always-run
+`ttk-movie-shard` CMake target in the `local-dev` preset, `run.py` pre-launch
+check (`build_movie_overlay.py --if-ready --quiet`, ~0.2 s when current),
+and a `ttk-fmv:` session-log line from `fmv_poll.c` that reports the native
+decoder or a WARNING with the loader's mismatch message. See
+[59-fmv-shard-namespace.md](documentation/59-fmv-shard-namespace.md).
+
+**Acceptance:** the intro FMV plays at full speed without audio underruns
+after hook changes to `game.local.toml`, and a missing shard is repaired on
+build/launch or reported in the session log.
+
+### D23C - Medieval castle moat slowdown with Necros (performance polish)
+
+**Done (user-accepted), 2026-10-26.** User approved closeout. Current user playtest and bounded measurements do not reproduce the original sustained slowdown. The brief water-entry game-image cadence dip remains recorded with its cause unresolved; no optimization made. See [note 253](documentation/253-d23c-moat-recheck.md).
+
+**Original user report, 2026-10-05 (D22B game-wide playtest).** In the
+medieval castle/moat level (reported as Level 6), the initial section slows
+down, particularly while the Necros around the moat are active. Gameplay is
+not broken and stays completely playable, but the quality drop is perceptible
+compared with better-performing areas. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering.
+
+Do not optimise blind. Profile first and determine whether the slowdown
+correlates mainly with the number/type of active enemies, Necro AI or
+animation, visibility/render workload, original simulation workload,
+effects/projectiles, high-refresh interpolation, or another system. Reuse
+the D23A/D17 frame-budget tooling (`phase_profile`, `phase_hot`, fps stats).
+
+**Acceptance:** a measured profile names the dominant cost; a fix, if any, is
+shared and verified against the accepted baselines; the user confirms.
+
+### D23D - Minor slowdown in Level 9's strip-club-type area (low priority)
+
+**Done, user-accepted and closeout authorized 2026-10-26.** The user tried to
+reproduce the reported slowdown and encountered no problems during the playthrough.
+The original report is retired on that user evidence, as requested. Unlike D23C's
+retained brief water-entry observation, no residual issue was reported for D23D.
+No new automated profiling, gameplay changes, rebuild or launch was needed;
+the historical cause and attribution to any prior optimization remain unconfirmed.
+Reopen if a repeatable slowdown returns, checking contemporaneous host activity
+and gameplay telemetry before changing code.
+
+Historical report (2026-10-05): minor slowdown around Level 9's strip-club-type
+area, low priority and nonblocking. Level numbers follow the D26A console
+(`level N`); D26D will confirm their campaign mapping.
+
+### D23E - Stutter with enemies on screen while walking (UI slots 9 and 10)
+
+**Accepted 2026-10-07** (user: these are "now working significantly better"). **User report, 2026-10-05.** Load UI save slot 9 (file 08), look down
+toward the enemies on the ground, then walk left and right: the game stutters
+in this area. The user suspects the characters on screen cause it. UI slot 10
+(file 09) may show the same effect: turn on `dnkroz` first because enemies
+attack immediately, then walk up and down the strip. Reported savestates
+(`recomp/saves/local-play/openbios`, 2026-10-05; copy them for tests, never
+write to the originals):
+
+- UI 9, `state_800AB6FC_slot08.pst`, SHA-256
+  `3fe93bb39eb114f5c22d349ed030a68a14b14b1cfac86b336b762cd507525c8f`
+- UI 10, `state_800AB6FC_slot09.pst`, SHA-256
+  `c1dc55452203ab3864da17a440278bded255608679698604d92aa5959d09ceaf`
+
+Record which level each slot is in. Possibly related to D23C (moat Necros),
+D23D (Level 9 strip-club area) and D17H (platform movement stutter): check
+whether this is the same cause before fixing anything separately, and merge
+or cross-reference the jobs if it is.
+
+Do not optimise blind. Profile with the D23C method (`phase_profile`,
+`phase_hot`, fps stats) and determine whether the stutter follows the number
+or type of visible characters (skinning, animation, AI), render workload,
+original simulation time, or high-refresh interpolation/presentation. Compare
+the same route with the enemies looked away from, with `dnmonsters` off, in
+Vanilla and Modernized, and at 60 and 120 Hz.
+
+**Acceptance:** a measured profile names the dominant cost on both routes; any
+fix is game-wide (not per level), keeps original gameplay timing and passes the
+accepted regression baselines; the user confirms the stutter is gone or
+acceptably reduced.
+
+**Work log 2026-10-05 - Needs playtest.** Both slots are in the western town.
+Measured offscreen on the real GPU with the player's settings and private
+copies ([note 104](documentation/104-d23e-busy-scene-stutter.md)). Two causes:
+(1) at the player's `cpu_overclock 100` the 16:9 view gives the emulated CPU
+more than a 3-field frame's work, so game frames land on 4 fields (15 fps)
+with 5-6 field steps (Vanilla 4:3: steady 3 in slot 9; slot 10 is 4-5 in
+Vanilla too); draw distance has no effect. (2) At 120 Hz the default 150%
+could not hold: late-camera redraws (120/s, about 1.4 ms each, 19% of the
+emulation thread) pushed emulation behind real time, and the D08Y safety net
+paused the overclock for 5 s at a time (20 <-> 15 fps swings). At 150% and
+60 Hz both slots hold a steady 3. Fix (game code only): the redraws shed load
+first (`replay_shed_load`: presents every 2nd/3rd refresh, existing step-up
+rule), and the overclock pauses only when nothing is left to shed. 150%,
+120 Hz: slot 9 from about 30% to 93% of frames at 2-3 fields, slot 10 98% at
+3 over 90 s; light slots unchanged. Native tests pass. Candidate
+`18fc1c6e63f182217c9b2c6b6aaf8d21fa224394d46fdbcd906afad5bf8fd19e`.
+Remaining: the user plays slots 9 and 10 at 150% (and judges the lower present
+rate there) and real audio; at 100% the stutter is the emulated CPU itself.
+Not shown to be the same cause as D23C/D23D/D17H; measure those the same way.
+
+**Follow-up 2026-10-05.** The user confirmed 150% relieves the stutter but
+prefers 100% for now: 150% felt different, with more visible seams and a
+slight audio degradation at the start. Measured: identical still images and
+wall subdivision at both speeds; at 150% and 120 Hz the picture rate drops in
+light scenes too (slot 1 75/s, slot 9 54/s against 120 at 100%), because one
+emulation thread cannot do both. That work moved to D23F. D23E stays Needs
+playtest at 100% (its shedding applies whenever emulation falls behind).
+
+### D23F - Faster timing model: emulation-thread budget for 150% at high refresh
+
+**Accepted (2026-10-05).** User: "the behaviour is amazing. the behaviour is
+absolutely beautiful, and a real pleasure to play ... the responsiveness is
+literally like PC accurate now", and asked to make it "the entire new default
+method of launch". `cpu_timing` defaults to fast from profile schema 26 (older
+saved `accurate` switches once; Vanilla stays accurate). Follow-up work is
+D23G.
+
+Implemented as a Modernized profile setting `cpu_timing` (`run.py --cpu-timing
+fast|accurate`):
+a purpose-built timing model for the recompiled game code, force-included
+into the generated shards (generated C and hashed headers untouched, so
+savestates still load), leased from gameplay like the overclock. At 150% and
+120 Hz slots 1, 9 and 10 keep 120 presents per second with no shedding or
+overclock pauses; slot 9/10 60 s routes steady 3 fields. See
+[note 105](documentation/105-d23f-fast-timing.md) and the work log. Remaining
+for acceptance: the user's playtest of feel and audio, and the decision on
+the default.
+
+**Opened 2026-10-05 from D23E.** The user wants the best gameplay
+as the default and likes the faster timing model concept from the Disruptor
+reference ([note 93](documentation/93-disruptor-reference-research.md),
+section 9). They play at 100% CPU for now: at 150% the game felt "different,
+not smoother" and seams looked more visible.
+
+D23E evidence ([note 104](documentation/104-d23e-busy-scene-stutter.md)):
+150% draws pixel-identical still images and the same whole/subdivided wall
+counts as 100%. What changes is the picture rate: on the player's PC
+(i7-5960X, GTX 1080 Ti) one emulation thread cannot run the faster game
+(more game frames per second) and 120 in-between pictures at once, even
+walking in a light scene (slot 1: 120 presents/s at 100%, 75 at 150%; slot 9:
+120 against 54). Either presents drop (D23E shedding) or, before D23E, the
+overclock paused 5 s at a time.
+
+Emulation thread at 150%, moving in slot 1 (`PSX_PROF`): cycle-timing model
+about 34% (`psx_cyc_base`, `psx_cyc_lds`, `psx_cyc_charge`, `psx_cyc_step`,
+instruction-cache simulation, dependency tracking), interrupt checks about 4%,
+the recompiled game code 4%, GL driver and redraw/batch paths about 12%,
+always-on observers (call/trace logging, `debug_server_cyc_observe`,
+`fntrace_record`, `xprobe_event`, parity/overlay watches) about 4-5%.
+
+Work, in order:
+
+1. **Observers off in player sessions** (small, low risk): find which
+   per-store/per-call observers still run with `PSX_FORENSICS=0` and gate them;
+   helps 100% too.
+2. **Faster timing model** (the core): a design study before code. Disruptor's
+   `disruptor_fast_timing.h` levels: no per-block diagnostics, no game
+   instruction-cache simulation, static per-basic-block cycle charges, flat
+   charges for eligible RAM loads, an inlined branch-edge check that services
+   interrupts and accumulated charges at a threshold, explicit fallbacks
+   (device/MMIO/BIOS, polling edges, save/debug maintenance). Decide what is
+   computed at recompile time versus runtime, how it coexists with the TTK
+   overclock lease (`psx_overclock_compress`), render workers
+   (`g_psx_render_untimed`) and idle skipping, and whether it changes hashed
+   framework headers or generated code identity (savestate compatibility: see
+   the codegen-hash rule; the user accepts losing savestates for this job). Framework edits go through
+   `export_runtime_patch.py`.
+3. **Cheaper in-between pictures** (optional): fewer GL state changes per
+   redraw feed, or drawing redraws off the emulation thread.
+
+User direction (2026-10-05): "im completely happy to build anything new rather
+than patch over old crap". Prefer a clean, purpose-built timing system over
+layering more patches onto the existing cycle model, even when that is larger;
+keep the framework patch export workflow. Savestates: "i genuinely dont mind
+if we lose save states" (2026-10-05), so D23F may change hashed framework
+headers or generated code identity; say so when it happens, and tests still
+use private copies (never the player's files).
+
+Vanilla keeps the accurate model unless the user decides otherwise; the fast
+model is a Modernized option until proven.
+
+**Acceptance:** at 150% and 120 Hz the player's PC keeps 120 presents per
+second in light scenes and the western town (slots 1, 9, 10) without shedding
+or overclock pauses; game frames at least as steady as D23E's 60 Hz result
+(slot 9 steady 3 fields); audio, FMV, loading, CD streaming, savestates and
+the accepted regression baselines unchanged; Vanilla untouched; the user
+judges the feel at 150% and decides whether it becomes the default.
+
+### D23G - Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost
+
+**Done (user-accepted 2026-11-02; step 5 note 356, step 3 closed as measured note 355). Earlier: part 2 (steps 1-2, dispatch fast path and per-call observers, [note 354](documentation/354-d23g-dispatch-fast-path.md)) user-accepted 2026-11-01. Part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
+D23F moved the statically recompiled game code to the fast model. What is
+left on the emulation thread (fast, slot 9, 150%): the call/return dispatch
+path about 13% (`psx_dispatch_impl` -> BIOS table miss -> `dirty_ram_dispatch`
+-> `psx_game_find_entry`, `dirty_ram_text_native_ok_ranges_from`,
+`dirty_ram_is_dirty`, plus `fntrace_record`, `xprobe_event`,
+`text_xlate_on_dispatch` on every hop), GL driver and redraw feed about 5-12%,
+level overlay libraries about 2%, the interpreter about 5%.
+
+Work, measured one by one with the D23F harness:
+
+1. **Dispatch fast path**: a purpose-built lookup for clean game text
+   (direct table or cache keyed by address, invalidated by the existing
+   dirty-RAM/overlay generation) so a call or return does not walk the BIOS
+   table and the dirty-RAM checks. Framework change through
+   `export_runtime_patch.py`; keep identical targets (counter checks).
+2. **Dispatch-path observers off in player sessions** (`fntrace_record`
+   rings, `xprobe_event`, parity/overlay watches that are diagnostics),
+   still available with `PSX_FORENSICS` and armed traces.
+3. **Fast timing for level overlay code** (compiled overlay libraries) and,
+   if measurable, the dirty-RAM interpreter, with the same lease and the same
+   calibration.
+4. **Cheaper in-between pictures**: fewer GL state changes per redraw feed or
+   feeding redraws off the emulation thread.
+5. **Vanilla host cost**: the D23F flag tests cost Vanilla about 3 points of
+   host CPU (guest behavior identical); remove if a clean design allows.
+
+Also investigate why the Vanilla regression route now diverges from its
+long-standing captures with or without D23F (last matching run before D23E).
+
+**Acceptance:** each step shows a measured emulation-thread saving with game
+frame rate, savestates, audio, FMV and loading unchanged; Vanilla guest
+behavior unchanged; the user's playtest finds no regression and the same
+feel.
+
+**Work log (2026-10-30, re-profile; no code change).** Current build (D17AM
+unified geometry, D14F 90 FOV default), D23F harness copied to
+`recomp/analysis/d23g-20261030/` (local only): offscreen real GPU, private
+copy of the current player profile, the D23F private savestate copies, dummy
+audio, idle host (load under 1, no backups running).
+
+| Run (150%, moving) | Thread | Game frames/s | Presents/s | `[TTK cpu]` reduced |
+| --- | --- | --- | --- | --- |
+| Slot 9, 60 Hz (D23F: 0.49) | 0.58 | 26.1 | - | 0 |
+| Slot 9, 120 Hz, FOV 90 (D23F: 0.73, 120.1) | 0.85 | 26.2 | 110.0 | 1 |
+| Slot 10, 120 Hz, FOV 90 (D23F: 0.82, 120.2) | 0.94 / 0.93 | 21.6 / 21.9 | 107.1 / 106.7 | 2 / 2 |
+| Slot 10, 120 Hz, FOV 60 | 0.91 | 24.0 | 120.4 | 0 |
+| Slot 1, 120 Hz, FOV 90 | 0.78 | 30.0 | 120.1 | 0 |
+
+Findings: the emulation thread has lost the headroom D23F bought. At the
+player's 120 Hz the busy scenes (slots 9, 10) now drop presents; the same
+slot 10 route at FOV 60 holds 120, so the wider default view is what tips it
+over. At 60 Hz the dispatch path is still about 15% of the thread
+(`psx_dispatch_impl` 4.0, `psx_game_find_entry` 2.3,
+`dirty_ram_text_native_ok_ranges_from` 2.0, observers `fntrace_record` /
+`xprobe_event` / `text_xlate_on_dispatch` about 1.8). At 120 Hz slot 10 the
+largest cost is the GL feed: NVIDIA driver 17.8% self plus libc 7.4% and GL
+callers (texture batch passes 3.8, flush 3.1, framebuffer binds 2.9,
+enable/disable 2.9, replay begin/end and rect blits about 3); dispatch is
+about 9%. FOV 90 against 60 grows GL driver, host vertex store, `d16_match`
+and texture batch time. Caller attribution is approximate (`gl_perf_mirror_end`
+appears although `PSX_GL_PERF=0` returns at once).
+
+Proposed order by measured impact at 120 Hz: (a) step 4, GL feed and redraw
+cost (fewer binds/state changes and draw passes per redraw); (b) steps 1-2,
+dispatch fast path and per-call observers (the mod and text-translation hooks
+in `fntrace_record` must stay); (c) step 3, overlay/interpreter. Target:
+slots 9 and 10 hold 120 presents/s at FOV 90 with no reduced-present events,
+with the D23G acceptance unchanged.
+
+**Work log (2026-10-30, part 1: renderer feed; Needs playtest).** User
+report: the UI slot 2 lake (saved 2026-10-05) is the one place that still
+slows down, worst in the water; the user suspected draw distance. Measured on
+private copies: in the water the emulation thread was 100% busy while
+advancing 1-9 fields per quarter second (frames up to 53 fields), the GPU
+peaked at 80%, and 46% of the thread was in the NVIDIA driver. The batch
+counters showed over 1000 textured batches per frame, almost all split on
+depth-tested versus painter-order primitives (ground versus translucent
+water), each paying a full texture/uniform/upload setup and two widescreen
+framebuffer binds. It is batching, not draw distance.
+Changes (framework, exported patch): depth runs inside one textured batch
+(`PSX_GL_DEPTH_RUNS=0` compares), `GL_DEPTH_TEST` in the GL state cache,
+`d16_match` without its per-call 128 KiB stack-probe frame, memoised display
+information, compact host-vertex probe arrays.
+Results at 150%/120 Hz: D23F slot 9 110 -> 120.4 presents/s; D23F slot 10
+107 -> 120.0-120.3; user slot 2 72-82 -> 110.6 with the longest game frame
+3-4 fields (was 53) and no water hitches in two 40 s routes (17-19 slow
+windows each before); user slot 10 unchanged at 120.3. Images after loading
+slots 2, 8 and 10 are pixel-identical to the previous build. Native suites
+pass; Vanilla 59.93 fields/s; pristine checkout plus patch reproduces all 55
+framework files. Still open: the view right after loading slot 2 needs about
+0.9 of the thread at 120 Hz and the pacer presents every second refresh for
+about 5 s after the load. The slot 10 pop-in is room visibility, not frame
+rate (slot 10 holds 120 at 0.66): new job D17AQ.
+
+**Playtest (2026-10-30): part 1 accepted.** User on slot 2: "Buttery smooth
+this is the best it's ever been by far ... it's playing perfectly the
+stability is just absolutely next level ... studio grade quality in terms of
+performance and feel." Part 1 closed out (commit/push authorized 2026-10-30); D23G stays open.
+
+**Work log (2026-11-01, part 2: dispatch fast path and per-call observers;
+Needs playtest).** Re-profiled on the D17AW build (slot 10 vista, 180 Hz):
+with redraws on the render thread, the dispatch path was 12-13% of the
+emulation thread at about 190 ns per dispatch (600,000 per second). Changes
+(framework, exported patch): a cache of "this function's code is still the
+original" answers, cleared by every code-page change (`PSX_TEXT_OK_CACHE=0`
+compares, `=verify` re-checks every hit); one validity check per call instead
+of two; the per-call `xprobe_event` record only with forensics or an armed
+trip/watch; mod function-entry hooks matched by a compact address list; the
+generated BIOS dispatcher sends game text straight to the game path instead of
+a BIOS-table search that cannot match. The last one is emitter output, so the
+codegen hash is now `0xebce51ea`; the user agreed to lose savestates, but the
+regenerated game code and every BIOS function body are byte-identical, so
+`boot_state.c` accepts the old hash (reviewed exception) and existing saves
+load. `build.py` passes `--force-bios` so the BIOS C is always regenerated.
+Results: 188-196 -> 147-148 ns per dispatch (about 23%, 2.5-3 points of the
+thread). Verify mode over 21 levels: 80.4 million hits re-checked, 0
+disagreements. Final build over the same 21 levels: 59.9-60.1 fields/s,
+no errors. Images after loading six fixture slots identical to the old
+build; old-hash saves load and a new save reloads; Vanilla 59.9-60.0 fields/s,
+0 underruns; native suites pass; pristine checkout plus patch reproduces all 78
+framework files. Playtest: usual play, loads from LOAD GAME (existing saves
+must load), a level change, saving a new game and loading it.
+
+**Playtest (2026-11-01): part 2 accepted.** User: "the stability now is
+literally next level. lock it in, close us out!" Executable
+`f53b391249e45ce816b56ef1cf0cb76d7e93cccfcad2001b43faa61da53afd6e` is the regression baseline
+(codegen hash `0xebce51ea`). Part 2 closed out; D23G stays open for steps 3
+and 5.
+
+**Work log (2026-11-02, step 3: overlay and interpreter timing; measured,
+no code change).** [Note 355](documentation/355-d23g-step3-overlay-interpreter.md).
+Level overlays are not compiled libraries: the cache holds only MOVIE.OVR and
+the geometry math routine (`0x800B3D9C`), and every `LEVELxx.OVR` runs in the
+dirty-RAM interpreter. Over all 21 selectable levels, moving, the interpreter
+runs 31,500-139,900 instructions per second (most of it the BIOS interrupt
+handler; under 0.3% of guest instructions), phase share 0.9-3.1%; the math
+library is called 6,100-25,300 times per second, phase share 0.6-3.7%. Slot 9
+perf at 180 Hz: math library 0.56% of the thread, its accurate timing helpers
+about 0.11%; `dirty_ram_dispatch` 1.38%; the text check's cost is part 2's
+cache hits, not the math call's failing check. Fast timing here would save
+about 0.1 of a point and shift D23F's calibration; compiling level overlays
+would save well under one point. Recommendation: close step 3 as measured;
+step 5 remains.
+
+**Decision (2026-11-02): step 3 closed as measured.** User: "let's go with
+your recommendation, then close it out". D23G stays open for step 5 only.
+
+**Work log (2026-11-02, step 5: Vanilla flag cost; Needs playtest).**
+[Note 356](documentation/356-d23g-step5-vanilla-flag-cost.md). Measured with
+debug turbo (fields per CPU-second of the emulation thread, no pacing), D17AQ
+fixture slots 9 / 1 / 10, private copies: the per-instruction flag tests cost
+the accurate model 7-9% (current 40.9 / 51.7 / 99.2 against 43.6 / 55.6 /
+108.1 for a build without the include), more than D23F's 3-point estimate.
+Cause: byte stores in the accurate step may alias the flag, so it was
+reloaded before every instruction. Change (`fast_timing.h`/`.c` only; no
+generated C, emitter or framework edit; codegen hash unchanged): each
+generated function's `psx_cyc_bb_defer_begin()` opening declares a local copy
+of the flag, the hooks test the copy, and the branch edge refreshes it after
+any host call; calls re-enter through the opening. Results: accurate 43.7 /
+54.3 / 103.1 (all of the cost back in slot 9, about two thirds in 1 and 10);
+fast (Modernized) 64.6 -> 65.8, 84.3 -> 87.6, 217.6 -> 226.9. Vanilla 60
+fields/s, 0 underruns, thread 71.6 -> 64.2% (slot 1) and 67.2 -> 63.4%
+(slot 9). Images after loading six slots identical; fixture saves load and a
+new save reloads; levels 0-3, 5-12, 21-29 at 59.8-60.0 fields/s; native suites
+pass; framework patch unchanged. Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e`.
+Playtest: a Vanilla session (`run.py --vanilla`) and usual Modernized play,
+same feel, loads and a level change.
+
+**Playtest (2026-11-02): step 5 accepted; D23G Done.** User: "I was really
+thrilled with the performance, the game is feeling better than ever ... The
+save states loaded with no issue in vanilla and modern play too. So i fully
+accept." Session logs: Vanilla slot 1 load clean; Modernized about 14 minutes
+at 59.9-60.0 game fields/s and 180 presents/s (lower minutes only with the
+pause menu open), one brief audio-low pace step right after a load, saves to
+slots 10 and 11 written. Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e` is the
+regression baseline. All D23G steps are done (step 3 closed as measured).
+
+### D23H - Presents fall from 120 to about 60 over extended play
+
+**Accepted (2026-10-06).** User, after playing with several saves: "i fully
+accept ... this is absolutely wonderful work." See the work log below and
+[note 106](documentation/106-d23h-present-rate-recovery.md).
+
+**Opened 2026-10-06 from the user's evening play on the D23F default
+build** (fast timing, 150%, 120 Hz, executable `e0737a9f...`). User report:
+"after like 10 mins of gameplay, the frame rate goes from the buttery smooth
+120 to what feels/looks like a lower one, like 60 or something." It does not
+come back by itself during play.
+After reviewing the log evidence, the user agrees the drop follows savestate
+use (2026-10-06).
+
+**Log evidence** (`recomp/build-local/logs/`, local only; the launcher keeps
+the last five sessions):
+
+| Session | Length | Saves | Loads | Presents reduced | Overclock paused 5 s |
+| --- | --- | --- | --- | --- | --- |
+| `session-20261005-233139` | about 26 min | 4 | 0 | 2 | 2 |
+| `session-20261005-235829` | about 25 min | 6 | 2 | 2 | 5 |
+| `session-20261006-002316` | about 2 min | 1 | 1 | 1 | 0 |
+| `session-20261005-212814` | about 11 min | 0 | 3 | 1 | 0 |
+
+- All 13 slowdown events in these sessions come right after a savestate save
+  or load. There is no other `emulation behind real time` line. The measured
+  host rate in that second is 6.6-32.3 frames/s, so a save stalls the
+  emulation thread for a large part of a second. Loads report about 17 ms of
+  work, so the save side (compression or file write on the emulation
+  thread?) is the suspect. Not measured yet.
+- The game logic rate itself holds: the `[FPS]` lines in `233139` show a
+  steady 59.9 game fps (1.00x) between events. The drop the user sees is in
+  presents (in-between pictures), not in game speed.
+- Presents per second are not in the session log, so the "about 60" has not
+  been measured directly. It is consistent with a present divisor of 2.
+
+**Likely mechanism (from code reading; not yet reproduced):**
+
+1. `overclock_lease()` (`src/ttk/modern_controls.cpp`) sees the save hitch as
+   "emulation behind real time" and calls `replay_shed_load()` (D23E), which
+   raises the present divisor from 1 to 2 (120 to 60 presents/s at 120 Hz).
+   If it is already at its limit, it pauses the overclock for 5 s instead.
+2. Stepping back up (`late_pace()`, `src/ttk/frame_replay.cpp`) needs
+   `4 * pace_backoff` consecutive clean windows of 90 presents (under 2%
+   repeats). Any window between 2% and 10% resets the count.
+3. `pace_backoff` doubles (up to 32) whenever a slowdown follows within 3
+   windows of a step-up, and **it never decays**. One-off hitches are
+   treated the same as a busy scene. After a few saves in a session,
+   recovery needs up to 128 clean windows: at 60 presents/s that is over
+   3 minutes of perfectly clean play, and busy scenes rarely manage that.
+   So the game appears to stay at 60.
+
+The D23E comment says "a one-off hitch ... costs a few seconds", which holds
+only for the first hitch of a session.
+
+**Other causes to rule out** before settling on the above: a slow time-based
+growth (memory, GL objects, worker processes, the trace or frame rings,
+savestate buffers), thermal or GPU clock drops, and the separate
+`late_pace()` step-down when repeats exceed 10% (not logged at all).
+
+**Work:**
+
+1. **Measure first.** Log present-rate changes (`pace_div` up or down with
+   the reason: emulation shed, repeats, recovery) and a one-line summary
+   every minute or so (presents/s, game fps, `pace_div`, `pace_backoff`, RSS)
+   in the player session log, cheaply. Reproduce with a private profile copy
+   and test card/state copies: play 15-20 minutes offscreen with periodic
+   saves, and a control run with no saves. Confirm whether presents stay
+   at 60 and whether the decline occurs without saves.
+2. **Savestate saves must not stall gameplay**: take the snapshot on the
+   emulation thread (the copy only) and compress and write it on another
+   thread, or otherwise show where the time goes. Saves, loads and their
+   rejection rules must not change (hashed headers untouched).
+3. **Shedding must recover from one-off hitches**: ignore or discount the
+   seconds around a known hitch (save, load, level load, worker start), and
+   let `pace_backoff` decay with clean time so the session's history does
+   not keep 60 forever. A genuinely busy scene must still settle on one
+   steady rate (the D23E aim).
+4. If step 1 shows a slow time-based decline as well, find it and fix it in
+   the same job.
+
+**Acceptance:** in a 20+ minute Modernized session at 150%/120 Hz with
+several saves and loads, presents return to the display rate within a few
+seconds of each save or load and stay there in scenes that held 120 at the
+start. The busy western town (UI slots 9/10) still settles calmly as in
+D23E. Savestates stay compatible, there is no audio regression, Vanilla is
+unchanged, and the user's long play session confirms it.
+
+**Work log 2026-10-06 - Needs playtest.** Measured offscreen (private profile
+copy at the player's settings, private states, port 9273; harness
+`recomp/analysis/d23h-20261006/`). The suspected `pace_backoff` was not the
+cause. **A shed was permanent:** at 120 Hz and Match Display the default
+present timeline never calls `late_pace()` (only at Unlimited), so nothing ever
+undid a D23E shed. One hitch gave 60 presents/s and two gave 40 until restart.
+**One-off hitches shed:** a save stalls emulation 83-98 ms (loads 36-57 ms), and a
+second containing an F7 menu visit is far lower, so any single bad second shed.
+Fix (game code only, `src/ttk`): `replay_load_window()` owns shedding in both
+directions, judged once per gameplay second by `overclock_lease()` in every
+frame-rate mode. It sheds only after two behind seconds in a row, does not judge
+gaps (menus, loads) or seconds while the overclock is paused, steps up after
+5 s x backoff clean seconds, doubles backoff on a failed try (max 16), and halves
+it per clean minute at full rate. Added `[TTK pace]` session-log lines (each
+change with its reason; a per-minute summary with presents/s and RSS) and
+`render_replay` fields. Evidence: A/B with a 0.8 s stop every 20 s and a save
+every 30 s: before 120 -> 60 -> 40 for good, with 5 overclock pauses; after
+120 throughout. 21-minute run with 20 saves, 8 loads and 13 stops: 120 in 124
+of 125 ten-second blocks; the one shed (a stop and a save in the same second)
+recovered in 5 s. A 15 s sustained load returns 40 -> 60 -> 120 about 15 s after
+it ends. Western town UI slots 9 and 10 with hitches: 119-120, no change.
+Unlimited unchanged (repeat pacing only). Native and unit tests pass. No framework or
+hashed header change (savestates compatible); Vanilla does not reach this code.
+Executable `c6c221d1...`. Remaining: the user's long play session; Unlimited's
+own repeat backoff still does not decay; saves still cost about 90 ms on the
+emulation thread (no longer affects the rate); RSS rose 400 -> 466 MB over 21
+min (rate unaffected, not investigated).
+
+### D23I - Memory growth in long sessions (investigation)
+
+**Status: Done (accepted 2026-11-09: history rings opt-in and a per-minute memory line). Dependencies: D23, D23H (Done).**
+The user's session logs of 2026-11-09 (`recomp/build-local/logs`, `[TTK
+pace] minute` lines) show resident memory climbing steadily in every
+Modernized session at 180 Hz, first person, Polymorph: 401 to 511 MB in 8
+minutes, 395 to 506 MB in 7, 402 to 893 MB in 21, 374 to 498 MB in 6, about
+14 to 23 MB a minute. D23H measured 3 MB a minute over 21 minutes (note 106,
+"worth a look in a longer session"); D23 traced earlier growth to the SIO and
+audio history rings, bounded below about 84 MiB together (note 252). Today's
+growth is well past that and unexplained. Every kept log postdates D53, so it
+is not known whether D53 is involved.
+
+Plan:
+1. Rule D53 in or out: two matched offscreen runs (private save copies,
+   same slot and inputs, a few minutes each) with `--security-monitors
+   duke3d` and `ttk`, comparing growth.
+2. Measure as D23 did: combined PSS of the game and its redraw workers,
+   `/proc/PID/smaps` and pagemap attribution of new pages, separating bounded
+   history rings from heap, mod memory, GL/driver mappings and worker
+   re-forks (9 to 15 spawns per session in the logs).
+3. Bisect against recent builds or switches (dynamic lights, sleeping
+   enemies, sky, near clip) if the cause is not obvious.
+Acceptance: the cause named with evidence; then a bounded fix or a reasoned
+ceiling, agreed with the user, and a long-session run showing growth
+flattening.
+
+Work log 2026-11-09 (investigation): [note 433](documentation/433-d23i-memory-growth.md).
+Seven offscreen runs (4-20 min; idle, savestate loads, level travel, mixed
+play). A scratch heap tracker showed live malloc +0.47 MiB over 9 min while
+RSS rose 41 MB: not a heap leak. Pagemap attribution put the growth in `.bss`:
+`gpu.c` host-vertex aperture tables (two used in the main process, 54 MiB
+each, high-water mark of the busiest frame, 23 MiB each from 10 to 20 min)
+and D23's SIO/audio rings (about 2.2 MiB/min, 84 MiB cap). D53 ruled out
+(duke3d 540 vs ttk 547 MB at 410 s). 20-minute run 419 -> 589 MB; projected
+ceiling about 690 MB. Not reproduced: the 893 MB session (log rotated; real
+display, audio and combat not covered). Options in the note: drop or shrink
+the forensic rings in player builds, add a per-minute memory breakdown and
+keep more logs, or accept a reasoned ceiling. Waiting for the user's choice.
+
+Work log 2026-11-09 (fix, user: "we absoltely dont need to be recording
+audio. yes lets go with your recommendation"): the SIO, SPU, audio event and
+PCM history rings (about 180 MiB together) are recorded only with
+`PSX_TRACE_HISTORY=1` (`--diagnostics`, `fmv_reliability.py`); counters and
+audio output unchanged. A `[TTK memory] minute N` line breaks resident memory
+down by owner each minute; `run.py` keeps 20 session logs. Same 20-minute
+route: main RSS 589 -> 482 MB at 20 min, combined PSS 814 -> 656, minutes
+10-20 +8 MB (was +27). History on/off checked through the debug commands;
+Vanilla smoke, `ttk-input-test` pass; framework patch exported and verified.
+Remaining: a long real session (window, audio, combat), and the unreproduced
+893 MB case, which the new line will attribute.
+
+Accepted and closed 2026-11-09. User: "in that case, you've done all the testing this time around. i'm playing
+the game now, all is fine. lock this in and close it out".
+
+### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
+
+**Status: Done. Research accepted and closed by user instruction; repair selected as D37A. [Note 254](documentation/254-d37-movement-failure.md).**
+No prerequisite on D36. Prior control recovery and performance notes are references,
+not evidence of a shared cause. This is not a confirmed first-person rendering bug.
+
+User report: at approximately 07:26 local UK time on 26 October 2026, camera turning
+remained possible but movement became stuttered/broken, Duke's animation appeared
+stationary and normal gameplay was impossible. Closing/reopening restored normal
+behavior; reloading save slot 9 then worked. Preserve this time and sequence when
+correlating logs; verify timestamp/timezone conventions rather than assuming them.
+
+When selected, inspect available session logs and relevant system events around the
+reported time. Check backups/Timeshift/rsync, updates, CPU load, disk I/O pressure,
+memory/swap and historical host activity as well as game telemetry. Later idle
+readings cannot establish host conditions during the incident, and background
+activity alone does not establish causation. If historical logs are unavailable or
+insufficient, say so explicitly. Do not substitute fresh successful play for an
+explanation of the earlier failure.
+
+Trace relevant animation/movement/input ownership, first-person overrides and
+other candidate subsystems only as supported by evidence. Record log timestamps,
+code paths, reproducibility and competing hypotheses. Do not invent a cause or
+assume the visual defects are connected. Any reproduction must use isolated test
+settings and private save/card copies, preserving the accepted build and player
+files. No fixes are authorized by this research job.
+
+**Deliverable and acceptance:** a separate numbered research report using the next
+available documentation number at execution time, with chronology, available and
+missing evidence, source references, confirmed findings versus hypotheses,
+reproduction outcome/limits and recommended follow-up tests or a scoped fix job.
+An unresolved or unreproduced result is valid if stated honestly; report for user
+review before changing status to Done. Correlate with D36 only if supported.
+
+### D37A - Safe animation restoration across save allocation layouts
+
+**Status: Done (user playtested and fully accepted 2026-10-26); [note 255](documentation/255-d37a-animation-save-restore.md). User selected repair and closed D37 research on 2026-10-26.**
+
+Repair the new-game -> saved-game allocation mismatch that clears animation data
+while the guest still references it. Recover verified animation metadata from the
+loaded save without restoring incompatible GPU packet arenas. Support existing saves,
+repeat loads and both allocation orders. Preserve Vanilla and current GPU safety.
+
+Acceptance: focused native coverage for mismatched/absent/malformed saved metadata;
+private live reproduction with movement and animation progressing after warm loads;
+repeat and cross-level loads, first/third person, crouch and quick-kick checks;
+Vanilla regression. Export and validate framework patch against the pinned dependency.
+No player saves/cards modified. Present implementation for playtest/review; no automatic
+commit/push or repair closeout.
+
+### D50 - Frame rate halves after loading (audio running low at load)
+
+**Status: Accepted, closeout not yet authorized (user, 2026-11-08: "it is now fixed!!!!"; load-time shed fixed; the energy-weapon stalls traced to native-widescreen mirror framebuffer switches on the render thread and fixed with a deferred mirror, images verified exact; [note 415](documentation/415-d50-load-audio-shed.md)). Dependencies: none.**
+User: slowdown "with the energy weapon in that area" (UI slot 8), and
+"maybe a touch of audio crackle". Session logs: in four of five sessions on
+2026-11-08 the governor logged "audio running low" (38-59 of 180 ms) a few
+seconds after the savestate load and shed to every 2nd refresh (90 presents
+at 180 Hz); it steps back up only after 30 clean gameplay seconds, and a
+pause menu holds it there (11:26 session: about 2.5 minutes at 90). Not
+reproduced offscreen with the dummy audio driver. Find what stalls the game
+after a load long enough to drain the audio ring, fix it, and make a
+load-time shed recover quickly. Acceptance: loads keep 180 presents/s
+without a shed (logs), no crackle, user confirms in slot 8.

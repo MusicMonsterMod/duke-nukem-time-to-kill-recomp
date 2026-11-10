@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-11-10 - D58 accepted and closed
+
+User: "lock it in and close it out. this one was more for you". D58 is Done:
+the board holds the vision, job table and rules; descriptions are in
+`jobs/<category>.md`, the session log in `jobs/log-YYYY-MM.md`.
+
+## 2026-11-10 - D58: job board split (Needs review)
+
+`MODERNIZATION_JOBS.md` now holds the vision, the job table (every ID linked
+to its description) and the rules. Descriptions and work logs: `jobs/<category>.md`.
+Session log: `jobs/log-YYYY-MM.md`, newest first; new entries go at the top of
+the current month. Check: `python3 scripts/ci/check_jobs.py`. D19W (separate
+keyboard and gamepad bindings pages, Todo) had no table row and now has one.
+
 ## 2026-11-10 - D56 accepted and closed
 
 User: "lock that in and close it out too". D56 is Done: Necro blast and atomic
@@ -27,7 +41,8 @@ user's play on a relaunched build.
 D56 (Necro blast and atomic health lights) committed as Needs playtest. New
 Todo jobs: D57 (light emitter review, first a list with images), D58 (split
 the job board into category files; the board is at the 2 MiB file limit, the
-2026-10-01 log entries were moved to `documentation/jobs-history-2026-10-01.md`).
+2026-10-01 log entries were moved to `documentation/jobs-history-2026-10-01.md`,
+now folded into `jobs/log-2026-10.md` by D58).
 
 ## 2026-11-10 - D56: Necro blast and atomic health give light (Needs playtest)
 
@@ -7232,7 +7247,7 @@ Backlog-only intake authorized with commit and push. All five jobs are Todo:
 bug 1 D08Q7 (holstered weapon draw during jetpack flight), bug 2 D08T9
 (level-5 dumpster repeat push/pull), bug 3 D35N1 (slot-6 missing mirror quote),
 bug 4 D08Q8 (slot-12 jetpack floor/ceiling clearance), and bug 5 D35J4
-(slot-9 time-crystal perspective). See the [canonical backlog](../MODERNIZATION_JOBS.md#user-reported-follow-ups-queued-2026-10-25).
+(slot-9 time-crystal perspective). See the [canonical backlog](../jobs/first-person.md#user-reported-follow-ups-queued-2026-10-25).
 
 **D35J4 is first when the user later authorizes work. Do not start any job yet.**
 The user confirmed the slot-8 level-5 dumpster cannot be pushed again after
@@ -8383,7 +8398,7 @@ No further gameplay changes or rebuild after acceptance. Authored source,
 native regression tests, manual and [note 208](208-d08t3-manual-push-pull.md)
 are included in closeout; player saves and media unchanged.
 
-**Next selectable job: D08L1 (Todo)** in [the job board](../MODERNIZATION_JOBS.md#d08l1---modern-locomotion---allow-walking-and-crouch-walking-off-ledges).
+**Next selectable job: D08L1 (Todo)** in [the job board](../jobs/traversal.md#d08l1---modern-locomotion---allow-walking-and-crouch-walking-off-ledges).
 After pushing the slot-12 dumpster to the ladder and mantling it, low overhead
 clearance forces crouching and Duke cannot crouch-walk off. Record this as a
 separate locomotion softlock, not a Free Push defect. Investigate original vs
@@ -9000,7 +9015,7 @@ controls and live LANDING ORIGINAL check pass. Revised candidate
 
 ## 2026-10-22 - D08K11 opened (Todo, backlog only)
 
-[D08K11: shallow-water crouching](../MODERNIZATION_JOBS.md#d08k11---enable-modern-crouching-and-crouch-walking-in-shallow-water)
+[D08K11: shallow-water crouching](../jobs/traversal.md#d08k11---enable-modern-crouching-and-crouch-walking-in-shallow-water)
 records the user's slot 10 flooded-subway report and a source-only investigation.
 Crouch entry and walk eligibility explicitly reject the broad water predicate;
 176 also serves as a water-dip animation. Depth/state, collision, input ownership
@@ -11708,7 +11723,7 @@ black bands in distant geometry/textures. Treat "possible culling" as a
 hypothesis, compare rendering paths, and preserve the accepted D15 baseline.
 This is separate from the accepted previous slot 8 opacity case. The new
 state identity, private-copy intake and acceptance criteria are on the
-[canonical board](../MODERNIZATION_JOBS.md#d17p---distant-horizontal-black-bands-in-the-new-subway-slot-8).
+[canonical board](../jobs/graphics.md#d17p---distant-horizontal-black-bands-in-the-new-subway-slot-8).
 No technical cause is established by intake alone.
 
 Launch: `python3 recomp/tools/local/run.py`.
@@ -11845,7 +11860,7 @@ investigate its strange/glitchy movement. This is not jetpack-specific. First
 establish how the original game renders/animates sky, then diagnose and test a
 bounded stabilization. The user explicitly requires substantial documentation
 of architecture, cause, evidence, implementation and remaining limitations.
-[Canonical job](../MODERNIZATION_JOBS.md#d17o---unstable-sky-appearance-when-looking-up-slot-10).
+[Canonical job](../jobs/graphics.md#d17o---unstable-sky-appearance-when-looking-up-slot-10).
 
 [Detailed intake/plan and exact save identity](92-d17o-sky-intake.md).
 Immutable private snapshot: `recomp/analysis/d17o-sky-intake-20261004/cards-intake`;
@@ -11890,7 +11905,7 @@ the natural map-pickup replay remains outside the recorded automated evidence.
 
 **Next: D08Q3, Todo - next.** User cannot aim to shoot while using the jetpack,
 and the crosshair is missing. Cause, affected weapons/scheme and exact location
-are unverified. Read the [canonical job](../MODERNIZATION_JOBS.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair)
+are unverified. Read the [canonical job](../jobs/traversal.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair)
 for scope/acceptance. Investigate view aiming and reticle eligibility separately;
 preserve Modern/Classic flight, ground aiming, existing flight camera transitions,
 Vanilla and the accepted D08Q2 fix. The old slot-10 private snapshot is a regression
@@ -11937,7 +11952,7 @@ transition by itself; compare working inventory and the full death/Continue/
 cheat sequence. Trace ownership, fuel, picker eligibility and activation
 alongside Continue/reset and cheat grants. Cause is unknown; picker exclusion
 is evidence to inspect inventory state, not proof of a particular defect.
-See the canonical [D08Q2 job](../MODERNIZATION_JOBS.md#d08q2---jetpack-unavailable-after-death-continue-and-dnstuff).
+See the canonical [D08Q2 job](../jobs/traversal.md#d08q2---jetpack-unavailable-after-death-continue-and-dnstuff).
 
 This checkpoint only records the report and preserves a copy. No gameplay
 code, build, launch or player-file changes. D17L stays open; D17M/N remain

@@ -98,4 +98,4 @@ Previous accepted door slot 8 SHA256:
 `c648d3391e73c8a6b28166b630a1ea96d60b62f39658ec559a918fc7e25839db`.
 UI slot 8 corresponds to zero-based debug slot 7 / `slot07.pst`.
 Use private copies, never the player's writable cards. No cause is established
-by this intake. See the canonical [D17P job](../MODERNIZATION_JOBS.md#d17p---distant-horizontal-black-bands-in-the-new-subway-slot-8).
+by this intake. See the canonical [D17P job](../jobs/graphics.md#d17p---distant-horizontal-black-bands-in-the-new-subway-slot-8).

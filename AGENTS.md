@@ -20,7 +20,7 @@ Original media under `game/`, research, generated game code, builds, captures, p
 
 - Modernized is the default profile. Vanilla stays available, unchanged in play, with `run.py --vanilla` (one launch, not saved).
 - Modern controls mean independent movement, camera, and weapon aiming, not keyboard remapping alone.
-- Job board: `MODERNIZATION_JOBS.md`. Status evidence: `documentation/00-status.md` and `documentation/09-handoff.md`.
+- Job board: `MODERNIZATION_JOBS.md` (vision, job table, rules); job descriptions and work logs in `jobs/<category>.md`, the dated session log in `jobs/log-YYYY-MM.md`; check with `python3 scripts/ci/check_jobs.py`. Status evidence: `documentation/00-status.md` and `documentation/09-handoff.md`.
 - For new custom meshes or mesh/material art revisions, read the accepted style guide `documentation/265-native-mesh-art-style.md` first. Use D08A28 revision 5 as the reference for angular geometry, effective texel density, UV mapping and painted materials; validate in game, not only Blender.
 - For first-person body/arms, weapon/item presentation, interactions, clipping or quick-kick visual work, read the accepted D36 audit `documentation/257-d36-first-person-presentation-audit.md` first. Preserve its evidence labels, ownership boundaries and regression requirements. D36G-L are report-only implementation proposals until explicitly selected.
 - For future first-person arm reports, start with the accepted D36H5 design in `documentation/305-d36h5-contact-arm-rig.md` and the repair guide in `documentation/306-d36h5-interaction-arm-coverage.md`. Identify the actual presentation owner and current slot contents; preserve failing private saves. D36H6 retains unverified broader coverage.

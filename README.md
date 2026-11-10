@@ -8,7 +8,7 @@ Modernized play by default (WASD, mouse aim, and quality-of-life), with the fait
 - [Game manual](GAME_MANUAL.md) - controls and player-facing behavior
 - [Documentation index](documentation/README.md) - engineering notes and evidence
 - [Current status](documentation/00-status.md)
-- [Modernization jobs](MODERNIZATION_JOBS.md) - the canonical backlog
+- [Modernization jobs](MODERNIZATION_JOBS.md) - the canonical backlog; job descriptions and the session log are in [`jobs/`](jobs/)
 - [recomp.board listing](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1) - our entry on the community board of who's recompiling what; it reads [`.recomp.json`](.recomp.json) daily
 
 The implementation is tracked under **[recomp/](recomp/)**: title source,

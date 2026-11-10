@@ -18,7 +18,7 @@ Follow `AGENTS.md` in the workspace root. It overrides anything here that confli
 
 ## Show the jobs, then let the user choose
 
-Read `MODERNIZATION_JOBS.md` as the canonical backlog, plus `documentation/00-status.md` and `documentation/09-handoff.md` for current evidence. Do not duplicate job descriptions or statuses in this skill. The board is large; read the job table first and only the work-log sections you need.
+Read `MODERNIZATION_JOBS.md` as the canonical backlog, plus `documentation/00-status.md` and `documentation/09-handoff.md` for current evidence. Do not duplicate job descriptions or statuses in this skill. The job table in `MODERNIZATION_JOBS.md` holds every ID and status; each ID links to its description and work log in `jobs/<category>.md`. The dated session log is in `jobs/log-YYYY-MM.md`, newest first. List jobs from the table; read only the category sections you need.
 
 When the selection above is empty:
 
@@ -45,7 +45,7 @@ To test, set up the scenario directly instead of hunting for it in saves (user, 
 
 Test according to the selected acceptance criteria and regression risk. Distinguish build/test results, observed gameplay and user reports. The earlier security-card freeze did not reproduce on the user's successful retest; do not claim its exact cause was established. A linked executable or first-level pass does not establish full campaign fidelity.
 
-Update the board and append a work-log entry with implementation, evidence and remaining limitations. Use Needs playtest when required gameplay acceptance remains unverified, Monitoring when a job stays open only to catch a recurrence, Blocked with a concrete reason when appropriate, and Done only when the job's actual criteria are met. Update status/handoff and focused engineering notes as needed; update `GAME_MANUAL.md` when player-facing behavior or controls change.
+Update the job's table row and append a work-log entry to its section in `jobs/<category>.md` with implementation, evidence and remaining limitations; add a dated entry at the top of the current month's `jobs/log-YYYY-MM.md`; run `python3 scripts/ci/check_jobs.py`. Use Needs playtest when required gameplay acceptance remains unverified, Monitoring when a job stays open only to catch a recurrence, Blocked with a concrete reason when appropriate, and Done only when the job's actual criteria are met. Update status/handoff and focused engineering notes as needed; update `GAME_MANUAL.md` when player-facing behavior or controls change.
 
 Write with ASCII hyphen-minus `-` only; never U+2014 or U+2013.
 

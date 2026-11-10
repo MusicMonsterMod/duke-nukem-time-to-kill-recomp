@@ -153,7 +153,7 @@ dependency `08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 patched files matc
 A separate user-reported softlock remains: push slot 12's dumpster to its
 limit, release it and mantle onto it. Low overhead clearance forces crouching,
 and Duke cannot crouch-walk off the edge. This is **D08L1 (Todo)** in
-[the job board](../MODERNIZATION_JOBS.md#d08l1---modern-locomotion---allow-walking-and-crouch-walking-off-ledges),
+[the job board](../jobs/traversal.md#d08l1---modern-locomotion---allow-walking-and-crouch-walking-off-ledges),
 covering Duke's standing and crouched walk-off behavior. Its cause is not yet
 established. It is not a Free Push defect, and no implementation was started.
 D08L1 must preserve the accepted box collision and support restrictions.

@@ -34,7 +34,9 @@
 //
 // File format, one lamp per line ('#' starts a comment):
 //   x y z  r g b  radius  strength  style  [# note]
-// style: steady flicker pulse candle strobe broken, or wave:P:D
+// style: steady flicker pulse candle strobe broken signal, or wave:P:D
+// D55: signal follows the animated texture of the lamp's prop (traffic
+// lights): the colour and brightness of the frame the game shows now.
 // D54: the note's "prop TYPE x y z" entries name the props the lamp belongs
 // to; it goes out when they break (prop_state.h).
 // (Standard headers are included at the top of modern_controls.cpp.)
@@ -51,8 +53,8 @@
 // standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
 struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
                   std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;};
-enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_styles};
-static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave"};
+enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_styles};
+static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
 static constexpr double level_lamp_margin=6000,level_lamp_fade=2000;
 static std::vector<LevelLamp> level_lamps;           // game thread
@@ -95,6 +97,9 @@ static std::deque<std::string> level_lamp_queue;
 static std::vector<std::string> level_lamp_listing;   // last "lamp list" snapshot (game thread writes)
 static unsigned level_lamp_listing_level=~0u;
 
+static inline double lamp_ss(double a,double b,double x) {const double t=std::clamp((x-a)/(b-a),0.0,1.0);return t*t*(3-2*t);}
+static void signal_cache_clear();
+static std::vector<std::array<float,3>> signal_last;   // D55: per lamp, the colour last shown (held while it dies)
 static std::string level_lamps_dir() {
     if(const char* e=std::getenv("DNTTK_LIGHTS_DIR"); e && *e) return e;
     std::error_code ec;
@@ -140,7 +145,7 @@ static std::string lamp_style_text(const LevelLamp& l) {
     char b[32];std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
 }
 static void level_lamps_load(unsigned level) {
-    level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;level_lamp_prop_sig=0;
+    level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;level_lamp_prop_sig=0;signal_cache_clear();
     level_lamps_path_used=level_lamps_path(level);
     std::ifstream f(level_lamps_path_used);
     if(!f) return;
@@ -255,6 +260,186 @@ static float lamp_wave_value(const LampWave& w,int phase,float depth) {
     const float base=1.0f-depth*w.mean/4096.0f;
     return base>0.05f ? std::clamp((1.0f-depth*v/4096.0f)/base,0.0f,2.0f) : 1.0f;
 }
+// D55 signal lamps (documentation/438-d55-traffic-lights.md). TTK flashes a
+// traffic light by texture animation (CONFIRMED, level 5 types 216 and 217):
+// an animated face (flag 0x20 in its second texture word) takes its frame
+// from the mesh's animation table (mesh +0x0c, 16-byte entries (t1 >> 16) *
+// 16), whose +8 points at the running animation's current frame words s1,
+// s2 (the game copies each new frame there). The running animation (frame
+// pointer - 12) keeps its script at +28: word 0 = (frames - 1) << 24 | ms
+// per frame, word 1 = a list of 16-bit frame indices into the frame table
+// (pointer at 0x800c5780, 12 bytes a frame). The traffic lights: 2 frames of
+// 600 ms, one dark and one lit (217 amber, 216 red, in opposite phase).
+// A signal lamp reads its standing prop's animated faces each game tick:
+// colour from the lit texels of the frame shown now, brightness against the
+// animation's brightest frame, so a dark frame is a dark lamp. Any prop
+// whose frames flash gets this from the sign scan, whatever its type.
+struct SignalFace {uint32_t t1,t2,t3;unsigned nc;double area;};
+struct SignalGlow {double e=0;float rgb[3]={0,0,0};};   // e: emitter fraction (times the face area for its glow)
+static std::map<uint32_t,std::vector<SignalFace>> signal_faces;              // mesh -> its animated faces
+static std::map<std::array<uint32_t,5>,SignalGlow> signal_glows;             // face + frame -> glow
+static std::map<std::array<uint32_t,4>,double> signal_peaks;                  // animation entry + face -> brightest frame
+static void signal_cache_clear() {signal_faces.clear();signal_glows.clear();signal_peaks.clear();signal_last.clear();}
+static inline bool signal_ram_ok(uint32_t a,uint32_t n=4) {return a>=0x80010000u && a<=0x80200000u-n && !(a&3);}
+static const std::vector<SignalFace>& signal_mesh_faces(uint32_t mesh) {
+    if(auto it=signal_faces.find(mesh);it!=signal_faces.end()) return it->second;
+    std::vector<SignalFace>& out=signal_faces[mesh];
+    const unsigned nv=psx_mod_read_byte(mesh+6);
+    const uint32_t vp=psx_mod_read_word(mesh+0x10);uint32_t cur=psx_mod_read_word(mesh+0x14);
+    if(!nv || !signal_ram_ok(vp,8*nv)) return out;
+    for(unsigned guard=0;guard<256;++guard) {
+        if(!signal_ram_ok(cur)) break;
+        const uint32_t header=psx_mod_read_word(cur);cur+=4;
+        const uint32_t type=header&0xffff,n=header>>16;
+        if(type==0xff) break;
+        unsigned size=0;
+        switch(type) {case 0x20: case 0x28: size=8;break;case 0x30: case 0x38: size=12;break;case 0x24: case 0x2c: size=16;break;case 0x34: case 0x3c: size=20;break;}
+        if(!size || !n || n>4096 || cur>0x80200000u-n*size) break;
+        for(uint32_t k=0;k<n;++k,cur+=size) {
+            if(type!=0x24 && type!=0x2c && type!=0x34 && type!=0x3c) continue;
+            const uint32_t word=psx_mod_read_word(cur),t1=psx_mod_read_word(cur+4),t2=psx_mod_read_word(cur+8),t3=psx_mod_read_word(cur+12);
+            if(!((t2>>25)&0x20)) continue;
+            const unsigned nc=(type&8)?4:3;
+            double P[4][3];bool bad=false;
+            for(unsigned j=0;j<nc;++j) {
+                const unsigned i=(word>>(8*j))&0xff;if(i>=nv) {bad=true;break;}
+                for(int a=0;a<3;++a) P[j][a]=(int16_t)psx_mod_read_half(vp+8*i+2*a);
+            }
+            if(bad) continue;
+            double nn[3]={0,0,0};
+            auto cross=[&](const double* a,const double* b,const double* c) {
+                const double u[3]={b[0]-a[0],b[1]-a[1],b[2]-a[2]},v[3]={c[0]-a[0],c[1]-a[1],c[2]-a[2]};
+                nn[0]+=u[1]*v[2]-u[2]*v[1];nn[1]+=u[2]*v[0]-u[0]*v[2];nn[2]+=u[0]*v[1]-u[1]*v[0];
+            };
+            cross(P[0],P[1],P[2]);if(nc==4) cross(P[1],P[3],P[2]);
+            const double len=std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2]);
+            if(len>=1) out.push_back({t1,t2,t3,nc,len/2});
+        }
+    }
+    return out;
+}
+// The glow of one face in one frame (s1, s2): the sign scan's emitter rule
+// (bright, strongly coloured texels) and its dominant hue, texels read from
+// VRAM through the frame's CLUT. Cached: frames repeat.
+static const SignalGlow& signal_face_glow(const SignalFace& f,uint32_t s1,uint32_t s2) {
+    const std::array<uint32_t,5> key{f.t1,f.t2,f.t3,s1,s2};
+    if(auto it=signal_glows.find(key);it!=signal_glows.end()) return it->second;
+    SignalGlow& g=signal_glows[key];
+    const uint32_t s4=s1&0xffff;
+    const uint32_t t1=(f.t1&0xffff)+s1,t2=(f.t2&0xffff)+((s2&0xffff0000u)|s4),t3=f.t3+((s4<<16)|s4);
+    const uint32_t clut=t1>>16,tp=(t2>>16)&0x1ff;
+    const uint32_t uv[4]={t1&0xffff,t2&0xffff,t3&0xffff,t3>>16};
+    int u0=255,u1=0,v0=255,v1=0;
+    for(unsigned i=0;i<f.nc;++i) {u0=std::min<int>(u0,uv[i]&0xff);u1=std::max<int>(u1,uv[i]&0xff);v0=std::min<int>(v0,uv[i]>>8);v1=std::max<int>(v1,uv[i]>>8);}
+    if((u1-u0+1)*(v1-v0+1)>256*64) return g;
+    const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
+    auto texel=[](int x,int y){return gpu_vram_peek(x&1023,y&511);};
+    double n=0,dark=0,w=0,hw[12]={},hrgb[12][3]={};
+    for(int v=v0;v<=v1;++v) for(int u=u0;u<=u1;++u) {
+        uint16_t c;
+        if(depth==0) c=texel(cx+((texel(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
+        else if(depth==1) c=texel(cx+((texel(tx+u/2,ty+v)>>(8*(u&1)))&0xff),cy);
+        else c=texel(tx+u,ty+v);
+        n+=1;
+        const double r=(c&31)/31.0,gg=((c>>5)&31)/31.0,b=((c>>10)&31)/31.0,mx=std::max({r,gg,b}),mn=std::min({r,gg,b});
+        if(mx<0.2) dark+=1;
+        if(!c) continue;
+        const double sat=mx>0?(mx-mn)/mx:0;
+        w+=lamp_ss(0.75,0.95,mx)*lamp_ss(0.6,0.9,sat);
+        if(const double h=lamp_ss(0.6,0.9,mx)*lamp_ss(0.3,0.6,sat);h>0) {
+            const double d=mx-mn;
+            const double hue=mx==r?std::fmod((gg-b)/d+6,6.0):mx==gg?(b-r)/d+2:(r-gg)/d+4;
+            const int bin=std::clamp((int)(hue*2),0,11);
+            hw[bin]+=h;hrgb[bin][0]+=h*r;hrgb[bin][1]+=h*gg;hrgb[bin][2]+=h*b;
+        }
+    }
+    double frac=n>0?w/n:0;
+    if(frac>=0.01 && dark>=0.4*n) frac=std::min(1.0,frac*3);
+    if(frac<0.02) return g;
+    int top=0;for(int b=1;b<12;++b) if(hw[b]>hw[top]) top=b;
+    if(hw[top]<=0) return g;
+    double sw=0,c[3]={0,0,0};
+    for(int b:{(top+11)%12,top,(top+1)%12}) {sw+=hw[b];for(int a=0;a<3;++a) c[a]+=hrgb[b][a];}
+    const double m=std::max({c[0],c[1],c[2],1e-9});
+    g.e=frac;for(int a=0;a<3;++a) g.rgb[a]=(float)(c[a]/m);
+    return g;
+}
+// The animation entry of an animated face (0: none).
+static uint32_t signal_entry(uint32_t mesh,const SignalFace& f) {
+    const uint32_t anim=psx_mod_read_word(mesh+0x0c);
+    if(!signal_ram_ok(anim,16)) return 0;
+    const uint32_t entry=anim+(f.t1>>16)*16;
+    return signal_ram_ok(entry,16) && signal_ram_ok(psx_mod_read_word(entry+8),8) ? entry : 0;
+}
+// Every frame (s1, s2) of the animation an entry runs (empty if unknown);
+// ms: its time per frame.
+static std::vector<std::array<uint32_t,2>> signal_frames(uint32_t entry,unsigned* ms=nullptr) {
+    std::vector<std::array<uint32_t,2>> out;if(ms) *ms=0;
+    const uint32_t cur=psx_mod_read_word(entry+8),table=psx_mod_read_word(0x800c5780);
+    const uint32_t script=signal_ram_ok(cur-12,32)?psx_mod_read_word(cur-12+28):0;
+    if(!signal_ram_ok(script,8) || !signal_ram_ok(table,12)) return out;
+    const unsigned count=(psx_mod_read_word(script)>>24)+1;
+    if(ms) *ms=psx_mod_read_word(script)&0xffff;
+    const uint32_t list=psx_mod_read_word(script+4);
+    if(count>64 || list<0x80010000u || list>0x80200000u-2*count || (list&1)) return out;
+    for(unsigned i=0;i<count;++i) {
+        const uint32_t fr=table+12*psx_mod_read_half(list+2*i);
+        if(!signal_ram_ok(fr,8)) return {};
+        out.push_back({psx_mod_read_word(fr),psx_mod_read_word(fr+4)});
+    }
+    return out;
+}
+// The brightest frame of a face's animation (the frame shown now if the
+// script cannot be read).
+static double signal_face_peak(uint32_t entry,const SignalFace& f) {
+    const std::array<uint32_t,4> key{entry,f.t1,f.t2,f.t3};   // meshes can share face words
+    if(auto it=signal_peaks.find(key);it!=signal_peaks.end()) return it->second;
+    double peak=0;
+    for(const auto& fr:signal_frames(entry)) peak=std::max(peak,f.area*signal_face_glow(f,fr[0],fr[1]).e);
+    if(peak<=0) {
+        const uint32_t cur=psx_mod_read_word(entry+8);
+        peak=f.area*signal_face_glow(f,psx_mod_read_word(cur),psx_mod_read_word(cur+4)).e;
+        if(peak<=0) return 0;   // not cached: may be lit later
+    }
+    return signal_peaks[key]=peak;
+}
+// Now: level 0-1 against the brightest frame, and the lit colour.
+static bool signal_now(uint32_t mesh,float& level,float rgb[3]) {
+    double e=0,peak=0,c[3]={0,0,0};
+    for(const SignalFace& f:signal_mesh_faces(mesh)) {
+        const uint32_t entry=signal_entry(mesh,f);
+        if(!entry) continue;
+        const uint32_t cur=psx_mod_read_word(entry+8);
+        const SignalGlow& g=signal_face_glow(f,psx_mod_read_word(cur),psx_mod_read_word(cur+4));
+        peak+=signal_face_peak(entry,f);e+=f.area*g.e;
+        for(int a=0;a<3;++a) c[a]+=f.area*g.e*g.rgb[a];
+    }
+    if(peak<=0) return false;
+    level=(float)std::clamp(e/peak,0.0,1.0);
+    if(e>0) for(int a=0;a<3;++a) rgb[a]=(float)(c[a]/e);
+    return true;
+}
+// Whether a mesh's animated faces flash: an animation of 100 ms frames or
+// slower with a frame at most a tenth as bright as its brightest (traffic
+// lights 600 ms, on and off; level 29's pulsing neon 142 ms). Flames run
+// faster (40-66 ms) and are left to their candle style, though some frames
+// of a sputtering fire are dark (level 7, type 372). The sign scan gives
+// such props a signal lamp.
+static bool signal_mesh_flashes(uint32_t mesh) {
+    double lo=0,hi=0;bool any=false;
+    for(const SignalFace& f:signal_mesh_faces(mesh)) {
+        const uint32_t entry=signal_entry(mesh,f);
+        if(!entry) continue;
+        unsigned ms=0;const auto frames=signal_frames(entry,&ms);
+        if(frames.size()<2 || ms<100) continue;   // flames run 40-66 ms frames
+        double mn=1e300,mx=0;
+        for(const auto& fr:frames) {const double e=signal_face_glow(f,fr[0],fr[1]).e;mn=std::min(mn,e);mx=std::max(mx,e);}
+        lo+=mn*f.area;hi+=mx*f.area;any=true;
+    }
+    return any && hi>0 && lo<=hi/10;
+}
+static uint32_t signal_cache_loads=~0u;
+
 // Called from lights_publish (game tick): the nearest lamps for this image.
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
     if(!level_lamps_shown.load(std::memory_order_relaxed) || level_lamps.empty() || !room) return 0;
@@ -298,6 +483,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
     if(const uint32_t loads=psx_mod_savestate_loads();loads!=level_lamp_prop_loads) {
         level_lamp_prop_loads=loads;level_lamp_prop_sig=0;for(LevelLamp& l:level_lamps) l.standing=-1;
     }
+    if(const uint32_t loads=psx_mod_savestate_loads();loads!=signal_cache_loads) {signal_cache_loads=loads;signal_cache_clear();}
     // Every bound lamp, near or not, so one broken out of sight does not
     // sputter when Duke comes back.
     // Not this level's props (loading): kept as they are. A fingerprint that
@@ -325,7 +511,20 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
     unsigned k=0;
     for(unsigned j=0;j<n && k<std::min(room,level_lamp_max);++j) {
         const LevelLamp& l=level_lamps[near[j].i];
+        float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,near[j].i));
+        // D55: a signal lamp shows its prop's frame (colour and brightness).
+        if(l.style==lamp_signal && usable && l.standing!=0) {
+            uint32_t o=0;for(const PropRef& r:l.props) if((o=prop_standing_object(props,r.type,r.p))) break;
+            const uint32_t mesh=o?psx_mod_read_word(o+0x44):0;
+            float level=1;
+            if(signal_ram_ok(mesh,0x18) && signal_now(mesh,level,rgb)) e*=level;
+            if(static const bool trace=std::getenv("DNTTK_SIGNAL_TRACE")!=nullptr;trace)
+                std::fprintf(stderr,"[TTK signal] tick %u lamp %u level %.2f rgb %.2f %.2f %.2f\n",light_ticks,near[j].i,level,rgb[0],rgb[1],rgb[2]);
+            if(signal_last.size()!=level_lamps.size()) signal_last.assign(level_lamps.size(),{-1,-1,-1});
+            if(level>0.05f) signal_last[near[j].i]={rgb[0],rgb[1],rgb[2]};
+        } else if(l.style==lamp_signal && near[j].i<signal_last.size() && signal_last[near[j].i][0]>=0)
+            for(int a=0;a<3;++a) rgb[a]=signal_last[near[j].i][a];
         e*=(float)std::clamp((level_lamp_margin-near[j].d)/level_lamp_fade,0.0,1.0);
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,near[j].i);
         if((int)near[j].i!=level_lamp_selected) e*=level_lamp_vis[near[j].i];
@@ -334,7 +533,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         if(e<=0.01f) continue;
         PSXModLight& o=out[k++];
         o.x=(float)l.p[0];o.y=(float)l.p[1];o.z=(float)l.p[2];o.radius=(float)l.radius;
-        o.r=l.rgb[0]*e;o.g=l.rgb[1]*e;o.b=l.rgb[2]*e;o.flags=0;
+        o.r=rgb[0]*e;o.g=rgb[1]*e;o.b=rgb[2]*e;o.flags=0;
     }
     return k;
 }
@@ -462,8 +661,7 @@ static std::vector<ScanCand> level_lamps_scan(int threshold) {
 // candle style when warm (lantern and torch flames) or flicker (neon).
 // gpu_vram_peek: gpu.h (through the backend, which syncs its copy first).
 static constexpr double sign_min_glow=3000,sign_offset=300;
-struct SignCand {double p[3];double rgb[3];double radius,glow;unsigned type,room;bool animated;std::vector<PropRef> props;};
-static inline double lamp_ss(double a,double b,double x) {const double t=std::clamp((x-a)/(b-a),0.0,1.0);return t*t*(3-2*t);}
+struct SignCand {double p[3];double rgb[3];double radius,glow;unsigned type,room;bool animated,signal=false;std::vector<PropRef> props;};
 static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullptr) {
     std::vector<SignCand> out;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c),types=psx_mod_read_word(0x800d2660);
@@ -534,11 +732,22 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
                 uint32_t t1=psx_mod_read_word(cur+4),t2=psx_mod_read_word(cur+8),t3=psx_mod_read_word(cur+12);
                 const bool animated=(t2>>25)&0x20;
                 if(animated) {
-                    const uint32_t anim=near_clip_object_animation();
+                    // D55: the mesh's own animation table (+0x0c, the one the
+                    // object renderer puts at ctx+0x60), else the last drawn.
+                    uint32_t anim=psx_mod_read_word(mesh+0x0c);
+                    if(!signal_ram_ok(anim,16)) anim=near_clip_object_animation();
                     if(!anim) continue;
                     const uint32_t frame=psx_mod_read_word(anim+(t1>>16)*16+8);
                     if(frame<0x80010000u || frame>0x801ffff8u || (frame&3)) continue;
-                    const uint32_t s1=psx_mod_read_word(frame),s2=psx_mod_read_word(frame+4),s4=s1&0xffff;
+                    uint32_t s1=psx_mod_read_word(frame),s2=psx_mod_read_word(frame+4);
+                    // D55: scored on the animation's brightest frame, so a
+                    // flashing light is found whichever frame shows now.
+                    if(anim==psx_mod_read_word(mesh+0x0c)) {
+                        const SignalFace sf{t1,t2,t3,(type&8)?4u:3u,1.0};double best=-1;
+                        for(const auto& fr:signal_frames(anim+(t1>>16)*16))
+                            if(const double e=signal_face_glow(sf,fr[0],fr[1]).e;e>best) {best=e;s1=fr[0];s2=fr[1];}
+                    }
+                    const uint32_t s4=s1&0xffff;
                     t2=(t2&0xffff)+((s2&0xffff0000u)|s4);t1=(t1&0xffff)+s1;t3=t3+((s4<<16)|s4);
                 }
                 const unsigned nc=(type&8)?4:3;
@@ -600,13 +809,17 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
                 std::fprintf(stderr,"[TTK lamp]   prop %08x type %u mesh %08x: %zu neon faces (first %08x)\n",o,type,mesh,g.neon.size(),g.neon[0]);
             if(std::getenv("DNTTK_LAMP_TRACE") && g.e>0)
                 std::fprintf(stderr,"[TTK lamp]   prop %08x type %u room %u glow %.0f animated %.0f (table %08x)\n",o,type,r,g.e,g.animated,near_clip_object_animation());
-            if(g.e<sign_min_glow) continue;
+            // D55: a light that flashes on and off (the red over-road
+            // traffic lights, 2339) is a light at half the glow.
+            const bool flashes=g.animated*2>g.e && signal_mesh_flashes(mesh);
+            if(g.e<(flashes?sign_min_glow/2:sign_min_glow)) continue;
             // Model to world: yaw +0x1c (4096 a turn, 0 = +Z, 1024 = +X).
             const double a=(int16_t)psx_mod_read_half(o+0x1c)*(2*3.14159265358979/4096),ca=std::cos(a),sa=std::sin(a);
             auto rot=[&](const double* v,double* w){w[0]=v[0]*ca+v[2]*sa;w[1]=v[1];w[2]=-v[0]*sa+v[2]*ca;};
             double c[3],dir[3];rot(g.c,c);rot(g.out,dir);
             const double dl=std::sqrt(dir[0]*dir[0]+dir[1]*dir[1]+dir[2]*dir[2]);
             SignCand s{};s.type=type;s.room=r;s.glow=g.e;s.animated=g.animated*2>g.e;s.props.push_back(prop_ref(o));
+            s.signal=flashes;   // D55: a traffic light
             for(int k=0;k<3;++k) s.p[k]=(int32_t)psx_mod_read_word(o+4+4*k)+c[k]+(dl>0.3?dir[k]/dl*sign_offset:0);
             const double m=std::max({g.col[0],g.col[1],g.col[2],1e-6});
             for(int k=0;k<3;++k) s.rgb[k]=g.col[k]/m;
@@ -768,7 +981,7 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     } else if(!std::strcmp(verb,"style")) {
         if(!need_sel()) return;
         LevelLamp t=*s;
-        if(!lamp_style_parse(rest,t)) {level_lamp_notice("Lamp: styles steady flicker pulse candle strobe broken wave [phase 0-31] [depth 0-1]");return;}
+        if(!lamp_style_parse(rest,t)) {level_lamp_notice("Lamp: styles steady flicker pulse candle strobe broken signal wave [phase 0-31] [depth 0-1]");return;}
         s->style=t.style;s->phase=t.phase;s->depth=t.depth;level_lamps_dirty=true;level_lamp_flash_until=0;
         level_lamp_describe(b,sizeof b,level_lamp_selected);level_lamp_notice("Lamp: %s",b);
     } else if(!std::strcmp(verb,"note")) {
@@ -824,7 +1037,9 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
             LevelLamp l{};for(int i=0;i<3;++i) {l.p[i]=std::round(k.p[i]);l.rgb[i]=(float)(std::round(k.rgb[i]*100)/100);}
             // Animated glow: a warm one is a flame (lanterns, torches), the rest neon.
             const bool warm=k.rgb[0]>=0.99 && k.rgb[1]>=0.4 && k.rgb[2]<0.5;
-            l.radius=std::round(k.radius);l.k=1.0f;l.style=k.animated?(warm?lamp_candle:lamp_flicker):lamp_steady;
+            // D55: a traffic light reaches the street (the over-road ones hang
+            // 2000 above it).
+            l.radius=std::round(k.signal?std::max(k.radius,3000.0):k.radius);l.k=1.0f;l.style=k.signal?lamp_signal:k.animated?(warm?lamp_candle:lamp_flicker):lamp_steady;
             char note[48];std::snprintf(note,sizeof note,"sign type %u room %u%s",k.type,k.room,k.animated?" animated":"");l.note=note;
             level_lamp_set_props(l,k.props);   // D54: out when they break
             level_lamps.push_back(l);
@@ -899,7 +1114,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!*arg || !std::strcmp(arg,"help")) {
         say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
-        say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken wave [phase] [depth]");
+        say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
         say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
         say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");

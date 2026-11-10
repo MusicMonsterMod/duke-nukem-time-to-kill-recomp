@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-10 - D55 accepted and closed
+
+User: "incredible work. lock it in and close it out". D55 is Done: traffic lights light the street in the colour they show and flash with it (lamp style `signal`, read live from the game's texture animation; levels 0, 5 and 9), level 29's pulsing neon pulses its light. [Note 438](documentation/438-d55-traffic-lights.md).
+
+## 2026-11-10 - D55: traffic lights flash their light (Needs playtest)
+
+Traffic lights now light the street in the colour they
+show and flash with it, read live from the game's texture animation (new
+lamp style `signal`); the sign scan finds any such light by its animation,
+whatever its type. Levels 0, 5 and 9 (24 traffic light lamps) and level 29's
+pulsing neon. [Note 438](documentation/438-d55-traffic-lights.md).
+
 ## 2026-11-10 - D54 accepted and closed
 
 User: "this is awesome. i'm so happy with it. this step definitely works fine so i'd say commit right here". D54 is Done: a light-emitting prop that breaks takes its light with it, game-wide (sign lamps in every level file, D41L and D53 lights), across savestates. The original painted light stays (a possible follow-up). [Note 437](documentation/437-d54-broken-lights.md).

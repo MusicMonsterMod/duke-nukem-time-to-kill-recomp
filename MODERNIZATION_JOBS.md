@@ -1,5 +1,17 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D55 accepted and closed
+
+User: "incredible work. lock it in and close it out". D55 is Done: traffic lights light the street in the colour they show and flash with it (lamp style `signal`, read live from the game's texture animation; levels 0, 5 and 9), level 29's pulsing neon pulses its light. [Note 438](documentation/438-d55-traffic-lights.md).
+
+## 2026-11-10 - D55: traffic lights flash their light (Needs playtest)
+
+Selected after D54. Traffic lights now light the street in the colour they
+show and flash with it, read live from the game's texture animation (new
+lamp style `signal`); the sign scan finds any such light by its animation,
+whatever its type. Levels 0, 5 and 9 (24 traffic light lamps) and level 29's
+pulsing neon. [Note 438](documentation/438-d55-traffic-lights.md).
+
 ## 2026-11-10 - D54 accepted and closed
 
 User: "this is awesome. i'm so happy with it. this step definitely works fine so i'd say commit right here". D54 is Done: a light-emitting prop that breaks takes its light with it, game-wide (sign lamps in every level file, D41L and D53 lights), across savestates. The original painted light stays (a possible follow-up). [Note 437](documentation/437-d54-broken-lights.md).
@@ -8758,6 +8770,55 @@ screen face until Duke walks out of range, then back to the D53 idle
 screen. Needs a second scene pass to an offscreen target in Polymorph.
 Duke 3D toggle value only. Acceptance: user playtest in slot 9.
 
+### D55 - Traffic lights light the street in their own colour and flash
+
+**Status: Done (accepted 2026-11-10; [note 438](documentation/438-d55-traffic-lights.md)).** Dependencies: D41D1, D54.
+
+User, UI slot 6 (level 5 street), after D54: "I'd like traffic lights to all
+be emitters, but they need to be synced to the color and the flash.
+currently we have a flicker effect that is similar to the fire flicker.
+essentially in the future we could put down a custom traffic light somewhere
+and our colors would be correct". Scope:
+
+- Find how TTK shows a traffic light's state (animated texture frames or
+  another mechanism) and read it live.
+- Every traffic light (each type, every level) gives a light whose colour and
+  on/off follow the light the game is showing, frame for frame, instead of a
+  fixed amber with a candle flicker.
+- Driven by the prop, not by a list of places: a traffic light placed or
+  spawned anywhere gets the right colours. Lights still go out when the prop
+  breaks (D54).
+- Modernized Polymorph with DYNAMIC LIGHTS only; Vanilla and Classic
+  unchanged.
+
+Acceptance: in UI slot 6 the street lights change colour and flash with the
+traffic lights; matched shots of each state; user playtest.
+
+**Work log (2026-11-10, Needs playtest).** TTK flashes its traffic lights by
+texture animation: each model (217 on the kerb, 216 over the road) has one
+animated face; its mesh's animation table (`+0x0c`) points at a running
+animation record that the game copies each frame into. The script (record
+`+28`) gives 2 frames of 600 ms: 217 lit amber / dark, 216 dark / lit red,
+in step, so amber and red blink in turn. New lamp style `signal`
+(`level_lights.inc`): each game tick the lamp reads its standing prop's
+current frame and takes that frame's lit colour and its brightness against
+the animation's brightest frame. The sign scan gives `signal` by itself to
+any animated sign whose animation runs 100 ms frames or slower and has a
+frame at most a tenth as bright as its brightest (flames run 40-66 ms frames
+and keep `candle`), scores animated faces on their brightest frame (it used
+the frame showing and, wrongly, the animation table of the last object
+drawn, which made the red lights amber), takes flashing signs at half the
+glow, and gives signal lamps a radius of at least 3000 so the over-road
+lights reach the street. Level files: level 5's eight traffic light lamps
+restyled (216 now red); levels 0 and 9 gain their eight (none before);
+level 29's 16 pulsing neon lamps (1014, 1015, 142 ms frames) go from
+`flicker` to `signal` at their old places. Evidence: signal trace (amber on
+for 18 ticks, red on for the next 18), matched before/after shots
+`research/before-after/D55/` (local), the traffic light's flag set by hand
+puts its signal lamp out (D54), build OK, `ttk-input-test` and
+`ttk-near-test` pass. Remaining: user playtest in UI slot 6; level 0, 9 and
+29 lamps checked by scan and trace, not looked at in play.
+
 ### D54 - Broken lights go out
 
 **Status: Done (accepted 2026-11-10; [note 437](documentation/437-d54-broken-lights.md)).**
@@ -10328,6 +10389,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D53 | Security monitors, Duke 3D style: camera overlay (corners, REC, record light), screen art with TV bezel, screen light, TTK / Duke 3D toggle; glowing keypads and power switch | Done (user-accepted 2026-11-09; note 432) | D52, D41D1 |
 | D53A | Security monitors keep a low-res live picture after you leave the view, until you walk out of range | Todo | D53 |
 | D54 | Broken lights go out: a light-emitting prop that is shot or blown up takes its light with it (traffic lights, barrels, signs, lamps, props by model); game-wide | Done (note 437) | D41D1, D41L |
+| D55 | Traffic lights light the street in their own colour and flash, read live from the prop (any traffic light, anywhere) | Done (note 438) | D41D1, D54 |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

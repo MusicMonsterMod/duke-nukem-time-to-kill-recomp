@@ -82,3 +82,11 @@
 9917 -7316 25344  1.00 0.74 0.01  2282  1.00  steady  # sign type 213 room 79 prop 213 9983 -7231 25221 prop 213 9857 -7231 25491
 7239 -7432 39432  1.00 0.00 0.00  1692  1.00  steady  # sign type 170 room 82 prop 170 7239 -7479 39432
 13897 -6659 33642  0.22 0.13 1.00  4658  1.00  steady  # sign type 16 room 82 prop 16 13897 -6144 33064
+482 -11516 2999  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 1 animated prop 217 130 -11522 2999
+482 -11554 5170  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 1 animated prop 217 130 -11560 5170
+-1377 -11650 7003  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 1 animated prop 216 -1377 -11550 6651
+-3520 -11609 7003  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 1 animated prop 216 -3520 -11509 6651
+13637 -11531 4834  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 3 animated prop 217 13989 -11537 4834
+13637 -11554 2663  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 3 animated prop 217 13989 -11560 2663
+16668 -11657 7909  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 4 animated prop 216 16668 -11557 7557
+18812 -11627 7909  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 4 animated prop 216 18812 -11527 7557

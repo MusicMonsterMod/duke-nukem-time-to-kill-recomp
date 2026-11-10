@@ -32,7 +32,7 @@ struct PropSnapshot {
     bool ever=false;
     std::unordered_map<uint32_t,bool> linked;      // object -> standing (linked, kind 1, not broken)
     std::vector<PropRef> standing;                 // linked static props that stand
-    std::unordered_set<uint64_t> standing_keys;    // prop_key of each
+    std::unordered_map<uint64_t,uint32_t> standing_keys; // prop_key of each -> its object
     bool valid=false;                              // the room table looked sane and held props
     uint64_t level_sig=0;                          // the room table's fingerprint (rooms and their origins)
 };
@@ -69,7 +69,7 @@ inline const PropSnapshot& prop_snapshot_take(bool fresh=false) {
             if(o<0x80010000u || o>0x801fff00u || (o&3) || s.linked.count(o)) continue;
             const bool stands=psx_mod_read_byte(o+0x14)==1 && !prop_broken_flag(o);
             s.linked[o]=stands;
-            if(stands) {s.standing.push_back(prop_ref(o));s.standing_keys.insert(prop_key(s.standing.back().type,s.standing.back().p));}
+            if(stands) {s.standing.push_back(prop_ref(o));s.standing_keys.emplace(prop_key(s.standing.back().type,s.standing.back().p),o);}
         }
     }
     s.valid=!s.standing.empty();
@@ -94,6 +94,11 @@ inline bool prop_standing(const PropSnapshot& s,const PropRef& ref) {
 // A standing prop of this type at exactly this place (address may differ).
 inline bool prop_standing_at(const PropSnapshot& s,uint16_t type,const int32_t p[3]) {
     return s.standing_keys.count(prop_key(type,p))!=0;
+}
+// D55: the object of that standing prop (0: none).
+inline uint32_t prop_standing_object(const PropSnapshot& s,uint16_t type,const int32_t p[3]) {
+    auto it=s.standing_keys.find(prop_key(type,p));
+    return it==s.standing_keys.end()?0:it->second;
 }
 
 // A light dying with its prop: a few quick sputters fading out over

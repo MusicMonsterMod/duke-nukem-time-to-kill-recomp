@@ -410,7 +410,11 @@ automatically: one lamp per coloured pool of the painted light, and one at
 each glowing prop (EXIT and SECURITY signs, neon, tube lights, lit panels,
 lanterns) in its own colour. Lanterns flicker like flames; where the original
 light ripples (the game's own animated light), its lamps ripple with it.
-Level 0 (Los Angeles) also keeps its flickering pink lamp at the club sign. A
+Traffic lights light the street in the colour they show and flash with it:
+the amber lights on the kerb and the red ones over the road blink in turn, on
+the same frame as the lights themselves (levels 0, 5 and 9); the pulsing neon
+of level 29 pulses its light the same way. Level 0 (Los Angeles) also keeps
+its flickering pink lamp at the club sign. A
 lamp lights only while its room is in view, so a sign behind a wall does not
 tint the room in front of it. Break a prop that gives light (a traffic light,
 a fire barrel, a neon sign, a red light) and its light sputters out with it
@@ -425,7 +429,9 @@ console edits them:
   crosshair (or number n). The selected lamp blinks for a moment.
 - On the selected lamp: `lamp move`, `lamp nudge dx dy dz` (y up is
   negative), `lamp color r g b`, `lamp radius R`, `lamp power K`, `lamp style
-  steady|flicker|pulse|candle|strobe|broken`, or `lamp style wave [phase]
+  steady|flicker|pulse|candle|strobe|broken|signal` (`signal`: the colour
+  and flash of the prop the lamp is bound to, for a traffic light), or `lamp
+  style wave [phase]
   [depth]` to follow the game's own animated light (phase 0 to 31, depth 0
   to 1), `lamp note text`, `lamp del`.
 - `lamp save` writes the level's lamps (`recomp/assets/lights/levelNN.lights`),

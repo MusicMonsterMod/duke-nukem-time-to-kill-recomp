@@ -1212,6 +1212,8 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     }
     if(!std::strcmp(arg,"off")) {level_lamps_shown.store(0);say("Lamp: level lights hidden (session)");return true;}
     if(!std::strcmp(arg,"on")) {level_lamps_shown.store(1);say("Lamp: level lights shown");return true;}
+    if(!std::strcmp(arg,"pickups off")) {prop_pickups_enabled.store(false);say("Lamp: glowing pickups dark (session)");return true;}
+    if(!std::strcmp(arg,"pickups on") || !std::strcmp(arg,"pickups")) {prop_pickups_enabled.store(true);say("Lamp: glowing pickups lit");return true;}
     if(!std::strcmp(arg,"props off")) {prop_lights_enabled.store(false);say("Lamp: woodburners and chandeliers dark (session)");return true;}
     if(!std::strcmp(arg,"props on") || !std::strcmp(arg,"props")) {prop_lights_enabled.store(true);say("Lamp: woodburners and chandeliers lit");return true;}
     if(!std::strcmp(arg,"breaks off")) {level_lamps_breaks.store(0);say("Lamp: lamps stay lit when their props break (session, to compare)");return true;}

@@ -419,7 +419,16 @@ and `light off` removes the test lights. `light at <x> <y> <z> <r> <g> <b>
 reach 100 to 30000), for measuring. `light smooth off` shows the
 faceted light on models for comparison until `light smooth on` (or the next
 launch), and `light fire off` / `light fire on` turns the fire lights
-(flames and burning) off and on for the session.
+(flames and burning) off and on for the session. `light bolts off` / `light
+bolts on` does the same for the Necro's blast lights.
+
+**Glowing shots and pickups.** A Necro's blast (its violet ring) lights the
+walls and floor violet as it flies, with a violet flash where the Necro fires
+it and a burst where it hits, Duke, an enemy or a wall. An atomic health
+glows: a soft cyan-blue light that breathes slowly around it, on every copy
+in every level (also one an enemy drops or you spawn), and it goes dark the
+moment Duke picks it up. `lamp pickups off` / `lamp pickups on` compares
+without and with the pickup glow for the session.
 
 **Shadows.** Walls stop the light: a lamp, a sign, a blast or a rocket in
 flight lights only what it can see, so light no longer bleeds through a wall

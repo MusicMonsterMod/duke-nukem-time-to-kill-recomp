@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-11-10 - Session closed: D56 committed for playtest, D57 and D58 on the board
+
+D56 (Necro blast and atomic health lights) committed as Needs playtest. New
+Todo jobs: D57 (light emitter review, first a list with images), D58 (split
+the job board into category files; the board is at the 2 MiB file limit, the
+2026-10-01 log entries were moved to `documentation/jobs-history-2026-10-01.md`).
+
+## 2026-11-10 - D56: Necro blast and atomic health give light (Needs playtest)
+
+Selected with the user's request (UI slot 8). The Necro's blast (projectile
+type 20, pool flag 1) now lights violet in flight, at launch and where it hits
+(Duke and enemies too); atomic health (pickup type 581, every level) glows
+cyan-blue with a slow breath and goes dark when taken. Console `light bolts
+off|on`, `lamp pickups off|on`. New backlog job D57 (light emitter review,
+first a published list with images; not started).
+[Note 442](documentation/442-d56-necro-atomic-lights.md).
+
 ## 2026-11-10 - D41E accepted and closed
 
 User: "lock it in and close it out". D41E is Done: LIGHTING ORIGINAL / ENHANCED / RELIT, lamps lit from afar and kept on when turning. [Note 441](documentation/441-d41e-relit-levels.md).

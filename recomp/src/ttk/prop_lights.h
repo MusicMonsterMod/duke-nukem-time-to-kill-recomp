@@ -36,6 +36,8 @@ inline void (*prop_light_paint_bank)(uint16_t* bank)=nullptr;
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};
+// D56: console "lamp pickups off|on" (glowing pickups, session).
+inline std::atomic<bool> prop_pickups_enabled{true};
 
 // Second-bank textures (15-bit, semi-transparent texels), page base x 256:
 // tpage 0x124 = x 256, 15-bit, additive blending.

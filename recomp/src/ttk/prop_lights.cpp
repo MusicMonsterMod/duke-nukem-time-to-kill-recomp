@@ -76,6 +76,13 @@ struct Tune {float rgb[3],k,radius;};
 Tune fire_light{{1.0f,0.46f,0.15f},1.5f,2800};          // the stove's fire, before its door
 Tune candle_light{{1.0f,0.80f,0.52f},0.9f,1600};        // among the candles: ceiling and arms
 Tune fill_light{{1.0f,0.74f,0.46f},0.5f,5000};          // the chandelier's broad fill below
+// D56: pickups that glow (documentation/442-d56-necro-atomic-lights.md),
+// by object type (+0x2c) of a pickup object (kind +0x14 = 4), so every copy
+// in every level, dropped or spawned, takes part. The atomic health (581):
+// a red and blue atom in cyan orbits; a cool cyan-blue light, a slow throb.
+Tune atomic_light{{0.42f,0.82f,1.30f},0.85f,1700};
+struct PickupLight {uint16_t type;const Tune* tune;float lift;};
+const PickupLight pickup_lights[]={{581,&atomic_light,260}};
 void tune(const char* name,Tune& t) {
     if(const char* e=std::getenv(name)) std::sscanf(e,"%f %f %f %f %f",&t.rgb[0],&t.rgb[1],&t.rgb[2],&t.k,&t.radius);
 }
@@ -93,11 +100,19 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 // ---- props and their lights (game thread) --------------------------------
 // D54: ref is the prop; when it breaks (prop_state.h) the light sputters out
 // from broke_ms (standing 0) and the scans no longer find it.
-struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;};
+struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;};
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
 size_t stoves=0,chandeliers=0;
+// D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
+// appear within a sixth of a second); one taken goes dark at once.
+std::vector<Emitter> pickups;
+uint32_t pickup_frame=0;
+// D56: a pickup's slow throb, about 0.8..1.0 (1.4 s a breath).
+float pickup_level(uint32_t ms,uint32_t seed) {
+    return 0.90f+0.10f*std::sin((float)(ms/1000.0*2*pi/1.4+(seed&255)*0.1));
+}
 void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     // Model to world: yaw +0x1c (4096 a turn); model -z goes to (-sin, -cos).
     const double ca=std::cos(yaw),sa=std::sin(yaw);
@@ -133,17 +148,56 @@ void scan_props() {
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
         std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu lights\n",scan_level,stoves,chandeliers,emitters.size());
 }
+void scan_pickups() {
+    std::vector<Emitter> found;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(rooms && rooms<=256 && table>=0x80010000u && table<=0x80200000u-rooms*88 && !(table&3)) {
+        for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
+            uint32_t node=psx_mod_read_word(table+88*r+head_at);
+            for(unsigned guard=0;node && guard<1024;++guard) {
+                if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+                const uint32_t o=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+                if(o<0x80010000u || o>0x801fff00u || (o&3) || psx_mod_read_byte(o+0x14)!=4) continue;
+                const uint16_t type=(uint16_t)psx_mod_read_half(o+0x2c);
+                for(const PickupLight& k:pickup_lights) if(k.type==type) {
+                    bool dup=false;for(const Emitter& e:found) dup|=e.ref.o==o;
+                    if(dup) break;
+                    Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);e.tune=k.tune;e.pickup=true;
+                    for(int c=0;c<3;++c) e.p[c]=e.ref.p[c];
+                    e.p[1]-=k.lift;
+                    // Keep the room-gate fade of one already lit.
+                    for(const Emitter& old:pickups) if(old.ref.o==o && old.ref.type==type) e.vis=old.vis;
+                    found.push_back(e);break;
+                }
+            }
+        }
+    }
+    if(std::getenv("DNTTK_PROP_LIGHT_TRACE") && found.size()!=pickups.size())
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu glowing pickups\n",scan_level,found.size());
+    pickups.swap(found);
+}
+// A pickup still lies there: linked in a room, still a pickup of the same
+// type. Its light follows it (a dropped one falls to the floor).
+bool pickup_present(const PropSnapshot& snap,Emitter& e) {
+    if(!snap.linked.count(e.ref.o) || psx_mod_read_byte(e.ref.o+0x14)!=4 || psx_mod_read_half(e.ref.o+0x2c)!=e.ref.type) return false;
+    const double lift=e.ref.p[1]-e.p[1];
+    for(int c=0;c<3;++c) e.p[c]=(int32_t)psx_mod_read_word(e.ref.o+4+4*c);
+    e.p[1]-=lift;for(int c=0;c<3;++c) e.ref.p[c]=(int32_t)e.p[c];e.ref.p[1]=(int32_t)(e.p[1]+lift);
+    return true;
+}
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
-    if(!input_modernized()) {emitters.clear();scan_level=~0u;return;}   // Vanilla: nothing
+    if(!input_modernized()) {emitters.clear();pickups.clear();scan_level=~0u;return;}   // Vanilla: nothing
     ++frames;
     const uint32_t level=psx_mod_read_word(0x800be570u);
     // D54: a savestate load rescans too (a prop broken since, or standing again).
     const uint32_t loads=psx_mod_savestate_loads();
-    if(level!=scan_level || loads!=scan_loads || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
+    const bool rescan=level!=scan_level || loads!=scan_loads;
+    if(rescan || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
+    if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) pickups.clear();scan_pickups();}
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
-    if(!room || emitters.empty() || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
+    if(!room || (emitters.empty() && pickups.empty()) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const uint32_t ms=now_ms();
@@ -157,7 +211,11 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
     struct Near {double d;Emitter* e;};
     std::vector<Near> near;
-    for(Emitter& e:emitters) {
+    // D56: a pickup taken (unlinked) gives no more light; between scans the
+    // snapshot (all linked objects) tells.
+    const bool snap_ok=snap.valid || !snap.linked.empty();
+    auto consider=[&](Emitter& e) {
+        if(e.pickup && snap_ok && !pickup_present(snap,e)) return;
         const float target=!shown || shown(e.room)?1.0f:0.0f;
         e.vis=e.vis<target?target:std::max(target,e.vis-step);   // D41E: on at once, out over 0.25 s
         const double dx=e.p[0]-duke[0],dy=e.p[1]-duke[1],dz=e.p[2]-duke[2];
@@ -165,7 +223,9 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         // D41E: no range cut beyond the far limit; a light fades only when
         // nearer ones push it out of the budget (as the level lamps).
         if(d<32000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
-    }
+    };
+    for(Emitter& e:emitters) consider(e);
+    if(prop_pickups_enabled.load(std::memory_order_relaxed)) for(Emitter& e:pickups) consider(e);
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
     unsigned n=0;
     const unsigned cap=std::min(room,6u);const double cut=near.size()>cap ? near[cap].d : 32000.0;
@@ -173,7 +233,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         if(n>=cap) break;
         const Emitter& e=*q.e;
         float k=e.tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
-        k*=e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);
+        k*=e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.tune->radius;
@@ -263,6 +323,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_FIRE",ttk::fire_light);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLES",ttk::candle_light);
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);
+    ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     if(const char* e=std::getenv("DNTTK_PROP_FLAMES")) std::sscanf(e,"%f %f %f %f %f",&ttk::flame_w,&ttk::flame_h,&ttk::flame_rgb,&ttk::halo_size,&ttk::halo_rgb);
     psx_mod_register_function_entry_plugin("ttk.prop.lights",0x80026164u,ttk::composition_hook);
     ttk::prop_light_kind=ttk::kind_of;

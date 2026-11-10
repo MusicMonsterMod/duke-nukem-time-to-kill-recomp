@@ -105,6 +105,10 @@ struct ShotLight {
     float mz[3];double mr;int ml;   // muzzle flash at the launch point (life 0: none)
     float im[3];double ir;int il;   // impact where the round stops (life 0: none)
     float fl[3];double fr;          // in flight (radius 0: none)
+    // D56: a bolt drawn as a sprite (pool flag bit 0, not the value 3 of
+    // rounds): lit in flight on bit 0, and a burst where it vanishes (it
+    // hits a character without calling the wall-hit routine).
+    bool bolt=false;
 };
 static constexpr ShotLight shot_lights[]={
     {0,{0.85f,0.58f,0.28f},3400,3,{1.00f,0.78f,0.42f},1500,2,{0,0,0},0},          // Desert Eagle / pistol rounds
@@ -132,6 +136,12 @@ static constexpr ShotLight shot_lights[]={
     {5,{0.85f,0.60f,0.30f},3200,2,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},          // gatling turrets 204 and 540
     {29,{0.85f,0.60f,0.30f},3200,2,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},         // robotic turret 622
     {31,{0.95f,0.55f,1.20f},3800,3,{1.00f,0.60f,1.25f},1600,3,{0,0,0},0},         // gunship 605's bolts (level 3): violet, as their own glow
+    // D56: the Necro's blast (type 50 launches 20): a violet ring with blue
+    // lightning round a hot core, flying slowly (about 3000 units a
+    // second). Violet light in flight, a violet flash at the Necro and a
+    // burst where it hits (Duke 3D's Octabrain COOLEXPLOSION1 is the
+    // reference, as its D39E screen flash).
+    {20,{0.80f,0.36f,1.25f},2800,3,{0.95f,0.45f,1.35f},3000,5,{0.75f,0.34f,1.20f},2600,true},
     {32,{1.00f,0.62f,0.30f},4400,3,{1.00f,0.78f,0.42f},1600,2,{0,0,0},0},         // boss 61's guns (level 27)
     {34,{0.85f,0.58f,0.28f},3400,3,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},         // type 95 rounds (levels 7-11)
     {35,{1.00f,0.62f,0.30f},4400,2,{1.00f,0.78f,0.42f},1600,2,{0,0,0},0},         // Moloch's twin gatlings (level 29)
@@ -159,20 +169,24 @@ static constexpr ShotLight shot_lights[]={
 // Other types (not seen launched in the D41I census: flyers 44 and 847/848/901, which did not fire there) take a warm flash and
 // spark.
 static constexpr ShotLight shot_light_default={255,{0.80f,0.56f,0.28f},3000,3,{1.00f,0.78f,0.42f},1200,2,{0,0,0},0};
+static std::atomic<int> light_bolts_on{1};    // D56 session toggle (console "light bolts on|off": the old warm flash, unlit bolts)
 static const ShotLight& shot_light(unsigned type) {
-    for(const ShotLight& s:shot_lights) if(s.type==type) return s;
+    for(const ShotLight& s:shot_lights) if(s.type==type) return s.bolt && !light_bolts_on.load(std::memory_order_relaxed)?shot_light_default:s;
     return shot_light_default;
 }
 static unsigned lights_flight(PSXModLight* out,unsigned room) {
     unsigned n=0;
     for(uint32_t i=0;i<96 && n<room;++i) {
         const uint32_t a=0x800da978u+i*0x60u;
-        if(psx_mod_read_half(a)!=3) continue;
+        const unsigned flag=psx_mod_read_half(a);
+        if(!flag) continue;
         const ShotLight& f=shot_light(psx_mod_read_byte(a+0x30));
-        if(f.fr<=0) continue;
+        if(f.fr<=0 || (f.bolt?!(flag&1u):flag!=3)) continue;
+        // D56: bolts throb a little, as their sprite's ring.
+        const float k=f.bolt?0.88f+0.24f*(float)(((light_ticks*2654435761u)^(i*40503u))>>24&255)/255.0f:1.0f;
         PSXModLight& l=out[n++];
         l.x=(float)(int32_t)psx_mod_read_word(a+4);l.y=(float)(int32_t)psx_mod_read_word(a+8);l.z=(float)(int32_t)psx_mod_read_word(a+12);
-        l.radius=(float)f.fr;l.r=f.fl[0];l.g=f.fl[1];l.b=f.fl[2];l.flags=0;
+        l.radius=(float)f.fr;l.r=f.fl[0]*k;l.g=f.fl[1]*k;l.b=f.fl[2]*k;l.flags=0;
     }
     return n;
 }
@@ -239,6 +253,36 @@ static void lights_fire_collect() {
     }
 }
 static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint32_t owner);
+// D56: bolts that vanish (a hit on Duke or an enemy, or the end of their
+// flight) burst where they were last seen, unless a wall hit already lit a
+// spark there. Per game tick; a level change or savestate load forgets them.
+struct BoltSeen {uint8_t type;bool live;int32_t p[3];uint32_t owner;};
+static BoltSeen light_bolts[96];static uint32_t light_bolt_loads=~0u,light_bolt_level=~0u;
+static uint64_t light_bolt_bursts;
+static void lights_bolts_tick() {
+    const uint32_t loads=psx_mod_savestate_loads(),level=psx_mod_read_word(0x800be570u);
+    const bool reset=loads!=light_bolt_loads || level!=light_bolt_level;light_bolt_loads=loads;light_bolt_level=level;
+    for(uint32_t i=0;i<96;++i) {
+        const uint32_t a=0x800da978u+i*0x60u;
+        BoltSeen& b=light_bolts[i];
+        const unsigned type=psx_mod_read_byte(a+0x30);
+        const ShotLight& f=shot_light(type);
+        const bool live=f.bolt && (psx_mod_read_half(a)&1u);
+        if(b.live && !reset && (!live || type!=b.type)) {
+            const double p[3]={(double)b.p[0],(double)b.p[1],(double)b.p[2]};
+            bool near=false;
+            for(unsigned j=0;j<light_src_count;++j) {
+                const LightSrc& o=light_srcs[j];
+                if(o.kind!=light_kind_spark || o.age>1) continue;
+                const double dx=o.p[0]-p[0],dy=o.p[1]-p[1],dz=o.p[2]-p[2];
+                if(dx*dx+dy*dy+dz*dz<1200.0*1200.0) near=true;
+            }
+            if(!near) {const ShotLight& g=shot_light(b.type);light_spark(p,g,b.type,b.owner);++light_bolt_bursts;}
+        }
+        b.live=live;b.type=(uint8_t)type;
+        if(live) {for(int k=0;k<3;++k) b.p[k]=(int32_t)psx_mod_read_word(a+4+4*k);b.owner=psx_mod_read_word(a+0x10);}
+    }
+}
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room); // D41D (level_lights.inc)
 static unsigned prop_lamps_publish(PSXModLight* out,unsigned room);  // D41L (level_lights.inc)
 // D41F (light_shadows.inc): which of the image's lights may cast shadows
@@ -334,7 +378,7 @@ static void lights_particle_trace() {
 // Once per Duke update (game tick).
 static void lights_tick() {
     if(!lights_enabled() || !gameplay_context()) {
-        light_src_count=0;light_fire_count=0;light_view=LightView{};light_relit_amb=1.0f;return;
+        light_src_count=0;light_fire_count=0;light_view=LightView{};light_relit_amb=1.0f;light_bolt_loads=~0u;return;
     }
     // A loaded savestate starts with no lights in flight.
     if(light_loads!=psx_mod_savestate_loads()) {
@@ -365,6 +409,7 @@ static void lights_tick() {
     relit_tick();         // D41E
     shadow_mesh_tick();   // D41F
     lights_fire_collect();
+    lights_bolts_tick();  // D56
     if(std::getenv("DNTTK_LIGHT_PROBE")) lights_probe_report();
     if(std::getenv("DNTTK_PARTICLE_TRACE")) lights_particle_trace();
     // Duke's muzzle flash without a round (word 0 bit 3, the flash his hand
@@ -539,6 +584,15 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
         else if(!std::strcmp(v,"off")) light_fire_on.store(0);
         else if(*v) {say("Light: light fire [on|off]");return true;}
         say(light_fire_on.load()?"Light: fire lights on":"Light: fire lights off (session only)");
+        return true;
+    }
+    // D56: "light bolts on|off" - the Necro's blast lights (matched comparisons).
+    if(!std::strncmp(arg,"bolts",5) && (!arg[5] || arg[5]==' ')) {
+        const char* v=arg+5;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) light_bolts_on.store(1);
+        else if(!std::strcmp(v,"off")) light_bolts_on.store(0);
+        else if(*v) {say("Light: light bolts [on|off]");return true;}
+        say(light_bolts_on.load()?"Light: Necro blast lights on":"Light: Necro blast lights off (session only)");
         return true;
     }
     // D41K: "light at <x> <y> <z> <r> <g> <b> [radius]" - a test light at a

@@ -1,6 +1,6 @@
 # D56 - Necro blast and atomic health give light
 
-Status: Needs playtest (2026-11-10). Job board: D56. Follow-up backlog: D57
+Status: Done (user-accepted 2026-11-10). Job board: D56. Follow-up backlog: D57
 (review of other objects and items that should give light).
 
 User request, UI slot 8 (level 2, MINER 69ER, Necros firing up the mine

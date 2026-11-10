@@ -1,5 +1,12 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D56 accepted and closed
+
+User: "the necro, and atomic health, lock that in and close it out too". D56
+is Done: the Necro's blast lights violet in flight, at launch and where it
+hits; atomic health glows cyan-blue and goes dark when taken. D57 (light
+emitter review) is ready. [Note 442](documentation/442-d56-necro-atomic-lights.md).
+
 ## 2026-11-10 - D07H accepted and closed
 
 User: "great! it works ... lock it in and close it out". D07H is Done: redraw
@@ -8940,7 +8947,7 @@ Acceptance (first step): the published artifact, reviewed by the user.
 
 ### D56 - Necro blast and atomic health give light
 
-**Status: Needs playtest (2026-11-10; [note 442](documentation/442-d56-necro-atomic-lights.md)).** Dependencies: D41B, D41L, D54.
+**Status: Done (user-accepted 2026-11-10; [note 442](documentation/442-d56-necro-atomic-lights.md)).** Dependencies: D41B, D41L, D54.
 
 User, 2026-11-10: "I am starting to feel that a couple of the in-game
 objects could be light emitters too so if you load up my new slot 8, can we
@@ -10615,7 +10622,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D53A | Security monitors keep a low-res live picture after you leave the view, until you walk out of range | Todo | D53 |
 | D54 | Broken lights go out: a light-emitting prop that is shot or blown up takes its light with it (traffic lights, barrels, signs, lamps, props by model); game-wide | Done (note 437) | D41D1, D41L |
 | D55 | Traffic lights light the street in their own colour and flash, read live from the prop (any traffic light, anywhere) | Done (note 438) | D41D1, D54 |
-| D56 | Necro blast and atomic health give light: violet blast in flight, at launch and where it hits; atomic health glows cyan-blue (UI slot 8) | Needs playtest (note 442) | D41B, D41L, D54 |
+| D56 | Necro blast and atomic health give light: violet blast in flight, at launch and where it hits; atomic health glows cyan-blue (UI slot 8) | Done (user-accepted 2026-11-10; note 442) | D41B, D41L, D54 |
 | D58 | Split the job board into category files: the table, vision and rules stay here; job descriptions per category under `jobs/`; the dated log per month | Todo (user 2026-11-10: ticket only) | - |
 | D57 | Light emitter review: which objects and game items should give light; first a published list with images, then child jobs | Todo (backlog, user 2026-11-10: not now) | D56 |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |

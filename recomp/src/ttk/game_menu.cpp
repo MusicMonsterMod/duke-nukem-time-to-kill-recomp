@@ -90,6 +90,7 @@
 #include <vector>
 
 extern "C" int g_psx_call_bail, g_precise_mode, g_ls_mode;
+extern "C" int gl_renderer_is_software(void); // D17BG
 
 namespace ttk {bool frame_rate_live();bool frame_rate_set(const char* value);bool world_renderer_request(bool classic);}
 
@@ -2986,6 +2987,12 @@ bool title_tick(CPUState* cpu,const MenuContext* c) {
             // State 6: the idle time starts again and the level choice resets.
             psx_mod_write_half(fe_timer,idle_fields);psx_mod_write_half(level_choice,0);
             title_enter=false;
+            // D17BG: once per launch, a software OpenGL (no GPU driver) is named.
+            static bool software_told=false;
+            if(!software_told && gl_renderer_is_software()) {
+                software_told=true;
+                host_osd_push_centered("SOFTWARE OPENGL: NO GPU DRIVER. THE GAME WILL RUN SLOWLY AND SOME SURFACES MAY DRAW WRONGLY. INSTALL YOUR GRAPHICS DRIVER.",8000);
+            }
         }
         if(page==Page::Main && pending_state<0) {
             // State 7: back to PRESS START (state 4) after the idle time.

@@ -1,5 +1,22 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D17BG closed: not a player fault, software OpenGL notice
+
+User: "software notice is absolutely fine, and then lock it in and close it out as not a player fault". D17BG is Done: the sandstone ceiling dropout is a Mesa llvmpipe fault (offscreen test runs), not seen on the player's GPU. New: when OpenGL is a software rasterizer the launch log says so and Modernized shows a one-time notice at the main menu (install the graphics driver); nothing else changes. Checked: notice under llvmpipe, none on the real NVIDIA display, Vanilla launches (log line only); `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test` pass; framework patch exported and verified against the pinned checkout. [Note 440](documentation/440-d17bg-ceiling-dropout.md).
+
+## 2026-11-10 - D17BG: sandstone ceiling dropout investigated (report)
+
+Selected from the D41F finding. The black ceiling face (UI slot 8) appears
+only in offscreen Xvfb/llvmpipe runs: the same packets reach the GPU in
+every frame, and llvmpipe returns transparent texels for the face's
+perspective-textured triangles when it clips them at the framebuffer edge
+(display buffer at VRAM y 0 only). On the real display (NVIDIA) the face
+showed in all 51 samples (both buffers, 30 and 180 Hz). Lights, shadows,
+host depth, smooth quads, widescreen, texture caches and texture contents
+ruled out. Temporary renderer trace removed; framework patch unchanged.
+No code changed. Waits for the user's decision.
+[Note 440](documentation/440-d17bg-ceiling-dropout.md).
+
 ## 2026-11-10 - D41F accepted and closed
 
 User: "excelent work. i couldnt even stop playing it. lock it in and close it out". D41F is Done: walls stop the dynamic lights (cube shadow maps for the 16 strongest lights near Duke, from the host's world-space room meshes; single-panel walls lit only on the side facing the light). D41E is now unblocked on D41F. [Note 439](documentation/439-d41f-shadows.md).
@@ -8974,6 +8991,17 @@ as in the original. `ttk-near-test` and `ttk-aim-test` pass;
 `research/before-after/D52/enemy-flicker-*.png` (local). Remaining: user
 playtest.
 
+### D17BG - Sandstone room ceiling face drops out to black
+
+**Status: Done (user-accepted 2026-11-10: closed as not a player fault; software OpenGL notice added).** Found in D41F (note 439):
+a ceiling face in the sandstone room (UI slot 8) showed black on some frames.
+It happens only in the offscreen test runs (Xvfb, Mesa llvmpipe): llvmpipe
+samples wrong texels for a perspective-textured triangle it clips at the
+framebuffer edge, in one of the two display buffers. On the real display
+(NVIDIA) the face showed in every sample (30 and 180 Hz). No code changed.
+Closed as not a player fault; a software OpenGL now gets a launch-log line
+and a one-time main menu notice (install the graphics driver). [Note 440](documentation/440-d17bg-ceiling-dropout.md).
+
 ### D17BF1 - Sleeping enemies wake when hit
 
 **Status: Todo (split from D17BF at its closeout, 2026-11-09). Dependencies: D17BF (Done).**
@@ -10296,6 +10324,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17BE | TIME TO KILL street car: a small sliver near the rear left wheel disappears (UI slot 10) | Done (user-accepted 2026-11-06; folded prop quads draw their front half; note 404) | - |
 | D17BF | Sleeping enemies: spawn-point enemies drawn asleep where none is live (monitors, distant views); a hit creates the real enemy | Done | D17AQ, D17AZ, D52 |
 | D17BF1 | Sleeping enemies wake when hit: rounds, rockets, kick, beam lock, auto-aim, then blasts and flames; review D17AQ far live enemies | Todo | D17BF |
+| D17BG | Sandstone room ceiling face drops out to black (D41F finding): offscreen llvmpipe only, not a player fault; software OpenGL notice | Done (user-accepted 2026-11-10; note 440) | - |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

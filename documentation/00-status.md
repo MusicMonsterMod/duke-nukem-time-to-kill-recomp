@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-10 - D17BG closed: not a player fault, software OpenGL notice
+
+User: "software notice is absolutely fine, and then lock it in and close it out as not a player fault". D17BG is Done: the sandstone ceiling dropout is a Mesa llvmpipe fault (offscreen test runs), not seen on the player's GPU. New: when OpenGL is a software rasterizer the launch log says so and Modernized shows a one-time notice at the main menu (install the graphics driver); nothing else changes. Checked: notice under llvmpipe, none on the real NVIDIA display, Vanilla launches (log line only); `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test` pass; framework patch exported and verified against the pinned checkout. [Note 440](documentation/440-d17bg-ceiling-dropout.md).
+
 ## 2026-11-10 - D41F accepted and closed
 
 User: "excelent work. i couldnt even stop playing it. lock it in and close it out". D41F is Done: walls stop the dynamic lights (cube shadow maps for the 16 strongest lights near Duke, from the host's world-space room meshes; single-panel walls lit only on the side facing the light). D41E is now unblocked on D41F. [Note 439](documentation/439-d41f-shadows.md).

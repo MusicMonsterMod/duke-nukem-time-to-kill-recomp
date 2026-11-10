@@ -135,6 +135,7 @@ after every run.
 - Shadow maps are drawn at the game tick like the lights (30 Hz).
 - Not a shadow fault: a ceiling face in the sandstone room (UI slot 8) drops
   out to black on some frames with shadows off as well (time series
-  `recomp/analysis/d41f/ser-grid.png`); a separate finding.
+  `recomp/analysis/d41f/ser-grid.png`); a separate finding. D17BG (note 440):
+  offscreen llvmpipe only, not seen on the player's GPU.
 - No player option yet: shadows follow DYNAMIC LIGHTS; the console toggles
   them for the session.

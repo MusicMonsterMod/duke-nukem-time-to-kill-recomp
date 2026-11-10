@@ -15,6 +15,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
 #include <algorithm>
 extern "C" {extern int g_precise_mode,g_ls_mode,g_psx_call_bail;}
 namespace ttk {
@@ -1133,4 +1136,16 @@ extern "C" int ttk_aim_crosshair_image(const uint32_t** pixels,int* width,int* h
     if(!pixels||!width||!height||!ttk_aim_reticle())return 0;
     *pixels=k_crosshair;*width=9;*height=9;return 1;
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_aim) {for(uint32_t a:{0x8005a210u,0x8006dd2cu})psx_mod_register_function_entry_plugin("ttk.weapon.testmove",a,ttk::move_hook);for(uint32_t a:{0x800702bcu,0x8001ca4cu,0x8002bc18u,0x8003c500u,0x800718acu,0x8006dd2cu,0x8006f1b8u})psx_mod_register_function_entry_plugin("ttk.weapon.aim",a,ttk::hook);}
+// D07H (CONFIRMED live 2026-11-10, gdb on the player's redraw worker: busy 1,
+// game 0): a redraw worker forked while the game thread was inside the aim
+// code (busy set across its game-routine calls) kept busy set for good, so
+// its marker hook took every dot as "state" and drew it. A forked child never
+// resumes that aim work: it starts with busy clear.
+#if !defined(_WIN32)
+static void aim_fork_child() {ttk::busy=false;}
+#endif
+PSX_MOD_CONSTRUCTOR(register_ttk_aim) {
+#if !defined(_WIN32)
+    pthread_atfork(nullptr,nullptr,aim_fork_child);
+#endif
+for(uint32_t a:{0x8005a210u,0x8006dd2cu})psx_mod_register_function_entry_plugin("ttk.weapon.testmove",a,ttk::move_hook);for(uint32_t a:{0x800702bcu,0x8001ca4cu,0x8002bc18u,0x8003c500u,0x800718acu,0x8006dd2cu,0x8006f1b8u})psx_mod_register_function_entry_plugin("ttk.weapon.aim",a,ttk::hook);}

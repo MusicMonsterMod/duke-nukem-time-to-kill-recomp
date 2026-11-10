@@ -1,5 +1,23 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D07H accepted and closed
+
+User: "great! it works ... lock it in and close it out". D07H is Done: redraw
+workers forked while the aim code ran kept `busy` set and drew the red dot;
+a fork child handler clears it. The `[TTK red dot]` diagnostic stays.
+
+## 2026-11-10 - D07H: red dot cause found and fixed (Needs playtest)
+
+User saw the red dot again (live session, saved to UI slot 6). The D07H
+diagnostic fired in all three redraw workers, reason `state`. sudo gdb on the
+live worker: `ttk::busy` 1 (the game process: 0). Cause: a redraw worker
+forked while the game thread was inside the aim code (`busy` held across its
+calls into game routines) keeps `busy` set for good, so its marker hook skips
+every dot. Fix (`weapon_aim.cpp`): a fork child handler clears `busy`. Checked
+on a private copy of slot 6 at 180 Hz: with `busy` forced to 1 in the game
+and workers re-forked, every new worker reads `busy` 0 (`/proc` read, no
+stop), no `[TTK red dot]` report, no dot in shots; native tests pass.
+
 ## 2026-11-10 - D58 added: split the job board into category files (not started)
 
 The board reached the repository's 2 MiB file limit (`scripts/ci/check_repo.py`);
@@ -10506,7 +10524,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07E | Shots on a stale movement lease fall back to the original auto-aim; `original` weapon aim keeps a stale aim vector | Done (user-accepted 2026-10-19) | D07C, D22D |
 | D07F | Airborne shots ignore the crosshair: jump and fire looking down, the blast lands ahead of Duke (RPG, shotgun) | Done (user-accepted 2026-10-20) | D07C, D08Z |
 | D07G | Readable crosshair scaling in windowed mode | Done (user-accepted 2026-10-26) | D07B, D08A22 |
-| D07H | Red dot off but drawn at 180 Hz: the game hides it, the redraws still show it (weapon 8, rooftop, 2026-11-10) | Monitoring (diagnostic build; waits for the user to report the dot again) | D07D, D17 |
+| D07H | Red dot off but drawn at 180 Hz: the game hides it, the redraws still show it (weapon 8, rooftop, 2026-11-10) | Done (user-accepted 2026-11-10: workers forked mid-aim kept `busy` set; fixed) | D07D, D17 |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -12260,7 +12278,7 @@ the completed verification and remaining platform coverage limits.
 
 ### D07H - Red dot off but drawn on the 180 Hz redraws
 
-**Status: Monitoring (diagnostic build; cause not reproduced).** Kept open but not
+**Status: Done (user-accepted 2026-11-10: "it works"; cause CONFIRMED live and fixed, see the work log below).** Earlier: Monitoring (diagnostic build; cause not reproduced). Kept open but not
 to be actively worked on until the user reports the dot again (user, 2026-11-10).
 The dot had not been seen since early development before this report. When it
 returns, read the `[TTK red dot]` line in that session's log and fix by its reason;
@@ -12286,6 +12304,28 @@ not re-fork workers there.
 Acceptance: with RED DOT off in Modernized, the original dot never shows in game
 or redraw images at any frame rate, for every weapon and state; RED DOT on and
 Vanilla unchanged; hiding must not change aim assistance or damage.
+
+**Work log (2026-11-10, recurrence, Needs playtest).** The user saw the dot
+again and saved the session to UI slot 6. Session log: `[TTK red dot] off but
+drawn in redraw <pid>: ... state 1 ...` from each of the three redraw
+workers, none from the game process; the game had hidden 58 dots. `state`
+means one of `g_ls_mode`, `g_psx_call_bail` or `busy` was set. sudo gdb
+(batch, read only) on the live worker: `g_ls_mode` 0, `g_psx_call_bail` 0,
+`ttk::busy` 1; the game process: all 0. Cause (CONFIRMED): `busy` is set
+across the aim code's calls into game routines; a worker forked inside that
+window (`render_worker.c` `spawn`, from the worker maintenance that runs in
+replay publish and submit) inherits `busy` 1 and never clears it, so its
+marker hook reports `state` and draws every dot. That fits the first report
+(the game hid each dot, every redraw image showed it, worker re-forks
+before it). Fix: `weapon_aim.cpp` registers a `pthread_atfork` child handler
+that clears `busy` (a forked worker never resumes the interrupted aim work);
+not on Windows (no fork). Verified on a private copy of UI slot 6 at 180 Hz:
+gdb set `busy` 1 in the game, called `psx_mod_replay_workers_refresh`, set it
+back to 0; every new worker read `busy` 0 through `/proc/<pid>/mem` (no stop,
+so no deadline kill), no `[TTK red dot]` report, no dot in the shots; build
+OK, `ttk-input-test` and `ttk-near-test` pass. The diagnostic stays. Not
+verified: the user's own play (needs a relaunch: the running game uses the
+old build).
 
 ### D07A — View-aligned Duke facing and weapon presentation
 

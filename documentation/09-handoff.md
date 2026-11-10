@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-11-10 - D07H accepted and closed
+
+User: "it works ... lock it in and close it out". D07H is Done (red dot on the
+180 Hz redraws: workers forked mid-aim kept `busy` set; cleared at fork). D56
+still waits for the user's playtest.
+
+## 2026-11-10 - D07H: red dot cause found and fixed (Needs playtest)
+
+The dot came back live (saved to UI slot 6). The diagnostic named all three
+redraw workers, reason `state`; gdb on the live worker read `ttk::busy` 1
+(game 0). A worker forked while the aim code ran kept `busy` set and skipped
+every dot. Fix: a fork child handler clears it (`weapon_aim.cpp`). Verified
+by forcing the fork mid-aim on a private slot 6 copy at 180 Hz. Needs the
+user's play on a relaunched build.
+
 ## 2026-11-10 - Session closed: D56 committed for playtest, D57 and D58 on the board
 
 D56 (Necro blast and atomic health lights) committed as Needs playtest. New

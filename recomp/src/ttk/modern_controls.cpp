@@ -26,6 +26,7 @@
 #include "code_identity.h"
 #include "near_clip.h"
 #include "security_monitor.h"
+#include "prop_lights.h"
 #include "screen_flash.h"
 #include "pgxp.h"
 #include "gpu.h"

@@ -1,5 +1,42 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D41L accepted and closed
+
+User: "i cant believe how good it looks. i love the haze on the wood burner in front. the position is perfect, and so is the style. lock it in and close it out". D41L is Done: woodburners burn (ember glow and haze in front of the
+grate, a flickering fire light) and candle chandeliers are lit (flames with
+halos, a warm ceiling pool, a soft fill, the level 1 stage pool), by model in
+every level. [Note 436](documentation/436-d41l-saloon-light.md).
+
+## 2026-11-10 - D41L: saloon light, woodburners and chandeliers (Needs playtest)
+
+Stood up and selected from the user's report on UI slot 7 (level 1, the
+saloon): "dingy and miserable"; the woodburner and the chandelier should be
+the light sources, the chandelier lighting up the stage, elegant light rather
+than a uniform block colour, "it shouldnt be that much different".
+
+New title module `prop_lights.cpp` (Modernized Polymorph; Vanilla and
+Classic unchanged). The two props are recognised by their model data, so every
+copy in every level takes part (level 1 has 6 woodburners, including the one
+round the corner in room 5, and 1 chandelier):
+
+- Woodburner: an ember glow over its grate (additive quad) with a faint bloom,
+  and a low fire light before its door that breathes and flutters smoothly
+  (no 30 Hz jitter).
+- Chandelier: a small flame on each of its 12 candles (camera-facing, each
+  stretching and leaning on its own) with a soft halo, a warm light among the
+  candles that pools on the ceiling, and a soft fill below.
+- Level 1's light file gains one warm lamp that pools the chandelier's light
+  on the stage front.
+- Flame, halo and ember textures are procedural (painted into the second
+  texture bank at x 256); console `lamp props off|on` compares.
+
+Evidence (private card copies, offscreen; player saves and cards hash-checked
+unchanged): matched shots `research/before-after/D41L/` (local); on the
+stage view the dancers go from 36 to 61 (red mean), the stage front from 30 to
+51, while upper walls and corners keep a darker gradient. Vanilla shows none of
+it. 180 Hz first person shows the flames and glow. `ttk-input-test`,
+`ttk-near-test` pass. [Note 436](documentation/436-d41l-saloon-light.md).
+
 ## 2026-11-10 - D08J6G accepted and closed
 
 User: "lock it in and close it out". D08J6G is Done: a left click on a climb
@@ -10176,6 +10213,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41J | Upgraded weapon light colours: the HiTemp Flamethrower's blue flames (stream, hand flash, flames in flight, burns) and the Laser Gatling's laser shots take the regular weapons' warm light | Done (user-accepted 2026-11-09) | D41I |
 | D41J1 | Laser Gatling light reads red: its muzzle, spark and bolt lights wash to pale pink-white on the street; give them a clear red, as the freezer's blue and the energy weapon's green | Done (user-accepted 2026-11-09) | D41J |
 | D41K | Props respond to dynamic light like walls do (a light over a console barely brightens it; investigation first) | Done | D41A, D41H |
+| D41L | Saloon light: woodburners burn (glowing grate, flickering fire light) and candle chandeliers are lit (flames, halos, warm light, a soft pool on the stage); by model, every level | Done (user-accepted 2026-11-10; note 436) | D41D, D41K |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |

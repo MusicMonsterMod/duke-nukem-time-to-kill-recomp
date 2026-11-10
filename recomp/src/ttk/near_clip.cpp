@@ -45,6 +45,7 @@
 #include "sky_render.h"
 #include "sky_borrow.h"
 #include "security_monitor.h"
+#include "prop_lights.h"
 #include "bio_mask_mesh.h"
 #include "bio_mask_atlas.h"
 #include "pgxp.h"
@@ -404,6 +405,7 @@ struct Poly {
     // whether the face is seen from both sides (light from either side).
     float n[4][3]{};bool two_sided=false;
     bool glow=false; // D41K: a neon sign face (glow_faces): gives light, never lit
+    bool foreign=false; // D41L: textured from the second bank (prop flames and glows)
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
     double key_z;
@@ -775,7 +777,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
-            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:f.borrowed?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
+            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
             if(lit) {
                 const double* p=v[i].p;const double* m=light_inv;
                 const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]);
@@ -2060,6 +2062,59 @@ void smooth_model_normals(const Frame& f,std::vector<Poly>& polys,uint32_t list,
             (unsigned long long)calls,(double)faces/calls,ns/1000.0/calls,(unsigned long long)eye,(unsigned long long)drawn);
     }
 }
+// D41L: a view-space point projected as near_project projects a model one.
+NearProjected project_view(const NearGte& g,const double view[3]) {
+    NearProjected out{};
+    for(int k=0;k<3;++k) out.view[k]=view[k];
+    const int64_t m1=(int64_t)std::floor(view[0]),m2=(int64_t)std::floor(view[1]);
+    const int32_t ir1=clamp(m1,-0x8000,0x7fff),ir2=clamp(m2,-0x8000,0x7fff);
+    out.sz=(uint16_t)clamp((int64_t)std::floor(view[2]),0,0xffff);
+    const int32_t q=gte_divide(g.h,out.sz);
+    const int64_t x16=(int64_t)g.ofx+(int64_t)ir1*q,y16=(int64_t)g.ofy+(int64_t)ir2*q;
+    const int32_t sx=clamp(x16>>16,-0x400,0x3ff),sy=clamp(y16>>16,-0x400,0x3ff);
+    out.x16=(int32_t)x16;out.y16=(int32_t)y16;
+    out.sxy=(uint32_t)(uint16_t)sx | (uint32_t)(uint16_t)sy<<16;
+    bool safe=(uint32_t)out.sz*2>g.h && ir1==m1 && ir2==m2;
+    if(safe) {
+        const double tx=g.ofx/65536.0+g.h*view[0]/view[2],ty=g.ofy/65536.0+g.h*view[1]/view[2];
+        safe=std::abs(tx)<=1000 && std::abs(ty)<=1000;
+    }
+    out.safe=safe;
+    return out;
+}
+// D41L: the prop's glowing extras (prop_lights.h): additive quads from the
+// second bank, self-lit, painter-ordered like other translucent faces.
+// Billboards face the camera: their corners are offset in view space from
+// the projected anchor.
+uint64_t prop_glow_quads=0;
+void prop_glows(Frame& f,uint32_t mesh,int kind) {
+    PropGlow glows[32];
+    const unsigned n=prop_light_glows(mesh,kind,glows,32);
+    for(unsigned i=0;i<n;++i) {
+        const PropGlow& q=glows[i];
+        const size_t first=f.verts.size();
+        if(q.billboard) {
+            const NearProjected a=near_project(f.g,(int16_t)std::lround(q.p[0][0]),(int16_t)std::lround(q.p[0][1]),(int16_t)std::lround(q.p[0][2]));
+            if(a.view[2]<64) continue;
+            const double top=a.view[1]-q.h*q.anchor_y,bottom=top+q.h,hw=q.w/2;
+            const double c[4][3]={{a.view[0]-hw+q.sway,top,a.view[2]},{a.view[0]+hw+q.sway,top,a.view[2]},{a.view[0]-hw,bottom,a.view[2]},{a.view[0]+hw,bottom,a.view[2]}};
+            for(const auto& v:c) f.verts.push_back(project_view(f.g,v));
+        } else {
+            for(const auto& v:q.p) f.verts.push_back(near_project(f.g,(int16_t)std::lround(v[0]),(int16_t)std::lround(v[1]),(int16_t)std::lround(v[2])));
+        }
+        bool visible=false;
+        for(size_t j=first;j<f.verts.size();++j) visible|=f.verts[j].view[2]>=64;
+        if(!visible) {f.verts.resize(first);continue;}
+        Poly p{};p.count=4;p.actor=false;p.textured=true;p.two_sided=true;p.glow=true;p.foreign=true;p.bias=-1;
+        p.command=0x36000000u;   // gouraud, textured, semi-transparent
+        p.tpage=prop_light_tpage;p.clut=0;
+        const uint32_t u0=(uint32_t)q.u,v0=(uint32_t)q.v,u1=u0+q.tw-1,v1=v0+q.th-1;
+        p.uv[0]=u0|v0<<8;p.uv[1]=u1|v0<<8;p.uv[2]=u0|v1<<8;p.uv[3]=u1|v1<<8;
+        const uint32_t col=(uint32_t)q.rgb[0]|(uint32_t)q.rgb[1]<<8|(uint32_t)q.rgb[2]<<16;
+        for(unsigned j=0;j<4;++j) {p.idx[j]=(int)(first+j);p.colors[j]=col;}
+        draw(f,p);++prop_glow_quads;
+    }
+}
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const LimbPresentation limb=first_person_limb_presentation();
@@ -2264,6 +2319,9 @@ void object(CPUState* cpu) {
     if(light_frame && light_smooth && !f.sky && !f.biomask && (unified_scene(f) || f.duke_lit))
         smooth_model_normals(f,polys,list,count,flags);
     for(const auto& p:polys) draw(f,p);
+    // D41L: a woodburner's embers and a chandelier's flames (prop_lights.cpp).
+    if(prop_light_kind && prop_light_glows && unified_scene(f) && !actor && !viewmodel && !body)
+        if(const int kind=prop_light_kind(mesh)) prop_glows(f,mesh,kind);
 }
 #include "water_clip.inc"
 #include "model_depth.inc"

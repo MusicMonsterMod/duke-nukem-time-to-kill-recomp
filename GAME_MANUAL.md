@@ -433,6 +433,16 @@ backtick console edits them:
   placed.
 - `lamp gate off` lets every nearby lamp light through walls again for the
   session (to compare); `lamp gate on` restores the rule.
+- `lamp props off` / `lamp props on` darkens and relights the woodburners and
+  chandeliers for the session (to compare).
+
+**Woodburners and chandeliers.** In Modernized (Polymorph), every iron
+woodburner burns: embers glow behind its grate and a fire light flickers on
+the floor and walls in front of it. Every candle chandelier is lit: a small
+flame dances on each candle, the ceiling around it glows warm and its light
+falls softly on the room below (in the level 1 saloon, on the stage). The
+glow and flames show whatever DYNAMIC LIGHTS is set to; the light they cast
+needs DYNAMIC LIGHTS on. Vanilla and Classic keep the original look.
 
 Signs and neon keep their own look under any light: they give light, and
 neon signs take none on their letters, so they stay as crisp as drawn. Only

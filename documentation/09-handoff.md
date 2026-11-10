@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-11-10 - D41L accepted and closed
+
+User: "i cant believe how good it looks. i love the haze on the wood burner in front. the position is perfect, and so is the style. lock it in and close it out". D41L is Done. [Note 436](436-d41l-saloon-light.md).
+
+## 2026-11-10 - D41L: saloon light (Needs playtest)
+
+Woodburners burn (ember glow behind the grate, a flickering fire light) and
+the candle chandelier is lit (12 flames with halos, a warm ceiling pool, a
+soft fill, a stage pool on level 1), by model in every level. Modernized
+Polymorph; Vanilla unchanged. [Note 436](436-d41l-saloon-light.md).
+
+Tuning is in
+`prop_lights.cpp` (Tune values; developer env `DNTTK_PROP_LIGHT_FIRE`,
+`_CANDLES`, `_FILL`, `DNTTK_PROP_FLAMES`) and the stage lamp in
+`recomp/assets/lights/level01.lights`.
+
 ## 2026-11-10 - D08J6G accepted and closed
 
 User: "lock it in and close it out". D08J6G is Done: a left click on a climb

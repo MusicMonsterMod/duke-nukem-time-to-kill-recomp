@@ -23,6 +23,7 @@
 // turns it off.
 #include "sky_borrow.h"
 #include "security_monitor.h"
+#include "prop_lights.h"
 #include "sky_render.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -204,6 +205,7 @@ extern "C" const uint16_t* ttk_foreign_vram(void) {
         const bool sky=pack_ok();
         bank=sky?pack.vram:std::vector<uint16_t>(1024*512,0);
         if(security_tv_paint_bank) security_tv_paint_bank(bank.data());
+        if(prop_light_paint_bank) prop_light_paint_bank(bank.data());   // D41L: flames, halos, embers at x 256
         bool any=sky;for(size_t i=0;!any && i<bank.size();++i) any=bank[i]!=0;
         if(!any) bank.clear();
     });

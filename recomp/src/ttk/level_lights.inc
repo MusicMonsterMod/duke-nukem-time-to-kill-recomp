@@ -769,13 +769,15 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!*arg || !std::strcmp(arg,"help")) {
         say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
-        say("  save | reload | clear | off | on | gate on|off.  Styles: steady flicker pulse candle strobe broken wave [phase] [depth]");
+        say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken wave [phase] [depth]");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
         say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");
         return true;
     }
     if(!std::strcmp(arg,"off")) {level_lamps_shown.store(0);say("Lamp: level lights hidden (session)");return true;}
     if(!std::strcmp(arg,"on")) {level_lamps_shown.store(1);say("Lamp: level lights shown");return true;}
+    if(!std::strcmp(arg,"props off")) {prop_lights_enabled.store(false);say("Lamp: woodburners and chandeliers dark (session)");return true;}
+    if(!std::strcmp(arg,"props on") || !std::strcmp(arg,"props")) {prop_lights_enabled.store(true);say("Lamp: woodburners and chandeliers lit");return true;}
     if(!std::strcmp(arg,"gate off")) {level_lamps_gate.store(0);say("Lamp: lamps light through walls from unseen rooms (session)");return true;}
     if(!std::strcmp(arg,"gate on") || !std::strcmp(arg,"gate")) {level_lamps_gate.store(1);say("Lamp: a lamp lights only while its room is shown");return true;}
     if(!std::strcmp(arg,"list")) {
@@ -792,4 +794,12 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     close=!std::strncmp(arg,"add",3) || !std::strncmp(arg,"here",4) || !std::strncmp(arg,"move",4) || !std::strncmp(arg,"pick",4);
     if(!close) say("Lamp: done (see the notice)");
     return true;
+}
+
+// D41L (prop_lights.cpp): woodburners and chandeliers, with the room gate.
+static unsigned prop_lamps_publish(PSXModLight* out,unsigned room) {
+    if(!prop_light_publish || !level_lamps_shown.load(std::memory_order_relaxed)) return 0;
+    return prop_light_publish(out,room,[](uint32_t r) {
+        return !level_lamps_gate.load(std::memory_order_relaxed) || !host_vis_shown_valid || (r<host_vis_shown.size() && host_vis_shown[r]);
+    });
 }

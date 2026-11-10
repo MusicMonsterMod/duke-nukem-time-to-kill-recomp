@@ -153,23 +153,26 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         e.standing=0;e.broke_ms=ms;
         std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":"candle",e.ref.o);
     }
-    // Room gate: each light fades toward whether its room is shown (0.25 s).
+    // Room gate (level_lamp_room_lit): a light comes on at once, fades out over 0.25 s.
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
     struct Near {double d;Emitter* e;};
     std::vector<Near> near;
     for(Emitter& e:emitters) {
         const float target=!shown || shown(e.room)?1.0f:0.0f;
-        e.vis=e.vis<target?std::min(target,e.vis+step):std::max(target,e.vis-step);
+        e.vis=e.vis<target?target:std::max(target,e.vis-step);   // D41E: on at once, out over 0.25 s
         const double dx=e.p[0]-duke[0],dy=e.p[1]-duke[1],dz=e.p[2]-duke[2];
         const double d=std::sqrt(dx*dx+dy*dy+dz*dz)-e.tune->radius;
-        if(d<6000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
+        // D41E: no range cut beyond the far limit; a light fades only when
+        // nearer ones push it out of the budget (as the level lamps).
+        if(d<32000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
     }
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
     unsigned n=0;
+    const unsigned cap=std::min(room,6u);const double cut=near.size()>cap ? near[cap].d : 32000.0;
     for(const Near& q:near) {
-        if(n>=room || n>=6) break;
+        if(n>=cap) break;
         const Emitter& e=*q.e;
-        float k=e.tune->k*e.vis*(float)std::clamp((6000-q.d)/2000,0.0,1.0);
+        float k=e.tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
         k*=e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];

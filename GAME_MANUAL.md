@@ -359,9 +359,29 @@ MONITORS** (it switches at once and saves) or with the launcher's
 `--security-monitors duke3d|ttk`. The Classic renderer and Vanilla always
 show the original monitors.
 
-### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I, D41K)
+### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I, D41K, D41E)
 
-With **DYNAMIC LIGHTS** on (the default), blasts and Duke's muzzle flash put
+**OPTIONS > DISPLAY > LIGHTING** has three settings (it switches at once and
+saves):
+
+- **ENHANCED** (the default): the dynamic lights below on top of the game's
+  own painted lighting, which stays as it was.
+- **RELIT**: the painted lighting is turned down so the lamps, signs,
+  lanterns, fires, shots and blasts carry the scene, with deeper shadows
+  between the pools of light. The level's lamps are stronger and reach a
+  little further. How far the painted light goes down depends on the room
+  Duke's camera is in: rooms lit by lamps of their own the most, rooms
+  without a lamp much less, and open-air areas only a little, so no place
+  turns too dark to play. Dark corners keep more of their light than bright
+  patches. Walking from one room into another, the view adjusts over about
+  half a second.
+- **ORIGINAL**: only the original lighting, no dynamic lights.
+
+The launcher accepts `--lighting enhanced|relit|original` (saved; the older
+`--dynamic-lights on|relit|off` still works) and terminal `--settings` uses
+**I Lighting**. The Classic renderer and Vanilla keep the original lighting.
+
+With LIGHTING on ENHANCED or RELIT, blasts and Duke's muzzle flash put
 real light into the world: rockets, grenades, pipe bombs, dynamite, TNT
 barrels and characters blown apart light the walls, floors, props and
 characters around them in a warm flash that fades over about half a second,
@@ -387,13 +407,11 @@ characters and props instead of showing their flat facets, and lights only
 the side of a figure that faces it. Props (consoles, tables, machines, the
 subway train) brighten under a light as much as the walls beside them, and a
 strongly coloured light keeps its colour on them instead of washing to grey.
-It is a first version: the light still
-passes through walls. Turn it off in **OPTIONS > DISPLAY >
-DYNAMIC LIGHTS** (it switches at once and saves); the launcher accepts
-`--dynamic-lights on|off` and terminal `--settings` uses **I Dynamic
-lights**. The Classic renderer and Vanilla have no dynamic lights.
+LIGHTING ORIGINAL turns all of this off.
 
-The backtick console's `light` places a warm test light above Duke where he
+The backtick console's `light mode enhanced|relit|original` switches
+LIGHTING for the session without saving it (to compare; the menu saves).
+`light` places a warm test light above Duke where he
 stands; `light <r> <g> <b> [radius]` picks its colour (0 to 4 for each, 1 is
 about as strong as a lamp) and reach (500 to 30000 units, 4000 by default),
 and `light off` removes the test lights. `light at <x> <y> <z> <r> <g> <b>
@@ -408,7 +426,7 @@ flight lights only what it can see, so light no longer bleeds through a wall
 into the next room, and pillars and doorways throw shadows. The strongest
 lights near Duke (up to 16 at once) cast shadows; muzzle flashes and wall
 sparks do not. The room walls cast shadows; props, enemies and Duke do not
-yet. Shadows come with DYNAMIC LIGHTS on the Polymorph renderer. In the
+yet. Shadows come with LIGHTING ENHANCED or RELIT on the Polymorph renderer. In the
 backtick console, `light shadows off` / `light shadows on` compares without
 and with shadows for the session, and `light shadows` shows their state.
 
@@ -428,7 +446,7 @@ lamp lights only while its room is in view, so a sign behind a wall does not
 tint the room in front of it. Break a prop that gives light (a traffic light,
 a fire barrel, a neon sign, a red light) and its light sputters out with it
 and stays out, also after loading a save made after the break; a save from
-before brings it back. They come and go with DYNAMIC LIGHTS. The backtick
+before brings it back. They come and go with LIGHTING (ENHANCED or RELIT). The backtick
 console edits them:
 
 - `lamp list` shows the level's lamps; `lamp off` / `lamp on` hides and shows
@@ -459,14 +477,22 @@ console edits them:
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners and
   chandeliers for the session (to compare).
+- `lamp ambient` tells how far RELIT turns down the painted light in the room
+  the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
+  the level's rooms with lamps of their own, `lamp ambient P unlit` for rooms
+  without one, `lamp ambient P outdoor` for open-air areas, and `lamp ambient
+  P here` (or `room N`) for one room; `lamp ambient clear here` hands a room
+  back to the level's value. `lamp ambient lamps G` and `lamp ambient reach R`
+  set how much stronger (percent) and how much further the level's lamps
+  shine in RELIT. `lamp save` keeps these with the lamps.
 
 **Woodburners and chandeliers.** In Modernized (Polymorph), every iron
 woodburner burns: embers glow behind its grate and a fire light flickers on
 the floor and walls in front of it. Every candle chandelier is lit: a small
 flame dances on each candle, the ceiling around it glows warm and its light
 falls softly on the room below (in the level 1 saloon, on the stage). The
-glow and flames show whatever DYNAMIC LIGHTS is set to; the light they cast
-needs DYNAMIC LIGHTS on. If one is broken, its light goes out. Vanilla and
+glow and flames show whatever LIGHTING is set to; the light they cast
+needs LIGHTING ENHANCED or RELIT. If one is broken, its light goes out. Vanilla and
 Classic keep the original look.
 
 Signs and neon keep their own look under any light: they give light, and

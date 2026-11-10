@@ -1174,6 +1174,34 @@ class DynamicLightsOptionTest(unittest.TestCase):
                 run.main(['--settings-file',str(path),'--no-session-log','--dynamic-lights','bright'])
 
 
+class LightingOptionTest(unittest.TestCase):
+    """D41E: LIGHTING Original / Enhanced / Relit (dynamic_lights off / on / relit)."""
+    def test_relit_value_terminal_and_cli(self):
+        profiles.validate_controls({**profiles.DEFAULT_CONTROLS,'dynamic_lights':'relit'})
+        self.assertEqual(profiles.DEFAULT_CONTROLS['dynamic_lights'],'on')
+        answers=iter(['i','relit','5'])
+        edited=profiles.menu(profiles.defaults(),read=lambda _:next(answers),write=lambda *_:None)
+        self.assertEqual(edited['profiles']['modernized']['controls']['dynamic_lights'],'relit')
+        answers=iter(['i','original','5'])
+        edited=profiles.menu(profiles.defaults(),read=lambda _:next(answers),write=lambda *_:None)
+        self.assertEqual(edited['profiles']['modernized']['controls']['dynamic_lights'],'off')
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json'
+            path.write_text(json.dumps(profiles.defaults()))
+            with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
+                run.main(['--settings-file',str(path),'--no-session-log','--lighting','relit'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LIGHTS'],'relit')
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['dynamic_lights'],'relit')
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LIGHTS'],'off')
+                run.main(['--settings-file',str(path),'--no-session-log','--lighting','enhanced'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LIGHTS'],'on')
+                run.main(['--settings-file',str(path),'--no-session-log','--dynamic-lights','relit'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LIGHTS'],'relit')
+            with self.assertRaises(SystemExit),patch('sys.stderr'):
+                run.main(['--settings-file',str(path),'--no-session-log','--lighting','bright'])
+
+
 class EarthquakesOptionTest(unittest.TestCase):
     def test_terminal_and_invalid_value(self):
         answers=iter(['z','off','z','strong','5'])

@@ -37,6 +37,7 @@ static bool shadows_on() {
     return !(t && !std::strcmp(t,"off"));
 }
 static uint64_t shadow_mesh_sig;static uint32_t shadow_mesh_loads=~0u;
+static uint64_t shadow_dropped;   // D41E: lights dimmed or dropped for want of a map
 static uint32_t shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_builds;static double shadow_mesh_ms;
 static std::vector<float> shadow_mesh_copy;static std::vector<uint32_t> shadow_mesh_owner;   // ray test (console)
 static constexpr unsigned shadow_new_per_tick=8;
@@ -165,20 +166,41 @@ static void shadows_assign(LightView& v,const uint8_t* cand) {
         picks[np++]={i,k*r2/(dx*dx+dy*dy+dz*dz+r2)};
     }
     std::stable_sort(picks,picks+np,[](const P& a,const P& b){return a.score>b.score;});
+    // D41E: more shadow casters than maps. One without a map would light
+    // through the walls, so the weakest go dark instead, the last ones in
+    // fading toward the first left out (a score within 1.5x of it), so a
+    // swap never pops.
+    if(np>PSX_MOD_SHADOW_SLOTS) {
+        const double cut=picks[PSX_MOD_SHADOW_SLOTS].score;
+        for(unsigned j=0;j<np;++j) {
+            const float f=j>=PSX_MOD_SHADOW_SLOTS || !(cut>0) ? 0.0f : (float)std::clamp((picks[j].score/cut-1.0)/0.5,0.0,1.0);
+            if(f<1.0f) {PSXModLight& l=v.l[picks[j].i];l.r*=f;l.g*=f;l.b*=f;++shadow_dropped;}
+        }
+    }
     np=std::min<unsigned>(np,PSX_MOD_SHADOW_SLOTS);
     if(shadow_new_tick!=light_ticks) {shadow_new_tick=light_ticks;shadow_new_count=0;}
-    bool claimed[PSX_MOD_SHADOW_SLOTS]={};int slot_of[PSX_MOD_MAX_LIGHTS];
+    bool claimed[PSX_MOD_SHADOW_SLOTS]={};int slot_of[PSX_MOD_MAX_LIGHTS],stale_of[PSX_MOD_MAX_LIGHTS];
     for(unsigned j=0;j<np;++j) {
-        const PSXModLight& l=v.l[picks[j].i];slot_of[j]=-1;
+        const PSXModLight& l=v.l[picks[j].i];slot_of[j]=stale_of[j]=-1;
         for(unsigned s=0;s<PSX_MOD_SHADOW_SLOTS;++s) {
             const ShadowSlot& o=shadow_slots[s];
-            if(!o.used || claimed[s] || o.p[0]!=l.x || o.p[1]!=l.y || o.p[2]!=l.z || l.radius>o.far) continue;
+            if(!o.used || claimed[s] || o.p[0]!=l.x || o.p[1]!=l.y || o.p[2]!=l.z) continue;
+            if(l.radius>o.far) {if(stale_of[j]<0) stale_of[j]=(int)s;continue;}
             slot_of[j]=(int)s;claimed[s]=true;break;
         }
     }
     for(unsigned j=0;j<np;++j) {
         if(slot_of[j]>=0) continue;
-        if(shadow_new_count>=shadow_new_per_tick) {++shadow_deferred;continue;}
+        // D41E: out of new maps this tick, a light whose reach grew (Relit
+        // easing in) keeps its shorter map for now; one with no map at all
+        // (after a load) stays dark for the tick rather than light through
+        // the walls.
+        if(shadow_new_count>=shadow_new_per_tick) {
+            ++shadow_deferred;
+            if(stale_of[j]>=0 && !claimed[stale_of[j]]) {slot_of[j]=stale_of[j];claimed[stale_of[j]]=true;}
+            else {PSXModLight& l=v.l[picks[j].i];l.r=l.g=l.b=0;}   // dark until its map is drawn (next tick)
+            continue;
+        }
         int best=-1;
         for(unsigned s=0;s<PSX_MOD_SHADOW_SLOTS;++s) {
             if(claimed[s]) continue;
@@ -199,14 +221,11 @@ static void shadows_assign(LightView& v,const uint8_t* cand) {
         ++shadow_assigned;
     }
 }
-static bool shadows_console(const char* arg,void (*say)(const char*)) {
-    while(*arg==' ') ++arg;
-    // "light shadows ray x y z x2 y2 z2": the nearest shadow triangle on the segment.
-    if(!std::strncmp(arg,"ray",3)) {
-        double a0[3],a1[3];
-        if(std::sscanf(arg+3,"%lf %lf %lf %lf %lf %lf",a0,a0+1,a0+2,a1,a1+1,a1+2)!=6) {say("Light: light shadows ray x y z x2 y2 z2");return true;}
+// The nearest room-mesh triangle on the segment a0-a1 (t its fraction), or
+// ~0 (game thread; D41E lamp wall check and the console's ray).
+static size_t shadow_ray(const double a0[3],const double a1[3],double& best) {
         const double d[3]={a1[0]-a0[0],a1[1]-a0[1],a1[2]-a0[2]};
-        double best=2;size_t bt=~size_t(0);
+        best=2;size_t bt=~size_t(0);
         for(size_t t=0;t+9<=shadow_mesh_copy.size();t+=9) {
             const float* v=&shadow_mesh_copy[t];
             const double e1[3]={v[3]-v[0],v[4]-v[1],v[5]-v[2]},e2[3]={v[6]-v[0],v[7]-v[1],v[8]-v[2]};
@@ -220,6 +239,16 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
             const double tt=(e2[0]*q[0]+e2[1]*q[1]+e2[2]*q[2])/det;
             if(tt>0 && tt<best) {best=tt;bt=t/9;}
         }
+        return bt;
+}
+static bool shadows_console(const char* arg,void (*say)(const char*)) {
+    while(*arg==' ') ++arg;
+    // "light shadows ray x y z x2 y2 z2": the nearest shadow triangle on the segment.
+    if(!std::strncmp(arg,"ray",3)) {
+        double a0[3],a1[3];
+        if(std::sscanf(arg+3,"%lf %lf %lf %lf %lf %lf",a0,a0+1,a0+2,a1,a1+1,a1+2)!=6) {say("Light: light shadows ray x y z x2 y2 z2");return true;}
+        const double d[3]={a1[0]-a0[0],a1[1]-a0[1],a1[2]-a0[2]};
+        double best;const size_t bt=shadow_ray(a0,a1,best);
         char b[320];
         if(bt==~size_t(0)) std::snprintf(b,sizeof b,"Light: ray clear (%zu triangles)",shadow_mesh_copy.size()/9);
         else {const float* v=&shadow_mesh_copy[bt*9];

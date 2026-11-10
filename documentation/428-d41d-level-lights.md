@@ -16,8 +16,10 @@ only; Vanilla and Classic unchanged. Builds on the D41A per-pixel path
   `lights/` beside the executable; `DNTTK_LIGHTS_DIR` overrides.
 - **Per image.** `lights_publish` takes, after rounds in flight, the nearest
   lamps to Duke (at most 12; 8 of the 32 slots stay for blasts and
-  flashes) whose reach comes within 6000 of him, fading each in over the
-  last 2000 so none pops on.
+  flashes) among those whose rooms are shown. Since D41E there is no 6000
+  range: a lamp fades only when nearer lamps push it out of the 12, over
+  the last 4000 before the first lamp left out, or past 32000
+  ([note 441](441-d41e-relit-levels.md)).
 - **Styles** at the game tick: steady, flicker (neon buzz with dips), pulse,
   candle, strobe, broken (dark with bursts). Each lamp has its own phase.
 - **Painted-light scan** (`lamp scan [threshold]`). The room table

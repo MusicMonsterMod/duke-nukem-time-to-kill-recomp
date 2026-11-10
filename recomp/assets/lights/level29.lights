@@ -1,5 +1,7 @@
 # D41D level 29 lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)
 # x y z  r g b  radius  strength  style  # note
+ambient 80
+ambient 90 unlit
 -567 826 -962  1.00 0.31 0.26  6000  0.60  steady  # scan room 6
 51 -5325 -9608  1.00 0.63 0.19  3342  0.60  steady  # scan room 6
 8323 -3994 0  1.00 0.60 0.22  3001  0.60  steady  # scan room 6

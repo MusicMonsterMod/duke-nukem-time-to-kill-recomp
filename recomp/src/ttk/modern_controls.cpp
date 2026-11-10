@@ -1241,6 +1241,7 @@ static bool facing_ready() {
 #include "spawn.inc"
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
+#include "relit.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;

@@ -10,9 +10,12 @@
 //
 // - Lamps: position, colour, radius, strength and a style (steady, flicker,
 //   pulse, candle, strobe, broken), animated at the game tick.
-// - Per image: the nearest lamps to Duke (up to level_lamp_max) whose reach
-//   comes within level_lamp_margin of him, faded in over the last
-//   level_lamp_fade so a lamp never pops on.
+// - Per image: the nearest lamps to Duke (up to level_lamp_max) among those
+//   whose rooms are shown (room gate below), so a lamp lights its walls seen
+//   from the far end of a corridor too (D41E). A lamp fades only when nearer
+//   lamps push it out of the budget: over level_lamp_fade before the first
+//   lamp left out (level_lamp_cut_fade), so the swap never pops; and past
+//   level_lamp_far, a safety limit beyond any view in the game.
 // - Scan: the painted-light peaks of the level's rooms (room table
 //   0x800da454, 88-byte rooms, origin +0, pieces +0x40 / count +0x32; piece =
 //   world mesh: +0x14 vertex count, +0x1c 8-byte vertices, x/z grid byte <<
@@ -52,11 +55,12 @@
 // (prop_state.h); when the last breaks it sputters out and stays dark.
 // standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
 struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
-                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;};
+                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;};
 enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_styles};
 static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
-static constexpr double level_lamp_margin=6000,level_lamp_fade=2000;
+static constexpr double level_lamp_far=32000,level_lamp_fade=4000;
+static double level_lamp_cut_fade(double d,double cut,double width) {return std::clamp((cut-d)/width,0.0,1.0);}
 static std::vector<LevelLamp> level_lamps;           // game thread
 static unsigned level_lamps_level=~0u;
 static bool level_lamps_dirty;                        // edited since load or save
@@ -69,6 +73,42 @@ static std::atomic<int> level_lamps_shown{1};         // console "lamp off|on" (
 static std::atomic<int> level_lamps_gate{1};          // console "lamp gate off|on" (session)
 static constexpr float level_lamp_gate_fade=8;
 static std::vector<float> level_lamp_vis;             // per lamp, 0-1
+// D41E: the rooms whose lamps may light. The rooms shown face the camera,
+// so with only them a quick turn switched lamps on and off around Duke. With
+// shadows on (walls stop the light, D41F) the rooms within level_lamp_hops
+// portals of the camera's room count too, whichever way it faces; a lamp
+// whose room comes in turns on at once (no fade-in) and only fades out.
+// Without shadows the gate stays the rooms shown, so no sign lights the room
+// in front of its wall.
+static constexpr unsigned level_lamp_hops=3;
+static std::vector<bool> level_lamp_rooms;
+static void level_lamp_rooms_update() {
+    if(!host_vis_shown_valid) return;   // mid-walk: hold
+    level_lamp_rooms=host_vis_shown;
+    if(!shadows_on() || !shadow_mesh_tris || !host_vis_last_order_n) return;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(!rooms || rooms>256 || rooms!=level_lamp_rooms.size() || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
+    const uint32_t source=host_vis_last_order[0]&0xffu;
+    if(source>=rooms) return;
+    std::vector<uint8_t> hop(rooms,0xff);hop[source]=0;level_lamp_rooms[source]=true;
+    std::vector<uint32_t> queue{source};
+    for(size_t q=0;q<queue.size();++q) {
+        const uint32_t room=queue[q];
+        if(hop[room]>=level_lamp_hops) continue;
+        const uint32_t a=table+room*88;
+        const unsigned count=psx_mod_read_byte(a+0x30);
+        const uint32_t portals=psx_mod_read_word(a+0x38);
+        if(!count || count>64 || portals<0x80010000u || portals>0x80200000u-count*36 || (portals&3)) continue;
+        for(unsigned i=0;i<count;++i) {
+            const int32_t t=(int16_t)psx_mod_read_half(portals+i*36+14);
+            if(t<0 || (uint32_t)t>=rooms || hop[t]!=0xff) continue;
+            hop[t]=(uint8_t)(hop[room]+1);level_lamp_rooms[t]=true;queue.push_back((uint32_t)t);
+        }
+    }
+}
+static bool level_lamp_room_lit(int room) {
+    return room<0 || ((size_t)room<level_lamp_rooms.size() && level_lamp_rooms[room]);
+}
 static uint32_t level_lamp_vis_tick;
 static std::string level_lamps_path_used;
 // D54: lamps out with their props (console "lamp breaks off" compares).
@@ -144,7 +184,13 @@ static std::string lamp_style_text(const LevelLamp& l) {
     if(l.style!=lamp_wave) return lamp_style_names[l.style];
     char b[32];std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
 }
+// D41E (relit.inc): ambient directives in the lamp file.
+static bool relit_parse_line(const char* line);
+static void relit_reset();
+static void relit_save_lines(std::ostream& f);
+static void relit_console(const char* rest);
 static void level_lamps_load(unsigned level) {
+    relit_reset();
     level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;level_lamp_prop_sig=0;signal_cache_clear();
     level_lamps_path_used=level_lamps_path(level);
     std::ifstream f(level_lamps_path_used);
@@ -154,6 +200,7 @@ static void level_lamps_load(unsigned level) {
         std::string note;
         if(auto h=line.find('#');h!=std::string::npos) {note=line.substr(h+1);line.resize(h);}
         while(!note.empty() && note[0]==' ') note.erase(0,1);
+        if(relit_parse_line(line.c_str())) continue;   // D41E
         LevelLamp l{};char style[24]={0};
         const int n=std::sscanf(line.c_str(),"%lf %lf %lf %f %f %f %lf %f %23s",&l.p[0],&l.p[1],&l.p[2],&l.rgb[0],&l.rgb[1],&l.rgb[2],&l.radius,&l.k,style);
         if(n<=0) continue;
@@ -177,6 +224,7 @@ static bool level_lamps_save(std::string& error) {
         if(!f) {error="cannot write "+path.string();return false;}
         f<<"# D41D level "<<level_lamps_level<<" lamps (documentation/428-d41d-level-lights.md, 429-d41d1-signs-waves-levels.md)\n";
         f<<"# x y z  r g b  radius  strength  style  # note\n";
+        relit_save_lines(f);   // D41E: ambient lines (Relit)
         char row[200];
         for(const LevelLamp& l:level_lamps) {
             std::snprintf(row,sizeof row,"%.0f %.0f %.0f  %.2f %.2f %.2f  %.0f  %.2f  %s",
@@ -442,19 +490,33 @@ static uint32_t signal_cache_loads=~0u;
 
 // Called from lights_publish (game tick): the nearest lamps for this image.
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
+    level_lamp_rooms_update();   // before any return: the prop lamps use it too
     if(!level_lamps_shown.load(std::memory_order_relaxed) || level_lamps.empty() || !room) return 0;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
+    // Room gate: every lamp fades toward whether its room is shown.
+    if(level_lamp_vis.size()!=level_lamps.size()) level_lamp_vis.assign(level_lamps.size(),1.0f);
+    const float step=std::min(1.0f,(float)(light_ticks-level_lamp_vis_tick)/level_lamp_gate_fade);
+    level_lamp_vis_tick=light_ticks;
+    const bool gate=level_lamps_gate.load(std::memory_order_relaxed)!=0;
     struct Near {double d;unsigned i;};
-    Near near[64];unsigned n=0;
+    static std::vector<Near> near;near.clear();
     for(unsigned i=0;i<level_lamps.size();++i) {
-        const LevelLamp& l=level_lamps[i];
+        LevelLamp& l=level_lamps[i];
+        if(l.room==-2) l.room=level_lamp_room(l);
+        float target=1;
+        if(gate && host_vis_shown_valid && l.room>=0) target=level_lamp_room_lit(l.room) ? 1.0f : 0.0f;
+        else if(gate && !host_vis_shown_valid) target=level_lamp_vis[i];  // mid-walk: hold
+        float& v=level_lamp_vis[i];
+        v=v<target?target:std::max(target,v-step);   // on at once, out over level_lamp_gate_fade
         const double dx=l.p[0]-duke[0],dy=l.p[1]-duke[1],dz=l.p[2]-duke[2];
         const double d=std::sqrt(dx*dx+dy*dy+dz*dz)-l.radius;
-        if(d>level_lamp_margin && (int)i!=level_lamp_selected) continue;
-        if(n<std::size(near)) near[n++]={d,i};
-        else {unsigned w=0;for(unsigned j=1;j<n;++j) if(near[j].d>near[w].d) w=j;if(d<near[w].d) near[w]={d,i};}
+        // Out of sight, beyond the limit, or broken and out (D54): no place in the budget.
+        const bool out=l.standing==0 && level_lamps_breaks.load(std::memory_order_relaxed) && light_ticks-l.broke_tick>prop_dying_ticks;
+        if((int)i!=level_lamp_selected && (d>level_lamp_far || v<=0.01f || out)) continue;
+        near.push_back({d,i});
     }
-    std::sort(near,near+n,[](const Near& a,const Near& b){return a.d<b.d;});
+    std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
+    const unsigned n=(unsigned)near.size();
     const LampWave wave=lamp_wave_now();
     if(static const bool trace=std::getenv("DNTTK_LAMP_TRACE")!=nullptr;trace && light_ticks%10==0)
         for(unsigned j=0;j<n;++j) if(const LevelLamp& l=level_lamps[near[j].i];l.style==lamp_wave) {
@@ -462,21 +524,6 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
                          wave.ok?(int)(int16_t)psx_mod_read_word(wave.ptr+4*(unsigned)l.phase):0,lamp_wave_value(wave,l.phase,l.depth));
             break;
         }
-    // Room gate: fade each candidate toward whether its room is shown.
-    if(level_lamp_vis.size()!=level_lamps.size()) level_lamp_vis.assign(level_lamps.size(),1.0f);
-    const float step=std::min(1.0f,(float)(light_ticks-level_lamp_vis_tick)/level_lamp_gate_fade);
-    level_lamp_vis_tick=light_ticks;
-    const bool gate=level_lamps_gate.load(std::memory_order_relaxed)!=0;
-    for(unsigned j=0;j<n;++j) {
-        LevelLamp& l=level_lamps[near[j].i];
-        if(l.room==-2) l.room=level_lamp_room(l);
-        float target=1;
-        if(gate && host_vis_shown_valid && l.room>=0)
-            target=(size_t)l.room<host_vis_shown.size() && host_vis_shown[l.room] ? 1.0f : 0.0f;
-        else if(gate && !host_vis_shown_valid) target=level_lamp_vis[near[j].i];  // mid-walk: hold
-        float& v=level_lamp_vis[near[j].i];
-        v=v<target?std::min(target,v+step):std::max(target,v-step);
-    }
     // D54: a lamp whose props have all broken sputters out. After a load
     // (level or savestate) the state is taken as found, without the sputter.
     const bool breaks=level_lamps_breaks.load(std::memory_order_relaxed)!=0;
@@ -508,8 +555,10 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
             if(l.broke_tick==light_ticks) std::fprintf(stderr,"[TTK lamp] lamp %u goes out: its prop broke (%s)\n",i,l.note.c_str());
         }
     }
-    unsigned k=0;
-    for(unsigned j=0;j<n && k<std::min(room,level_lamp_max);++j) {
+    unsigned k=0;const unsigned cap=std::min(room,level_lamp_max);
+    // The first lamp left out: the last ones in fade toward it.
+    const double cut=n>cap ? near[cap].d : level_lamp_far;
+    for(unsigned j=0;j<n && k<cap;++j) {
         const LevelLamp& l=level_lamps[near[j].i];
         float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,near[j].i));
@@ -525,7 +574,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
             if(level>0.05f) signal_last[near[j].i]={rgb[0],rgb[1],rgb[2]};
         } else if(l.style==lamp_signal && near[j].i<signal_last.size() && signal_last[near[j].i][0]>=0)
             for(int a=0;a<3;++a) rgb[a]=signal_last[near[j].i][a];
-        e*=(float)std::clamp((level_lamp_margin-near[j].d)/level_lamp_fade,0.0,1.0);
+        e*=(float)level_lamp_cut_fade(near[j].d,cut,level_lamp_fade);
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,near[j].i);
         if((int)near[j].i!=level_lamp_selected) e*=level_lamp_vis[near[j].i];
         if((int)near[j].i==level_lamp_selected && light_ticks<level_lamp_flash_until)
@@ -660,6 +709,24 @@ static std::vector<ScanCand> level_lamps_scan(int threshold) {
 // renderer's 0x800105d0), and a prop that glows mostly through them gets the
 // candle style when warm (lantern and torch flames) or flicker (neon).
 // gpu_vram_peek: gpu.h (through the backend, which syncs its copy first).
+// D41E: a lamp placed for a prop must be on the prop's open side of the
+// wall. D41D1's outward guess (face winding) points into the wall for some
+// wall-mounted props (level 3's mine lanterns: lamps 150 units behind the
+// planks), which D41F's shadows then hide completely. When the segment from
+// the prop to its lamp crosses the room mesh, the lamp is mirrored through
+// the prop, or, if that side is closed too, pulled back to just before the
+// wall. Needs the shadow mesh (light_shadows.inc); false: left as it is.
+static bool lamp_off_wall(const double prop[3],double p[3]) {
+    if(shadow_mesh_copy.empty()) return false;
+    double t;
+    if(shadow_ray(prop,p,t)==~size_t(0) || t>=1) return false;
+    const double m[3]={2*prop[0]-p[0],2*prop[1]-p[1],2*prop[2]-p[2]};
+    double tm;
+    if(shadow_ray(prop,m,tm)==~size_t(0) || tm>=1) {for(int k=0;k<3;++k) p[k]=m[k];return true;}
+    const double f=std::max(0.0,t-0.1);
+    for(int k=0;k<3;++k) p[k]=prop[k]+(p[k]-prop[k])*f;
+    return true;
+}
 static constexpr double sign_min_glow=3000,sign_offset=300;
 struct SignCand {double p[3];double rgb[3];double radius,glow;unsigned type,room;bool animated,signal=false;std::vector<PropRef> props;};
 static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullptr) {
@@ -821,6 +888,8 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
             SignCand s{};s.type=type;s.room=r;s.glow=g.e;s.animated=g.animated*2>g.e;s.props.push_back(prop_ref(o));
             s.signal=flashes;   // D55: a traffic light
             for(int k=0;k<3;++k) s.p[k]=(int32_t)psx_mod_read_word(o+4+4*k)+c[k]+(dl>0.3?dir[k]/dl*sign_offset:0);
+            {const double org[3]={(double)(int32_t)psx_mod_read_word(o+4),(double)(int32_t)psx_mod_read_word(o+8),(double)(int32_t)psx_mod_read_word(o+12)};
+             lamp_off_wall(org,s.p);}   // D41E
             const double m=std::max({g.col[0],g.col[1],g.col[2],1e-6});
             for(int k=0;k<3;++k) s.rgb[k]=g.col[k]/m;
             s.radius=std::clamp(1200+6*std::sqrt(g.e),1500.0,5000.0);
@@ -932,7 +1001,8 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     LevelLamp* s=sel?&level_lamps[level_lamp_selected]:nullptr;
     char b[200];
     auto need_sel=[&]{if(!s) level_lamp_notice("Lamp: none selected (lamp pick / lamp add)");return s!=nullptr;};
-    if(!std::strcmp(verb,"add") || !std::strcmp(verb,"here")) {
+    if(!std::strcmp(verb,"ambient")) relit_console(rest);   // D41E
+    else if(!std::strcmp(verb,"add") || !std::strcmp(verb,"here")) {
         LevelLamp l{};l.rgb[0]=1.0f;l.rgb[1]=0.85f;l.rgb[2]=0.6f;l.radius=4000;l.k=1;l.style=lamp_steady;
         if(s) {for(int i=0;i<3;++i) l.rgb[i]=s->rgb[i];l.radius=s->radius;l.k=s->k;l.style=s->style;}
         float r,g,bl;double rad;const int n=std::sscanf(rest,"%f %f %f %lf",&r,&g,&bl,&rad);
@@ -1078,6 +1148,25 @@ static void level_lamps_update(CPUState* cpu) {
     if(!lights_enabled() || !gameplay_context()) return;
     const unsigned level=psx_mod_read_word(0x800be570);
     if(level!=level_lamps_level) {level_lamps_load(level);level_lamp_snapshot();}
+    // D41E: lamps from the file on the far side of their prop's wall (see
+    // lamp_off_wall), a few a tick once the level's room mesh is built.
+    if(shadow_mesh_tris && !shadow_mesh_copy.empty()) {
+        unsigned budget=8,moved=0;
+        for(unsigned i=0;i<level_lamps.size() && budget;++i) {
+            LevelLamp& l=level_lamps[i];
+            if(l.wall_checked) continue;
+            l.wall_checked=true;
+            if(l.props.empty()) continue;
+            --budget;
+            const double prop[3]={(double)l.props[0].p[0],(double)l.props[0].p[1],(double)l.props[0].p[2]};
+            const double was[3]={l.p[0],l.p[1],l.p[2]};
+            if(!lamp_off_wall(prop,l.p)) continue;
+            for(double& c:l.p) c=std::round(c);
+            l.room=-2;++moved;
+            std::fprintf(stderr,"[TTK lamp] level %u lamp %u was behind its prop's wall: %.0f %.0f %.0f -> %.0f %.0f %.0f (%s)\n",level,i,was[0],was[1],was[2],l.p[0],l.p[1],l.p[2],l.note.c_str());
+        }
+        if(moved) level_lamp_snapshot();
+    }
     // D41D1: the neon sign set, 45 ticks after a level or savestate load
     // (the level's textures in place), and once more when the object
     // animation table first shows up (animated signs).
@@ -1116,6 +1205,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
         say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
         say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
+        say("  ambient [P [unlit|outdoor|room N|here]] | ambient clear [room N|here]: how far RELIT dims this level's painted light");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
         say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");
         return true;
@@ -1134,7 +1224,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         for(const std::string& r:level_lamp_listing) say(r.c_str());
         return true;
     }
-    static const char* const verbs[]={"add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind"};
+    static const char* const verbs[]={"ambient","add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind"};
     bool known=false;for(const char* v:verbs) {const size_t n=std::strlen(v);if(!std::strncmp(arg,v,n) && (!arg[n] || arg[n]==' ')) known=true;}
     if(!known) {say("Lamp: unknown command (type lamp for help)");return true;}
     {std::lock_guard<std::mutex> g(level_lamp_mutex);if(level_lamp_queue.size()<64) level_lamp_queue.emplace_back(arg);}
@@ -1148,6 +1238,6 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
 static unsigned prop_lamps_publish(PSXModLight* out,unsigned room) {
     if(!prop_light_publish || !level_lamps_shown.load(std::memory_order_relaxed)) return 0;
     return prop_light_publish(out,room,[](uint32_t r) {
-        return !level_lamps_gate.load(std::memory_order_relaxed) || !host_vis_shown_valid || (r<host_vis_shown.size() && host_vis_shown[r]);
+        return !level_lamps_gate.load(std::memory_order_relaxed) || !host_vis_shown_valid || level_lamp_room_lit((int)r);
     });
 }

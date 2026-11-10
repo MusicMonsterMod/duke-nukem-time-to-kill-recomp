@@ -103,7 +103,11 @@ EARTHQUAKE_MODES = ('on', 'off')
 # D41A (Modernized, Polymorph only): DYNAMIC LIGHTS. on (the default since
 # schema 71) lets blasts and muzzle flashes light the world per pixel on top
 # of the original vertex lighting; off draws only the original light.
-DYNAMIC_LIGHTS_MODES = ('on', 'off')
+# D41E: shown as LIGHTING. on = ENHANCED, off = ORIGINAL, relit = RELIT (the
+# painted light dimmed per level and room so placed lamps, shadows and blasts
+# carry the scene). Adding a value needs no migration.
+DYNAMIC_LIGHTS_MODES = ('on', 'relit', 'off')
+LIGHTING_NAMES = {'original': 'off', 'enhanced': 'on', 'relit': 'relit'}
 # D53 (Modernized, Polymorph only): SECURITY MONITORS. duke3d (the default
 # since schema 72) draws the monitors as larger Duke 3D-style TVs with a
 # lit screen and frames camera views with corners, REC and a record light;
@@ -224,7 +228,7 @@ def validate_controls(value):
         raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic/eduke32; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
-                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; auto_bio_mask on/off; equip_pickups if-new/never; screen_flashes on/reduced/off; sidearm_return auto/never; third_person_kick quick/original; weapon_feel retro/modern; earthquakes on/off; dynamic_lights on/off; security_monitors duke3d/ttk; level_stats and fps booleans; night_vision modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original; crouch modern/original.')
+                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; auto_bio_mask on/off; equip_pickups if-new/never; screen_flashes on/reduced/off; sidearm_return auto/never; third_person_kick quick/original; weapon_feel retro/modern; earthquakes on/off; dynamic_lights on/relit/off; security_monitors duke3d/ttk; level_stats and fps booleans; night_vision modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original; crouch modern/original.')
     return dict(value)
 
 
@@ -600,7 +604,7 @@ def describe(settings):
         lines.append(f"Equip pickups: {controls['equip_pickups']} (if-new draws a new weapon and selects a new item)")
         lines.append(f"Weapon feel: {controls['weapon_feel']} (retro: every click fires, the first shot comes sooner and held fire keeps a steady rate, close to EDuke32; modern: the original timing)")
         lines.append(f"Earthquakes: {controls['earthquakes']} (on: TNT barrels and explosive vests shake the whole level, Duke Nukem 3D style)")
-        lines.append(f"Dynamic lights: {controls['dynamic_lights']} (on: blasts and muzzle flashes light the world; Polymorph renderer only)")
+        lines.append(f"Lighting: {controls['dynamic_lights']} (on: Enhanced, real lights from blasts, guns, lamps and signs on the original light; relit: Relit, the original light dimmed so those lights carry the scene; off: Original; Polymorph renderer only)")
         lines.append(f"Security monitors: {controls['security_monitors']} (duke3d: larger lit TV screens and a camera frame with REC, Duke 3D style; ttk: the original monitors; Polymorph renderer only)")
         lines.append(f"Third-person kick: {controls['third_person_kick']} (quick: a fast legs-only kick with any weapon, on the move; original: the holstered Boot's full-body kicks)")
         lines.append(f"Sidearm return: {controls['sidearm_return']} (never: keep a climb sidearm until you choose; auto: your weapon comes back 0.75 s after the last shot)")
@@ -729,7 +733,7 @@ def menu(settings, read=input, write=print):
     while True:
         write('\n' + describe(edited))
         write('3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
-              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  P Wall backflip (Modernized)  |  C Crouch (Modernized)  |  L Landing (Modernized)  |  M Auto Bio Mask (Modernized)  |  E Equip pickups (Modernized)  |  X Screen flashes (Modernized)  |  A Sidearm return (Modernized)  |  Q Third-person kick (Modernized)  |  H Weapon feel (Modernized)  |  Z Earthquakes (Modernized)  |  I Dynamic lights (Modernized)  |  V Level stats (Modernized)  |  Y FPS display (Modernized)  |  N Night vision (Modernized)  |  T Dynamite (Modernized)  |  U Swimming (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
+              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  P Wall backflip (Modernized)  |  C Crouch (Modernized)  |  L Landing (Modernized)  |  M Auto Bio Mask (Modernized)  |  E Equip pickups (Modernized)  |  X Screen flashes (Modernized)  |  A Sidearm return (Modernized)  |  Q Third-person kick (Modernized)  |  H Weapon feel (Modernized)  |  Z Earthquakes (Modernized)  |  I Lighting (Modernized)  |  V Level stats (Modernized)  |  Y FPS display (Modernized)  |  N Night vision (Modernized)  |  T Dynamite (Modernized)  |  U Swimming (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
         choice = read('Choice: ').strip()
         if choice == '3':
             write('1 OpenGL  |  2 Software')
@@ -863,11 +867,12 @@ def menu(settings, read=input, write=print):
             if edited['active'] != 'modernized':
                 write('Vanilla keeps the original lighting.')
                 continue
-            value = read('Dynamic lights (' + '/'.join(DYNAMIC_LIGHTS_MODES) + '; blank cancels): ').strip()
+            value = read('Lighting (' + '/'.join(DYNAMIC_LIGHTS_MODES) + ', or original/enhanced; blank cancels): ').strip()
+            value = LIGHTING_NAMES.get(value, value)
             if value in DYNAMIC_LIGHTS_MODES:
                 edited['profiles']['modernized']['controls']['dynamic_lights'] = value
             elif value:
-                write('Choose on or off; dynamic lights unchanged.')
+                write('Choose on, relit or off; lighting unchanged.')
         elif choice.lower() == 'a':
             if edited['active'] != 'modernized':
                 write('Vanilla has no climbing sidearm swap.')

@@ -1,5 +1,31 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-10 - D41E closed
+
+User: "lock it in and close it out". D41E is Done.
+
+## 2026-11-10 - D41E: Relit review fixes
+
+User's first two reviews: lamps now light from afar (no 6000 range) and stay
+on when turning (rooms within 3 portals count). [Note 441](documentation/441-d41e-relit-levels.md).
+
+## 2026-11-10 - D41E: Relit levels (Needs playtest)
+
+Selected with "work on D41E". OPTIONS > DISPLAY > LIGHTING replaces DYNAMIC
+LIGHTS: ENHANCED (default, unchanged), RELIT, ORIGINAL (same profile key,
+`relit` added; `run.py --lighting`; console `light mode`). Relit turns down
+the painted light for the camera's room (lamp rooms 60%, rooms without a
+lamp 80%, open air 85%, per-level and per-room lines in the lamp files,
+console `lamp ambient`), eased over about half a second, through a curve
+that spares dark corners, and makes the level's lamps 1.7x as strong with
+1.35x the reach. Fix for both modes: some sign lamps sat behind their
+prop's wall (level 3's lanterns), and D41F shadows had blacked them out.
+They are now moved to the open side at load. Level 29 is set milder. Sweep
+of all 21 levels, Enhanced vs Relit; tests and framework patch verified.
+Not measured on the player's GPU at 180 Hz. Needs the user to play the
+relit levels and approve each one.
+[Note 441](documentation/441-d41e-relit-levels.md).
+
 ## 2026-11-10 - D17BG closed: not a player fault, software OpenGL notice
 
 User: "software notice is absolutely fine, and then lock it in and close it out as not a player fault". D17BG is Done: the sandstone ceiling dropout is a Mesa llvmpipe fault (offscreen test runs), not seen on the player's GPU. New: when OpenGL is a software rasterizer the launch log says so and Modernized shows a one-time notice at the main menu (install the graphics driver); nothing else changes. Checked: notice under llvmpipe, none on the real NVIDIA display, Vanilla launches (log line only); `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test` pass; framework patch exported and verified against the pinned checkout. [Note 440](documentation/440-d17bg-ceiling-dropout.md).
@@ -7977,7 +8003,7 @@ their surroundings in level 0, then each new level reviewed by the user.
 
 ### D41E - Relit levels
 
-**Status: Todo. Dependencies: D41C, D41D, D41F.** A LIGHTING option: Original
+**Status: Done (2026-11-10; [note 441](documentation/441-d41e-relit-levels.md)). Dependencies: D41C, D41D, D41F (all Done).** A LIGHTING option: Original
 (no dynamic lights), Enhanced (D41A-D41D on the painted light) and Relit (the
 painted light dimmed per level and room so placed lights, shadows and blasts
 carry the scene). Readability checks level by level (remasters that relit
@@ -10409,7 +10435,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Done (accepted 2026-11-08) | D41A |
 | D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Done (user-accepted 2026-11-09: lamps, editor, scan, level 0, signs keep their look; note 428; rest moved to D41D1) | D41A |
 | D41D1 | Level light sources, second part: signs and neon found by texture give real light, TTK's animated light tables as lamp styles, first lamp sets for more levels (user review per level) | Done (user-accepted 2026-11-09; note 429) | D41D |
-| D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
+| D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Done | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Done (note 439) | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |

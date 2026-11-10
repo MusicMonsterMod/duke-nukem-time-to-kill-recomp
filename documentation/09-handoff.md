@@ -1,5 +1,49 @@
 # Next-session handoff
 
+## 2026-11-10 - D41E accepted and closed
+
+User: "lock it in and close it out". D41E is Done: LIGHTING ORIGINAL / ENHANCED / RELIT, lamps lit from afar and kept on when turning. [Note 441](documentation/441-d41e-relit-levels.md).
+
+## 2026-11-10 - D41E: lamps stay on when turning (Needs playtest)
+
+User's second Relit review (new UI slot 8): a quick 90 degree turn faded
+the light in. Cause: lamps lit only while their room was in view, and the
+rooms in view follow the camera, so turning swapped them, each fading in.
+With shadows on, rooms within 3 portals of the camera's room now count
+whichever way it faces, and a lamp comes on at once. More lights than the
+16 shadow maps: the weakest go dark instead of lighting through walls.
+Checked with a traced quick turn (same 12 lights throughout; shots),
+levels 0 and 7, native tests pass.
+[Note 441](documentation/441-d41e-relit-levels.md).
+
+## 2026-11-10 - D41E: lamps lit from afar (Needs playtest)
+
+User's first Relit review (UI slot 8, level 2 mine corridor): the light
+ahead faded in only as Duke walked up. Cause: lamps (and D41L prop lamps)
+were only used within 6000 of Duke's reach, faded over the last 2000; the
+end-wall torches were outside it. Now every lamp in a shown room counts,
+nearest first, same budget; a lamp fades only when nearer ones push it
+out. Both modes. Checked by walking the corridor (before/after shots),
+level 0 and 7 (every light keeps a shadow slot), native tests pass.
+[Note 441](documentation/441-d41e-relit-levels.md).
+
+## 2026-11-10 - D41E: Relit levels (Needs playtest)
+
+Selected with "work on D41E". OPTIONS > DISPLAY > LIGHTING replaces DYNAMIC
+LIGHTS: ENHANCED (default, unchanged), RELIT, ORIGINAL (same profile key,
+`relit` added; `run.py --lighting`; console `light mode`). Relit turns down
+the painted light for the camera's room (lamp rooms 60%, rooms without a
+lamp 80%, open air 85%, per-level and per-room lines in the lamp files,
+console `lamp ambient`), eased over about half a second, through a curve
+that spares dark corners, and makes the level's lamps 1.7x as strong with
+1.35x the reach. Fix for both modes: some sign lamps sat behind their
+prop's wall (level 3's lanterns), and D41F shadows had blacked them out.
+They are now moved to the open side at load. Level 29 is set milder. Sweep
+of all 21 levels, Enhanced vs Relit; tests and framework patch verified.
+Not measured on the player's GPU at 180 Hz. Needs the user to play the
+relit levels and approve each one.
+[Note 441](documentation/441-d41e-relit-levels.md).
+
 ## 2026-11-10 - D17BG closed: not a player fault, software OpenGL notice
 
 User: "software notice is absolutely fine, and then lock it in and close it out as not a player fault". D17BG is Done: the sandstone ceiling dropout is a Mesa llvmpipe fault (offscreen test runs), not seen on the player's GPU. New: when OpenGL is a software rasterizer the launch log says so and Modernized shows a one-time notice at the main menu (install the graphics driver); nothing else changes. Checked: notice under llvmpipe, none on the real NVIDIA display, Vanilla launches (log line only); `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test` pass; framework patch exported and verified against the pinned checkout. [Note 440](documentation/440-d17bg-ceiling-dropout.md).

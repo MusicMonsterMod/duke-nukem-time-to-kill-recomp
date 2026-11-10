@@ -31,8 +31,9 @@
 // is sent with each image (psx_mod_gpu_set_lights) where the host walk sets
 // the frame's camera (host_visibility.inc). Modernized Polymorph only:
 // Vanilla and the Classic renderer draw nothing different. Developer
-// DNTTK_LIGHTS=off disables; DNTTK_LIGHT_AMBIENT=<percent> scales the
-// original colours of lit surfaces (100 default).
+// DNTTK_LIGHTS=off disables (LIGHTING ORIGINAL), relit dims the painted light
+// (D41E, relit.inc); DNTTK_LIGHT_AMBIENT=<percent> fixes the scale of the
+// original colours of lit surfaces.
 struct LightSrc {double p[3];float rgb[3];double radius;int age,life,kind;};
 enum {light_kind_blast=1,light_kind_muzzle=2,light_kind_test=3,light_kind_spark=4};
 static LightSrc light_srcs[24];static unsigned light_src_count;
@@ -58,10 +59,15 @@ static bool lights_enabled() {
     const char* t=ttk_live_env("DNTTK_LIGHTS");
     return input_modernized() && !ttk_world_classic() && !(t && !std::strcmp(t,"off"));
 }
+// D41E (relit.inc): the painted light's scale for this tick: 1 in Enhanced,
+// the camera room's eased value in Relit; DNTTK_LIGHT_AMBIENT fixes it.
+static float light_relit_amb=1.0f;
+static void relit_tick();
+static bool light_relit_lamp_gain(float& gain,float& reach);
 static float light_ambient() {
     static const float v=[]{const char* t=std::getenv("DNTTK_LIGHT_AMBIENT");
-        const long n=t?std::atol(t):100;return (n>=0 && n<=200 ? n : 100)/100.0f;}();
-    return v;
+        const long n=t?std::atol(t):-1;return n>=0 && n<=200 ? n/100.0f : -1.0f;}();
+    return v>=0?v:light_relit_amb;
 }
 static void light_add(const double p[3],float r,float g,float b,double radius,int life,int kind) {
     unsigned at=light_src_count;
@@ -248,9 +254,14 @@ static void lights_publish() {
     // shadows; of the sources below, blasts and test lights do (not muzzle
     // flashes at a gun next to a wall, or sparks on the wall they hit).
     v.n=lights_flight(v.l,8);
+    const unsigned scene0=v.n;
     v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
     if(security_tv_lights) v.n+=security_tv_lights(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D53: TV screens
     v.n+=prop_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41L: woodburners, chandeliers
+    // D41E: in Relit the scene's own lights (lamps, signs, screens, prop
+    // lamps) are stronger, as they carry the dimmed level (relit.inc).
+    if(float g,rr;light_relit_lamp_gain(g,rr))
+        for(unsigned i=scene0;i<v.n;++i) {v.l[i].r*=g;v.l[i].g*=g;v.l[i].b*=g;v.l[i].radius*=rr;}
     for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
@@ -323,7 +334,7 @@ static void lights_particle_trace() {
 // Once per Duke update (game tick).
 static void lights_tick() {
     if(!lights_enabled() || !gameplay_context()) {
-        light_src_count=0;light_fire_count=0;light_view=LightView{};return;
+        light_src_count=0;light_fire_count=0;light_view=LightView{};light_relit_amb=1.0f;return;
     }
     // A loaded savestate starts with no lights in flight.
     if(light_loads!=psx_mod_savestate_loads()) {
@@ -351,6 +362,7 @@ static void lights_tick() {
     }
     }
     ++light_ticks;
+    relit_tick();         // D41E
     shadow_mesh_tick();   // D41F
     lights_fire_collect();
     if(std::getenv("DNTTK_LIGHT_PROBE")) lights_probe_report();
@@ -495,6 +507,17 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
     if(ttk_world_classic()) {say("Light: dynamic lights need the Polymorph renderer");return true;}
     const char* arg=line+5;while(*arg==' ')++arg;
     if(!std::strcmp(arg,"off")) {light_console.store(2);say("Light: test lights removed");return true;}
+    // D41E: "light mode enhanced|relit|original" - LIGHTING for this session
+    // (matched comparisons; OPTIONS > DISPLAY > LIGHTING saves it).
+    if(!std::strncmp(arg,"mode",4) && (!arg[4] || arg[4]==' ')) {
+        const char* v=arg+4;while(*v==' ')++v;
+        const char* env=!std::strcmp(v,"enhanced")||!std::strcmp(v,"on")?"on":!std::strcmp(v,"relit")?"relit":!std::strcmp(v,"original")||!std::strcmp(v,"off")?"off":nullptr;
+        if(env) ttk_live_env_set("DNTTK_LIGHTS",env);
+        else if(*v) {say("Light: light mode enhanced|relit|original");return true;}
+        const char* t=ttk_live_env("DNTTK_LIGHTS");
+        say(!t||!std::strcmp(t,"on")?"Light: LIGHTING enhanced":!std::strcmp(t,"relit")?"Light: LIGHTING relit (this session; the menu saves it)":"Light: LIGHTING original (this session; the menu saves it)");
+        return true;
+    }
     // D41F: "light shadows [on|off|default]" (light_shadows.inc).
     if(!std::strncmp(arg,"shadows",7) && (!arg[7] || arg[7]==' ')) return shadows_console(arg+7,say);
     // D41H: "light smooth [on|off|default]" - smooth or faceted light on

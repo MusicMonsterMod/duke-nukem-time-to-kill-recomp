@@ -407,6 +407,9 @@ std::vector<Screen> make_screens() {
         // LIGHTING, with RELIT (the painted light dimmed, relit.inc).
         {"LIGHTING",Section::Controls,"dynamic_lights","DNTTK_LIGHTS",true,"ENHANCED: REAL LIGHTS ADDED. RELIT: LAMPS CARRY THE SCENE",
          {{"ENHANCED","on","\"on\""},{"RELIT","relit","\"relit\""},{"ORIGINAL","off","\"off\""}},0},
+        // D41F1: the shadow edge (light_shadows.inc, the GL renderer's shadow_vis).
+        {"SHADOW EDGES",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"SMOOTH: THE EXACT SHAPE OF THE GEOMETRY. SIMPLE: FASTER",
+         {{"SMOOTH","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},

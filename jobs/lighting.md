@@ -118,6 +118,264 @@ meshes, so light stops at walls; PCF filtering; cost limits at 180 Hz. GZDoom's
 1D shadow maps do not fit TTK's 3D rooms. Acceptance: matched shots of a light
 behind a wall and a lamp throwing shadows, measured frame cost.
 
+### D41F1 - Hard shadow edges
+
+**Status: Done (user-accepted 2026-11-11; [note 439 section 5](documentation/439-d41f-shadows.md)). Dependencies: D41F (Done).**
+User, 2026-11-10: "there is a clear blurring on the shadows, but i think we
+should use lines without the blur effect at shadow edges ... just hard shadow
+lines and that's it", then "could we anti-alias those shadow edges so they
+aren't jaggy?". Acceptance: shadow edges are hard lines with no soft
+gradient and no stair steps; nothing else about the lights or shadows
+changes.
+
+Work log, 2026-11-10: the blur came from the D41F filtering, linear
+(hardware 2 x 2) depth comparison on the shadow atlas plus 4 averaged taps
+0.3 texel apart. The atlas is now nearest-filtered and the shader takes one
+tap, so a receiver is either lit or shadowed. Normal offset, bias, tile size
+and shadow rules are unchanged. Matched shots (UI slot 9 subway, a test light
+beside the pillar, old and new builds): the pillar's floor shadow went from a
+soft gradient to a crisp line,
+`research/before-after/d41f1-hard-shadows/`. Placed-lamp views show no new
+artefacts. Build OK; `ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test`
+PASS; framework patch exported and checked against a clean `08ec704a`.
+Limits: far from the light a 512 texel tile can show stair steps along an
+edge (shadow-map texels); offscreen shots use llvmpipe, so the player's GPU
+is the real check. Needs the user's playtest.
+
+Work log, 2026-11-10 (anti-aliasing, the user's follow-up): the one-tap hard
+edge showed the shadow map's texel stairs. The atlas is linear-filtered again
+and the single filtered tap is sharpened by (shadow texel size / screen pixel
+size), the pixel size taken from screen derivatives at the top of the shader,
+so the edge is about one screen pixel wide: hard, anti-aliased, and following
+the filtered contour instead of the stairs. The third `PSX_SHADOW_TUNE` value
+is now the edge width in pixels (default 1). Evidence: the same pillar shot
+(`pillar-floor-antialiased.png`, and old / hard / anti-aliased crops in
+`pillar-floor-edge-compare.png`); with 128-texel tiles (4 times coarser than
+the default) the edge stays a straight line without stairs
+(`coarse-128-tile-antialiased.png`). Lamp views unchanged; tests PASS; patch
+checked against a clean `08ec704a`. Limit: where a shadow texel is smaller
+than a screen pixel (far from the camera) the edge is the plain filtered
+value, at most one pixel soft.
+
+Work log, 2026-11-10 (second pass): the user still saw jaggies ("i just
+wanted them to match the same effect as the smooth lines of the geometry";
+if not possible, take them off). One filtered tap leaves small kinks at
+shadow-texel spacing wherever a texel covers several screen pixels (close
+up, high resolution, light grazing a surface). Now 3 x 3 filtered taps one
+texel apart (developer `PSX_SHADOW_TAPS`, 1-4) smooth the kinks out of the
+contour before the sharpening, and the sharpening allows for the light's
+angle to the surface (a texel stretches by 1 / cos), so grazing edges stay
+one pixel wide instead of going soft. Developer view (shadowed / lit
+colours) with 128-texel tiles to stand in for a close-up: 1 tap shows kinks,
+3 x 3 a straight line (`edge-1tap-vs-3x3-coarse.png`). Ruled out: larger
+1024 tiles and perspective-correct world positions changed nothing measured
+(arcs seen in a low-light test were the light's own round pool, not the
+shadow). Tests PASS; patch checked against a clean `08ec704a`. Cost: 9 taps
+per shadowed light per pixel (was 4 in D41F), not yet measured on the
+player's GPU. Needs the user's look; if edges still read jaggy, the user
+asked for the anti-aliasing to come off.
+
+Work log, 2026-11-10 (exact edges): user, "look at slot 8 and give it another
+pass. there is still some stepping. and the corners of things are rounded
+... i want it to actually match the shape of the game geometry. go deep".
+Any filtered texel grid gives stairs or rounded corners, so edges now come
+from the geometry itself: the shadow pass also writes the occluding
+triangle's id per texel (R32UI beside the depth atlas, 100 MB); near an
+edge (the offset lookup and a plain one at the ray's own texel are mixed or
+disagree) the shader tests the segments from 4 rotated-grid points of the
+pixel to the light against the triangles of the 4 x 4 texels around the ray
+(the shadow mesh VBO read as a buffer texture). The edge has the shape of
+the occluder, with true corners and 4x anti-aliasing; away from edges the
+depth map still decides, and where a shadow texel is smaller than a pixel the
+filtered edge is used. Developer: `PSX_SHADOW_EXACT=0` turns it off,
+`PSX_SHADOW_TUNE` view 3 shows exact-test pixels yellow. Evidence at the
+player's settings (Relit, internal scale 3, 1467 window, linear output; UI
+slot 8, private copies): with 128-texel maps the exact edge matches the 512
+one except 64 pixels, all on the spinning pickup and the HUD timer (filtered
+at 128: 1087 pixels off); a test light in the alcove: the filtered jamb
+shadows wobble and round off at the corner, the exact ones are straight lines
+from the jamb corners (`slot8-*-jamb-filtered-vs-exact.png`). Vanilla boots
+and draws. Tests PASS; patch checked against a clean `08ec704a`. Limits: a
+triangle smaller than a shadow texel can be missed by the test (as by the
+map); cost on the player's GPU not measured (exact test runs only in the
+edge band, about 16 id fetches and a few triangle tests per edge pixel).
+
+Work log, 2026-11-10 (fast exact edges, SHADOW EDGES): user, "the performance
+is without a doubt choppy now. i have tested and compared with
+psx_shadow_exact=0"; after a talk about options, "We go for A's smooth edges.
+C's menu settings. and simple jaggy shadows as the fallback (also available in
+menu settings)". Measured first on the player's GPU (GTX 1080 Ti, real
+display, Relit, internal scale 3, 1401 window, UI slot 8 fence view with a test
+light, 30 fps so the main renderer presents; new developer timer
+`PSX_SHADOW_PROF=1`, GPU time of each frame's scene draws): the previous exact
+edges took 16.5 ms a frame against 4.0 ms with `PSX_SHADOW_EXACT=0` or with
+shadows off, far over a 180 Hz frame. Rebuilt for cost, same look:
+- `shadow_vis` takes one filtered tap instead of 3 x 3 (developer
+  `PSX_SHADOW_TAPS` removed). The edge band is a 2 x 2 plain lookup at the ray's
+  own texel: fully lit returns lit at once, fully shadowed with the offset tap
+  shadowed returns shadowed, anything else runs the exact test.
+- `sh_exact` reads the ids of the 3 x 3 texels around the ray (was 4 x 4) and
+  tests each triangle in the light's frame: the three planes through the light
+  and an edge, and the triangle's own plane for the distance. The edge planes
+  are linear in the point, so the 4 rotated-grid points of a pixel cost a few
+  multiply-adds each instead of 4 full segment tests; it stops once all 4 are
+  shadowed. The mesh is read as 3 RGBA32F texels a triangle (a buffer of its
+  own, was 9 R32F reads).
+- At most 2 exact tests per pixel (the first lights that need one; developer
+  `PSX_SHADOW_XMAX`, 0-16), and a faint light (falloff x brightness 0.03 or
+  less) keeps the filtered edge.
+- OPTIONS > DISPLAY > SHADOW EDGES: SMOOTH (default, the exact edges) or SIMPLE
+  (one shadow-map texel, stepped; no id pass, and the 100 MB id texture is only
+  made the first time SMOOTH draws). Live; changing it redraws every map.
+  Profile schema 73 `shadow_edges`, `run.py --shadow-edges smooth|simple`,
+  `DNTTK_SHADOW_EDGES` (Vanilla: simple), console `light shadows smooth|simple`
+  (session). The setting lives in the framework's shadow store
+  (`psx_mod_gpu_set_shadow_edges`, not copied per render thread).
+- Developer view 3 now shows yellow where any light's exact test decided and
+  magenta where tests ran without anything to test.
+Results, same machine and view: SMOOTH 4.1 ms, SIMPLE and shadows off 3.8 to
+4.1 ms (within run noise); in the UI slot 9 pillar view (Relit) SMOOTH, SIMPLE
+and off all 2.6 to 3.6 ms, and allowing 16 exact tests a pixel instead of 2
+adds about 0.3 ms. Shape (offscreen): in the pillar view with 128-texel maps the
+exact band runs along a straight edge (`fast-devview-exact-band-128.png`);
+matched smooth and simple shots in one run (`fast-smooth-vs-simple-*.png`).
+Tests: profile suite (136, new ShadowEdgesOptionTest), `ttk-near-test`,
+`ttk-flash-test`, `ttk-live-env-test` PASS; patch checked against a clean
+`08ec704a`; Vanilla boots and draws. Limits: GPU cost was measured at 30 fps
+in two views, not in a long play session at 180 Hz; a pixel past its 2 exact
+tests (several overlapping shadow edges) keeps the filtered edge for the
+other lights; sub-texel triangles can still be missed.
+
+Work log, 2026-11-11 (the 180 Hz stutter): the user's playtest stayed at 90
+presents (once 60) on a 180 Hz display, the same with SHADOW EDGES SIMPLE; "go
+deep ... find out what's going wrong". Found, on the player's GPU (lab at the
+player's settings, `nvidia-smi` utilization, per-thread CPU, `eu-stack`
+samples of the emulation thread):
+- Mechanism: at 180 Hz the emulation thread presents each redraw itself
+  (`gl_renderer_rp_tick` -> `SDL_GL_SwapWindow`, called from guest memory
+  accesses and device service). When the GPU is saturated the NVIDIA driver
+  sleeps inside the swap, the emulation stops for 0.2-1.2 s (frame-trace
+  walls 439-1214 ms with under 3 ms of hooks), the audio ring runs dry and the
+  D23H governor sheds to 90 or 60; every probe back to 180 stalls again and
+  fails. Reproduced by walking, turning and firing in UI slot 8 (level 6).
+- Cause: the shader. GPU at 180 Hz, standing in the same view: the pre-D41F1
+  renderer 30% with lighting off, 38% with Relit and shadows; the D41F1
+  renderer 66% with lighting off and 72% with shadows, in every mode
+  including SIMPLE. Compiling the exact test out (developer
+  `PSX_SHADOW_NOX=1`) gave 30% back: the cost was the code's presence, not
+  its use. The textured shader's register allocation (and so occupancy for
+  every pixel) is set by its heaviest path; `sh_exact` kept a local id list
+  indexed in a loop.
+- Fix: `sh_exact` without the list (repeated ids skipped against the last
+  one, the four sample points as a bit mask): 30% lighting off, 41% Relit
+  with smooth shadows. Walking slot 8 for 60 s at 180 Hz: 180 presents every
+  second, no stall, no shed (before: 90, then 60, within seconds).
+- Also found: the fast pass's shortcut "plain lookup fully lit means lit" put
+  a bright line along the foot of walls facing away from the light (the
+  plain lookup's slope bias reaches past the wall); the exact test again
+  runs unless both lookups agree, as in the first exact pass. Smooth and
+  simple shots now differ only along edges (1217 pixels).
+- Cost now, player's level 6 view at 180 Hz: lighting off 38%, Relit 42%,
+  SIMPLE 57%, SMOOTH 76% (the exact test decides about 1% of the screen
+  there, mostly a floor where the two lookups disagree); the walk held 180.
+- Developer: `PSX_SHADOW_NOX=1` (exact test compiled out),
+  `PSX_SHADOW_XMARGIN="units fraction"` (self-hit margin, default `2 0.002`;
+  tighter margins did not change the wall-foot line), `PSX_ALLOW_PTRACE=1`
+  (lets `eu-stack`/`gdb -p` attach under Yama ptrace_scope 1).
+Tests PASS (`ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test`); patch
+checked against a clean `08ec704a`; Vanilla boots and draws. Limits: SMOOTH
+leaves about a quarter of the GPU free at 180 Hz in that view; busier scenes
+are not measured.
+
+Work log, 2026-11-11 (GPU breakdown, measurement only): user, "76% of the gpu
+is so high". Developer `PSX_SHADER_STRIP=exact|shadows|lights`. Level 6 view at
+180 Hz: lighting code out 35%; lighting off 39%, Relit 43%, SIMPLE 57%, SMOOTH
+76%; exact test out 56%; shadow lookups out 44% (maps on). Scale 2: 33% / 52%
+(off / SMOOTH); widescreen off: 32% / 48%. Unused code now costs 2-4 points;
+the base is redraw volume, not pixels; shadow lookups (14) and the exact test
+(19) follow the pixels. Note 439 section 5.
+
+Work log, 2026-11-11 (optimization pass): user, "work through the entire stack,
+autonomously ... techniques that other games use ... bring this down
+considerably". A research report (decoupled shading, baked shadowmasks,
+silhouette maps, irregular z-buffer and frustum-traced shadows, clustered
+shading, shadow caching, register pressure on Pascal) ranked a precomputed
+edge bit first. Measured on the player's GPU (level 6 view, 180 Hz, player's
+settings; clock-weighted `nvidia-smi` utilization, developer GPU timestamps
+`PSX_GPU_PHASES=1`, NVIDIA's assembly dump `__GL_WriteProgramObjectAssembly=1`):
+- The cube-face tables `SH_F/SH_R/SH_U` (const arrays indexed at run time) were
+  compiled into local memory: 18 stores at the start of every fragment, in
+  every mode. Now swizzles (`sh_fru`): SMOOTH 72% -> 57%, SIMPLE 53% -> 48%.
+- The exact test inline again (deferring it after the light loop kept more
+  state live and cost every mode 3 points): SMOOTH 54%, SIMPLE 45%.
+- Widescreen: the native-wide mirror pass scissored the full wide width, so
+  every lit pixel of the centre was shaded a second time, then overwritten by
+  the canonical centre copy (`wide_blit_center`). With the fast path the
+  mirror now draws once per side margin, scissored to it (developer
+  `PSX_WIDE_MARGINS=0` restores the full width): SMOOTH 53.5% -> 41%, SIMPLE
+  45% -> 36%. Images match the full-width mirror (50 pixels in the unturned
+  view offscreen; on the GPU only the animated fire differs).
+- Edge texture (R8 beside the atlas, drawn with each map): pass 1 marks a
+  texel whose nearest surface jumps against a neighbour (neither plane,
+  followed along the other's ray, meets the other's surface; the tolerance
+  grows at grazing rays), pass 2 grows the marks by 4 texels. Creases and the
+  inside of many-faced occluders are no edge. SMOOTH runs the exact test only
+  on marked texels, for a light bright enough there and meeting the surface
+  above ~11 degrees; elsewhere one filtered tap. The shadow mesh buffer holds
+  4 RGBA32F texels a triangle (the corners, the unit plane).
+- Exact test: one edge plane at a time into a 4-bit mask; a hit counts only
+  off the point's own plane (`sh_eps`, developer `PSX_SHADOW_XMARGIN`, default
+  1.5 units + 0.05 percent of the distance), which removed a bright line at
+  the foot of walls. Checked with original geometry precision too.
+- Developer reference: console `light shadows reference` with
+  `PSX_SHADER_REFERENCE=1` runs the exact test at every pixel. Pillar view:
+  SMOOTH differs from it in 101 pixels of 921,600 (SIMPLE 883).
+Result, same view, full clock: lighting off 39% -> 28%, Relit 43% -> 31%,
+SIMPLE 57% -> 37%, SMOOTH 76% -> 42%. Shadows over Relit: SMOOTH 33 -> 10
+points, SIMPLE 14 -> 6. A 60 s walk in slot 8 at 180 Hz held 180 presents
+every second. Per redraw (GPU timestamps): scene about 0.75-1 ms with
+lighting off, of it 0.45-0.7 ms in the textured draws; at 1x the scene still
+takes about 0.55 ms: the remaining base is the textured PS1 draw itself.
+Tests PASS (`ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test`, profile
+suite); patch checked against a clean `08ec704a`; Vanilla boots and draws.
+Not done (larger designs the research ranked): a world-space shadow cache for
+static lamps baked per level; reusing shadow results across the 180 Hz
+redraws of one 30 Hz world frame; a cheaper textured PS1 shader.
+
+Closeout, 2026-11-11. User playtest after the optimization pass: "the game is
+genuinely playing better now. i didnt get a single stutter ... looking out over
+the entire castle high up using the jetpack and didnt experience a single
+stutter"; GPU use stayed at about 45% or less everywhere, slot 8 included,
+with SMOOTH edges. Accepted. Follow-ups on the board: D23J (base cost) and
+D41F2 (shadow reuse and cache).
+
+### D41F2 - Lighter shadows: cached and reused
+
+**Status: Todo (backlog; user 2026-11-11). Dependencies: D41F1.** After the
+D41F1 optimization pass, SMOOTH shadows add about 10 points of GPU use over
+Relit in the level 6 view at 180 Hz (42% against 31%), SIMPLE about 6. The
+two larger designs from the D41F1 research (ranks #2 and #4) were left out
+of that pass:
+
+- **Reuse across redraws.** The game runs at 30 Hz and Polymorph redraws each
+  game frame about six times with a late camera. Shadowed lights only change
+  with the game, so the shadow result per surface could be worked out once
+  per game frame and reused (or reprojected) by the other redraws.
+- **World-space cache for fixed lamps.** For each lamp that does not move,
+  work out once which parts of the world it shadows and keep the answer, so
+  the shader looks it up instead of testing the shadow map on every pixel.
+  Built while the game runs from the loaded level's own geometry (at level
+  load, or a lamp at a time as lamps first come into view, with no visible
+  pause), so custom maps get it with no authoring step; no per-level files
+  ship. Moving things (Duke, enemies, doors, lifts, breakables) keep the live
+  shadows; a door or breakable that moves invalidates the lamps it touches.
+
+Measure first (per-program GPU use and the D41F1 timers at 180 Hz), then
+build whichever buys more. Acceptance: SMOOTH shadows add clearly less than
+today's ~10 points in slot 8 and the level 6 view at 180 Hz, shadows match the
+current output (exact reference comparison as in D41F1), no pause at level
+load, and Vanilla unchanged. Related: D41G (light lists), D23J (base cost).
+
 ### D41G - Light scale and cost
 
 **Status: Todo. Dependencies: D41A.** Clustered light lists (Ironwail) when

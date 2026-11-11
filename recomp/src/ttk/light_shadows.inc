@@ -36,6 +36,13 @@ static bool shadows_on() {
     const char* t=ttk_live_env("DNTTK_SHADOWS");
     return !(t && !std::strcmp(t,"off"));
 }
+// D41F1: SHADOW EDGES (profile shadow_edges, DNTTK_SHADOW_EDGES, live): smooth
+// (default) = the exact shape of the occluding triangles, anti-aliased;
+// simple = one shadow-map texel, stepped but cheaper.
+static bool shadow_edges_smooth() {
+    const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");
+    return !(t && !std::strcmp(t,"simple"));
+}
 static uint64_t shadow_mesh_sig;static uint32_t shadow_mesh_loads=~0u;
 static uint64_t shadow_dropped;   // D41E: lights dimmed or dropped for want of a map
 static uint32_t shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_builds;static double shadow_mesh_ms;
@@ -258,10 +265,12 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
     if(!std::strcmp(arg,"on")) light_shadow_mode.store(1);
     else if(!std::strcmp(arg,"off")) light_shadow_mode.store(0);
     else if(!std::strcmp(arg,"default")) light_shadow_mode.store(-1);
-    else if(*arg) {say("Light: light shadows [on|off|default]");return true;}
+    // D41F1: "light shadows smooth|simple" - SHADOW EDGES for this session.
+    else if(!std::strcmp(arg,"smooth") || !std::strcmp(arg,"simple") || !std::strcmp(arg,"reference")) ttk_live_env_set("DNTTK_SHADOW_EDGES",arg);   // reference: developer, the exact test everywhere
+    else if(*arg) {say("Light: light shadows [on|off|default|smooth|simple]");return true;}
     uint64_t g[4];gl_shadow_counters(g);
-    char b[256];std::snprintf(b,sizeof b,"Light: shadows %s; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms",
-        shadows_on()?"on":"off",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0);
+    char b[256];std::snprintf(b,sizeof b,"Light: shadows %s, %s edges; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms",
+        shadows_on()?"on":"off",shadow_edges_smooth()?"smooth":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0);
     say(b);
     return true;
 }

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-11 - D41F1 accepted and closed
+
+User playtest: "the game is genuinely playing better now. i didnt get a single stutter". D41F1 is Done: hard shadow edges from the occluding triangles, anti-aliased (OPTIONS > DISPLAY > SHADOW EDGES SMOOTH / SIMPLE), plus the optimization pass at 180 Hz on the player's GPU (SMOOTH 76% -> 42%, lighting off 39% -> 28%: cube-face tables out of local memory, widescreen margins no longer reshade the centre, an edge texture so the exact test runs only near outlines). Comparisons the same day: EDuke32 (Polymost and Polymer) does about a third of our base work at full clock. Backlog follow-ups: D23J (Polymorph base cost of the 180 Hz redraws) and D41F2 (shadow reuse and a run-time cache for fixed lamps). [Note 439](documentation/439-d41f-shadows.md) section 5.
+
 ## 2026-11-10 - D58 accepted and closed
 
 User: "lock it in and close it out. this one was more for you". D58 is Done:

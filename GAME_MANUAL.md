@@ -439,6 +439,19 @@ yet. Shadows come with LIGHTING ENHANCED or RELIT on the Polymorph renderer. In 
 backtick console, `light shadows off` / `light shadows on` compares without
 and with shadows for the session, and `light shadows` shows their state.
 
+**OPTIONS > DISPLAY > SHADOW EDGES** sets how shadow edges are drawn (it
+switches at once and is saved):
+
+- **SMOOTH** (default): the edge follows the exact shape of the wall or pillar
+  casting it, with straight lines, sharp corners and anti-aliasing, like the
+  edges of the geometry itself.
+- **SIMPLE**: a cheaper hard edge with visible steps. Use it if shadows make
+  the game stutter on your computer.
+
+The launcher saves it with `--shadow-edges smooth|simple`, and the backtick
+console `light shadows smooth` / `light shadows simple` switches it for the
+session without saving it.
+
 **Level lights.** Levels can also have placed lights of their own, "lamps":
 neon signs, lamps and coloured rooms cast real light on walls, props, enemies
 and Duke, on top of the painted light. Every level has a first set, found

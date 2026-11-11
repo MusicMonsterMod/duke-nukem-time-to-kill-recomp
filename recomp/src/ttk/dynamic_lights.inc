@@ -538,6 +538,8 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
         l[i]=light_view.l[i];
         l[i].x=(float)(light_view.l[i].x-eye[0]);l[i].y=(float)(light_view.l[i].y-eye[1]);l[i].z=(float)(light_view.l[i].z-eye[2]);
     }
+    {const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");   // D41F1: SHADOW EDGES (light_shadows.inc)
+     psx_mod_gpu_set_shadow_edges(t && !std::strcmp(t,"simple") ? 0 : t && !std::strcmp(t,"reference") ? 2 : 1);}
     psx_mod_gpu_set_shadows(light_view.sh,(int)light_view.nsh);   // D41F: before the lights that name them
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
     near_clip_light_probe_lights(l,(int)n,light_view.amb);

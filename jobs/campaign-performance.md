@@ -1029,6 +1029,43 @@ Remaining: a long real session (window, audio, combat), and the unreproduced
 Accepted and closed 2026-11-09. User: "in that case, you've done all the testing this time around. i'm playing
 the game now, all is fine. lock this in and close it out".
 
+### D23J - Lighter Polymorph: base cost of the 180 Hz redraws
+
+**Status: Todo (backlog; user 2026-11-11). Dependencies: D17AW, D41F1.** After
+D41F1, the largest GPU cost is the base scene: about 28% of the player's GTX
+1080 Ti with lighting off in the level 6 view at 180 Hz, most of it
+independent of resolution. For comparison (2026-11-11, the user playing,
+nvidia-smi weighted by graphics clock): EDuke32 at 1280x720, vsync off, used
+about 13-14% at full clock on average in both Polymost and Polymer (Polymer
+peaks to about 33% while firing); World Tour used about 5% itself, with the
+desktop compositor (cinnamon 9%, Xorg 4.5%) taking more than the game. User:
+the game plays smoothly (no stutters, 180 Hz held, about 45% peak), but
+weaker GPUs would reach full load and shed frames where EDuke32 would not.
+
+Where the cost lies (to confirm by measurement first):
+
+- **The redraws.** The game runs at 30 Hz; Polymorph replays each game frame's
+  draw list about six times with a late camera, resending the whole PS1 scene
+  as many small batches each time.
+- **The main texture shader.** Every PS1 pixel runs TEX_FS, which carries the
+  lighting and shadow code even when it is off.
+
+Plan:
+
+1. Measure per program (`nvidia-smi pmon`) to split the game's own share from
+   the desktop's (compositing a windowed game); check whether fullscreen
+   bypasses the compositor. Then split the game's cost into batches,
+   per-batch overhead and pixel shading (GL timers, `PSX_GPU_PHASES`).
+2. Merge each game frame's batches once into far fewer, larger draws and
+   replay those.
+3. A lean shader variant for surfaces with no lighting or shadows.
+4. Skip or cheapen redraws when the camera has not moved.
+
+Acceptance: a clearly lower base cost in the level 6 view and slot 8 at 180
+Hz (lighting off and SMOOTH), measured per program and at full clock, with
+EDuke32 as the yardstick; identical pictures (image comparison); 180
+presents/s held in a 60 s walk; feel unchanged or better; Vanilla unchanged.
+
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 
 **Status: Done. Research accepted and closed by user instruction; repair selected as D37A. [Note 254](documentation/254-d37-movement-failure.md).**

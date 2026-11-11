@@ -484,6 +484,29 @@ generated line, codegen hash unchanged, savestates load. Diagnostics:
 `render_replay` reports `plugin.quake`. See
 [note 397](397-d44a-earthquakes.md).
 
+## Shadow edges (D41F1)
+
+Profile schema 73 adds the Modernized `shadow_edges` choice: `smooth` (default,
+exact edges from the occluding triangles) or `simple` (one shadow-map texel).
+`run.py --shadow-edges VALUE` saves it; the launcher passes
+`DNTTK_SHADOW_EDGES` (always `simple` for Vanilla, which has no shadows). The
+title hands it to every renderer with `psx_mod_gpu_set_shadow_edges`.
+Developer switches: `PSX_SHADOW_EXACT=0` (never the exact test),
+`PSX_SHADOW_XMAX` (exact tests per pixel, 0-16, default 2),
+`PSX_SHADOW_PROF=1` (logs each renderer's GPU scene time every 240 frames when
+the debug `frame_perf` timers are off), `PSX_SHADOW_TUNE`, `PSX_SHADOW_TILE`,
+`PSX_SHADOW_NOX=1` or `PSX_SHADER_STRIP=exact|shadows|lights` (that layer
+compiled out of the textured shader, for cost A/B), `PSX_SHADER_REFERENCE=1`
+(with the console `light shadows reference`: the exact test at every pixel),
+`PSX_SHADOW_XMARGIN="units fraction"` (exact-test self-hit margin, default
+`1.5 0.0005`), `PSX_SHADOW_Q="skip exact - allowance"` (cost thresholds),
+`PSX_SHADOW_DUMP=<dir>` (ids and edge flags of the first maps as PPM),
+`PSX_WIDE_MARGINS=0` (full-width widescreen mirror), `PSX_GPU_PHASES=1` (GPU
+timestamps per redraw phase, logged every 5 s) and `PSX_ALLOW_PTRACE=1` (lets
+`eu-stack` or `gdb -p` attach to the game). `PSX_SHADOW_PROF=1` also logs each
+renderer's map renders, redraws, batches and primitives every 5 s.
+See [note 439](439-d41f-shadows.md) section 5.
+
 ## Security monitors (D53)
 
 Profile schema 72 adds the Modernized `security_monitors` choice: `duke3d`

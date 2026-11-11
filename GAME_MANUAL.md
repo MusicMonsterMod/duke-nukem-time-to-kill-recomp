@@ -101,6 +101,10 @@ and enter four values, for example `2 windowed 0 linear`:
   fullscreen kind you chose. The game remembers how you left it: if you
   quit in a window (including one you resized), or in fullscreen, it opens
   the same way next time.
+  On a Linux desktop with a compositor (Cinnamon, GNOME, KDE), a window is
+  copied by the desktop at every refresh (180 times a second on a 180 Hz
+  display), which costs graphics time on top of the game's own; borderless
+  or exclusive fullscreen is shown directly and avoids that cost (D23L).
 - **Window width**: `0` fits the window to your screen; otherwise 640-7680
   pixels. The height follows the picture shape (4:3, or the widescreen
   shape below).
@@ -154,6 +158,11 @@ for the next launch):
   for the computer to keep up, pictures drop evenly to every second or third
   refresh (180 Hz -> 90 or 60) instead of slowing the game, and return to the
   full rate once the view is lighter. Unknown refresh falls back to 60.
+  On a computer with fewer processor threads AUTO also stays within what
+  they can redraw (D23P): with 4 to 7 logical CPUs at most 120 pictures a
+  second (180 Hz -> 90, 120 or 240 Hz -> 120), with fewer than 4 the original
+  60. Eight or more (most desktop processors) are not limited. A fixed
+  choice below is never changed.
   AUTO follows display changes and preserves fractional rates such as 59.94.
   Existing saved choices stay selected; choose AUTO explicitly to try it.
 - `60`: the original presentation.
@@ -468,8 +477,24 @@ lamp lights only while its room is in view, so a sign behind a wall does not
 tint the room in front of it. Break a prop that gives light (a traffic light,
 a fire barrel, a neon sign, a red light) and its light sputters out with it
 and stays out, also after loading a save made after the break; a save from
-before brings it back. They come and go with LIGHTING (ENHANCED or RELIT). The backtick
-console edits them:
+before brings it back. They come and go with LIGHTING (ENHANCED or RELIT).
+
+**Baked lamps (D41M).** The level's lamps light the walls, floors and
+ceilings from a light map worked out once per level: every lamp lights its
+surroundings all the time (no limit on how many, no lamps fading in and out
+as Duke walks), and walls stop their light also with SHADOWS off; the edges of
+those wall shadows are slightly soft (the map's grain, not SHADOW EDGES). A lamp's
+pool keeps the size it has in its own room (in RELIT it no longer widens or
+narrows with the room Duke's camera is in); its strength still follows the
+room as before. Candles, flickering and pulsing lamps, traffic lights and
+lamps whose prop breaks still change live. The first visit to a level works
+its map out in the background in a few seconds (the live lamps show
+meanwhile) and keeps it beside the game, so later visits and loads take it
+at once. Duke, enemies and props are lit by the nearest lamps as before.
+The backtick console's `light bake off` / `light bake on` compares the live
+lamps with the baked ones for the session.
+
+The backtick console edits them:
 
 - `lamp list` shows the level's lamps; `lamp off` / `lamp on` hides and shows
   them for the session (to compare).

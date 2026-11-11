@@ -1106,7 +1106,7 @@ move to D23K, with the goal of performance comparable to EDuke32.
 
 ### D23K - Performance parity with EDuke32: research and job plan
 
-**Status: Todo (selected next; user 2026-11-11). Dependencies: D23J.** User
+**Status: Accepted, closeout not yet authorized (user, 2026-11-11: "I accept the D23K report and approve its jobs"; closeout selected with D50A and D23O part 1; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23J.** User
 goal: "performance comparable or better than eduke32" - that is the real
 target. After D23J the game holds 180 Hz on the player's GTX 1080 Ti with
 about 40-50% whole-GPU use in the heaviest views (castle from jetpack height,
@@ -1151,6 +1151,243 @@ better than EDuke32 on the same machine and display, by the metrics the
 research defines, with identical pictures, feel unchanged or better, and
 Vanilla unchanged. D23K itself is done when the report is accepted and the
 jobs are on the board.
+
+Work log, 2026-11-11. Measured on the player's machine and display (monitor
+on), our game with the player's own profile copied read-only (Relit, SMOOTH,
+scale 3, AUTO 180) and EDuke32 r10669 (the player's build, a scratch copy
+with copied settings, attract demos, 180 fps cap). Lab
+`recomp/analysis/d23k/lab.py` (local; CPU now summed over the worker
+processes). Findings, [note 444](../documentation/444-d23k-eduke32-parity.md):
+whole-GPU at 180 Hz EDuke32 3.6-3.9% fullscreen and 7-8% windowed, ours
+17-26% borderless and 22-29% windowed (five to seven times the GPU per
+frame); Cinnamon composites a windowed game every frame (5-6 points for us,
+3.6 for EDuke32); a redraw costs 0.6-0.95 ms of which about 0.35-0.4 ms is
+redrawing into emulated VRAM; RELIT adds 2-3 points and SMOOTH 0-2.5 in
+natural views; CPU 2.6 cores at 180 Hz (workers 1.5), 180 Hz not held on 4
+logical CPUs (governor sheds cleanly: 88 on 2, 58 on 1 core). Research with
+sources (EDuke32 Polymer, RT64, Ironwail, shadow caching, clustered shading,
+reprojection, compositor bypass, weak-GPU figures). Parity bar defined
+(section 5); plan of ten jobs ranked (section 6): D41G, D41F2, then new
+D23M (direct redraws), D23N (captured redraws), D23O, D23L, D23P, D23Q
+(a lab-only startup stall seen on the real display), D23R (final benchmark).
+Waiting for the user to accept the report.
+
+### D23L - Display cost: compositor and the output pass
+
+**Status: Needs playtest (2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md), [note 448](../documentation/448-d23m-direct-redraws.md)). Dependencies: D23K.**
+Windowed at 180 Hz, Cinnamon composites every frame: our window costs about
+5-6 points of whole-GPU use more than borderless fullscreen, EDuke32's about
+3.6 (note 444, section 2). Each redraw also ends with an output pass of about
+0.11 ms. Work: find why our composited window costs more than EDuke32's
+(window size, damage, buffer copies, swap behaviour), cut the output pass
+(skip work when the picture is unchanged, cheaper scaling), and say in the
+manual that borderless fullscreen (F11) avoids the compositor. Acceptance:
+windowed minus borderless no more than EDuke32's difference; output pass
+halved; identical pictures; Vanilla unchanged.
+
+Work log, 2026-11-11 (Needs playtest). The "end of redraw" that note 444
+took for the output pass was mostly the copy-on-write restore: with D23M it
+is 0.037-0.05 ms a redraw (was 0.11-0.12), so the output pass is halved
+with identical pictures (`PSX_RT_VALIDATE` exact). GAME_MANUAL (Display):
+a composited desktop copies a window at every refresh; borderless or
+exclusive fullscreen avoids it. Not done: the compositor half. Windowed
+against borderless can only be measured on the real display, which the
+standing rule keeps to sessions with the user present (D23K froze the
+display driver unattended); the lab is ready (`recomp/analysis/d23k/lab.py`,
+whole-GPU and per-program `nvidia-smi` sampling, EDuke32 the same way).
+
+### D23M - Direct redraws: draw into their own target, not emulated VRAM
+
+**Status: Needs playtest (first step 2026-11-11, [note 448](../documentation/448-d23m-direct-redraws.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+A redraw is drawn into the emulated PS1 VRAM surface, so it saves and
+restores what it overwrites (copy-on-write, 0.14 ms), re-uploads (0.06 ms),
+clears, captures the band and runs an output pass: about 0.35-0.4 ms of the
+0.6-0.95 ms a redraw (note 444, section 3). Research first: which parts of a
+frame's stream (uploads, VRAM copies, fills, reads back of drawn pixels) a
+redraw truly needs, then draw redraws into a dedicated target sized for the
+output, with the frame's uploaded VRAM shared read-only, so nothing has to
+be restored. Acceptance: GPU per redraw down by at least a third in UI slots
+2 and 8 at 180 Hz (lab as note 444), identical pictures against full
+redraws (`PSX_RT_VALIDATE`), copy-on-write checker clean, Vanilla unchanged.
+
+Work log, 2026-11-11 (research; implementation not started). Baseline
+per redraw (`PSX_GPU_PHASES=2`, still views, RELIT, offscreen; the desktop
+browser was using about 13% of the GPU at full clock, so absolute times
+are inflated, compare kinds only): UI slot 2 textured 2.0-2.4 ms, "other"
+0.46-0.70 ms (14 a redraw, more than note 444's 0.08: to identify first),
+copy-on-write save 0.07-0.08 + restore 0.08, uploads 0.07 (11), depth
+clear 0.08-0.24, fill/copy 0.06-0.08, band 0.03, wide clears 0.01-0.04; UI
+slot 8 textured 1.0-1.2 ms with the same small kinds. Code map (render
+thread session, `gpu_gl_renderer.c` `gl_replay_begin`/`end`, copy-on-write
+up to 48 rectangles plus one full raw-mirror blit each way, band copy into
+the image cache, `rp_present_slot`): what a separate target must still
+provide inside a redraw is framebuffer feedback (`flush_pack_if_sampling`
+when a texture page or CLUT overlaps pixels drawn this frame), VRAM copies
+and fills that read drawn pixels, blending, mask/stencil and depth. The
+redraws' 11 uploads are probably repeats of the snapshot's bytes (a worker
+re-runs the frame tail) but this is not measured; note 443's "skip an
+upload whose bytes match" was never built. The ceiling of D23M is about
+0.25-0.3 ms a redraw here. Next: measure the uploads against the snapshot,
+identify "other", then the separate target with `PSX_RT_VALIDATE` exact
+comparisons, on a desktop with the GPU otherwise idle.
+
+Work log, 2026-11-11 (first step, Needs playtest). On the idle desktop,
+"other" turned out to be timeline gaps (the GPU waiting for the render
+thread), not work. A render thread's snapshot stays unchanged while
+referenced, so a session now restores what it overwrote from the snapshot's
+own textures (no save copies, no raw-mirror save), holds the snapshot
+reference until the session ends, and defers that restore to its next load
+(dropped when a new snapshot overwrites the surfaces anyway); the 1 MB CPU
+VRAM copy runs only with a surface load. Per redraw on the GPU timeline,
+turning at 180 Hz: UI slot 2 1.008 -> 0.827 ms, UI slot 8 0.990 -> 0.806 ms
+(18-19%); the "end of redraw" (D23K's output pass) 0.11 -> 0.04 ms; whole
+GPU 1-1.5 points lower. `PSX_RT_VALIDATE` exact (457 of 457),
+`PSX_REPLAY_COW_CHECK` clean, no publishes refused for held snapshots. Not
+met: a third (a redraw's own target and upload skipping remain). Note 448.
+
+### D23N - Captured redraws: replay a recorded frame instead of re-running game code
+
+**Status: Needs review (research and design 2026-11-11, [note 449](../documentation/449-d23n-captured-redraws-research.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+At 180 Hz three worker processes re-run the game's drawing code for every
+redraw with the late camera: about 10 ms of CPU each, 1.5 cores in all (note
+444). RT64 (Zelda64Recomp) records a frame's draw calls once and replays them
+with interpolated transforms on the GPU, never running game code again.
+Plan: research what the game's view composition decides per camera
+(visibility, clipping, level of detail, sorting, billboards, the host
+precise vertices) and what can be captured once per game frame in world
+space and re-projected per redraw; prototype on one level; keep the workers
+as the fallback. Acceptance: CPU at 180 Hz at most 1.5 cores, 180 Hz held
+with 4 logical CPUs, identical or provably equivalent pictures against the
+worker path, feel unchanged, Vanilla unchanged.
+
+Evidence, 2026-11-11 (from D41M, note 446): walking down the level 3
+corridor of UI slot 9 offscreen, the three redraw workers ran at 94-100%
+of a core at 180 and 240 Hz in every lighting mode, ORIGINAL included, and
+redraw-only switched off for "workers behind" in every configuration (9-16
+times a launch with the unmodified build). Worker jobs average about 17 ms
+there (D50A). This, not the lamps, is the corridor's stutter: D23N is the
+job that addresses it.
+
+Work log, 2026-11-11 (research and design, Needs review). Profiled the
+three redraw workers in the UI slot 9 corridor at 180 Hz: 40-41% emulation
+around the game's code (guest memory with write tracking, timing, dispatch,
+GTE, recording), 28-30% our own unified near-clip renderer (it already draws
+every world, prop and actor polygon host-side), 10-11% libc/libm, about 1%
+game overlays. Design (note 449): N1 capture the frame's scene (world-space
+polygons with their fixed inputs, plus the rest of the stream) in its first
+job and re-project it for the later jobs through the same clipping code; N2
+the camera-dependent remainder (sky, billboards, particles); N3 projection
+on the render thread, removing the workers from redraws. Not built.
+
+### D23O - Leaner render-thread submission
+
+**Status: Needs playtest (part 1 accepted 2026-11-11; part 2 2026-11-11, [note 447](../documentation/447-d23o-render-threads.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K, D23N.**
+The render thread uses about half a core at 180 Hz turning each redraw's GP0
+stream into GL calls. Profile it (perf, `eu-stack`), then apply what pays:
+persistent mapped vertex buffers, fewer state changes, skipping repeated
+uploads whose bytes match (note 443). Acceptance: render thread CPU at 180
+Hz halved, no GPU regression, identical pictures.
+
+Work log, 2026-11-11 (part 1, Needs playtest). The user's playtest after
+D50A: UI slot 9 still unplayable. The session log's misses were almost all
+"render thread drawing": one render thread drew every redraw and ran at
+about 90% in the corridor (light lists and shadow classes 18% of it).
+Corridor walk at 180 Hz: one thread 9-10 redraw-only switch-offs and 680-
+830 misses a launch in RELIT (2-4 and 125-454 even in ORIGINAL); both
+instances 0 and 0 at 120, 180 and 240 Hz. Both are now started on 8+
+CPUs (one below; `PSX_RENDER_THREADS` overrides), the second drawing only
+while the first is busy. Cost: corridor GPU 40% -> 53% (redraws drawn
+instead of dropped), CPU +0.4 core; light views +2-5 GPU points. Note 447.
+Part 2 (not started): the per-triangle light work, driver and copies.
+
+User playtest, 2026-11-11 (session 19:39, real display, 180 Hz, UI slots 9
+and 1 through both slow stretches): "amazing work ... i didnt even get the
+slowdowns". Log: 1 redraw-only switch-off (the savestate load) against 60
+the session before, 50 render-thread misses (around the load) against
+5,014, every logged second at 60 game frames and 180-181 presents, no
+underruns. Part 1 accepted; part 2 (lighter render thread) stays open.
+
+Work log, 2026-11-11 (part 2, Needs playtest). Profiled render thread 0 in
+the UI slot 9 corridor at 180 Hz (call stacks with library leaves): light
+lists 8%, shadow classes 9%, driver 11%, driver mutex contention 11%,
+copies 9%. Root cause found in the D41F2 classes: rebuilt world corners
+jitter by 0.1-1 unit with the camera, so the per-instance cache key changed
+almost every redraw. Built: one shared lock-free class table and a
+classifier thread, corners snapped to the 16-unit lattice of level geometry
+(96% of pairs known, was about a third; verify modes 0 pixels); light lists
+four lights at a time (same lists); a mapped staging ring plus GPU copy into
+a video-memory vertex ring (the driver's copy under its shared lock gone; a
+first version drawing from mapped memory cost 18 GPU points and was
+replaced); snapshot state imported once without copies, a stream hash for
+the reuse check, CPU VRAM saved by row, uploads gathered by row. Corridor
+walk, game process CPU 162/223/236% -> 144/194/215% at 120/180/240 Hz, GPU
+within 2 points, 0 switch-offs (2-4 before); light views render threads
+15-22% lighter, GPU slightly lower. Not met: "halved" (the rest is triangle
+setup, D23N/D23M). Pre-existing finding: redraw reuse (D23J) differs from a
+fresh draw in 4-5 of about 150 validated redraws during a walk, also on the
+unmodified build. Note 447, part 2.
+
+### D23P - Low-end scaling: presets and AUTO from measured headroom
+
+**Status: Needs playtest (CPU part 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K, D23M.**
+With 4 logical CPUs the game asks 180 and sheds (177, audio low); with 2 it
+holds 88, with one core 58; a Deck-class GPU (about 1/7 of the 1080 Ti)
+would need 7-10 ms a redraw today (note 444). Work: test on a real weak
+device if one is available, otherwise simulate (core limits, internal scale,
+frame rate); performance presets (internal scale, redraw rate, light and
+shadow quality) picked by AUTO from measured headroom at startup, with the
+choice shown in the options; check why a fixed 90 Hz presented 60 a second
+in one headless run. Acceptance: on 4 logical CPUs and at scale 1, a steady
+rate (120 or 90) with no audio low and no governor oscillation; the presets
+documented in the manual; Vanilla unchanged.
+
+Work log, 2026-11-11 (CPU part, Needs playtest). Measured after D23O part 2
+and D23M, offscreen, `taskset`: 4 logical CPUs hold 180 Hz in UI slot 2
+(audio ring 101-264 ms; D23K saw 177 and "audio running low") but about 110
+in the UI slot 9 corridor (one switch-off); 120 there holds (0 switch-offs,
+ring 234-277 ms); 2 CPUs slow the game itself at 180 (31-59 game frames a
+second, underruns) on this and on the unmodified build alike. Built
+(framework, `replay_rate.h`, `render_thread.c`): AUTO takes at most 120
+images a second with 4-7 CPUs and 60 below 4, as a whole number of
+refreshes (180 Hz -> 90), logged once (`AUTO frame rate: at most ...`);
+developer `PSX_AUTO_CPUS=N`; fixed choices unchanged; the CPU count is the
+process affinity. AUTO itself cannot run offscreen (no display refresh), so
+the 4-CPU cap needs a real-display check. The "fixed 90 Hz presented 60"
+of D23K: 90 is not a FRAME RATE choice (`player_profiles.py`); inferred,
+the profile check reset it to AUTO, which offscreen (no refresh) is 60. Not built: GPU presets (internal scale, light and
+shadow quality) chosen from measured GPU headroom, which need a weak GPU or
+a reliable GPU-time estimate at startup.
+
+### D23Q - Renderer restart stall after an early savestate load
+
+**Status: Todo (D23K finding; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+In 4 of 7 D23K lab launches on the real display (windowed and borderless),
+the starvation watchdog (4 s) aborted the game during the renderer's restart
+right after a savestate load at boot; headless runs did not stall. Not seen
+by the player so far. Work: time the restart (window, GL context, shader
+builds, render thread), find what blocks the emulation thread and move it
+off the heartbeat path or make it fast. Acceptance: 20 lab launches on the
+real display with a savestate load at boot and the default watchdog, none
+aborted.
+
+### D23R - Parity benchmark and acceptance
+
+**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23L-D23P, D41G, D41F2.**
+The programme's acceptance: re-run the note 444 comparison (EDuke32 Polymost
+and Polymer against our game, same display, windowed and fullscreen, the
+same views, CPU and the 4-CPU test) and check the parity bar in section 5:
+0.4 ms GPU or less a presented frame at 180 Hz, 12% or less windowed, 1.5
+cores or less, 180 Hz on 4 logical CPUs, under 4 ms a redraw on the weak GPU
+estimate; pictures identical, feel unchanged or better, Vanilla unchanged.
+
+Interim reading, 2026-11-11 (headless, offscreen, after D23O part 2, D41M
+and D23M; the EDuke32 side and windowed figures need the real display with
+the user present). Against the bar of note 444 section 5: CPU at 180 Hz in
+UI slot 2 about 2.3 cores (2.6 in D23K; bar 1.5, the workers are 1.2 of it:
+D23N); 180 Hz with 4 logical CPUs held in UI slot 2 (bar met there), not
+in the level 3 corridor (about 110; AUTO now caps at 120 with 4-7 CPUs,
+D23P); GPU per redraw on the timeline 0.81-0.83 ms in UI slots 2 and 8
+(1.0 before D23M; bar 0.4). Still Todo: D23L-D23P are not done.
 
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 
@@ -1215,3 +1452,121 @@ reproduced offscreen with the dummy audio driver. Find what stalls the game
 after a load long enough to drain the audio ring, fix it, and make a
 load-time shed recover quickly. Acceptance: loads keep 180 presents/s
 without a shed (logs), no crackle, user confirms in slot 8.
+
+### D50A - Load and level start empty the audio ring again
+
+**Status: Accepted, closeout not yet authorized (user playtest 2026-11-11; [note 445](../documentation/445-d50a-loads-keep-the-audio-ring.md)). Dependencies: D50.**
+D50 (accepted 2026-11-08) fixed the load-time shed. The 2026-11-11 session
+log (real display, 180 Hz) shows it again: after savestate loads (UI slots 1
+and 2, an old save and a newly made one alike), after a new game's level 0
+start and after a save, the governor logged "audio running low" with the
+audio ring at 0-40 of 180 ms, and up to about 1,700 underruns in one
+interval; presents fell to about 90/s for 20-30 s while the ring refilled at
+60-65 game frames/s. One load (UI slot 0, level 3) kept the ring full, so
+not every load does it; compare the two. The redraw workers also fall behind
+for the first seconds after a load (job age up to 40 ms, up to 55 failed
+redraws). Separately, the neon sign pass (`[TTK lamp] level N: ... neon sign
+faces take no dynamic light`) stalls the game thread once per level start:
+20 ms on level 6, 36 ms on level 0 and 70 ms on level 3 (165 lamps).
+User: did not notice the first one; the game did shed. Find what empties the
+ring (the load itself, the restart of audio, or a game-thread stall), keep
+it full across loads, saves and level starts, and move the neon pass off the
+game thread or spread it over frames. Acceptance: loads, saves and level
+starts keep 180 presents/s without a shed (logs), no underruns, no level
+start stall over one frame, Vanilla unchanged.
+
+Work log, 2026-11-11 (Needs playtest). Root causes (note 445): the audio
+bridge waited for its target fill only once at startup, so after anything
+that took audio out of the ring (a savestate load's stall, a turbo-load
+mute that drains it by design, an 85 ms save on the emulation thread) play
+resumed short, refilled by the 0.5% trim at about 5 ms a second; and the
+neon pass scanned meshes and VRAM through the emulator on the game thread.
+Changes: the bridge re-buffers to its target after running dry, on a
+savestate load (dropping the old audio, as the legacy path clears its
+queue) and after a turbo mute; saves are copied on the emulation thread
+(4-7 ms) and compressed and written by a writer thread, byte-identical to
+the direct save (`PSX_SAVE_VERIFY=1`); the slot sidecar is taken at the
+copy; a purpose-built neon scanner reads a RAM/VRAM copy on its own thread
+(game thread 1.3-3.0 ms, was 20-69 ms; face sets identical on levels 0, 2,
+3, 6). Lab (offscreen, private card copy, real audio into a null sink),
+loads at 120/180/240 Hz: the ring's lowest point after 2 s rose from
+79-105 ms to 119-146 ms (means 119-136 to 160-170 ms) and repeated loads no
+longer stack. The lab's level travel did not reproduce the player's level
+0 start drain. Found on the way: D50B (a save can end the game; a load
+after a save can stall it; both predate this change) and D50C (the level 3
+pit). Needs the user's playtest: loads, saves and level starts at 180 Hz
+with real audio, session log without `audio running low` sheds.
+
+User playtest, 2026-11-11 (session 19:00): no crackle after loads (slots 1
+and 2), F6/F9 saves and loads fine with no hitch or exit, a new game
+started without crackle. Accepted.
+
+### D50C - Walking into the level 3 pit halts the emulation
+
+**Status: Todo (D50A finding, 2026-11-11). Dependencies: none.**
+Found in the D50A/D41M lab (offscreen, private copy of UI slot 9, the level
+3 corridor, Duke walking forward with nothing else pressed for about 25 s):
+Duke reaches the end of the corridor, drops about 7000 units (to 24065,
+6665, -17157) and the emulation halts with `FATAL: GPU GP0 unknown command
+0xFE` (or 0xF9), or the emulation thread spins at 100% with 56 presents a
+second. Seen with the unmodified build and with the D50A and D41M builds,
+in 3 of 3 long walks. Not reported by the player. Work: reproduce, find
+where the GP0 stream goes wrong (the GPU command ring at the halt), and
+whether the original game falls there (death pit, cutscene, out of
+bounds). Acceptance: the same walk ends in the game's own outcome (death
+or landing) without a halt, Vanilla unchanged.
+
+Observation, 2026-11-11 (D23M lab, not investigated further): a corridor
+walk of about 13 s from UI slot 9 (offscreen, 180 Hz) dropped Duke from y
+683 to 6264 within two seconds; game frames fell to 5 a second, then the
+4 s starvation watchdog stopped the run (no heartbeat 4.7 s; the last PC
+sample 0x800B6E44, no exception pending, I_MASK 0x6D). Log kept locally as
+`recomp/analysis/perf/d50c-repro-1.log`.
+
+### D50B - A save can end the game (PC=0)
+
+**Status: In progress (2026-11-11, see the work log). Dependencies: none.**
+Found in the D50A lab (offscreen, private card copies, saves through the
+debug port `savestate op=save` in the level 3 corridor of UI slot 9 a few
+seconds after a load): in 4 of about 16 launches the game ended with
+`psxrecomp runtime: execution completed, PC=0x00000000`, either before the
+state was written or right after `SAVED`, and once the guest stopped
+(`[FPS] ... (0.00x)`) after the next load. The unmodified build did it too
+(2 of 7 launches), so it predates D50A. Every failing save was admitted
+with `save_admission ... outcome=irq_return_to_flat_scheduler
+resolved=0x800293FC` after `deferring ... [waiting_flat_scheduler]`; saves
+admitted directly never failed. Not reported by the player so far (quick
+save is F6; SAVE GAME saves from the pause screen). Work: reproduce with a
+loop of debug saves, trace the unwind from the IRQ return to the flat
+scheduler (savestate.c, savestate_admission) and what leaves the
+continuation at PC 0. Acceptance: 50 consecutive gameplay saves (debug port
+and F6) without an exit or stall, the saved files load, Vanilla unchanged.
+
+Work log, 2026-11-11. Two symptoms, two causes:
+
+1. Exit at PC 0 after a save admitted at the IRQ return
+   (`irq_return_to_flat_scheduler`, the failing saves resolved 0x800293FC).
+   `savestate_poll_irq_return` longjmps to the scheduler without the limits
+   the active admission keeps (outermost dispatch only, no overlay call unit
+   open), so a save taken inside nested compiled frames abandoned their guest
+   continuations. Fixed (framework, `savestate.c`): such a save now waits
+   for the next boundary (logged once as `irq_return_nested_wait`). Not seen
+   again in 150 save-and-load rounds (UI slot 9, offscreen); the guard did
+   not fire in them either (the failing context did not recur), so the fix
+   is by construction, not yet by a reproduction.
+2. The guest stops after a load that follows a save (host presents, game
+   `(0.00x)`, "fresh-frame wait timed out"). Reproduced on the fixed and
+   the unmodified build (load, 4 s, save slot 11, 2.5 s, load: stalls after
+   2-11 rounds); 40 loads with no saves never stall. Every stall followed a
+   save admitted by unwinding to the scheduler (`unwind_to_flat_scheduler`,
+   e.g. 0x8001CA6C, 0x80076EDC). State at the stall (debug port
+   `get_registers`): pc 0, EPC 0x800B4544 (the loaded state's resume PC),
+   I_STAT 0x21 pending with IEc set, VBlanks raised but no longer delivered.
+   So the first interrupt taken at the load's resume point returned to
+   PC 0, the "continue the live chain" value, although after a load there is
+   no live chain; something the unwinding save leaves behind (a latch of
+   `psx_scheduler_snapshot_at` or the scheduler-top serialization) changes
+   that first delivery. Next: trace that delivery (`interrupts.c`,
+   same-thread resume and the top-level resume flag) after an unwinding
+   save. Lab: `recomp/analysis/perf/lab.py` cases `saveloop`, `d50b`,
+   `loadloop` (local).

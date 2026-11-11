@@ -280,3 +280,34 @@ off 39% -> 28%, Relit 43% -> 31%, SIMPLE 57% -> 37%, SMOOTH 76% -> 42%.
 Lesson for shader work here: measure GPU utilization at the player's 180 Hz
 with the shader as built, in every mode; code that never runs still costs
 every pixel when it raises the register count.
+
+## 6. D41F2: shadow classes per triangle (2026-11-11, Needs playtest)
+
+Only the static room mesh casts shadows, so a world triangle's shadow from a
+given light map does not depend on the camera. `sh_classify_tri`
+(`gpu_gl_renderer.c`) classifies each (lit world triangle, shadowed light)
+pair once, on the CPU against the renderer instance's copy of the mesh, and
+caches the result by the quantized world corners, slot, map stamp, mesh
+generation and reach:
+
+- Wholly lit: no mesh triangle enters the pyramid from the light to the
+  receiver (lifted 3 units off the receiver's plane; edge contact within 0.25
+  units is outside; triangles inside the 4-unit near plane never cast). The
+  separating test uses the pyramid's faces and the occluder's plane only, so
+  any doubt sends the pair down the per-pixel path. The shader skips the
+  lookup (mask `v_lnosh`, attribute 15).
+- Wholly shadowed: one mesh triangle covers all three corner rays at least 4
+  shadow texels inside its edges, within the map's reach. The light leaves
+  the triangle's D41G list.
+- Otherwise per pixel, as section 5.
+
+New pairs spend at most 400 us of CPU per light update
+(`PSX_SHADOW_CLASSIFY_US`); `PSX_SHADOW_CLASSIFY=0` turns it off, `=2` / `=3`
+verify the lit / shadowed classes against the lookup (magenta where they
+disagree; compiled in only then). Measured offscreen at 180 Hz: in UI slot 8
+27% of pairs wholly lit and 20% wholly shadowed; 0 (UI slot 2) and 22 (UI
+slot 8) of 589,824 pixels disagree; the shadows' own GPU time down 20-25%
+(textured draws per redraw, clock-normalised); 7% of a core per renderer
+instance for new pairs while walking, none in a still view. Before the
+change, SMOOTH's cost was the lookups that run (exact test about 8-9 points,
+filtered tap and edge fetch about 5), not the code's presence (1-2).

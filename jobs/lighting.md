@@ -351,7 +351,7 @@ D41F2 (shadow reuse and cache).
 
 ### D41F2 - Lighter shadows: cached and reused
 
-**Status: Todo (backlog; user 2026-11-11). Dependencies: D41F1.** After the
+**Status: Needs playtest (2026-11-11). Dependencies: D41F1.** After the
 D41F1 optimization pass, SMOOTH shadows add about 10 points of GPU use over
 Relit in the level 6 view at 180 Hz (42% against 31%), SIMPLE about 6. The
 two larger designs from the D41F1 research (ranks #2 and #4) were left out
@@ -376,13 +376,219 @@ today's ~10 points in slot 8 and the level 6 view at 180 Hz, shadows match the
 current output (exact reference comparison as in D41F1), no pause at level
 load, and Vanilla unchanged. Related: D41G (light lists), D23J (base cost).
 
+Work log, 2026-11-11 (Needs playtest). Measured first (offscreen, UI slot 8,
+RELIT, test light, 180 Hz, clock-weighted whole-GPU work): SMOOTH 32%, SIMPLE
+23%, shadows off 18%; with the exact edge test compiled out SMOOTH 24%; with
+every shadow lookup compiled out 19%. SMOOTH's ~14 points are the lookups
+that run (exact test about 8-9, filtered tap and edge fetch about 5), not the
+code's presence. Built: **shadow classes per triangle** (framework,
+`gpu_gl_renderer.c`, `sh_classify_tri`). Only the static room mesh casts
+shadows, so whether a world triangle is in a light's shadow does not depend
+on the camera. For each lit world triangle (models excluded) and each
+shadowed light in its D41G list, a conservative test on the CPU against the
+mesh (the renderer instance's own copy, chunks culled by box and by the
+pyramid's faces): **wholly lit** when no mesh triangle enters the pyramid from
+the light to the triangle (lifted 3 units off the receiver's plane, edge
+contact within 0.25 units outside, triangles inside the map's 4-unit near
+plane ignored): the shader skips that light's shadow lookup (a second 32-bit
+mask, `a_ln`/`v_lnosh`); **wholly shadowed** when the three rays to the corners
+all cross one mesh triangle at least 4 shadow texels inside its edges, within
+the map's reach: the light leaves the triangle's list; otherwise the
+per-pixel path as before. Results cached per instance (64k entries) by the
+quantized world corners, slot, map stamp, mesh generation and reach; new
+pairs cost at most 400 us of CPU per light update (developer
+`PSX_SHADOW_CLASSIFY_US`). Developer `PSX_SHADOW_CLASSIFY=0` off, `=2`/`=3`
+verify (nothing skipped; magenta where the lookup disagrees with the lit /
+shadowed class).
+- Classes in the slot 8 view: 27% of pairs wholly lit, 20% wholly shadowed,
+  53% per pixel; a still view converges in about 10 s, then every pair is a
+  cache hit and classification costs no CPU. Walking: about 75% hits, about
+  7% of a core per renderer instance for new pairs.
+- Correctness (verify modes, 3 frames each): UI slot 2 0 pixels disagree;
+  UI slot 8 2 pixels (lit class) and 20 pixels (shadowed class) of 589,824,
+  the shadowed ones one pixel wide along the contact edge of the block on the
+  boards, where the per-pixel anti-aliased edge let a sliver of light in.
+  Matched stills on and off look the same (only fire and water animate).
+- Cost, two alternating rounds: whole-GPU SMOOTH UI slot 8 30.9 / 31.0% ->
+  27.6 / 28.5%, UI slot 2 27.9 / 29.8% -> 23.5 / 23.8%; GPU timestamps of the
+  textured draws per redraw (`PSX_GPU_PHASES=2`, ms x MHz, slot 8) 3038 / 3022
+  -> 2685 / 2575, against about 1050 with shadows off: the shadows' own cost
+  down 20-25%. SIMPLE mixed (lower in 2 of 4 pairs). 180 presents a second
+  in every run, CPU unchanged once converged.
+Not met yet: "clearly less than ~10 points" is only partly reached (SMOOTH
+over off about 14 -> 11 points in slot 8 offscreen); the per-pixel half holds
+large triangles that really straddle a shadow edge. Not built: reuse across
+the redraws of one game frame and a world-space shadow cache per lamp (the
+next steps if more is needed). Real-display figures wait for the user. Needs
+the user's playtest.
+
 ### D41G - Light scale and cost
 
-**Status: Todo. Dependencies: D41A.** Clustered light lists (Ironwail) when
+**Status: Needs playtest (2026-11-11). Dependencies: D41A.** Clustered light lists (Ironwail) when
 lights exceed a few dozen; lighting for untextured polygons (G3/F3), a policy
 for sprites and translucent faces (emissive or lit); measured cost per frame
 at 120/180/240 Hz on busy levels. Acceptance: measured budgets and no
 regressions on the D17 performance routes.
+
+Work log, 2026-11-11 (first part, stopped by the driver hang). Light lists per triangle
+(framework, `gpu_gl_renderer.c`): each lit triangle carries a 32-bit mask of
+the lights whose sphere of reach meets its bounding box (worked out when the
+triangle is queued; margin 0.2% + 2 units), and the textured shader's light
+loop visits only those, in the same order (GLSL 3.30 shift loop; `findLSB`
+needs 4.00 and broke the first build). Developer `PSX_LIGHT_MASK=0` lists
+every light (the D41A loop); `PSX_LIGHT_STATS=1` logs lit triangles and
+lights listed/kept. Evidence so far: image A/B at UI slot 2 with a test
+light, mask on against off, identical (0 pixels; only the FPS overlay
+differs between any two runs); in UI slot 8 a lit triangle keeps 1.6 of 10
+listed lights, in UI slot 2 almost none of 5. First 180 Hz A/B (headless,
+one round): RELIT + SMOOTH 20.8% -> 18.3% and ENHANCED + SMOOTH 25.9% ->
+23.3% in UI slot 2; the second round was contaminated by an orphaned test
+game and stopped when the NVIDIA modeset driver hung (D23K log). Not done:
+clean repeated A/B, 60 s walk at 180 Hz, the other D41G items (untextured
+polygons, sprites, translucent faces, budgets).
+
+Work log, 2026-11-11 (continued; Needs playtest). All runs offscreen on the
+player's GPU (SDL offscreen, `RATE=180`, the player's profile copied
+read-only, a test light ahead of Duke; monitor off, and no real-display runs
+after the morning's driver hang), one launch at a time with the driver log
+checked before and after each. Lab `recomp/analysis/d41f2/lab.py` (local).
+- Clean A/B, light lists on against `PSX_LIGHT_MASK=0`, two alternating
+  rounds, whole-GPU work weighted by clock: UI slot 2 RELIT + SMOOTH 30.6 /
+  32.9% -> 27.0 / 27.0%, ENHANCED + SMOOTH 29.1 / 30.6% -> 23.4 / 27.5%, RELIT
+  with shadows off 25.7 / 22.6% -> 21.9 / 21.3% (a lit triangle keeps 0.07 of
+  3-6 lights); UI slot 8 RELIT + SMOOTH 33.5 / 33.9% -> 32.1 / 31.8%, ENHANCED
+  + SMOOTH 30.0 / 30.2% -> 28.7 / 28.4% (2.4 of 6 lights kept). Lower in 10
+  of 12 pairs; the two exceptions (slot 8, shadows off) ran at 1350-1800 MHz,
+  where the clock weighting is least reliable. 180 presents a second in every
+  run.
+- Census (`PSX_LIGHT_STATS=1`, new counters), slot 8 at 180 Hz: 154,000
+  untextured (G3/F3) triangles in 5 s, none with world positions: they are
+  the HUD, fades and effects, not world geometry, so there is nothing to
+  light. Translucent world faces already take the light (15,000 lit in 5 s:
+  the lit flag never excluded them). Sprites (rectangles) carry no world
+  position and stay as drawn (emissive), which is the policy.
+- Budget, UI slot 8, RELIT + SMOOTH, light lists and D41F2 classes on: a 60 s
+  walk, turn and fire at 180 Hz held 177-181 presents and 58-60 game fields
+  every second; redraw validation clean (0 bad). Whole-GPU 28-34% (clock
+  weighted, offscreen: no window present or compositor).
+- Clustered lists (Ironwail) are not needed at this scale: at most 32 lights,
+  culled per triangle on the CPU, as note 444 section 4 found.
+- Vanilla boots, loads a savestate and draws (no light code runs).
+Not done: the D17 performance routes and real-display figures (need the
+user present; see the driver hang); 120 and 240 Hz budgets. Needs the user's
+playtest.
+
+### D41M - Baked lighting for fixed lamps
+
+**Status: Needs playtest (full build 2026-11-11, [note 446](../documentation/446-d41m-baked-lamps.md) section 6). Dependencies: D41F2, D41G.**
+User, during the 2026-11-11 playtest of D41G and D41F2 in the level 3
+corridor of UI slot 9: "that area now feels unplayable", "the lights also
+turn on and off in this area as you go down the corridor. i feel like we need
+to basically reimplement these in a much more lightweight way", and "i want us
+to really focus on making this optimized to the highest standard possible".
+Build new rather than tune the live path further.
+
+Evidence (session log 2026-11-11 16:20, real display, 180 Hz): the game held
+60 frames/s, about 180 presents/s and full audio, but with 12-13 lights in
+view the redraw workers fell behind again and again and redraw-only turned
+off for 45-50 presents (about a quarter of a second) at a time while
+walking, so motion kept switching between 180 Hz and repeated frames. With
+`light mode original` the long gaps stopped; with the lights back they
+returned at once. `light shadows off` helped only a little (user). Each
+redraw worker used 75-83% of a core there (about 40-50% on level 2) and the
+GPU about 52% at full clock. The popping is the 16-lamp shadow cut and the
+nearest-lights selection changing as Duke walks.
+Offscreen A/B at that spot (private copy of the save, 180 Hz, slow turn,
+shadows on): GPU work 26.2% with D41G light lists and D41F2 shadow classes
+both off, 22.7% with light lists only, 21.8% with both; ORIGINAL 17.8%.
+Worker CPU about 45% each in every case, so D41G/D41F2 did not cause the
+corridor problem. The offscreen turn did not reproduce the fallbacks; they
+come with walking, where the lamp set keeps changing.
+
+Why it is expensive now: every fixed lamp is a live light with live shadow
+maps, evaluated per pixel in every redraw, three redraws per game frame at
+180 Hz. The level's lamps come from fixed per-level light files and only
+the static room meshes cast shadows, which is the case baked lighting exists
+for (Quake lightmaps and light styles; modern engines bake static lights and
+keep few dynamic ones).
+
+Plan:
+1. Research and design note: lightmaps over the room meshes against a light
+   volume against per-lamp stored shadow maps; how each drawn PS1 triangle
+   is matched to its room-mesh surface (the host world corners and the
+   static shadow mesh of D41F); texel density; memory; bake at level load
+   or offline next to `recomp/assets/lights/levelNN.lights`, cached and
+   invalidated when a light file changes; how Quake-style light styles keep
+   TTK's animated lamp tables, signs (D41D1), broken lights (D54) and
+   traffic lights (D55) working (one baked channel per animated lamp,
+   scaled live).
+2. Prototype on level 3 (UI slot 9 corridor), compared against the current
+   live path in images and in cost.
+3. Full implementation: fixed lamps baked with their wall shadows; the live
+   path only for shots, blasts, muzzle flashes, Necro blasts, fire and moving
+   lights, few at once; Duke, enemies and props still lit by the baked lamps
+   (sampled from the bake or a light volume).
+
+Acceptance: the UI slot 9 corridor and the D17 routes hold 180 Hz while
+walking with no redraw-only fallbacks caused by lighting, at 120 and 240 Hz
+as well; dynamic lighting costs at most a few GPU points over ORIGINAL in
+every lit level; no lamp popping anywhere; the look matches the current
+lighting in matched before/after shots (user review per level); level loads
+not noticeably slower; ORIGINAL, Classic and Vanilla unchanged; measured
+headless, then confirmed by the user on the real display.
+
+Work log, 2026-11-11 (design note and level 3 prototype; needs review).
+Note 446. Prototype, off by default (`DNTTK_LAMP_BAKE=1`, console `light
+bake on|off`): lightmaps over the static room mesh with the live shader's
+own lamp term and ray-cast walls, two-sided charts, steady lamps summed
+and the four strongest varying lamps of each face as live channels, cached
+per level; surfaces reach the redraw workers through a map shared before
+they fork; a shared, reference-counted store and a spread-out upload for
+the three renderer instances. Level 3: 12,457 faces, atlas 90 MB a
+renderer at 32 units, 3.3 s first bake, 55 ms from the cache. Pictures: near
+Duke baked and live match closely; down the corridor the bake is brighter
+(lamps the live path cuts now light their stretch). Cost: textured draws a
+redraw at 180 Hz, still corridor view, live 4.7-5.2 ms, baked 4.7-4.9 ms,
+ORIGINAL 3.3 ms: no GPU win, the lighting cost is the shader's lighting
+layer, not the lamps (D41G leaves 0.46 lamps a lit triangle). Walking the
+corridor the redraw workers sit at 94-100% of a core in every lighting
+mode, ORIGINAL included: the stutter is D23N's. Fixed on the way: the
+redraws' draw-time state outgrew its 8 KB slot (16 KB, and a log line);
+the bake's uniform locations. Recommendation and the design choices for
+the user in note 446 section 2 and "Recommendation".
+
+User decisions, 2026-11-11: after the playtest the user preferred the
+baked look ("they just looked brighter") and, once told the bake keeps
+every lamp on and stops the popping (no performance gain), chose "Finish
+the bake". Design choices: lamp reach fixed per lamp (its own room's
+Relit reach); shadow edges at 32 units; walls always stop baked lamps,
+also with SHADOWS off. Full build: every lit level, models lit from the
+bake (no shadow slots for fixed lamps), default in RELIT and ENHANCED,
+matched before/after shots per level for the user, ORIGINAL/Classic/
+Vanilla unchanged.
+
+Work log, 2026-11-11 (full build, Needs playtest). With the user's choices
+(lamp reach fixed per lamp, 32-unit shadow edges, walls always stop baked
+lamps): the bake is on by default in Enhanced and Relit on every level
+(`light bake off` / `DNTTK_LAMP_BAKE=0` keep the live lamps); with SHADOWS
+off the room mesh is still built for it; the live lamps that light models
+carry the reach the bake used; the emulation thread's renderer uploads the
+lightmap once and the render threads adopt its textures (level 3 peak GPU
+memory 1980 -> 1840 MiB); a same-level savestate load keeps the bake (it
+was switched off for half a second and re-taken from the cache at every
+load). Levels 0, 1, 2, 3, 6 (every level the saves reach): first bake
+1.7-8.2 s in the background, then 8-67 ms from the cache; matched baked and
+live shots per slot in `research/before-after/D41M/` (local) look alike.
+Not built: models from a light probe (they keep the live, shadowed lamps;
+an unshadowed probe would light through walls), the baked-only shader
+variant. GAME_MANUAL: Baked lamps paragraph. Note 446 section 6.
+
+User decision, 2026-11-11 (after the playtest): "we want to go for absolute
+leanness ... keep the bake and fix the leaks". Fixed lamps stay baked (soft
+32-unit edges, no live shadow maps for them); next step is to find and fix
+the light slivers reported in the user's UI slot 10 and 7 saves (first
+confirm the bake is the cause, `light bake off` against on, against the
+D23O shadow classes).
 
 ### D41H - Smooth light on models
 

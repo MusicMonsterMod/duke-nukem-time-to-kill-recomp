@@ -40,7 +40,10 @@ static LightSrc light_srcs[24];static unsigned light_src_count;
 // D41H: smooth tells near_clip.cpp to give model corners smoothed normals
 // (console "light smooth on|off", DNTTK_SMOOTH_LIGHT=0 developer default off).
 // D41F: nsh shadowed lights (light_shadows.inc); their lights' flags name the slot.
-struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];};
+struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];
+    // D41M: baked lamps (lamp_bake.inc): the gain on their steady light and
+    // each lamp's current colour (its channel light), bake_n 0 when no bake.
+    uint32_t bake_n=0;float bake_gain=1;float bake_rgb[PSX_MOD_BAKE_LAMPS*3];};
 static LightView light_view;                 // this image's lights (RenderState)
 static std::atomic<int> light_console{0};    // 1 add test light, 2 clear
 static std::atomic<int> light_smooth{-1};     // D41H session override (-1 default)
@@ -288,6 +291,11 @@ static unsigned prop_lamps_publish(PSXModLight* out,unsigned room);  // D41L (le
 // D41F (light_shadows.inc): which of the image's lights may cast shadows
 // (cand, one per light), then slots for the strongest of them near Duke.
 static void shadows_assign(LightView& v,const uint8_t* cand);
+static void lamp_bake_levels(LightView& v,unsigned lamp0,unsigned lamp1);   // D41M (lamp_bake.inc)
+static float lamp_bake_published_reach(unsigned lamp);                      // D41M (lamp_bake.inc)
+static unsigned level_lamps_out_index[PSX_MOD_MAX_LIGHTS];   // D41M: level_lamps_publish's lights, by lamp
+static void lamp_bake_tick();
+static std::atomic<int> lamp_bake_override{-1};   // D41M console (lamp_bake.inc)
 static void shadow_mesh_tick();
 static double shadow_probe_eye[3];
 static bool shadows_console(const char* arg,void (*say)(const char*));
@@ -300,12 +308,18 @@ static void lights_publish() {
     v.n=lights_flight(v.l,8);
     const unsigned scene0=v.n;
     v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
+    const unsigned lamps_end=v.n;
     if(security_tv_lights) v.n+=security_tv_lights(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D53: TV screens
     v.n+=prop_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41L: woodburners, chandeliers
     // D41E: in Relit the scene's own lights (lamps, signs, screens, prop
     // lamps) are stronger, as they carry the dimmed level (relit.inc).
     if(float g,rr;light_relit_lamp_gain(g,rr))
-        for(unsigned i=scene0;i<v.n;++i) {v.l[i].r*=g;v.l[i].g*=g;v.l[i].b*=g;v.l[i].radius*=rr;}
+        for(unsigned i=scene0;i<v.n;++i) {
+            // D41M: a baked lamp keeps the reach it was baked with (user choice:
+            // fixed per lamp); the others follow the camera's room as before.
+            const float fixed=i<lamps_end ? lamp_bake_published_reach(level_lamps_out_index[i-scene0]) : -1.0f;
+            v.l[i].r*=g;v.l[i].g*=g;v.l[i].b*=g;v.l[i].radius*=fixed>0 ? fixed : rr;
+        }
     for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
@@ -326,6 +340,7 @@ static void lights_publish() {
         cand[v.n-1]=s.kind==light_kind_blast || s.kind==light_kind_test;
     }
     shadows_assign(v,cand);
+    lamp_bake_levels(v,scene0,lamps_end);   // D41M: after the slots (it marks the baked lamps)
     light_view=v;
 }
 
@@ -408,6 +423,7 @@ static void lights_tick() {
     ++light_ticks;
     relit_tick();         // D41E
     shadow_mesh_tick();   // D41F
+    lamp_bake_tick();     // D41M
     lights_fire_collect();
     lights_bolts_tick();  // D56
     if(std::getenv("DNTTK_LIGHT_PROBE")) lights_probe_report();
@@ -542,6 +558,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
      psx_mod_gpu_set_shadow_edges(t && !std::strcmp(t,"simple") ? 0 : t && !std::strcmp(t,"reference") ? 2 : 1);}
     psx_mod_gpu_set_shadows(light_view.sh,(int)light_view.nsh);   // D41F: before the lights that name them
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
+    if(light_view.bake_n) {const float e[3]={(float)eye[0],(float)eye[1],(float)eye[2]};psx_mod_gpu_set_lamp_levels(e,light_view.bake_gain,light_view.bake_rgb,(int)light_view.bake_n);}
     near_clip_light_probe_lights(l,(int)n,light_view.amb);
 }
 // Backtick console: "light" (a test light at Duke), "light <r> <g> <b>
@@ -554,6 +571,13 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
     if(ttk_world_classic()) {say("Light: dynamic lights need the Polymorph renderer");return true;}
     const char* arg=line+5;while(*arg==' ')++arg;
     if(!std::strcmp(arg,"off")) {light_console.store(2);say("Light: test lights removed");return true;}
+    // D41M prototype: "light bake on|off|default" - baked fixed lamps this session.
+    if(!std::strncmp(arg,"bake",4) && (!arg[4] || arg[4]==' ')) {
+        const char* v=arg+4;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) lamp_bake_override.store(1);else if(!std::strcmp(v,"off")) lamp_bake_override.store(0);else if(!std::strcmp(v,"default")) lamp_bake_override.store(-1);
+        say(lamp_bake_override.load()==1?"Light: baked lamps on":lamp_bake_override.load()==0?"Light: baked lamps off":"Light: baked lamps default");
+        return true;
+    }
     // D41E: "light mode enhanced|relit|original" - LIGHTING for this session
     // (matched comparisons; OPTIONS > DISPLAY > LIGHTING saves it).
     if(!std::strncmp(arg,"mode",4) && (!arg[4] || arg[4]==' ')) {

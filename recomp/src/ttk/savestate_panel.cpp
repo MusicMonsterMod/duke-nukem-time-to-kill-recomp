@@ -208,14 +208,26 @@ int render(uint32_t* dst,int w,int h,int selected) {
 // Called by the framework after a successful save, while guest RAM still holds
 // the saved state: record the level beside the slot (gameplay, and D20B the
 // statistics screen after it: the level just completed, "complete 1").
+// D50A: a save's state is copied at once and written off the emulation
+// thread; the level and mode are taken here, at the copy, so the sidecar
+// describes the saved moment, and written only once the file is (saved).
+namespace ttk {
+struct SidecarCapture {int slot=-1;uint16_t mode=0;unsigned level=0;};
+static SidecarCapture sidecar_capture;
+}
+extern "C" void ttk_savestate_captured(int slot) {
+    ttk::sidecar_capture={slot,(uint16_t)psx_mod_read_half(0x800bcbb0),psx_mod_read_word(0x800be570)};
+}
 extern "C" void ttk_savestate_saved(int slot) {
     const std::string path=ttk::sidecar_path(slot);
     if(path.empty())return;
     std::remove(path.c_str());
     const bool resume=ttk::game_menu_saved(slot); // D19Q: SAVE GAME's save, its picture
-    const uint16_t mode=psx_mod_read_half(0x800bcbb0);
+    const bool captured=ttk::sidecar_capture.slot==slot;
+    const uint16_t mode=captured?ttk::sidecar_capture.mode:psx_mod_read_half(0x800bcbb0);
+    const unsigned level=captured?ttk::sidecar_capture.level:psx_mod_read_word(0x800be570);
+    ttk::sidecar_capture.slot=-1;
     if(mode!=1 && mode!=2)return; // not in a level: no level to record
-    const unsigned level=psx_mod_read_word(0x800be570);
     if(level>=32)return;
     std::ofstream file(path);
     file<<"level "<<level<<"\n";

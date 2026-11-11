@@ -580,6 +580,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         if((int)near[j].i==level_lamp_selected && light_ticks<level_lamp_flash_until)
             e=(light_ticks/6)&1 ? std::max(e,1.2f) : 0.0f;  // editor: the selected lamp blinks
         if(e<=0.01f) continue;
+        level_lamps_out_index[k]=near[j].i;   // D41M: which lamp each published light is
         PSXModLight& o=out[k++];
         o.x=(float)l.p[0];o.y=(float)l.p[1];o.z=(float)l.p[2];o.radius=(float)l.radius;
         o.r=rgb[0]*e;o.g=rgb[1]*e;o.b=rgb[2]*e;o.flags=0;
@@ -908,6 +909,115 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
     }
     return out;
 }
+// D50A: the neon sign set, built off the game thread. The level-start pass
+// above (level_lamps_signs with a neon list) also finds lamps, casts rays and
+// read every VRAM texel and RAM word through the emulator on the game thread:
+// 20-70 ms once per level start. This scanner only finds the neon faces
+// (the same rule: static props, textured non-animated faces, 64+ texels, 40%
+// dark and 10% neon) from a copy of main RAM and VRAM taken in one step, and
+// runs on its own thread; the game thread polls for the result.
+struct NeonSnapshot {std::vector<uint8_t> ram;std::vector<uint16_t> vram;};
+static NeonSnapshot neon_snapshot_take() {
+    NeonSnapshot s;
+    s.ram.assign(g_psx_ram,g_psx_ram+0x200000);
+    s.vram.resize(1024*512);
+    gpu_vram_copy(s.vram.data());
+    return s;
+}
+static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
+    std::vector<uint32_t> neon;
+    auto ok=[](uint32_t a,uint32_t n){return a>=0x80010000u && a<=0x80200000u-n;};
+    auto rb=[&](uint32_t a)->uint32_t{return s.ram[a&0x1fffff];};
+    auto rh=[&](uint32_t a)->uint32_t{a&=0x1ffffe;return s.ram[a]|s.ram[a+1]<<8;};
+    auto rw=[&](uint32_t a)->uint32_t{a&=0x1ffffc;return s.ram[a]|s.ram[a+1]<<8|s.ram[a+2]<<16|(uint32_t)s.ram[a+3]<<24;};
+    auto texel=[&](int x,int y){return s.vram[(y&511)*1024+(x&1023)];};
+    const uint32_t table=rw(0x800da454),rooms=rw(0x800da47c),types=rw(0x800d2660);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return neon;
+    const bool types_ok=types>=0x80010000u && types<0x80200000u-0x7428u && !(types&3);
+    // Per texture window: is it neon on a dark ground?
+    std::map<std::array<uint32_t,3>,bool> texes;
+    auto tex_neon=[&](uint32_t t1,uint32_t t2,uint32_t t3,unsigned nc)->bool {
+        const std::array<uint32_t,3> key{t1,t2&0x1ffffffu,nc==4?t3:t3&0xffffu};
+        if(auto it=texes.find(key);it!=texes.end()) return it->second;
+        const uint32_t clut=t1>>16,tp=(t2>>16)&0x1ff;
+        const uint32_t uv[4]={t1&0xffff,t2&0xffff,t3&0xffff,t3>>16};
+        int u0=255,u1=0,v0=255,v1=0;
+        for(unsigned i=0;i<nc;++i) {u0=std::min<int>(u0,uv[i]&0xff);u1=std::max<int>(u1,uv[i]&0xff);v0=std::min<int>(v0,uv[i]>>8);v1=std::max<int>(v1,uv[i]>>8);}
+        const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
+        double n=0,dark=0,ne=0;
+        for(int v=v0;v<=v1;++v) for(int u=u0;u<=u1;++u) {
+            uint16_t c;
+            if(depth==0) c=texel(cx+((texel(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
+            else if(depth==1) c=texel(cx+((texel(tx+u/2,ty+v)>>(8*(u&1)))&0xff),cy);
+            else c=texel(tx+u,ty+v);
+            n+=1;
+            const double r=(c&31)/31.0,g=((c>>5)&31)/31.0,b=((c>>10)&31)/31.0,mx=std::max({r,g,b}),mn=std::min({r,g,b});
+            if(mx<0.2) dark+=1;
+            if(!c) continue;
+            if(mx>=0.7 && (mx-mn)/mx>=0.5) {
+                const double d=mx-mn,hue=mx==r?std::fmod(60*(g-b)/d+360,360.0):mx==g?60*(b-r)/d+120:60*(r-g)/d+240;
+                if(hue<12 || hue>70) ne+=1;
+            }
+        }
+        return texes[key]=n>=64 && dark>=0.4*n && ne>=0.1*n;
+    };
+    std::map<uint32_t,std::vector<uint32_t>> meshes;
+    auto mesh_neon=[&](uint32_t mesh)->const std::vector<uint32_t>& {
+        if(auto it=meshes.find(mesh);it!=meshes.end()) return it->second;
+        std::vector<uint32_t>& out=meshes[mesh];
+        const unsigned nv=rb(mesh+6);
+        const uint32_t vp=rw(mesh+0x10);uint32_t cur=rw(mesh+0x14);
+        if(!nv || vp<0x80010000u || vp>0x80200000u-8*nv || (vp&3)) return out;
+        for(unsigned guard=0;guard<256;++guard) {
+            if(cur<0x80010000u || cur>0x801ffffcu || (cur&3)) break;
+            const uint32_t header=rw(cur);cur+=4;
+            const uint32_t type=header&0xffff,n=header>>16;
+            if(type==0xff) break;
+            unsigned size=0;
+            switch(type) {case 0x20: case 0x28: size=8;break;case 0x30: case 0x38: size=12;break;case 0x24: case 0x2c: size=16;break;case 0x34: case 0x3c: size=20;break;}
+            if(!size || !n || n>4096 || cur>0x80200000u-n*size) break;
+            for(uint32_t k=0;k<n;++k,cur+=size) {
+                if(type!=0x24 && type!=0x2c && type!=0x34 && type!=0x3c) continue;
+                const uint32_t word=rw(cur),t1=rw(cur+4),t2=rw(cur+8),t3=rw(cur+12);
+                if((t2>>25)&0x20) continue;                      // animated: flames, not signs
+                const unsigned nc=(type&8)?4:3;
+                double P[4][3];bool bad=false;
+                for(unsigned j=0;j<nc;++j) {
+                    const unsigned i=(word>>(8*j))&0xff;if(i>=nv) {bad=true;break;}
+                    for(int a=0;a<3;++a) P[j][a]=(int16_t)rh(vp+8*i+2*a);
+                }
+                if(bad) continue;
+                double nn[3]={0,0,0};
+                auto cross=[&](const double* a,const double* b,const double* c) {
+                    const double u[3]={b[0]-a[0],b[1]-a[1],b[2]-a[2]},v[3]={c[0]-a[0],c[1]-a[1],c[2]-a[2]};
+                    nn[0]+=u[1]*v[2]-u[2]*v[1];nn[1]+=u[2]*v[0]-u[0]*v[2];nn[2]+=u[0]*v[1]-u[1]*v[0];
+                };
+                cross(P[0],P[1],P[2]);if(nc==4) cross(P[1],P[3],P[2]);
+                if(std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2])<1) continue;
+                if(tex_neon(t1,t2,t3,nc)) out.push_back(cur);
+            }
+        }
+        return out;
+    };
+    std::set<uint32_t> seen;
+    for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
+        uint32_t node=rw(table+88*r+head_at);
+        for(unsigned guard=0;node && guard<1024;++guard) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+            const uint32_t o=rw(node+8);node=rw(node+4);
+            if(o<0x80010000u || o>0x801fff00u || (o&3) || !seen.insert(o).second) continue;
+            if(rb(o+0x14)!=1) continue;                         // static props only
+            const unsigned type=rh(o+0x2c);
+            if(types_ok && type<0x7428u/28 && (rw(types+28*type)&0x20000000u)) continue; // pickups
+            const uint32_t mesh=rw(o+0x44);
+            if(mesh<0x80010000u || mesh>0x801ffff0u || (mesh&3)) continue;
+            const std::vector<uint32_t>& f=mesh_neon(mesh);
+            neon.insert(neon.end(),f.begin(),f.end());
+        }
+    }
+    (void)ok;
+    return neon;
+}
 // Removes lamps whose note starts with prefix; returns how many are left.
 static size_t level_lamps_drop_notes(const char* prefix) {
     const size_t n=std::strlen(prefix);
@@ -1171,16 +1281,34 @@ static void level_lamps_update(CPUState* cpu) {
     // (the level's textures in place), and once more when the object
     // animation table first shows up (animated signs).
     static unsigned neon_level=~0u,neon_loads=~0u;static uint32_t neon_due;static bool neon_had_table;
+    static std::future<std::vector<uint32_t>> neon_job;static unsigned neon_gen,neon_job_gen,neon_job_level;static bool neon_job_table;
+    static double neon_snap_ms;static std::chrono::steady_clock::time_point neon_job_t0;
     if(const unsigned loads=psx_mod_savestate_loads();level!=neon_level || loads!=neon_loads) {
-        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});
+        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});++neon_gen;
     }
     if((neon_due && light_ticks>=neon_due) || (!neon_due && !neon_had_table && near_clip_object_animation())) {
         neon_due=0;neon_had_table=near_clip_object_animation()!=0;
+        // D50A: snapshot here (the same moment the pass ran before), scan on
+        // a worker thread; the result is applied on the game thread below.
         const auto t0=std::chrono::steady_clock::now();
-        std::vector<uint32_t> neon;level_lamps_signs(&neon);
-        const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
-        std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (%.1f ms%s)\n",level,neon.size(),ms,neon_had_table?"":", animated faces not yet known");
-        near_clip_set_glow_faces(std::move(neon));
+        auto snap=std::make_shared<NeonSnapshot>(neon_snapshot_take());
+        neon_snap_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
+        if(std::getenv("DNTTK_NEON_CHECK")) {   // developer: the old pass beside it, for comparison
+            std::vector<uint32_t> old;level_lamps_signs(&old);std::sort(old.begin(),old.end());old.erase(std::unique(old.begin(),old.end()),old.end());
+            std::vector<uint32_t> fresh=neon_scan(*snap);std::sort(fresh.begin(),fresh.end());fresh.erase(std::unique(fresh.begin(),fresh.end()),fresh.end());
+            std::fprintf(stderr,"[TTK lamp] neon check level %u: old %zu new %zu faces, %s\n",level,old.size(),fresh.size(),old==fresh?"identical":"DIFFERENT");
+        }
+        neon_job_gen=++neon_gen;neon_job_level=level;neon_job_table=neon_had_table;neon_job_t0=t0;
+        neon_job=std::async(std::launch::async,[snap]{return neon_scan(*snap);});
+    }
+    if(neon_job.valid() && neon_job.wait_for(std::chrono::seconds(0))==std::future_status::ready) {
+        std::vector<uint32_t> neon=neon_job.get();
+        const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-neon_job_t0).count();
+        if(neon_job_gen==neon_gen && neon_job_level==level) {
+            std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (snapshot %.1f ms on the game thread, scan %.1f ms off it%s)\n",
+                         level,neon.size(),neon_snap_ms,ms,neon_job_table?"":", animated faces not yet known");
+            near_clip_set_glow_faces(std::move(neon));
+        }
     }
     std::deque<std::string> todo;
     {std::lock_guard<std::mutex> g(level_lamp_mutex);todo.swap(level_lamp_queue);}

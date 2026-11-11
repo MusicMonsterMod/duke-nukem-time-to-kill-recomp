@@ -25,6 +25,8 @@
 #include "live_env.h"
 #include "code_identity.h"
 #include "near_clip.h"
+#include "lamp_bake.h"
+#include "lamp_bake_map.h"
 #include "security_monitor.h"
 #include "prop_lights.h"
 #include "prop_state.h"
@@ -35,6 +37,7 @@
 #include <algorithm>
 #include <array>
 #include <set>
+#include <future>
 #include <atomic>
 #include <cctype>
 #include <cmath>
@@ -1242,6 +1245,7 @@ static bool facing_ready() {
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
 #include "relit.inc"
+#include "lamp_bake.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;
@@ -1304,9 +1308,11 @@ extern "C" void gl_renderer_replay_diag(uint64_t* presents,uint64_t* replays,uin
 static double hitch_fill_min=1e9,hitch_fill_start=-1;
 static void hitch_sample_fill(double fill) {if(hitch_fill_start<0)hitch_fill_start=fill;hitch_fill_min=std::min(hitch_fill_min,fill);}
 extern uint64_t ro_drops_total();
+extern "C" uint64_t psx_audio_out_rebuffers(void);
 static void hitch_second(double rate,double dt,bool unjudged) {
-    static uint64_t last_p,last_m,last_h[8],last_ur,last_ro;static bool primed;static unsigned lines;
+    static uint64_t last_p,last_m,last_h[8],last_ur,last_ro,last_rb;static bool primed;static unsigned lines;
     const uint64_t ro=ro_drops_total(),dro=ro-last_ro;last_ro=ro;
+    const uint64_t rb=psx_audio_out_rebuffers(),drb=rb-last_rb;last_rb=rb;
     uint64_t p=0,r=0,m=0,h[8]{};double hz=0;gl_renderer_replay_diag(&p,&r,&m,&hz,h);
     double fill=0,target=0,corr=0;uint64_t ur=0,od=0;int legacy=1,host=0;
     const bool audio=psx_audio_out_stats(&fill,&target,&ur,&od,&corr,&legacy,&host) && !legacy && target>0;
@@ -1323,11 +1329,11 @@ static void hitch_second(double rate,double dt,bool unjudged) {
     const double mean=dp?1000.0*dt/dp:1000.0;
     uint64_t late=0;for(int i=0;i<8;++i) if(lo[i]>=1.4*mean) late+=d[i];
     const bool fell=audio && fill_start>=0 && fill_start-fill_min>=40;
-    if(rate>=58 && late<3 && !dm && !dur && !fell && !dro) return;
+    if(rate>=58 && late<3 && !dm && !dur && !fell && !dro && !drb) return;
     ++lines;
-    std::fprintf(stderr,"[TTK hitch] game %.1f/s, presents %.0f/s, late %llu (presents 8-12 ms %llu, 12-20 %llu, 20+ %llu), missed %llu, audio %.0f->%.0f (min %.0f) ms, underruns %llu, redraw-only off %llu, weapon %u, lights %u, view %s, Duke %d %d %d\n",
+    std::fprintf(stderr,"[TTK hitch] game %.1f/s, presents %.0f/s, late %llu (presents 8-12 ms %llu, 12-20 %llu, 20+ %llu), missed %llu, audio %.0f->%.0f (min %.0f) ms, underruns %llu, rebuffers %llu, redraw-only off %llu, weapon %u, lights %u, view %s, Duke %d %d %d\n",
         rate,dp/dt,(unsigned long long)late,(unsigned long long)d[5],(unsigned long long)d[6],(unsigned long long)d[7],(unsigned long long)dm,
-        fill_start,audio?fill:0.0,fill_min>=1e9?0.0:fill_min,(unsigned long long)dur,(unsigned long long)dro,(unsigned)psx_mod_read_byte(player+0x3b9),light_view.n,
+        fill_start,audio?fill:0.0,fill_min>=1e9?0.0:fill_min,(unsigned long long)dur,(unsigned long long)drb,(unsigned long long)dro,(unsigned)psx_mod_read_byte(player+0x3b9),light_view.n,
         first_person_view_live()?"first":"third",(int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12));
 }
 static void overclock_lease() {

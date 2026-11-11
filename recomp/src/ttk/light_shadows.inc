@@ -47,6 +47,10 @@ static uint64_t shadow_mesh_sig;static uint32_t shadow_mesh_loads=~0u;
 static uint64_t shadow_dropped;   // D41E: lights dimmed or dropped for want of a map
 static uint32_t shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_builds;static double shadow_mesh_ms;
 static std::vector<float> shadow_mesh_copy;static std::vector<uint32_t> shadow_mesh_owner;   // ray test (console)
+// D41M: each face of the mesh (its record address in the piece's polygon
+// list and its triangles in shadow_mesh_copy), for the lamp bake.
+struct ShadowFace {uint32_t record,first,count;};
+static std::vector<ShadowFace> shadow_mesh_faces;static uint32_t shadow_mesh_builds_seen;
 static constexpr unsigned shadow_new_per_tick=8;
 struct ShadowSlot {float p[3];float far;uint32_t stamp,tick;bool used;};
 static ShadowSlot shadow_slots[PSX_MOD_SHADOW_SLOTS];static uint32_t shadow_stamp_next=1;
@@ -70,7 +74,7 @@ static uint64_t shadow_mesh_signature() {
 }
 static void shadow_mesh_build() {
     const auto t0=std::chrono::steady_clock::now();
-    std::vector<float> xyz;std::vector<PSXModShadowChunk> chunks;
+    std::vector<float> xyz;std::vector<PSXModShadowChunk> chunks;std::vector<ShadowFace> faces;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(rooms && rooms<=256 && shadow_ram(table,rooms*88)) for(uint32_t r=0;r<rooms;++r) {
         const uint32_t a=table+88*r;
@@ -109,8 +113,11 @@ static void shadow_mesh_build() {
                     unsigned idx[4];bool in=true;
                     for(unsigned j=0;j<(type==0x60?3u:4u);++j) {idx[j]=(word>>(8*j))&0xff;in&=idx[j]<count;}
                     if(!in) continue;
+                    const uint32_t before=(uint32_t)(xyz.size()/9);
                     tri(idx[0],idx[1],idx[2]);
                     if(type==0x61) tri(idx[1],idx[2],idx[3]);   // the GPU's second half
+                    const uint32_t made=(uint32_t)(xyz.size()/9)-before;
+                    if(made) faces.push_back({cursor,before,made});
                 }
             }
             c.count=(uint32_t)(xyz.size()/9)-c.first;
@@ -118,7 +125,7 @@ static void shadow_mesh_build() {
         }
     }
     shadow_mesh_tris=(uint32_t)(xyz.size()/9);shadow_mesh_chunks=(uint32_t)chunks.size();
-    shadow_mesh_copy=xyz;shadow_mesh_owner.clear();
+    shadow_mesh_copy=xyz;shadow_mesh_owner.clear();shadow_mesh_faces=std::move(faces);
     for(const auto& c:chunks) for(uint32_t t=0;t<c.count;++t) shadow_mesh_owner.push_back((uint32_t)(&c-chunks.data()));
     psx_mod_gpu_set_shadow_mesh(xyz.data(),shadow_mesh_tris,chunks.data(),shadow_mesh_chunks);
     ++shadow_mesh_builds;
@@ -148,9 +155,12 @@ static void shadow_probe_report() {
         d.size(),d[d.size()/2],d[d.size()*9/10],d.back(),ns?sum[0]/ns:0,ns?sum[1]/ns:0,ns?sum[2]/ns:0,ns);
 }
 // Once per game tick, before the lights are published.
+static bool lamp_bake_wanted();   // D41M (lamp_bake.inc)
 static void shadow_mesh_tick() {
     if(std::getenv("DNTTK_SHADOW_PROBE")) shadow_probe_report();
-    if(!shadows_on()) {
+    // D41M: the baked lamps need the room mesh also with SHADOWS off (walls
+    // always stop them); no shadow slot is assigned then (shadows_assign).
+    if(!shadows_on() && !(lamp_bake_wanted() && lights_enabled())) {
         if(shadow_mesh_tris) {psx_mod_gpu_set_shadow_mesh(nullptr,0,nullptr,0);shadow_mesh_tris=shadow_mesh_chunks=0;shadow_mesh_sig=0;}
         return;
     }

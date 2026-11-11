@@ -533,3 +533,14 @@ The soft shoulder of section 5 is replaced: the painted colour stays as it
 is and only the added light is soft-limited, on its brightest channel (hue
 kept). The D41D1 neon rule leaves only neon faces unlit, not their whole
 prop. [Note 434](434-d41k-props-in-light.md).
+
+## 15. D41G - Light scale and cost (2026-11-11, Needs playtest)
+
+Each lit triangle carries a 32-bit list of the lights whose reach meets its
+bounding box (`light_mask_tri`), and the shader visits only those; images
+match the full loop. At 180 Hz offscreen: 1.5-2 points less whole-GPU use in
+UI slot 8 (2.4 of 6 lights kept a triangle), 3-6 in UI slot 2 (0.07 of 3-6).
+Clustered lists are not needed at 32 lights. Census: untextured triangles
+carry no world position (HUD, fades, effects: nothing to light); translucent
+world faces are lit; sprites stay as drawn. Shadowed lights are further
+culled by D41F2 (note 439 section 6).

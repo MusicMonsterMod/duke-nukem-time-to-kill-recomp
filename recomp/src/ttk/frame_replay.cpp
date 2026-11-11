@@ -396,7 +396,7 @@ struct Frame {
     int16_t view_rot[max_jobs][9];   // D49F: the whole view rotation (rows)
     int njobs=0;
     InterpState state;
-    uint8_t render[8192];   // modern_controls draw-time state (render_state_save)
+    uint8_t render[16384];  // modern_controls draw-time state (render_state_save; D41M: 16 KB with the lamp levels)
     NearClipFrameState near{};   // near clip frame accounting at composition entry
     // Transforms the live composition loaded through 0x800292a0 (camera,
     // matrix), keyed by drawn object and call index within its draw.
@@ -1420,6 +1420,9 @@ void capture(CPUState* cpu,int kind) {
         f->state.camera.pos[0],f->state.camera.pos[1],f->state.camera.pos[2]);
     static const bool nostate=std::getenv("DNTTK_REPLAY_NOSTATE")!=nullptr;
     if(!nostate && render_state_size()<=sizeof f->render) render_state_save(f->render);
+    else if(!nostate) {   // D41M: a state that no longer fits loses every redraw's lights, say so
+        static bool told;if(!told) {told=true;std::fprintf(stderr,"[TTK redraw] draw-time state %zu bytes does not fit %zu: redraws run without it\n",render_state_size(),sizeof f->render);}
+    }
     f->near=near_clip_frame_state();
     // Record this frame's transforms; redraws of the previous frame are queued
     // when this composition ends (composition_end), with both sets complete.

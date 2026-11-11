@@ -45,6 +45,7 @@
 #include "sky_render.h"
 #include "sky_borrow.h"
 #include "security_monitor.h"
+#include "lamp_bake_map.h"
 #include "prop_lights.h"
 #include "bio_mask_mesh.h"
 #include "bio_mask_atlas.h"
@@ -119,6 +120,7 @@ bool tint() {static const bool v=env_int("DNTTK_NEAR_TINT",0,0,1)==1;return v;}
 // texture coordinates, so the GPU maps it with correct perspective. Pieces
 // outside unified geometry are split only to keep their sort depth local.
 uint64_t precise_triangles;
+uint64_t baked_corners;   // D41M: world corners emitted with a baked surface
 double precise_split_pixels() {static const double v=env_int("DNTTK_NEAR_SPLIT_PX",192,32,1024);return v;}
 double precise_depth_ratio() {static const double v=env_int("DNTTK_NEAR_SPLIT_RATIO",150,105,400)/100.0;return v;}
 // D17AM unified geometry (Modernized default since D17AM3, notes 324-326):
@@ -405,6 +407,7 @@ struct Poly {
     // whether the face is seen from both sides (light from either side).
     float n[4][3]{};bool two_sided=false;
     bool glow=false; // D41K: a neon sign face (glow_faces): gives light, never lit
+    uint32_t surface=0; // D41M: its baked lamp surface (lamp_bake_map; 0 none)
     bool foreign=false; // D41L: textured from the second bank (prop flames and glows)
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
@@ -801,6 +804,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                 }
                 if(!f.object && v[i].original>=0) shadow_probe_corner(wx,wy,wz);   // D41F developer probe
                 if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
+                else if(poly.surface) {psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,poly.surface);++baked_corners;}   // D41M
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
         }
@@ -1462,6 +1466,7 @@ void world(CPUState* cpu) {
     for(uint32_t tagged:taken) {
         const uint32_t record=tagged&~1u;
         Poly p{};p.source=record;p.count=(tagged&1)?4:3;p.textured=true;p.command=0x34000000u;
+        p.surface=lamp_bake_surface(record);   // D41M
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
         Poly drawn=p;const bool repeated=unified_scene(f) && repeated_corner_triangle(drawn);

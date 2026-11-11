@@ -81,6 +81,16 @@ extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t,uint32_t,int32_t,int32_t
 extern "C" int psx_mod_gpu_host_vertex_world(uint32_t,uint32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_world_normal(uint32_t,uint32_t,float,float,float,float,float,float){return 1;}
 extern "C" void psx_mod_gpu_set_lights(const PSXModLight*,int,float){}
+extern "C" void psx_mod_gpu_set_shadow_mesh(const float*,uint32_t,const PSXModShadowChunk*,uint32_t){}
+extern "C" void psx_mod_gpu_set_shadows(const PSXModShadow*,int){}
+extern "C" void psx_mod_gpu_set_shadow_edges(int){}
+// D41M baked lamps (stubs: the native harness has no renderer).
+extern "C" int psx_mod_gpu_host_vertex_world_surface(uint32_t,uint32_t,float,float,float,uint32_t){return 1;}
+extern "C" void psx_mod_gpu_set_lightmap(const PSXModLightmap*){}
+extern "C" void psx_mod_gpu_set_lamp_levels(const float*,float,const float*,int){}
+extern "C" void gl_shadow_counters(uint64_t out[4]){for(int i=0;i<4;++i)out[i]=0;}
+extern "C" void gpu_vram_copy(uint16_t* out){for(int i=0;i<1024*512;++i)out[i]=0;}
+extern "C" uint64_t psx_audio_out_rebuffers(void){return 0;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}
 extern "C" int psx_mod_set_fixed_display_aspect(uint32_t n,uint32_t d) {aspect_num=n;aspect_den=d;return 1;}

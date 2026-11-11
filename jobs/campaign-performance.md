@@ -1031,7 +1031,7 @@ the game now, all is fine. lock this in and close it out".
 
 ### D23J - Lighter Polymorph: base cost of the 180 Hz redraws
 
-**Status: Todo (backlog; user 2026-11-11). Dependencies: D17AW, D41F1.** After
+**Status: Done (user-accepted 2026-11-11; [note 443](../documentation/443-d23j-lighter-polymorph.md)). Dependencies: D17AW, D41F1.** After
 D41F1, the largest GPU cost is the base scene: about 28% of the player's GTX
 1080 Ti with lighting off in the level 6 view at 180 Hz, most of it
 independent of resolution. For comparison (2026-11-11, the user playing,
@@ -1065,6 +1065,92 @@ Acceptance: a clearly lower base cost in the level 6 view and slot 8 at 180
 Hz (lighting off and SMOOTH), measured per program and at full clock, with
 EDuke32 as the yardstick; identical pictures (image comparison); 180
 presents/s held in a 60 s walk; feel unchanged or better; Vanilla unchanged.
+
+Work log, 2026-11-11. The player's monitor was off, so the lab ran headless
+on the player's GPU (SDL `offscreen`/EGL, 180 Hz, scale 3, UI slot 8,
+`recomp/analysis/d23j/lab.py`, local). New developer `PSX_GPU_PHASES=2` times
+each kind of GPU work inside a redraw. Findings: batching was already good
+(about 5 textured draws a redraw), so step 2 had nothing to gain; per redraw
+the copy-on-write save and restore cost about as much as the textured draws,
+and a depth clear after the depth-stencil blits took 0.13 ms (0.014 ms after
+raw copies); the lighting layer's registers cost lighting ORIGINAL about a
+fifth. Changes (framework): raw `glCopyImageSubData` copies for copy-on-write,
+band capture and wide centre (first copy checked, blits on a GL error);
+colour-only copy-on-write on the render thread while stencil is stale (depth
+is cleared before use in every session); a redraw identical to the thread's
+last one (same snapshot, stream and SHADOW EDGES) reuses its image; a lean
+textured program without the lighting layer for batches with no light in
+effect. Each has a developer switch (`PSX_REPLAY_COPY_IMAGE`,
+`PSX_REPLAY_DS_SKIP`, `PSX_REDRAW_REUSE`, `PSX_TEX_LEAN` = 0).
+Results, clock-weighted GPU use, old -> new: still view ORIGINAL 16.0% ->
+10-13%, ENHANCED + SMOOTH 20.8% -> 15-16%, RELIT + SMOOTH 22.1% -> 15.3%;
+turning all the time ORIGINAL 19.0% -> 14%, ENHANCED + SMOOTH 25.0% -> 21%,
+RELIT + SMOOTH 26.7% -> 21.9%. Images: 5016 render-thread redraws exact
+against full redraws (`PSX_RT_VALIDATE`), 2112 lean redraws exact against the
+full program (new `PSX_REPLAY_VALIDATE_LEAN`), copy-on-write checker clean.
+60 s walk at 180 Hz: pace minute 179.8 presents/s, as before. Near, flash,
+live-env and sky tests PASS; Vanilla boots and draws; patch verified on a
+clean `08ec704a`. Not yet done: the real-display measurement (the player's
+28% included the desktop; windowed 180 Hz is composited by Cinnamon, which
+honours SDL's bypass only for fullscreen), the EDuke32 comparison on the same
+display, and the feel playtest. Left for later: copy-on-write without the
+wide centre (about 0.05 ms a redraw), skipping repeated small uploads (about
+0.05 ms); the lit path's cost belongs to D41G and D41F2.
+
+Closeout, 2026-11-11. User playtest on the medieval level: "the playtest
+felt absolutely perfect"; GPU at most about 50% looking over the whole castle
+from jetpack height (the heaviest view so far), about 40% in UI slot 2 (the
+most drawn in natural play); whole-GPU figures on the windowed desktop.
+Accepted and closed. The real-display, compositor and low-end measurements
+move to D23K, with the goal of performance comparable to EDuke32.
+
+### D23K - Performance parity with EDuke32: research and job plan
+
+**Status: Todo (selected next; user 2026-11-11). Dependencies: D23J.** User
+goal: "performance comparable or better than eduke32" - that is the real
+target. After D23J the game holds 180 Hz on the player's GTX 1080 Ti with
+about 40-50% whole-GPU use in the heaviest views (castle from jetpack height,
+UI slot 2), against about 13-14% for EDuke32 (Polymost and Polymer, 1280x720,
+vsync off, 2026-11-11). Concerns raised at the D23J verdict: the player's
+figures include the desktop compositor (windowed at 180 Hz is composited by
+Cinnamon); the per-frame GPU work is about three times EDuke32's; nothing has
+been measured on weak hardware (Steam Deck class, laptop iGPU); each redraw
+re-runs the game's drawing in a worker (about one extra CPU core at 180 Hz,
+roughly three busy cores in all).
+
+Part 1 - research (deep, with sources and measurements):
+
+- An EDuke32 yardstick on the same machine and display: same resolution,
+  refresh and mode (windowed and fullscreen), per program (`nvidia-smi pmon`,
+  clock-weighted) and CPU per thread; comparable scenes (an open outdoor view,
+  a dense indoor view, combat with effects). Define the metrics and the
+  parity bar (GPU ms a frame, CPU cores, frame-time stability, behaviour on a
+  weak GPU and CPU).
+- Our full cost: GPU per kind (`PSX_GPU_PHASES=2`), the lit path (lights,
+  shadows), present and compositor, CPU per thread (emulation, workers,
+  render thread), memory bandwidth, the castle and UI slot 2 views.
+- Low-end: how the game behaves on a much weaker GPU and CPU (a real device
+  if available, otherwise simulated: clock limits, core limits, lower scale),
+  and how AUTO and the D23H governor respond.
+- How others do it: EDuke32 Polymost/Polymer, Nightdive's KEX ports, other
+  recompilation and emulator projects (Beetle/SwanStation/DuckStation
+  hardware renderers, N64Recomp/RT64), frame generation and reprojection
+  designs; which of their techniques fit the redraw architecture.
+- Ranked opportunities with estimated gains: for example fewer or cheaper
+  worker redraws, the lit path (D41G, D41F2), copy-on-write without the wide
+  centre and repeated uploads (note 443), present and fullscreen bypass,
+  quality/performance presets for weak hardware.
+
+Part 2 - stand up the jobs: a numbered research report, then one board entry
+per opportunity (description, dependencies, measurable acceptance) forming a
+plan that reaches parity, with an order of work. Reuse existing jobs where
+they fit (D41G, D41F2) and link them.
+
+Acceptance (for the programme the jobs form): performance comparable to or
+better than EDuke32 on the same machine and display, by the metrics the
+research defines, with identical pictures, feel unchanged or better, and
+Vanilla unchanged. D23K itself is done when the report is accepted and the
+jobs are on the board.
 
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 

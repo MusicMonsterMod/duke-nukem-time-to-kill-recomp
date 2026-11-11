@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-11 - D23J accepted and closed; D23K next
+
+User playtest: "the playtest felt absolutely perfect" (medieval level; about 50% GPU at most over the whole castle, about 40% in UI slot 2, whole GPU, windowed). D23J is Done: lighter 180 Hz redraws, [note 443](documentation/443-d23j-lighter-polymorph.md). Next, selected by the user: D23K, deep research and a full set of jobs for performance comparable to or better than EDuke32 (real display and compositor, CPU budget, low-end hardware, the lit path).
+
+## 2026-11-11 - D23J: lighter 180 Hz redraws (Needs playtest)
+
+Framework-only optimization of the Polymorph redraws: raw `glCopyImageSubData` copies for the redraw copy-on-write and band capture, colour-only copy-on-write on the render thread while stencil is stale, reuse of a redraw identical to the thread's last one, and a lean textured program (no lighting layer) for batches with no light in effect. Headless on the player's GPU at 180 Hz, slot 8: still view ORIGINAL 16% -> 10-13%, ENHANCED + SMOOTH 21% -> 15-16%; turning ORIGINAL 19% -> 14%, ENHANCED + SMOOTH 25% -> 21%. Images exact against full redraws (5016 render-thread and 2112 lean comparisons). Next: measure on the real display (windowed against F11 borderless, per program, Cinnamon's compositing at 180 Hz) and playtest the feel. Developer switches and checks: [note 443](documentation/443-d23j-lighter-polymorph.md).
+
 ## 2026-11-11 - D41F1 accepted and closed
 
 User playtest: "the game is genuinely playing better now. i didnt get a single stutter". D41F1 is Done: hard shadow edges from the occluding triangles, anti-aliased (OPTIONS > DISPLAY > SHADOW EDGES SMOOTH / SIMPLE), plus the optimization pass at 180 Hz on the player's GPU (SMOOTH 76% -> 42%, lighting off 39% -> 28%: cube-face tables out of local memory, widescreen margins no longer reshade the centre, an edge texture so the exact test runs only near outlines). Comparisons the same day: EDuke32 (Polymost and Polymer) does about a third of our base work at full clock. Backlog follow-ups: D23J (Polymorph base cost of the 180 Hz redraws) and D41F2 (shadow reuse and a run-time cache for fixed lamps). [Note 439](documentation/439-d41f-shadows.md) section 5.

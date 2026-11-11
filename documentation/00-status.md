@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-11 - D23J accepted and closed; D23K next
+
+User playtest: "the playtest felt absolutely perfect" (medieval level; about 50% GPU at most over the whole castle, about 40% in UI slot 2, whole GPU, windowed). D23J is Done: lighter 180 Hz redraws, [note 443](documentation/443-d23j-lighter-polymorph.md). Next, selected by the user: D23K, deep research and a full set of jobs for performance comparable to or better than EDuke32 (real display and compositor, CPU budget, low-end hardware, the lit path).
+
+## 2026-11-11 - D23J: lighter 180 Hz redraws (Needs playtest)
+
+Framework-only optimization of the Polymorph redraws: raw `glCopyImageSubData` copies for the redraw copy-on-write and band capture, colour-only copy-on-write on the render thread while stencil is stale, reuse of a redraw identical to the thread's last one, and a lean textured program (no lighting layer) for batches with no light in effect. Headless on the player's GPU at 180 Hz, slot 8: still view ORIGINAL 16% -> 10-13%, ENHANCED + SMOOTH 21% -> 15-16%; turning ORIGINAL 19% -> 14%, ENHANCED + SMOOTH 25% -> 21%. Images exact against full redraws (5016 render-thread and 2112 lean comparisons). Next: measure on the real display (windowed against F11 borderless, per program, Cinnamon's compositing at 180 Hz) and playtest the feel. Developer switches and checks: [note 443](documentation/443-d23j-lighter-polymorph.md).
+
 ## 2026-11-10 - D58 accepted and closed
 
 User: "lock it in and close it out. this one was more for you". D58 is Done:

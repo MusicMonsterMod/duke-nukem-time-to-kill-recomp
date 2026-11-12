@@ -1530,7 +1530,7 @@ started without crackle. Accepted.
 
 ### D50D - Quick save reports could not be saved while it saves
 
-**Status: Needs playtest (fixed 2026-11-11). Dependencies: D50A.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; fixed 2026-11-11). Dependencies: D50A.**
 User (playtest 2026-11-11, UI slots 6 and 2): "the game could not be saved
 ... but it does look like it actually did save". Session log: `[TTK cheat]
 THE GAME COULD NOT BE SAVED` right after the save's admission, then
@@ -1545,6 +1545,8 @@ the quick-save notice, SAVE GAME's result, the one-at-a-time guard and
 delete wait for it. `savestate_pending()` keeps its meaning for the
 framework's own polling. Lab (private card copy, UI slot 6 save): 12 F6
 saves in a row, 12 GAME SAVED, each after its successful write.
+
+Accepted, 2026-11-12. User after playing: "it's working! 'saved to slot 07' every time. solid". Closeout authorized.
 
 ### D50C - Walking into the level 3 pit halts the emulation
 

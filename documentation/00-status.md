@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-12 - D50D closed
+
+User after playing: F6 quick save showed "saved to slot 07" every time ("it's working! ... solid"); the false THE GAME COULD NOT BE SAVED notice is gone. Done; closeout authorized. Fix (2026-11-11): the save notices wait for `savestate_busy()` until the writer thread reports.
+
 ## 2026-11-12 - D50B, D50C and D41O closed
 
 User after playing: "the game no longer crashes at that point ... testing is solid". All three Done; closeout authorized. [Note 451](451-d50b-d50c-saves-and-the-pit.md).

@@ -1360,7 +1360,7 @@ a reliable GPU-time estimate at startup.
 
 ### D23Q - Renderer restart stall after an early savestate load
 
-**Status: Todo (D23K finding; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; [note 452](../documentation/452-d23q-restart-stall.md); D23K finding, [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
 In 4 of 7 D23K lab launches on the real display (windowed and borderless),
 the starvation watchdog (4 s) aborted the game during the renderer's restart
 right after a savestate load at boot; headless runs did not stall. Not seen
@@ -1369,6 +1369,29 @@ builds, render thread), find what blocks the emulation thread and move it
 off the heartbeat path or make it fast. Acceptance: 20 lab launches on the
 real display with a savestate load at boot and the default watchdog, none
 aborted.
+
+Work log, 2026-11-12 (Needs playtest; note 452). Cause, confirmed in code
+and by a lab freeze: the "restart" is the render threads' start (hidden
+windows, shared contexts, their renderers), made on the emulation thread at
+the first gameplay redraw, which follows the load. The starvation watchdog
+is checked on that same thread between guest cycles and measured wall time,
+so a host block over 4 s (the context creation on the troubled display
+driver of that hour) aborted the game after it had recovered; the D23K dump
+has no guest activity after the last heartbeat. Changes: the watchdog now
+counts only time the guest runs (gaps over 250 ms between checks move the
+heartbeat; gaps of 1 s or more are logged); the render threads start half a
+second into the opening when Polymorph has asked for them (a normal launch
+used to start them only after the player's load); the log times the start.
+Offscreen 180 Hz: windows and contexts 2.5-5.9 ms, each thread's renderer
+56-69 ms, workers' fork 7 ms, no host gap of 30 ms or more; the whole
+process stopped twice for 6 s in play: both freezes logged and survived
+(the earlier variant aborted on the second, the old failure); Vanilla
+unchanged (no render threads). Remaining: the 20 real-display launches need
+the user present (real-display runs are not done unattended).
+
+Accepted 2026-11-12. The user played on the real display, loading saves early
+and often: "all the save/load stuff is fine"; no abort. The user's play stands
+in for the 20 unattended real-display launches. Done; closeout authorized.
 
 ### D23S - Console overlay re-uploaded every present
 

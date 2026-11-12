@@ -211,11 +211,25 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
     out.width=W;out.height=H;
     out.steady.assign((size_t)W*H,0);out.channels.assign((size_t)W*H,0);
     out.charts.assign(nt*16,0.0f);
+    // Largest charts first (texels x lamps x sides): taken in face order, a
+    // few big floors near the end kept one thread busy long after the others
+    // had finished (4 -> 12 threads only 1.8x faster).
+    std::vector<uint32_t> work_order(nt);
+    {
+        std::vector<uint64_t> cost(nt,0);
+        for(size_t i=0;i<nt;++i) {
+            work_order[i]=(uint32_t)i;
+            const Chart& c=ch[i];
+            if(c.w && !c.lamps.empty()) cost[i]=(uint64_t)c.w*c.h*c.lamps.size()*((c.u[0]>=0)+(c.u[1]>=0));
+        }
+        std::stable_sort(work_order.begin(),work_order.end(),[&](uint32_t p,uint32_t q){return cost[p]>cost[q];});
+    }
     std::atomic<size_t> next{0};std::atomic<uint64_t> rays{0},texels{0},lamp_texels{0};std::atomic<unsigned> lit{0},two{0},over{0};
     auto work=[&]{
         std::vector<float> wsum;std::vector<float> per;   // per texel x lamp
         for(;;) {
-            const size_t i=next.fetch_add(1);if(i>=nt) break;
+            const size_t at=next.fetch_add(1);if(at>=nt) break;
+            const size_t i=work_order[at];
             Chart& c=ch[i];float* rec=&out.charts[i*16];
             rec[3]=rec[11]=-1;rec[13]=rec[14]=255*256+255;
             if(!c.w || c.lamps.empty() || (!c.side[0] && !c.side[1])) continue;
@@ -304,10 +318,12 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
             rec[15]=(float)(c.w*4096+c.h);   // the shader keeps its lookups inside the chart
         }
     };
-    // A few threads at the lowest priority: the game keeps its cores while a
-    // level bakes (the cache makes later loads instant).
+    // Threads at the lowest priority: the game keeps its pace while a level
+    // bakes (the cache makes later loads instant). Half the logical CPUs, at
+    // most 8 (2026-11-12: 16 CPUs, level 0 8.3 s -> 5.1 s with 8 against 4,
+    // 176-184 presents/s at 180 Hz throughout either way; 12 gained little).
     const unsigned hw=std::max(1u,std::thread::hardware_concurrency());
-    const unsigned nthreads=in.threads?in.threads:std::clamp(hw/4,1u,4u);
+    const unsigned nthreads=in.threads?in.threads:std::clamp(hw/2,1u,8u);
     auto low=[&]{
 #if defined(__linux__)
         setpriority(PRIO_PROCESS,(id_t)syscall(SYS_gettid),19);

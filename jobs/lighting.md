@@ -480,7 +480,7 @@ playtest.
 
 ### D41M - Baked lighting for fixed lamps
 
-**Status: Needs playtest (full build 2026-11-11, [note 446](../documentation/446-d41m-baked-lamps.md) section 6). Dependencies: D41F2, D41G.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; full build 2026-11-11; acceptance pass 2026-11-12, [note 446](../documentation/446-d41m-baked-lamps.md) sections 6-8). Dependencies: D41F2, D41G.**
 User, during the 2026-11-11 playtest of D41G and D41F2 in the level 3
 corridor of UI slot 9: "that area now feels unplayable", "the lights also
 turn on and off in this area as you go down the corridor. i feel like we need
@@ -616,6 +616,34 @@ User playtest, 2026-11-11 (after the fix): "that patch of light has
 disappeared which is excellent" (UI slot 7), "that light sliver has gone"
 (UI slot 10), "the light slivers have gone" (UI slot 2's level). Other
 findings of that playtest went to D41N, D41O, D50D and D23S.
+
+Work log, 2026-11-12 (acceptance pass, Needs playtest; note 446 section 8).
+The leaks are fixed and confirmed, so this pass checked the remaining
+acceptance points offscreen and removed what still showed when a level's
+bake appears. Lighting cost: ORIGINAL against RELIT (baked) at 180 Hz on
+levels 0, 1, 2, 3 (corridor included) and 6, alternated twice: within run
+noise both ways, 180 presents/s throughout. Corridor walk (UI slot 9):
+119-120, 179-180 and 238-240 presents every second at 120, 180 and 240 Hz,
+no redraw-only switch-offs. First visit: the bake now uses half the logical
+CPUs (at most 8, lowest priority) with the largest charts first, so the
+live-to-baked switch comes sooner (level 0 8.3 -> 5.1 s, level 3 6.3 -> 3.6
+s; byte-identical bake files; game pace unchanged during the bake); and the
+switch no longer hitches: the first draws sampling the new atlas blocked the
+emulation thread about 65 ms, gone with immutable texture storage
+(`glTexStorage2D`). Also fixed: the lamp count had dropped out of the bake
+key into a comment. New developer switches: `PSX_GL_DEBUG=1` (driver
+messages), `PSX_BAKE_TEXSTORAGE=0`, `DNTTK_LAMP_BAKE_CACHE`,
+`DNTTK_LAMP_BAKE_THREADS`. Remaining: the user's look and feel check per
+level, including whether the first-visit switch is visible; real-display
+figures. Not built (no measured need): model light probe, baked-only shader
+variant.
+
+Accepted 2026-11-12 on the real display. Look and smoothness in UI slots 2,
+7, 9 and 10: "the highest btop reported on slot 2 was 40% so far!
+impressive". First-visit switch: the level 3 bake file deleted, UI slot 9
+loaded; the file was rebuilt (same size) and the switch showed no hitch: "it
+worked perfectly. in fact it all worked perfectly ... and the gameplay was
+perfect". Done; closeout authorized.
 
 ### D41N - Moving live lights without shadow-map churn
 

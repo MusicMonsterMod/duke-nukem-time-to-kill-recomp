@@ -1,5 +1,14 @@
 # Current status - 2026-10-04
 
+## 2026-11-12 - D23Q and D41M closed
+
+User after playing on the real display: "all the save/load stuff is fine" (D23Q, no abort after early loads); "the highest btop reported on slot 2 was 40% so far! impressive"; the first-visit bake switch (level 3 bake deleted, UI slot 9) showed no hitch: "it worked perfectly. in fact it all worked perfectly ... and the gameplay was perfect" (D41M). Both Done; closeout authorized. Notes [452](452-d23q-restart-stall.md) and [446](446-d41m-baked-lamps.md) section 8.
+
+## 2026-11-12 - D23Q and D41M acceptance pass
+
+D23Q ([note 452](452-d23q-restart-stall.md)): the D23K aborts after an early load were the starvation watchdog counting a host block as starvation. It is checked on the emulation thread between guest cycles, so the render threads' start (hidden windows and shared GL contexts, over 4 s on the troubled display driver of that hour) aborted the game after it had recovered. The watchdog now counts only time the guest runs (a whole-process 6 s freeze, twice, is logged and survived); the render threads start in the opening instead of after the player's load; the log times the start (about 75 ms headless). The 20 real-display launches of the acceptance need the user present.
+D41M ([note 446](446-d41m-baked-lamps.md) section 8): lighting within noise of ORIGINAL on levels 0, 1, 2, 3 and 6 at 180 Hz; corridor walk holds 120/180/240 every second; first bake 1.6x faster (half the CPUs, largest charts first, byte-identical files); the 65 ms hitch when a level's bake appears is gone (immutable texture storage). Remaining: the user's look per level and whether the first-visit switch shows.
+
 ## 2026-11-12 - D50D closed
 
 User after playing: F6 quick save showed "saved to slot 07" every time ("it's working! ... solid"); the false THE GAME COULD NOT BE SAVED notice is gone. Done; closeout authorized. Fix (2026-11-11): the save notices wait for `savestate_busy()` until the writer thread reports.

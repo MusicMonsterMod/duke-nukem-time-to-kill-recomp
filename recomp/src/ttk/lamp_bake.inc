@@ -64,6 +64,9 @@ static void lamp_bake_stop(const char* why) {
     std::fprintf(stderr,"[TTK bake] off (%s)\n",why);
 }
 static std::string lamp_bake_cache_dir() {
+    // Developer DNTTK_LAMP_BAKE_CACHE: another cache folder (lab runs time
+    // first bakes without touching the player's cache).
+    if(const char* t=std::getenv("DNTTK_LAMP_BAKE_CACHE"); t && *t) return t;
     std::string dir="cache/lamp-bake";
     if(auto base=SDL_GetBasePath()) {
         dir=std::string(base)+"cache/lamp-bake";
@@ -94,7 +97,8 @@ static void lamp_bake_tick() {
     // Inputs: the mesh build, the lamps and the lighting mode.
     uint64_t key=1469598103934665603ull;
     auto mix=[&](uint64_t v){key=(key^v)*1099511628211ull;};
-    mix(level);mix(shadow_mesh_sig);mix(lights_relit());   // the mesh content, not its rebuilds (a reload rebuilds it)mix(level_lamps.size());
+    mix(level);mix(shadow_mesh_sig);mix(lights_relit());   // the mesh content, not its rebuilds (a reload rebuilds it)
+    mix(level_lamps.size());
     for(const LevelLamp& l:level_lamps) {
         for(int k=0;k<3;++k) {mix((uint64_t)std::llround(l.p[k]));mix((uint64_t)std::lround(l.rgb[k]*1000));}
         mix((uint64_t)std::llround(l.radius));mix((uint64_t)std::lround(l.k*1000));mix((uint64_t)l.style);mix(l.props.size());
@@ -102,7 +106,7 @@ static void lamp_bake_tick() {
     if(bake_state.job.valid()) {
         if(bake_state.job.wait_for(std::chrono::seconds(0))!=std::future_status::ready) return;
         LampBakeJob r=bake_state.job.get();
-        if(bake_state.job_key!=key) {psx_mod_gpu_set_lightmap(nullptr);return;}   // inputs changed meanwhile: bake again below   // inputs changed meanwhile: bake again below
+        if(bake_state.job_key!=key) {psx_mod_gpu_set_lightmap(nullptr);return;}   // inputs changed meanwhile: bake again below
         if(!r.ok) {std::fprintf(stderr,"[TTK bake] level %u failed: %s\n",level,r.error.c_str());bake_state.key=key;return;}
         ttk::lamp_bake_map_publish(bake_state.job_records);
         bake_state.active=true;bake_state.key=key;bake_state.level=level;
@@ -138,6 +142,7 @@ static void lamp_bake_tick() {
     bake_state.lamps=nl;
     if(const char* t=std::getenv("DNTTK_LAMP_BAKE_TEXEL")) in.texel=(float)std::clamp(std::atof(t),4.0,128.0);
     if(const char* t=std::getenv("DNTTK_LAMP_BAKE_SAMPLES")) in.samples=std::clamp(std::atoi(t),1,4);
+    if(const char* t=std::getenv("DNTTK_LAMP_BAKE_THREADS")) in.threads=(unsigned)std::clamp(std::atoi(t),1,64);
     char name[64];std::snprintf(name,sizeof name,"/level%02u-%016llx.bake",level,(unsigned long long)ttk::lamp_bake_hash(in));
     const std::string path=lamp_bake_cache_dir()+name;
     bake_state.job_key=key;bake_state.key=key;

@@ -329,3 +329,76 @@ each, baked against live, before and after: no remaining sharp-edged lit
 patches; remaining differences are the design choices of section 2 (lamps
 the live path left out), sky animation and game events. Cost: one clamp per
 lit pixel. Shots: `research/before-after/D41M/slivers/` (local).
+
+## 8. Acceptance pass, first-bake switch (2026-11-12)
+
+The leaks of section 7 are fixed and confirmed by the user. This pass checks
+the job's remaining acceptance points offscreen and removes what still
+showed when a level's bake appears.
+
+### Lighting cost against ORIGINAL (180 Hz, offscreen, slow turn)
+
+GPU work (clock-weighted), ORIGINAL / RELIT alternated twice per save, on
+every level the saves reach (the player's bake cache):
+
+| Level (lab slot) | ORIGINAL | RELIT (baked) |
+| --- | --- | --- |
+| 0 (3) | 17.4, 16.8% | 18.6, 16.3% |
+| 1 (4) | 21.6, 18.9% | 20.3, 18.4% |
+| 2 (2) | 15.0, 14.5% | 15.9, 11.9% |
+| 3 (0) | 15.1, 16.9% | 14.2, 15.7% |
+| 6 (1) | 18.8, 27.5% | 25.0, 19.3% |
+| 6, another view (9) | 17.7, 19.2% | 17.4, 15.7% |
+| 3, corridor (8, UI slot 9) | 19.0, 27.1% | 27.1, 20.6% |
+
+The differences go both ways and are within run noise (the 27% readings came with the whole process busier, ORIGINAL and RELIT alike): dynamic lighting with
+the bake costs nothing measurable over ORIGINAL headless (acceptance: at most
+a few points). 180 presents/s in every run.
+
+### Corridor walk (UI slot 9, RELIT, walk/turn/fire pattern, 30 s)
+
+Presents a second, every second: 119-120 at 120 Hz, 179-180 at 180 Hz,
+238-240 at 240 Hz; fields 56-63. No second shows a redraw-only switch-off.
+
+### First visit to a level: the switch from live to baked
+
+On a level's first visit (no cache) the live lamps show while the bake runs,
+then the bake takes over. Two changes:
+
+1. **Faster first bake.** Half the logical CPUs, at most 8 threads, at the
+   lowest priority (was a quarter, at most 4), and the charts are taken
+   largest first. With 16 CPUs: level 0 8.3 -> 5.1 s, level 3 6.3 -> 3.6 s,
+   level 2 5.6 -> 3.7 s, level 6 4.1 -> 2.8 s, level 1 1.8 -> 1.2 s. The game
+   kept 59-62 fields/s and 176-184 presents/s through the bake with 4 and
+   with 8 threads; 12 gained little (8 cores). The bake files are
+   byte-identical (all five levels, 4, 8 and 12 threads).
+2. **No hitch at the switch.** The atlas textures were made with
+   `glTexImage2D(NULL)` and filled a slice an image; the first draws that
+   sampled the finished atlas blocked the emulation thread about 65 ms
+   (fields 36-40 a second over a tenth of a second, also with the render
+   threads off). Found with the D23Q gap log (`PSX_HOST_GAP_LOG_MS`) on one
+   clock: bake active, upload 0.2 s (2 ms a slice), publish, then the block.
+   Not a shader recompile (`PSX_GL_DEBUG=1`, new developer switch, logs the
+   driver's messages: none at the switch). Smaller slices did not help.
+   Immutable storage (`glTexStorage2D`) removes it: fields 54-67 a second
+   through the switch, no block of 40 ms or more (levels 0 and 3).
+   Developer `PSX_BAKE_TEXSTORAGE=0` keeps the old allocation for A/B. The
+   same path serves cached loads.
+
+Also: the bake key had lost the lamp count to a comment (harmless, the lamps
+themselves were mixed); developer `DNTTK_LAMP_BAKE_CACHE` and
+`DNTTK_LAMP_BAKE_THREADS` let the lab time first bakes without touching the
+player's cache.
+
+### Accepted (2026-11-12)
+
+On the real display the user checked UI slots 2, 7, 9 and 10 (slot 2 at most
+40% GPU in btop) and the first-visit switch (level 3 bake deleted, UI slot 9
+loaded: no hitch): "it worked perfectly. in fact it all worked perfectly".
+
+### Remaining
+
+- Real-display figures (headless excludes the window present and the
+  compositor).
+- Not built (no measured need now): models from a light probe, the
+  baked-only shader variant.

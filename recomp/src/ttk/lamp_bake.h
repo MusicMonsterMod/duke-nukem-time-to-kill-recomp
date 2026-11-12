@@ -28,7 +28,7 @@ struct BakeInput {
     float texel = 32.0f;          // world units per lightmap texel
     int samples = 2;              // per texel axis (visibility supersampling)
     int atlas_width = 4096;
-    unsigned threads = 0;         // 0: hardware threads - 2
+    unsigned threads = 0;         // 0: half the logical CPUs, at most 8
 };
 
 // One record per face, 16 floats (four RGBA32F texels for the shader):

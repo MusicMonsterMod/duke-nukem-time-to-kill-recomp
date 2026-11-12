@@ -19,9 +19,9 @@
 //   holds the corner indices, 0xff ends). One chunk per piece with its bounds.
 //   Rebuilt when the table, its pieces or their sizes change (level loads)
 //   and after a savestate load. Props, actors and Duke do not cast shadows.
-// - Slots: lights that may cast shadows (lights_publish's cand: rounds, lamps,
-//   screens, prop lamps, fire, blasts, test lights; not muzzle flashes or
-//   sparks), the strongest near Duke first, up to PSX_MOD_SHADOW_SLOTS. A
+// - Slots: lights that may cast shadows (lights_publish's cand: lamps,
+//   screens, prop lamps, blasts, test lights; not muzzle flashes, sparks or,
+//   since D41N, lights that move: rounds, bolts, flames, burning objects), the strongest near Duke first, up to PSX_MOD_SHADOW_SLOTS. A
 //   light keeps its slot while it stays where it is and within the reach its
 //   map was drawn for (a fading blast, a flickering fire), so placed lamps
 //   are drawn once; at most shadow_new_per_tick new maps a tick (the others
@@ -30,6 +30,16 @@
 //   on|off|default" (session). Developer DNTTK_SHADOWS=off.
 extern "C" void gl_shadow_counters(uint64_t out[4]);
 static std::atomic<int> light_shadow_mode{-1};       // session override (-1 default)
+// D41N: moving lights (rounds, bolts and flames in flight, burning objects)
+// cast no shadows by default; "light shadows moving on|off" (session) for
+// matched comparisons, developer DNTTK_SHADOWS_MOVING=on.
+static std::atomic<int> light_shadow_moving{-1};
+static bool shadow_moving_on() {
+    const int o=light_shadow_moving.load(std::memory_order_relaxed);
+    if(o>=0) return o!=0;
+    static const bool env=[]{const char* t=std::getenv("DNTTK_SHADOWS_MOVING");return t && !std::strcmp(t,"on");}();
+    return env;
+}
 static bool shadows_on() {
     const int o=light_shadow_mode.load(std::memory_order_relaxed);
     if(o>=0) return o!=0;
@@ -272,6 +282,15 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
             std::snprintf(b,sizeof b,"Light: ray hits at %.3f (%.0f units), triangle %zu piece %u: %.0f %.0f %.0f / %.0f %.0f %.0f / %.0f %.0f %.0f",best,best*std::sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]),bt,shadow_mesh_owner[bt],v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8]);}
         say(b);return true;
     }
+    if(!std::strncmp(arg,"moving",6) && (!arg[6] || arg[6]==' ')) {
+        const char* v=arg+6;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) light_shadow_moving.store(1);
+        else if(!std::strcmp(v,"off")) light_shadow_moving.store(0);
+        else if(!std::strcmp(v,"default")) light_shadow_moving.store(-1);
+        else if(*v) {say("Light: light shadows moving [on|off|default]");return true;}
+        say(shadow_moving_on()?"Light: moving lights cast shadows (session)":"Light: moving lights cast no shadows");
+        return true;
+    }
     if(!std::strcmp(arg,"on")) light_shadow_mode.store(1);
     else if(!std::strcmp(arg,"off")) light_shadow_mode.store(0);
     else if(!std::strcmp(arg,"default")) light_shadow_mode.store(-1);
@@ -279,8 +298,9 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
     else if(!std::strcmp(arg,"smooth") || !std::strcmp(arg,"simple") || !std::strcmp(arg,"reference")) ttk_live_env_set("DNTTK_SHADOW_EDGES",arg);   // reference: developer, the exact test everywhere
     else if(*arg) {say("Light: light shadows [on|off|default|smooth|simple]");return true;}
     uint64_t g[4];gl_shadow_counters(g);
-    char b[256];std::snprintf(b,sizeof b,"Light: shadows %s, %s edges; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms",
-        shadows_on()?"on":"off",shadow_edges_smooth()?"smooth":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0);
+    char b[384];std::snprintf(b,sizeof b,"Light: shadows %s, %s edges; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms; %llu new slots, %llu deferred, moving %s",
+        shadows_on()?"on":"off",shadow_edges_smooth()?"smooth":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0,
+        (unsigned long long)shadow_new,(unsigned long long)shadow_deferred,shadow_moving_on()?"shadowed":"unshadowed");
     say(b);
     return true;
 }

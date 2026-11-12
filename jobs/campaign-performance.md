@@ -1370,6 +1370,33 @@ off the heartbeat path or make it fast. Acceptance: 20 lab launches on the
 real display with a savestate load at boot and the default watchdog, none
 aborted.
 
+### D23S - Console overlay re-uploaded every present
+
+**Status: Done (user-accepted 2026-11-12, closeout authorized; fixed 2026-11-11; follow-up 2026-11-12, note 450). Dependencies: D23K.**
+User (playtest 2026-11-11): "the GPU goes up to like 70% when the console is
+open". Reproduced offscreen at 180 Hz (UI slot 2): GPU work 34% closed, 82%
+open. Cause: the console's 1280 x 440 image went through the shared OSD
+texture with a full upload (2.25 MB) and a CPU alpha scan at every present,
+about 400 MB/s at 180 Hz, although it changes only when typed into. Fix: the
+console keeps its own texture, uploaded only when `host_osd` redraws it
+(`host_osd_console_generation`). After: 35% open against 36% closed; shots
+with the console open, typed into, backspace and closed draw as before.
+
+Follow-up, 2026-11-12 (user: "opening the console still adds about 60",
+GPU memory or GPU %, measure both; also on the real display). Measured GPU
+work and memory closed / open / typed / closed, offscreen and on the real
+display (one windowed launch each, player presentation, captured mouse):
+UI slot 2 real display 35.6% / 36.5% / 35.1% / 35.7%, game process memory
++4 MiB while open; pause menu 11.6% throughout; UI slot 6 about 60% open and
+closed alike. So the console adds no GPU work; the "60" was the Necro bolts'
+shadow maps (D41N, fixed: UI slot 6 now 26-28% on the real display). The
+console's texture is now deleted once the console has fully retracted, so a
+closed console holds no GPU memory. Note 450 section 2. Not built: glyph
+quads from a font atlas (Quake's console), which would only save the 4 MiB
+while open.
+
+Accepted, 2026-11-12. User after playing: "colossally huge improvement in resource usage ... a significant drop in GPU usage in regular gameplay". Closeout authorized.
+
 ### D23R - Parity benchmark and acceptance
 
 **Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23L-D23P, D41G, D41F2.**
@@ -1500,6 +1527,24 @@ with real audio, session log without `audio running low` sheds.
 User playtest, 2026-11-11 (session 19:00): no crackle after loads (slots 1
 and 2), F6/F9 saves and loads fine with no hitch or exit, a new game
 started without crackle. Accepted.
+
+### D50D - Quick save reports could not be saved while it saves
+
+**Status: Needs playtest (fixed 2026-11-11). Dependencies: D50A.**
+User (playtest 2026-11-11, UI slots 6 and 2): "the game could not be saved
+... but it does look like it actually did save". Session log: `[TTK cheat]
+THE GAME COULD NOT BE SAVED` right after the save's admission, then
+`save_write ... outcome=success` about 90 ms later. Cause: since D50A the
+file is written on a writer thread; `savestate_pending()` turns false at
+capture, and the F6 notice (and SAVE GAME's result) read the success flag
+before the write was reported, so it said failure whenever the menu polled
+inside those 90 ms.
+
+Fix: framework `savestate_busy()` (staged, or a write still in flight);
+the quick-save notice, SAVE GAME's result, the one-at-a-time guard and
+delete wait for it. `savestate_pending()` keeps its meaning for the
+framework's own polling. Lab (private card copy, UI slot 6 save): 12 F6
+saves in a row, 12 GAME SAVED, each after its successful write.
 
 ### D50C - Walking into the level 3 pit halts the emulation
 

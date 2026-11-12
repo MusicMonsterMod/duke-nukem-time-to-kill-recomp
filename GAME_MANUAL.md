@@ -439,14 +439,21 @@ in every level (also one an enemy drops or you spawn), and it goes dark the
 moment Duke picks it up. `lamp pickups off` / `lamp pickups on` compares
 without and with the pickup glow for the session.
 
-**Shadows.** Walls stop the light: a lamp, a sign, a blast or a rocket in
-flight lights only what it can see, so light no longer bleeds through a wall
-into the next room, and pillars and doorways throw shadows. The strongest
-lights near Duke (up to 16 at once) cast shadows; muzzle flashes and wall
-sparks do not. The room walls cast shadows; props, enemies and Duke do not
+**Shadows.** Walls stop the light: a lamp, a sign, a TV screen or a blast
+lights only what it can see, so light no longer bleeds through a wall into
+the next room, and pillars and doorways throw shadows. The strongest of
+these lights near Duke (up to 16 at once) cast shadows. Lights that move -
+rounds and bolts in flight (a Necro's blast, a rocket, freezer and energy
+shots), flames in flight and burning enemies - glow without shadows, as
+muzzle flashes and wall sparks always have, the way Doom 3 and Duke Nukem 3D's
+Polymer treat their effect lights: a shadow for a moving light had to be
+drawn again every frame, and a Necro fight cost more than twice the GPU time
+for the same picture. The room walls cast shadows; props, enemies and Duke do not
 yet. Shadows come with LIGHTING ENHANCED or RELIT on the Polymorph renderer. In the
 backtick console, `light shadows off` / `light shadows on` compares without
-and with shadows for the session, and `light shadows` shows their state.
+and with shadows for the session, `light shadows moving on` / `light shadows
+moving off` gives moving lights shadows again for a comparison (not saved),
+and `light shadows` shows their state.
 
 **OPTIONS > DISPLAY > SHADOW EDGES** sets how shadow edges are drawn (it
 switches at once and is saved):

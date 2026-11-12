@@ -192,7 +192,9 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
         // One texel of border all round: the origin is a texel before the area.
         c.p0=add(a,add(mul(c.e1,s0-tx),mul(c.e2,q0-tx)));
         c.w=(int)std::ceil((s1-s0)/tx)+2;c.h=(int)std::ceil((q1-q0)/tx)+2;
-        if(c.w>in.atlas_width) {c.w=0;c.lamps.clear();continue;}   // wider than the atlas: left to the live path
+        // Wider than the atlas, or a side past 4095 texels (the record keeps
+        // w * 4096 + h in one float): left to the live path.
+        if(c.w>in.atlas_width || c.w>4095 || c.h>4095) {c.w=0;c.lamps.clear();continue;}
     }
     // Shelf packing, tallest first.
     std::vector<std::pair<int,int>> order;   // (height, chart side as 2*i+s)
@@ -222,9 +224,16 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
             const bool quad=fc.count==2;
             const V3 a2=quad?tri_v(in.tris,fc.first+1,0):a,b2=quad?tri_v(in.tris,fc.first+1,1):b,c2=quad?tri_v(in.tris,fc.first+1,2):cc;
             const uint32_t skip1=fc.first,skip2=quad?fc.first+1:fc.first;
+            // A sample point on the face, pulled up to 2 units in from its
+            // edges: a point clamped onto an edge where the face meets a wall
+            // or floor would start its rays on that surface's plane, whose hit
+            // (t ~ 0) is ignored, and light from behind it leaks along the seam.
+            const V3 g1=mul(add(add(a,b),cc),1.0f/3),g2=mul(add(add(a2,b2),c2),1.0f/3);
+            auto inset=[](V3 q,V3 g){const V3 d=sub(g,q);const float l=len(d);return l>1e-3f?add(q,mul(d,std::min(2.0f,0.5f*l)/l)):q;};
             auto on_face=[&](V3 p){
-                const V3 q1=closest_on_tri(p,a,b,cc);if(!quad) return q1;
-                const V3 q2=closest_on_tri(p,a2,b2,c2);return dot(sub(q1,p),sub(q1,p))<=dot(sub(q2,p),sub(q2,p))?q1:q2;
+                const V3 q1=closest_on_tri(p,a,b,cc);if(!quad) return inset(q1,g1);
+                const V3 q2=closest_on_tri(p,a2,b2,c2);
+                return dot(sub(q1,p),sub(q1,p))<=dot(sub(q2,p),sub(q2,p))?inset(q1,g1):inset(q2,g2);
             };
             const V3 n=cross(c.e1,c.e2);
             const size_t nl=c.lamps.size();
@@ -291,7 +300,8 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
             rec[0]=c.p0.x;rec[1]=c.p0.y;rec[2]=c.p0.z;rec[3]=(float)c.u[0];
             rec[4]=c.e1.x/tx;rec[5]=c.e1.y/tx;rec[6]=c.e1.z/tx;rec[7]=(float)c.v[0];
             rec[8]=c.e2.x/tx;rec[9]=c.e2.y/tx;rec[10]=c.e2.z/tx;rec[11]=(float)c.u[1];
-            rec[12]=(float)c.v[1];rec[13]=(float)(ids[0]*256+ids[1]);rec[14]=(float)(ids[2]*256+ids[3]);rec[15]=0;
+            rec[12]=(float)c.v[1];rec[13]=(float)(ids[0]*256+ids[1]);rec[14]=(float)(ids[2]*256+ids[3]);
+            rec[15]=(float)(c.w*4096+c.h);   // the shader keeps its lookups inside the chart
         }
     };
     // A few threads at the lowest priority: the game keeps its cores while a
@@ -314,7 +324,8 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
 uint64_t lamp_bake_hash(const BakeInput& in) {
     uint64_t h=1469598103934665603ull;
     auto mix=[&](const void* p,size_t n){const uint8_t* b=(const uint8_t*)p;for(size_t i=0;i<n;++i) h=(h^b[i])*1099511628211ull;};
-    const uint32_t version=3;mix(&version,4);
+    // 4: chart size in rec[15]; 5: samples inset from the face's edges.
+    const uint32_t version=5;mix(&version,4);
     for(const auto& f:in.faces) {mix(&f.first,4);mix(&f.count,4);}
     mix(in.tris.data(),in.tris.size()*4);
     for(const BakeLamp& l:in.lamps) {mix(l.p,12);mix(l.rgb,12);mix(&l.radius,4);mix(&l.channel,1);mix(&l.mean,4);}

@@ -1,6 +1,6 @@
 # D41M - Baked lighting for fixed lamps: design note and level 3 prototype
 
-Status: full build (Needs playtest, 2026-11-11, section 6); design note and level 3 prototype below. Job board: D41M.
+Status: full build (Needs playtest, 2026-11-11, section 6), light slivers fixed (section 7); design note and level 3 prototype below. Job board: D41M.
 Evidence labels: CONFIRMED (code or our own measurement), INFERRED, UNKNOWN.
 
 ## 1. Why the corridor stutters and pops (what a bake has to remove)
@@ -294,3 +294,38 @@ noise. Corridor walk at 180 Hz with the bake: GPU 47.6% (51.0% live),
 - The first visit to a level shows the live lamps for its bake time (2-8 s),
   then switches; the user should judge whether that switch is visible.
 - Needs the user's playtest: the look level by level, the corridor, loads.
+
+## 7. Light slivers (2026-11-11)
+
+User: "various slivers of light in strange places ... fix every single
+one", saved in UI slot 10 (level 6: a lit strip up a wall corner) and UI
+slot 7 (level 3: one lit floor triangle).
+
+Isolation (CONFIRMED, offscreen, private card copies): both appear with the
+bake on, with SHADOWS on and off, and vanish with `light bake off`. With
+SHADOWS off the D23O shadow classes do not run, so they are not the cause.
+
+Causes and fixes (CONFIRMED by before/after shots):
+
+1. **Charts read past their edges.** A chart covers only the part of its
+   face that some lamp reaches (section 3), but every drawn pixel of the
+   face looked up `chart origin + st` with no bound, so the rest of the face
+   read whichever chart sat beside it in the atlas, filtered: whole
+   triangles and strips lit by lamps that never reach them. The bake now
+   stores the chart's size in the record's spare float (`w * 4096 + h`;
+   charts with a side past 4095 texels are left to the live path) and
+   `baked_light()` clamps `st` to the chart's texel centres, so the rest of
+   the face keeps the chart's unlit border. Fixed both reported spots.
+2. **Seams where faces meet.** Texel samples outside the face were clamped
+   exactly onto its edge; where the face meets a wall or floor, the ray
+   origin (2 units off the face) then lay on the other surface's plane and
+   its hit (t about 0) was ignored, so light from behind leaked along the
+   seam (a thin lit line along a wall foot, UI slot 8). Samples are now
+   pulled up to 2 units into the face before the rays.
+
+Cache key version 5: every level rebakes once (level 3: 7.2 s at low
+priority), then loads from the cache. Sweep: all 12 slots, four directions
+each, baked against live, before and after: no remaining sharp-edged lit
+patches; remaining differences are the design choices of section 2 (lamps
+the live path left out), sky animation and game events. Cost: one clamp per
+lit pixel. Shots: `research/before-after/D41M/slivers/` (local).

@@ -297,14 +297,15 @@ static unsigned level_lamps_out_index[PSX_MOD_MAX_LIGHTS];   // D41M: level_lamp
 static void lamp_bake_tick();
 static std::atomic<int> lamp_bake_override{-1};   // D41M console (lamp_bake.inc)
 static void shadow_mesh_tick();
+static bool shadow_moving_on();   // D41N (light_shadows.inc)
 static double shadow_probe_eye[3];
 static bool shadows_console(const char* arg,void (*say)(const char*));
 static void lights_publish() {
     LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
     uint8_t cand[PSX_MOD_MAX_LIGHTS]={};
-    // Rounds in flight, placed lamps, TV screens, prop lamps and fire cast
-    // shadows; of the sources below, blasts and test lights do (not muzzle
-    // flashes at a gun next to a wall, or sparks on the wall they hit).
+    // Placed lamps, TV screens and prop lamps cast shadows; of the sources
+    // below, blasts and test lights do (not muzzle flashes at a gun next to a
+    // wall, or sparks on the wall they hit). Rounds in flight and fire: D41N.
     v.n=lights_flight(v.l,8);
     const unsigned scene0=v.n;
     v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
@@ -320,6 +321,7 @@ static void lights_publish() {
             const float fixed=i<lamps_end ? lamp_bake_published_reach(level_lamps_out_index[i-scene0]) : -1.0f;
             v.l[i].r*=g;v.l[i].g*=g;v.l[i].b*=g;v.l[i].radius*=fixed>0 ? fixed : rr;
         }
+    const unsigned fire0=v.n;
     for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
@@ -327,7 +329,14 @@ static void lights_publish() {
         else {l.r=1.15f*f.k;l.g=0.58f*f.k;l.b=0.22f*f.k;}
         l.flags=0;
     }
-    for(unsigned i=0;i<v.n;++i) cand[i]=1;
+    // D41N: only lights that hold still cast shadows. A moving light (rounds
+    // and bolts in flight, flames in flight, burning objects) needed a new
+    // cube map every tick in every renderer (UI slot 6: eight Necro bolts,
+    // 61% GPU against 22% without them); unshadowed, as the muzzle flashes
+    // and sparks always were, it costs one more light in the shader. Lamps,
+    // screens, prop lamps, blasts and test lights keep their (cached) maps.
+    const bool moving_shadows=shadow_moving_on();
+    for(unsigned i=0;i<v.n;++i) cand[i]=moving_shadows || (i>=scene0 && i<fire0);
     for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const LightSrc& s=light_srcs[i];
         const double e=light_envelope(s);

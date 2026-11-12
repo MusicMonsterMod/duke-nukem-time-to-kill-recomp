@@ -1166,7 +1166,7 @@ void delete_ask() {
 void delete_now() {
     page=delete_from;
     char t[40];
-    if(!savestate_pending() && savestate_slot_delete(cursor)) {std::snprintf(t,sizeof t,"DELETED SLOT %02d",cursor+1);sound(0);}
+    if(!savestate_busy() && savestate_slot_delete(cursor)) {std::snprintf(t,sizeof t,"DELETED SLOT %02d",cursor+1);sound(0);}
     else {std::snprintf(t,sizeof t,"SLOT %02d COULD NOT BE DELETED",cursor+1);sound(1);}
     read_slots();thumb_hide();load_note=t;
 }
@@ -1176,7 +1176,8 @@ void delete_now() {
 bool duke_dead() {return (psx_mod_read_word(player)&2) && (int16_t)psx_mod_read_half(player+0x32)<=0;}
 // The notices once the framework has taken a quick save or load.
 void quick_poll() {
-    if(quick_saving && !savestate_pending()) {
+    // savestate_busy: the result comes when the file is written (D50A writer).
+    if(quick_saving && !savestate_busy()) {
         quick_saving=false;
         input_notice(quick_saved ? "GAME SAVED" : "THE GAME COULD NOT BE SAVED");
     }
@@ -1482,7 +1483,7 @@ QuickResult game_menu_quick(Quick q) {
     if(!identity_checked || !identity_ok || psx_mod_read_half(game_mode)!=1 || psx_mod_read_word(players)!=1)
         return QuickResult::Ignored;
     // One thing at a time; menus (other than the death list) keep their keys.
-    if(quitting || loading || saving || quick_saving || quick_loading || savestate_pending()
+    if(quitting || loading || saving || quick_saving || quick_loading || savestate_busy()
        || pending_final!=Final::None || resumed || direct!=Page::Options) return QuickResult::Done;
     const bool death_list=owned && page==Page::Death && psx_mod_read_half(pause_screen)==death_sub;
     if(!death_list && (owned || psx_mod_read_half(paused) || psx_mod_read_half(pause_screen))) return QuickResult::Done;
@@ -1562,7 +1563,7 @@ bool game_menu_input(const MenuKeys& keys) {
     }
     if(saving) {
         // D19Q: until the framework has taken the save (or refused it).
-        if(!savestate_pending()) save_done();
+        if(!savestate_busy()) save_done();
         return owned;
     }
     if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_state>=0 || stats_continue))) {

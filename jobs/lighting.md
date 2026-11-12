@@ -590,6 +590,97 @@ the light slivers reported in the user's UI slot 10 and 7 saves (first
 confirm the bake is the cause, `light bake off` against on, against the
 D23O shadow classes).
 
+Work log, 2026-11-11 (light slivers fixed, Needs playtest). Confirmed on
+private copies of UI slot 10 (level 6: a lit strip up a wall corner) and UI
+slot 7 (level 3: one lit floor triangle): both show with the bake on, also
+with SHADOWS off (so not the D23O shadow classes, which only run with
+shadows on), and vanish with `light bake off`. Two bake leaks, both fixed in
+the bake itself (no new pass, no runtime cost beyond one clamp a pixel):
+1. A chart covers only the part of its face a lamp reaches, but the shader
+   sampled the whole face, so the rest of the face read (and filtered into)
+   whichever chart lay next to it in the atlas: whole triangles and strips
+   lit by unrelated lamps. Each chart's size now goes in its record's spare
+   slot and the shader clamps the lookup inside the chart (its unlit
+   border). Fixed both reported spots.
+2. Texel samples were clamped exactly onto the face's edges, so where a
+   face meets a wall or floor the visibility ray started on that surface's
+   plane, whose hit was ignored: a thin lit seam along wall feet (seen in
+   the sweep, UI slot 8). Samples are now pulled 2 units into the face.
+Bake cache version 5 (every level rebakes once; stale caches removed).
+Evidence: sweep of all 12 slots, four directions each, baked against live,
+before and after; `research/before-after/D41M/slivers/` (local).
+`ttk-near-test`, `ttk-flash-test`, `ttk-live-env-test` PASS. Note 446
+section 7. Remaining: the user's check of the two saves and play in general.
+
+User playtest, 2026-11-11 (after the fix): "that patch of light has
+disappeared which is excellent" (UI slot 7), "that light sliver has gone"
+(UI slot 10), "the light slivers have gone" (UI slot 2's level). Other
+findings of that playtest went to D41N, D41O, D50D and D23S.
+
+### D41N - Moving live lights without shadow-map churn
+
+**Status: Done (user-accepted 2026-11-12, closeout authorized; fixed 2026-11-12; [note 450](../documentation/450-d41n-moving-lights-d23s-console.md)). Dependencies: D41M.**
+User (playtest 2026-11-11, UI slot 6, Necros underwater on the level of
+UI slot 2): GPU "up to 70%" while the Necros fire many projectiles, "as soon
+as the necros have been killed the GPU drops down into the 20s"; gameplay
+stayed smooth. The biomask Necros of UI slot 12 also fire but the GPU stays
+at 25-30%.
+
+Measured (offscreen, 180 Hz, private card copies, 10 s each): UI slot 6
+62% mean (74% peak) with 12-15 live lights; the "other" GPU phase (shadow
+work) 3.7-4.0 ms a redraw; SHADOWS off 27% ("other" 0.02 ms); light mode
+ORIGINAL 23%. UI slot 12: 24.5% with no live lights at all (its Necros'
+projectiles carry no light), "other" 0.27 ms. So the cost is the shadow maps
+of moving projectile lights (each a new cube map as it flies), not the bake.
+
+Options for the user (look choice): projectile lights unshadowed (leanest;
+Duke3D/Polymer-style glow, may light through a thin wall near the bolt);
+or shadowed only for the few strongest/nearest, at a lower map size;
+or a cap on shadowed moving lights per frame. Acceptance: UI slot 6 holds
+within a few points of the same view without projectiles; ORIGINAL,
+Classic and Vanilla unchanged.
+
+User decision, 2026-11-12: pick the leanest option, starting with
+unshadowed projectile lights, shadows only if the look clearly needs them;
+then sweep other heavy fights and effects for the same churn and fix it at
+the source; measure at 120, 180 and 240 Hz.
+
+Work log, 2026-11-12 (Needs playtest). Cause confirmed: a moving light got a
+new shadow slot every tick (slots are keyed by position), so each bolt in
+flight needed a fresh cube map 60 times a second, drawn again in every
+renderer process; out of maps, the rest went dark for the tick. Research
+(note 450 section 4): Doom 3's effect-light materials are `noshadows`,
+EDuke32 Polymer never shadows its point (effect) lights, Unreal does not
+cache moving lights' shadows. Change: only lights that hold still cast
+shadows (lamps, screens, prop lamps, blasts, test lights); rounds, bolts and
+flames in flight and burning objects glow unshadowed, as muzzle flashes and
+sparks always did. Session toggle `light shadows moving on|off` for
+comparisons; `light shadows` reports new slots. Results, UI slot 6 with the
+Necros firing: 120 Hz 48.6% -> 17.1%, 180 Hz 61.4% -> 22-24% (no bolt
+lights 19-22.5%), 240 Hz 72.6% -> 30.1%, real display (180 Hz, windowed)
+64.3% -> 25.6-28.3%, steady with no peaks; presents held at the rate. Sweep:
+freezer 43% -> 35%, energy weapon 46% -> 42%, flamethrower on a burning
+Necro 38-47% -> 24-27%, RPG 36% -> 35%; no moving maps are made any more;
+blasts keep one map each (unchanged). Look: matched UI slot 6 replays and
+flamethrower shots look the same (fire slightly fuller, as no flame light
+goes dark), `research/before-after/D41N/` (local). ORIGINAL, Classic and
+Vanilla unchanged (no lights published there). GAME_MANUAL Shadows
+paragraph updated. Remaining: the user's look check; an unshadowed moving
+light can light the far side of a thin wall it passes (not seen in shots).
+
+Accepted, 2026-11-12. User after playing: "colossally huge improvement in resource usage ... a significant drop in GPU usage in regular gameplay". Closeout authorized.
+
+### D41O - Shadow setting names after the bake
+
+**Status: Todo (user suggestion 2026-11-11). Dependencies: D41M.**
+User (UI slot 8): the shadows "still exhibit the same kind of view ...
+blurred at the edges, not like the sharp ones that we made beforehand",
+GPU 20-24% there; "if we're gonna have to keep these then we probably think
+about changing the name of the Shadows in the settings". Fixed lamps are
+baked (soft 32-unit edges) whatever the setting; SHADOWS SMOOTH / SIMPLE now
+only change live lights (shots, blasts, projectiles). Rename or regroup the
+options so they say what they do (and GAME_MANUAL), user to choose wording.
+
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

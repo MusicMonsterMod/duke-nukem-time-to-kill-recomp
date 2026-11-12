@@ -311,3 +311,10 @@ slot 8) of 589,824 pixels disagree; the shadows' own GPU time down 20-25%
 instance for new pairs while walking, none in a still view. Before the
 change, SMOOTH's cost was the lookups that run (exact test about 8-9 points,
 filtered tap and edge fetch about 5), not the code's presence (1-2).
+
+## 7. D41N: moving lights unshadowed (2026-11-12)
+
+Since D41N only lights that hold still are shadow candidates (lamps, screens,
+prop lamps, blasts, test lights). Rounds, bolts and flames in flight and
+burning objects glow unshadowed: a moving light needed a new cube map every
+tick in every renderer. See [note 450](450-d41n-moving-lights-d23s-console.md).

@@ -95,3 +95,98 @@ Build N1 first, behind a developer switch, on level 3 and UI slots 2 and 8,
 with the exact stream comparison against the worker path; measure worker
 CPU at 120/180/240 Hz. N2 and N3 follow if N1 holds pictures identical.
 This is a multi-session job; nothing of it is built yet.
+
+## 6. Review before building (2026-11-12)
+
+A second profile and a code read before starting N1 change the design.
+
+Profile, all three workers, UI slot 2 turning at 180 Hz, offscreen, the
+player's profile (`PSX_PROF_WORKERS` flat samples, about 40,000, plus call
+stacks of one worker, about 13,500) (CONFIRMED; stack attribution is
+approximate, backtraces from a signal handler):
+
+| Inclusive share | What |
+| --- | --- |
+| about 25% | host room walk and pieces (`host_vis_walk` -> `near_clip_host_world_piece` -> `world`, `emit`, `subdivide`, `water_clip`): Polymorph walks the rooms itself, per camera |
+| about 12% | host props and actors (`object`, `draw`, `smooth_model_normals`) |
+| about 58% | the game's own code and its emulation, spread thinly: guest memory access 17% (`memory.c`), cycle and icache bookkeeping 6-7%, compiled dispatch 5% (entry lookup, code-integrity cache, fast-timing observe; each already cached), GTE 3%, PGXP 3%, recording 5%, libc/libm 12% |
+
+No single emulation item is above 4%; the ones that look like overhead
+(the code-integrity check, the entry lookup, the debug observer, the
+function trace) are already cached or return at once, so trimming them
+would save a few percent at most. The saving is in not running the game's
+code, as section 4 says.
+
+Corrections to section 2 (CONFIRMED in `frame_replay.cpp` `worker_draw` and
+`build_params`):
+
+- Each job blends actor joint matrices (`MatPatch`), object transforms
+  (`Frame::Xf`) and object poses (`ObjectPose`) by its own fraction, so
+  actor and moving-object corners are **not** fixed for the game frame; only
+  static room geometry and fixed props are. A captured actor polygon must be
+  stored in model space with the joint or transform it hangs from, and a
+  later job must rebuild its matrix as (job camera) x (job's blended world
+  matrix).
+- Host pieces are not a separate stream: `world()` and `object()` write
+  packets into the game's own packet arena and link them into its ordering
+  table (0x800d27a0), interleaved with the game's sky, first-person layer,
+  sprites, particles and HUD; the recorded GP0 stream is the game's DMA of
+  that table. The "captured remainder" therefore has to be rebuilt per job
+  in ordering-table order, and much of it is camera- or fraction-dependent
+  (billboards, particles, the sky scroll, the weapon's animation).
+
+Revised plan (multi-session; not started):
+
+1. **N0 - remainder inventory.** List, per guest routine, every primitive a
+   gameplay job emits outside `world()`/`object()` and what it depends on
+   (camera, fraction, neither). Measured with a stream tag per routine, in
+   UI slots 2 and 8 and the level 3 corridor. This decides whether N1 can
+   skip the game's code at all for typical frames.
+2. **N1 - host scene for later jobs.** First job of a slot records a scene
+   list in shared memory: static room and prop polygons (world space), actor
+   and moving-object polygons (model space plus joint/transform index), the
+   render-context inputs, and the remainder routines' inputs. A later job of
+   the same slot runs a host path: blended matrices from its params, the same
+   `world()`/`object()` clipping and emission into a fresh ordering table,
+   then the remainder routines it needs (host versions, or the game routine
+   alone for those not yet ported). Exact stream comparison against the
+   worker path (`PSX_RT_VALIDATE`-style) gates every step.
+3. **N3** as before (render-thread projection).
+
+Until N0 is done the expected saving of section 4 (about 1.0 core) is an
+upper bound.
+
+## 7. N0 - what the game draws itself (2026-11-12)
+
+Measured with a temporary developer dump in the worker loop (removed after
+the measurement; the framework patch is unchanged): for every fourth base
+frame, each recorded job's GP0 packets with their source address (stream
+kind 5) and a hash of their words. Sources in main RAM are the game's own
+packets; sources in the GPU DMA aperture are our host pieces. Offscreen,
+180 Hz, the player's profile, turning (CONFIRMED):
+
+| View | Jobs (frames) | Host packets a job | Game packets a job | Game packets whose content changes between the jobs of a frame |
+| --- | --- | --- | --- | --- |
+| UI slot 2 | 844 (142) | 463-7,783 (mostly 5,600-6,000) | 26 | 11% |
+| UI slot 8 | 717 (120) | 779-2,132 | 29 | 12% |
+| UI slot 9, level 3 corridor | 705 (117) | 775-1,727 | 25 | 10% |
+| UI slot 2 (repeat, with words) | 532 (88) | - | 26 | 10% |
+
+By kind, over all runs: drawing-mode packets (`e1`, `e3`), flat quads
+(`28`) and VRAM uploads (`a0`, 47 and 205 words) never change between the
+jobs of a frame. What changes is one semi-transparent textured quad (`2e`)
+in almost every job (in the samples it lies below the visible screen,
+y 828-1023, and moves by a pixel or two with the camera) and about two of
+the 18-20 textured quads (`2c`) a job. Comparing by source address alone
+overstates the change: the same packet often sits at a different arena
+address in another job.
+
+So nearly all of the 58% of a job spent in the game's code goes into
+deciding and positioning what our host renderer draws (room walk, actors,
+animation, the calls into `world()`/`object()`); its own output is about 26
+packets, nine in ten identical across the frame. N1 therefore needs host
+equivalents for only a handful of camera-dependent packets (or the game
+routine that emits them alone), on top of re-running `world()`/`object()`
+with per-job matrices. Next: identify the routines behind the changing
+`2c`/`2e` packets (their texture pages and positions point at sprites or
+an effect quad), then build N1 as section 6 describes.

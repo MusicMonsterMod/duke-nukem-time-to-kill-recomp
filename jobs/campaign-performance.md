@@ -1174,7 +1174,7 @@ Waiting for the user to accept the report.
 
 ### D23L - Display cost: compositor and the output pass
 
-**Status: Needs playtest (2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md), [note 448](../documentation/448-d23m-direct-redraws.md)). Dependencies: D23K.**
+**Status: Done (user-accepted 2026-11-12; [note 453](../documentation/453-d23l-compositor.md), [note 444](../documentation/444-d23k-eduke32-parity.md), [note 448](../documentation/448-d23m-direct-redraws.md)). Dependencies: D23K.**
 Windowed at 180 Hz, Cinnamon composites every frame: our window costs about
 5-6 points of whole-GPU use more than borderless fullscreen, EDuke32's about
 3.6 (note 444, section 2). Each redraw also ends with an output pass of about
@@ -1196,6 +1196,32 @@ standing rule keeps to sessions with the user present (D23K froze the
 display driver unattended); the lab is ready (`recomp/analysis/d23k/lab.py`,
 whole-GPU and per-program `nvidia-smi` sampling, EDuke32 the same way).
 
+Work log, 2026-11-12 (Needs review). Measured on the real display with the
+user present ([note 453](../documentation/453-d23l-compositor.md)): windowed
+(1428 wide) against fullscreen, turning at 180 Hz, the player's profile.
+Ours: UI slot 2 31.4% / 26.6% borderless / 26.8% exclusive, UI slot 8 28.7%
+/ 23.7% / 24.4%, so the compositor costs 4.8-5.0 points. EDuke32 r10669 at
+the same window size, in game on E1L1 and E1L2 (Polymost and Polymer, 180
+fps, turning): 3.7-6.3 points (mean 4.8). In fullscreen `cinnamon` drops out
+of pmon for both games (Muffin bypasses any window that asks and covers the
+monitor; SDL asks for every window). The cost is the desktop's and matches
+EDuke32's; D23K's 5-6 against 3.6 compared different window sizes and
+demos. Nothing in our window to cut (no mapped helper windows, depth 24).
+GAME_MANUAL (Display): a maximised window is still composited. Acceptance
+"windowed minus borderless no more than EDuke32's difference": equal within
+run-to-run noise (4.8-5.0 against a mean of 4.8; Polymost alone 3.7 and
+4.7), the output pass halved by D23M. For the user to accept or ask for
+more. Lab pitfall recorded in the note: an invalid `display` value
+restores the defaults (a maximised window).
+
+
+Playtest, 2026-11-12 (user, real display, after D23L and D23N1): "it was
+smooth across the board"; "gameplay-wise it was a perfect experience". GPU
+(btop): UI slot 9 the heaviest spot of the session, 50% for about a second
+in one area, dropping as soon as Duke leaves it; average 25-30%; the larger
+views of Family Jewels up to 40%. The fullscreen comparison was not clean:
+btop was pinned above the game, so Cinnamon kept compositing; the lab
+measurement of note 453 stands. Accepted; closeout authorized.
 ### D23M - Direct redraws: draw into their own target, not emulated VRAM
 
 **Status: Needs playtest (first step 2026-11-11, [note 448](../documentation/448-d23m-direct-redraws.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
@@ -1247,7 +1273,7 @@ met: a third (a redraw's own target and upload skipping remain). Note 448.
 
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
-**Status: Needs review (research and design 2026-11-11, [note 449](../documentation/449-d23n-captured-redraws-research.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+**Status: In progress (D23N1 done, D23N2 inventory done 2026-11-12, notes 454-455; N0 measured, note 449 section 7; design corrected before building, [note 449](../documentation/449-d23n-captured-redraws-research.md) section 6; research and design 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
 At 180 Hz three worker processes re-run the game's drawing code for every
 redraw with the late camera: about 10 ms of CPU each, 1.5 cores in all (note
 444). RT64 (Zelda64Recomp) records a frame's draw calls once and replays them
@@ -1278,6 +1304,117 @@ polygons with their fixed inputs, plus the rest of the stream) in its first
 job and re-project it for the later jobs through the same clipping code; N2
 the camera-dependent remainder (sky, billboards, particles); N3 projection
 on the render thread, removing the workers from redraws. Not built.
+
+
+Work log, 2026-11-12 (review before building; not built). User asked for
+D23N to be built autonomously. A new worker profile (UI slot 2 turning at
+180 Hz, offscreen; flat samples and call stacks) and a code read of
+`worker_draw`, `build_params` and `near_clip.cpp` found two errors in the
+design before any code was written: each job blends actor joint matrices,
+object transforms and poses by its own fraction (only rooms and fixed props
+are frame-constant), and our host pieces are linked into the game's own
+ordering table with the game's sprites, particles, sky and first-person
+layer, much of which depends on the camera or the fraction. A job is about
+25% host rooms, 12% host objects and 58% game code with its emulation; the
+emulation items that look like overhead are already cached (a few percent
+at most). Building N1 as written would either change pictures or save
+little, so it was not started; note 449 section 6 has the corrected plan
+with a new first step, N0: an inventory of every primitive the game draws
+outside `world()`/`object()` and what it depends on.
+
+Work log, 2026-11-12 (N0 measured). A temporary worker dump (removed; the
+framework patch is unchanged) listed every recorded packet's source: per job
+about 26 of the game's own packets against 800-6,000 host pieces, in UI
+slots 2, 8 and 9 at 180 Hz, and 89-90% of the game's packets are identical
+in content across the jobs of a frame; the rest are one semi-transparent
+quad and about two textured quads a job. Drawing modes, flat quads and VRAM
+uploads never change. So N1 can skip the game's code if the few
+camera-dependent packets get host equivalents; note 449 section 7. Next:
+identify those packets' routines, then build N1.
+
+### D23N1 - Same-job capture and rebuild
+
+**Status: Done (user-accepted 2026-11-12, [note 454](../documentation/454-d23n1-capture-and-rebuild.md)). Dependencies: D23N.** First step of N1
+([note 449](../documentation/449-d23n-captured-redraws-research.md) sections
+6-7). In a redraw job, record every input our host renderer receives while
+the game's code runs (each `world()`/`object()` and host-visibility call
+with its GTE state, render-context fields and guest tables, the other host
+emitters, the lights/shadows/lamp records) and every packet the game emits
+itself, with its place among ours in the ordering table. Then, in the same
+job, rebuild the stream from the record alone (no game code) and compare.
+Acceptance: developer switch; rebuilt streams identical word for word to
+the real ones in UI slots 2, 8 and 9 at 180 Hz over thousands of jobs;
+nothing changes when the switch is off; Vanilla unchanged.
+
+Work log, 2026-11-12 (Needs review). Built `recomp/src/ttk/redraw_check.inc`
+(developer switch `DNTTK_N1_CHECK=N`): a checked job forks a copy of its
+worker at its start, logs every top-level store of the game's code and
+every top-level hook entry (CPU state, stream positions; a new runtime
+observer in `psx_mod_function_entry`), and the copy rebuilds the job from
+that record alone (stores applied, hooks called, the game's own stream items
+spliced, chain close and submit run for real), then the streams are compared
+word for word. About 12,000 jobs in UI slots 2, 5, 8 and 9, first and third
+person, walking, turning and firing, at 180 Hz: all identical, except one
+job a worker after the save loads in third person, where a game packet's
+PGXP record (excluded: the rebuild runs no game GTE work) starts the
+stream's source annotations; identical once those are set aside. Defects
+found and fixed in the system: worker hook depth (workers forked inside a
+callback), wall-clock reads while drawing (a held draw clock), the lamp bake
+table changing mid-job (held per job), splice annotations, I/O stores in the
+rebuild. A rebuild costs 55-62% of the composition (upper bound on a rebuilt
+later job before re-projection). Check off: `PSX_RT_VALIDATE` 693 of 693
+exact in two runs, 180 Hz held, Vanilla boots; `ttk-input-test` and
+`ttk-near-test` pass. Framework changes exported; the patch applies to the
+pin. [Note 454](../documentation/454-d23n1-capture-and-rebuild.md).
+
+
+Accepted 2026-11-12 with D23L after the playtest above ("all these tests
+happily passed"); closeout authorized.
+### D23N2 - Rebuild for another camera and fraction
+
+**Status: Todo (inventory done 2026-11-12, [note 455](../documentation/455-d23n2-what-a-later-job-changes.md)). Dependencies: D23N1.** Rebuild a later job of the same game
+frame from the first job's record, with that job's camera and blended
+poses: rooms first, then fixed props, then actors (model-space corners and
+the joint or transform each hangs from, the GTE matrix recomputed exactly
+as the game does). Acceptance: host packets identical word for word to the
+later job's real stream; differences in the game's own packets listed (they
+are D23N3's).
+
+
+Work log, 2026-11-12 (inventory). Added a record diff to the D23N1 tool
+(`DNTTK_N2_DIFF=1`): every gameplay job is recorded and compared with the
+previous job of the same frame. Turning at 180 Hz (UI slots 2, 8, 9): 22-30%
+of pairs entered a different hook sequence (other rooms and objects passed
+the game's visibility tests), 62-83% of hook entries saw other CPU state
+(GTE rotation and translation, derived registers), 9-18% of the game's
+stores differ in value (half in the scratchpad, then the stack, arena and
+matrix pages). Still (UI slot 2): the same hook sequence in every pair, 8%
+of hook entries differ (actor poses), 0.9% of stores. The camera drives the
+game's whole view pipeline, so a later job needs host equivalents of the
+transform (`0x800292a0`), room walk, culling, water, small models, sky and
+HUD hooks, each verified exact against the game's result; build order in
+[note 455](../documentation/455-d23n2-what-a-later-job-changes.md). Next:
+the object transform on the runtime's GTE emulator with its verifier.
+
+### D23N3 - The game's camera-dependent packets
+
+**Status: Todo. Dependencies: D23N2.** About 1 in 10 of the game's own
+packets change between the jobs of a frame (one semi-transparent quad and
+about two textured quads a job, note 449 section 7). Identify their guest
+routines and give each a host equivalent (or run that routine alone).
+Acceptance: rebuilt later jobs identical word for word, game packets
+included.
+
+### D23N4 - Later jobs skip the game's code
+
+**Status: Todo. Dependencies: D23N3.** Switch the rebuild on: the first job
+of a frame captures (with a culling margin wide enough for the late
+camera's turn within the frame, or falls back), the capture is shared
+between worker processes, later jobs rebuild instead of running the game.
+Acceptance: pictures identical (`PSX_RT_VALIDATE`, the comparison mode kept
+as a developer check), worker CPU at 120/180/240 Hz measured against D23N's
+baseline (about 1.5 cores at 180 Hz in UI slot 2), fallback to the full job
+whenever the capture does not cover a job, Vanilla unchanged.
 
 ### D23O - Leaner render-thread submission
 
@@ -1438,6 +1575,16 @@ D23N); 180 Hz with 4 logical CPUs held in UI slot 2 (bar met there), not
 in the level 3 corridor (about 110; AUTO now caps at 120 with 4-7 CPUs,
 D23P); GPU per redraw on the timeline 0.81-0.83 ms in UI slots 2 and 8
 (1.0 before D23M; bar 0.4). Still Todo: D23L-D23P are not done.
+
+
+Interim reading, 2026-11-12 (real display, the user present for D23L;
+[note 453](../documentation/453-d23l-compositor.md)). Same display, turning
+at 180 Hz, the player's profile; EDuke32 in game (E1L1, E1L2), not demos.
+Whole-GPU: ours windowed 28.7-31.4% (bar 12%), fullscreen 23.7-26.8%, that
+is about 1.3-1.5 ms of GPU a presented frame (bar 0.4); EDuke32 windowed
+8.2-12.5%, fullscreen 3.7-6.2% (0.2-0.35 ms). CPU 2.4-2.6 cores (bar 1.5;
+the workers 1.4-1.5 of it, D23N). The compositor is equal for both games
+(D23L). Still Todo: D23N (CPU) and the GPU per redraw are the open gaps.
 
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 

@@ -443,10 +443,22 @@ index 7406c39a..64088220 100644
  }
  #endif
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..f673efb9 100644
+index a1e4645e..af6d74fc 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
-@@ -54,6 +54,13 @@ uint32_t psx_mod_alloc_guest_memory(uint32_t size, uint32_t alignment);
+@@ -25,6 +25,11 @@ int psx_mod_register_function_entry_plugin(
+     const char* id, uint32_t address, PSXModFunctionEntryCallback callback);
+ /* Called only from generated functions explicitly listed by the game config. */
+ void psx_mod_function_entry(struct CPUState* cpu, uint32_t address);
++/* Plugin callbacks in progress (including guest code they dispatch), and a
++ * developer observer of each top-level entry: phase 0 before its callbacks,
++ * phase 1 after. */
++extern int g_psx_mod_hook_depth;
++extern void (*g_psx_mod_hook_observer)(struct CPUState* cpu, uint32_t address, int phase);
+ 
+ /* Narrow guest services available to trusted plugin callbacks. */
+ int psx_mod_game_started(void);
+@@ -54,6 +59,13 @@ uint32_t psx_mod_alloc_guest_memory(uint32_t size, uint32_t alignment);
   * without an allocation the aperture remains unmapped and DMA stays faithful.
   */
  uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t size, uint32_t alignment);
@@ -460,7 +472,7 @@ index a1e4645e..f673efb9 100644
  
  /* Current per-side widescreen reveal in native game pixels (zero at 4:3). */
  int32_t psx_mod_widescreen_x_margin(void);
-@@ -153,6 +160,268 @@ enum {
+@@ -153,6 +165,268 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -729,7 +741,7 @@ index a1e4645e..f673efb9 100644
  int psx_mod_set_auto_skip_fmv(int enabled);
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
-@@ -195,6 +464,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
+@@ -195,6 +469,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
  int psx_mod_set_disc_speed(uint32_t divisor,
                             uint32_t instant_max_per_frame);
  
@@ -835,10 +847,10 @@ index 25ba1f3b..29150412 100644
   * reads these from the inlined psx_advance_cycles below. */
 diff --git a/runtime/include/render_replay.h b/runtime/include/render_replay.h
 new file mode 100644
-index 00000000..e34ef18e
+index 00000000..c8edc573
 --- /dev/null
 +++ b/runtime/include/render_replay.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,71 @@
 +/* render_replay.h - presentation-only guest render replay (Time to Kill D17).
 + *
 + * A title plugin can re-run the game's own view composition between two real
@@ -874,6 +886,11 @@ index 00000000..e34ef18e
 +extern int g_render_replay_record;
 +void     render_replay_record_begin(uint32_t *buf, uint32_t cap);
 +uint32_t render_replay_record_end(int *overflow);
++/* Developer capture (D23N1): the words recorded so far; append whole items. */
++const uint32_t *render_replay_record_words(uint32_t *n);
++void render_replay_record_splice(const uint32_t *w, uint32_t n);
++void render_replay_channel_get(uint32_t out[3]);
++void render_replay_channel_set(const uint32_t in[3]);
 +int      render_replay_feed(const uint32_t *stream, uint32_t n);
 +
 +/* Guest memory image: RAM, scratchpad and allocated mod memory (memory.c). */
@@ -12781,7 +12798,7 @@ index 9d55ad16..6fac6c0f 100644
          }
      }
 diff --git a/runtime/src/mod_runtime.cpp b/runtime/src/mod_runtime.cpp
-index e481779f..f352e328 100644
+index e481779f..0d5c4ca8 100644
 --- a/runtime/src/mod_runtime.cpp
 +++ b/runtime/src/mod_runtime.cpp
 @@ -43,6 +43,8 @@ extern "C" void psx_write_word(uint32_t addr, uint32_t value);
@@ -12819,7 +12836,7 @@ index e481779f..f352e328 100644
  extern "C" int32_t psx_mod_widescreen_x_margin(void) {
      return (int32_t)psx_ws_x_margin();
  }
-@@ -1416,14 +1430,16 @@ extern "C" int psx_mod_register_function_entry_plugin(
+@@ -1416,15 +1430,29 @@ extern "C" int psx_mod_register_function_entry_plugin(
          });
      if (duplicate != plugins.end()) return 0;
      plugins.push_back(FunctionEntryPlugin{id, address, callback});
@@ -12827,17 +12844,30 @@ index e481779f..f352e328 100644
      return 1;
  }
  
++/* Hook depth and an optional observer of top-level hook entries (developer
++ * capture of a redraw job: Time to Kill D23N1). Depth counts plugin callbacks
++ * in progress, including guest code they dispatch; the observer sees each
++ * entry at depth 0 before (phase 0) and after (phase 1) its callbacks. */
++extern "C" int g_psx_mod_hook_depth = 0;
++extern "C" void (*g_psx_mod_hook_observer)(CPUState* cpu, uint32_t address, int phase) = nullptr;
++
  extern "C" void psx_mod_function_entry(CPUState* cpu, uint32_t address) {
      using namespace PSXRecompV4;
      if (!cpu) return;
 -    for (const FunctionEntryPlugin& plugin : function_entry_plugins()) {
 -        if (plugin.address == address) plugin.callback(cpu, address);
 +    const std::vector<uint32_t>& addresses = function_entry_addresses();
++    void (*const observer)(CPUState*, uint32_t, int) = g_psx_mod_hook_depth == 0 ? g_psx_mod_hook_observer : nullptr;
++    if (observer) observer(cpu, address, 0);
++    ++g_psx_mod_hook_depth;
 +    for (size_t i = 0; i < addresses.size(); ++i) {
 +        if (addresses[i] == address) function_entry_plugins()[i].callback(cpu, address);
      }
++    --g_psx_mod_hook_depth;
++    if (observer) observer(cpu, address, 1);
  }
  
+ extern "C" void mod_runtime_patch_disc_sector(uint32_t lba, int raw_sector,
 diff --git a/runtime/src/overlay_loader.c b/runtime/src/overlay_loader.c
 index e606b43f..ff875cf7 100644
 --- a/runtime/src/overlay_loader.c
@@ -13623,10 +13653,10 @@ index 00000000..528eb68b
 +#include "../gpu_vram_dirty.c"
 diff --git a/runtime/src/render_copy/rc2_names.h b/runtime/src/render_copy/rc2_names.h
 new file mode 100644
-index 00000000..0797eb3d
+index 00000000..3825bc38
 --- /dev/null
 +++ b/runtime/src/render_copy/rc2_names.h
-@@ -0,0 +1,470 @@
+@@ -0,0 +1,474 @@
 +/* Generated by gen_names.py - do not edit. */
 +#ifndef RC2_NAMES_H
 +#define RC2_NAMES_H
@@ -14033,6 +14063,8 @@ index 00000000..0797eb3d
 +#define psx_ws_x_margin rc2_psx_ws_x_margin
 +#define psx_ws_xclip_bound rc2_psx_ws_xclip_bound
 +#define render_replay_begin rc2_render_replay_begin
++#define render_replay_channel_get rc2_render_replay_channel_get
++#define render_replay_channel_set rc2_render_replay_channel_set
 +#define render_replay_end rc2_render_replay_end
 +#define render_replay_feed rc2_render_replay_feed
 +#define render_replay_mmio_read rc2_render_replay_mmio_read
@@ -14046,6 +14078,8 @@ index 00000000..0797eb3d
 +#define render_replay_record_lamp_levels rc2_render_replay_record_lamp_levels
 +#define render_replay_record_lights rc2_render_replay_record_lights
 +#define render_replay_record_shadows rc2_render_replay_record_shadows
++#define render_replay_record_splice rc2_render_replay_record_splice
++#define render_replay_record_words rc2_render_replay_record_words
 +#define render_replay_reset_channel rc2_render_replay_reset_channel
 +#define render_replay_rt_import rc2_render_replay_rt_import
 +#define render_replay_rt_session rc2_render_replay_rt_session
@@ -14171,10 +14205,10 @@ index 00000000..357e84ec
 +#include "../gpu_vram_dirty.c"
 diff --git a/runtime/src/render_copy/rc_names.h b/runtime/src/render_copy/rc_names.h
 new file mode 100644
-index 00000000..e200a9ca
+index 00000000..00f8a52a
 --- /dev/null
 +++ b/runtime/src/render_copy/rc_names.h
-@@ -0,0 +1,470 @@
+@@ -0,0 +1,474 @@
 +/* Generated by gen_names.py - do not edit. */
 +#ifndef RC_NAMES_H
 +#define RC_NAMES_H
@@ -14581,6 +14615,8 @@ index 00000000..e200a9ca
 +#define psx_ws_x_margin rc_psx_ws_x_margin
 +#define psx_ws_xclip_bound rc_psx_ws_xclip_bound
 +#define render_replay_begin rc_render_replay_begin
++#define render_replay_channel_get rc_render_replay_channel_get
++#define render_replay_channel_set rc_render_replay_channel_set
 +#define render_replay_end rc_render_replay_end
 +#define render_replay_feed rc_render_replay_feed
 +#define render_replay_mmio_read rc_render_replay_mmio_read
@@ -14594,6 +14630,8 @@ index 00000000..e200a9ca
 +#define render_replay_record_lamp_levels rc_render_replay_record_lamp_levels
 +#define render_replay_record_lights rc_render_replay_record_lights
 +#define render_replay_record_shadows rc_render_replay_record_shadows
++#define render_replay_record_splice rc_render_replay_record_splice
++#define render_replay_record_words rc_render_replay_record_words
 +#define render_replay_reset_channel rc_render_replay_reset_channel
 +#define render_replay_rt_import rc_render_replay_rt_import
 +#define render_replay_rt_session rc_render_replay_rt_session
@@ -14676,10 +14714,10 @@ index 00000000..f47f860a
 +#include "../render_replay.c"
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..3de85826
+index 00000000..6b26b468
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,520 @@
+@@ -0,0 +1,540 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -14706,6 +14744,9 @@ index 00000000..3de85826
 +/* Replay-local GPU DMA channel registers (the live channel is never touched). */
 +static uint32_t s_d2_madr, s_d2_bcr, s_d2_chcr;
 +void render_replay_reset_channel(void) { s_d2_madr = s_d2_bcr = s_d2_chcr = 0; }
++/* Developer capture (D23N1): the replay-local channel registers. */
++void render_replay_channel_get(uint32_t out[3]) { out[0] = s_d2_madr; out[1] = s_d2_bcr; out[2] = s_d2_chcr; }
++void render_replay_channel_set(const uint32_t in[3]) { s_d2_madr = in[0]; s_d2_bcr = in[1]; s_d2_chcr = in[2]; }
 +
 +/* Record mode (worker processes): GP0 traffic goes to a buffer instead of the
 + * GPU. Stream items: header (kind << 24 | count) then count words.
@@ -14746,6 +14787,23 @@ index 00000000..3de85826
 +    if (++s_rec_job == 0) { memset(s_rec_hv_job, 0, sizeof s_rec_hv_job); s_rec_job = 1; }
 +    // Each frozen job starts with a new RAM image, never inherited precision.
 +    if (g_pgxp_mesh_active) pgxp_invalidate_all();
++}
++/* Developer capture (Time to Kill D23N1): the stream recorded so far, and
++ * appending recorded words verbatim (whole items) to the current stream. */
++const uint32_t *render_replay_record_words(uint32_t *n) {
++    if (n) *n = s_rec_n;
++    return s_rec;
++}
++void render_replay_record_splice(const uint32_t *w, uint32_t n) {
++    if (!n) return;
++    if (s_rec_n + n > s_rec_cap) { s_rec_overflow = 1; return; }
++    memcpy(&s_rec[s_rec_n], w, (size_t)n * sizeof *w);
++    s_rec_n += n;
++    s_rec_run = UINT32_MAX;
++    /* A spliced host vertex counts as recorded: later list nodes carry their
++     * source address (kind 5), as they would after recording it here. */
++    for (uint32_t i = 0; i < n && !s_rec_need_src; i += 1u + (w[i] & 0xFFFFFFu))
++        if ((w[i] >> 24) == 4u) s_rec_need_src = 1;
 +}
 +uint32_t render_replay_record_end(int *overflow) {
 +    if (overflow) *overflow = s_rec_overflow;
@@ -15910,10 +15968,10 @@ index 00000000..e1462106
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..c2d5de29
+index 00000000..11fb3698
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,616 @@
+@@ -0,0 +1,619 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -16063,6 +16121,9 @@ index 00000000..c2d5de29
 +     * observer runs here, and GP0 traffic is recorded, never drawn. */
 +    g_render_replay_active = 1;
 +    g_render_replay_record = 1;
++    /* Workers may be forked from inside a plugin callback; a worker's jobs
++     * start at the top level. */
++    g_psx_mod_hook_depth = 0;
 +    psx_in_device_service = 1;
 +    const char *untimed=getenv("PSX_REPLAY_UNTIMED");
 +    if(untimed ? untimed[0]=='1' : s_visual_timing) {

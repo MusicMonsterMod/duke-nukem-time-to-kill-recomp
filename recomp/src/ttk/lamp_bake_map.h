@@ -11,4 +11,6 @@ void lamp_bake_map_publish(const std::vector<std::pair<uint32_t,uint32_t>>& reco
 void lamp_bake_map_clear();
 // Any thread or worker: the surface of a world face record (0: none).
 uint32_t lamp_bake_surface(uint32_t record);
+// D23N1: hold the table current at a redraw job's start until its end.
+void lamp_bake_pin(bool on);
 }

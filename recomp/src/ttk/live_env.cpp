@@ -46,3 +46,12 @@ extern "C" int ttk_env_switch(const char* name) {
     if(!t || !*t) return -1;
     return !(t[0]=='0' && !t[1]);
 }
+// D23N1: the draw clock (live_env.h).
+#if defined(PSX_SDL3)
+#include <SDL3/SDL.h>
+#else
+#include <SDL.h>
+#endif
+namespace {uint32_t draw_clock_held=0;}
+extern "C" uint32_t ttk_draw_clock_ms(void) {return draw_clock_held ? draw_clock_held : (uint32_t)SDL_GetTicks();}
+extern "C" void ttk_draw_clock_hold(uint32_t ms) {draw_clock_held=ms;}

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-12 - D23L and D23N1 closed; D23N2 inventory; D41P, D41Q on the board
+
+User playtest on the real display after both: "it was smooth across the board", "gameplay-wise it was a perfect experience"; btop 25-30% GPU on average, 50% for about a second in one area of UI slot 9, up to 40% in Family Jewels' larger views. D23L ([note 453](453-d23l-compositor.md)): windowed costs 4.8-5.0 GPU points over fullscreen, EDuke32's window of the same size 3.7-6.3: the desktop compositor's cost, equal for both; GAME_MANUAL says a maximised window is still composited. D23N1 ([note 454](454-d23n1-capture-and-rebuild.md)): a redraw job is recorded and rebuilt without the game's code, word for word identical over about 12,000 jobs (developer check `DNTTK_N1_CHECK`); redraws now hold one draw clock and one lamp bake table each. D23N2 ([note 455](455-d23n2-what-a-later-job-changes.md)): the camera drives the game's whole view pipeline; plan and next step recorded. D41P (soft shadow still seen on Duke's gun) and D41Q (chandelier flames off their candles) are Todo.
+
 ## 2026-11-12 - D23Q and D41M closed
 
 User after playing on the real display: "all the save/load stuff is fine" (D23Q, no abort after early loads); "the highest btop reported on slot 2 was 40% so far! impressive"; the first-visit bake switch (level 3 bake deleted, UI slot 9) showed no hitch: "it worked perfectly. in fact it all worked perfectly ... and the gameplay was perfect" (D41M). Both Done; closeout authorized. Notes [452](452-d23q-restart-stall.md) and [446](446-d41m-baked-lamps.md) section 8.

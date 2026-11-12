@@ -69,7 +69,7 @@ int kind_of(uint32_t mesh) {
 bool visuals() {
     return prop_lights_enabled.load(std::memory_order_relaxed) && input_modernized() && !ttk_world_classic();
 }
-uint32_t now_ms() {return (uint32_t)SDL_GetTicks();}
+uint32_t now_ms() {return ttk_draw_clock_ms();}   // D23N1: held during a redraw job
 
 // Tuning (developer): DNTTK_PROP_LIGHT_<NAME>="r g b strength radius".
 struct Tune {float rgb[3],k,radius;};

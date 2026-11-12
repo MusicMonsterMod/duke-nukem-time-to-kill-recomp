@@ -726,6 +726,38 @@ other words. [Note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md).
 Accepted with D50B and D50C, 2026-11-12 ("lock all this in and close it
 out"); the wording stands.
 
+### D41P - Shadow edges on models match the baked world
+
+**Status: Todo (user reports 2026-11-12). Dependencies: D41M, D41O.**
+User, 2026-11-12, during the D23L session: "im noticing that shadows on game
+geometry is blurred at the edges, but on the character, it's still sharp!"
+Since D41M, fixed lamps are baked for the world with soft 32-unit edges,
+while models (Duke, actors, props) are still lit by those lamps live, with
+the LIVE SHADOWS setting's sharp edges (D41O). So a shadow that crosses from
+a floor onto a character changes edge. Work: confirm which path shades the
+models (live lamp shadow maps under fixed lamps), then give model shadows
+from fixed lamps an edge that matches the bake (or bake-consistent
+filtering), keeping live lights (shots, blasts, flickering lamps) sharp.
+Acceptance: in a view where a fixed lamp's shadow falls across floor and a
+model, the edges match on the real display; GPU cost no higher at 180 Hz
+(lab as D41M); Vanilla and Classic unchanged.
+
+
+User, 2026-11-12 playtest (after D23N1): "I am still noticing the smooth
+shadow on duke's gun." Include the first-person weapon in the comparison.
+
+### D41Q - Chandelier flames sit on their candles
+
+**Status: Todo (user report 2026-11-12). Dependencies: D41L.**
+User, 2026-11-12 playtest: "the flames on the chandalier are not actually
+central to the candles themselves". The chandelier's flame glows (D41L,
+`prop_lights.cpp` prop glows) are drawn offset from the candle tips. Work:
+measure each candle tip on the chandelier model in game space, place each
+flame quad on its tip (including the chandelier's turn and sway), and check
+from several angles and distances, first and third person. Acceptance: in a
+matched before/after pair from the same spot, each flame sits on its candle;
+no cost at 180 Hz; Vanilla and Classic unchanged.
+
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

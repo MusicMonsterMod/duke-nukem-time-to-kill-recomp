@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,6 +14,13 @@ void ttk_world_classic_set(int classic);
 // D40: a developer switch's explicit value: -1 unset (the renderer decides),
 // 0 for "0", else 1.
 int ttk_env_switch(const char* name);
+// D23N1: the clock for anything drawn from the time (glow sway, flicker,
+// blinking). Live it is SDL's millisecond clock; a redraw job holds it at the
+// job's start, so a job's picture depends only on its inputs (a rebuilt job
+// matches the one it rebuilds, and the glows of one redraw do not move while
+// it is drawn).
+uint32_t ttk_draw_clock_ms(void);
+void ttk_draw_clock_hold(uint32_t ms);   // 0 releases it
 #ifdef __cplusplus
 }
 #endif

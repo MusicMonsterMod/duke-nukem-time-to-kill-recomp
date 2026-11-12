@@ -59,10 +59,18 @@ void lamp_bake_map_clear() {
     s->active.store(idle,std::memory_order_release);
 }
 
+// D23N1: a redraw job reads one table from start to end. A publish during a
+// job (the level's first bake appearing) takes effect at the next job, never
+// half way through one, and a rebuilt job sees what the job it rebuilds saw.
+// The writer only ever rewrites the idle half, so the pinned half stays whole
+// until the next publish but one (seconds apart: a bake takes seconds).
+int lbm_pinned=-1;
+void lamp_bake_pin(bool on) {lbm_pinned=on && lbm ? (int)(lbm->active.load(std::memory_order_acquire)&1u) : -1;}
+
 uint32_t lamp_bake_surface(uint32_t record) {
     const Shared* s=lbm;
     if(!s) return 0;
-    const Half& h=s->half[s->active.load(std::memory_order_acquire)&1u];
+    const Half& h=s->half[lbm_pinned>=0 ? (unsigned)lbm_pinned : s->active.load(std::memory_order_acquire)&1u];
     if(!h.n) return 0;
     const uint64_t lo=(uint64_t)record<<32;
     const uint64_t* p=std::lower_bound(h.key,h.key+h.n,lo);

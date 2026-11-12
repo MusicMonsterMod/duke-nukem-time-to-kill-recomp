@@ -190,11 +190,11 @@ bool allocate() {
 }
 // Cursor blink (530 ms) and a faint flicker of the screen and its light, a
 // new level every 33 ms, from the clock: the same in redraw workers.
-bool cursor_on() {return ((uint32_t)SDL_GetTicks()/530)&1;}
+bool cursor_on() {return (ttk_draw_clock_ms()/530)&1;}
 // The screen's self-lit level (128 is the texture as painted; DNTTK_SCREEN_LEVEL).
 uint32_t screen_base=230;
 uint32_t flicker_level() {
-    uint32_t h=(uint32_t)SDL_GetTicks()/33*2654435761u;h^=h>>15;
+    uint32_t h=ttk_draw_clock_ms()/33*2654435761u;h^=h>>15;
     return std::min<uint32_t>(255,screen_base-4+((h>>7)&7));   // a faint flicker around screen_base
 }
 void write_mesh(uint32_t mesh_template) {
@@ -275,7 +275,7 @@ uint32_t keypad_level=255;
 // workers): a slow 1.8 s breath with a quick crackle now and then (about one
 // 50 ms step in 14 jumps to full or drops low).
 float power_pulse() {
-    const uint32_t ms=(uint32_t)SDL_GetTicks();
+    const uint32_t ms=ttk_draw_clock_ms();
     float v=0.5f+0.5f*std::sin(ms*(2*3.14159265f/1800.0f));
     uint32_t h=ms/50*2654435761u;h^=h>>13;h*=0x5bd1e995u;h^=h>>15;
     if(h%14==0) v=(h>>8)&1?1.0f:0.15f;
@@ -447,7 +447,7 @@ unsigned lights(PSXModLight* out,unsigned room) {
     const double duke_p[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const float flick=flicker_level()/(float)screen_base;   // the wall light follows the flicker, not the level
     // D54: a broken TV or power sign's light sputters out.
-    const uint32_t ms=(uint32_t)SDL_GetTicks();
+    const uint32_t ms=ttk_draw_clock_ms();
     const PropSnapshot& snap=prop_snapshot_take();
     if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
         e.standing=0;e.broke_ms=ms;
@@ -499,7 +499,7 @@ extern "C" int ttk_security_overlay_piece(int i,const uint32_t** px,int* w,int* 
     if(!(psx_mod_read_word(players+index*0x8a4u+0x224)&0x20000000u)) return 0;
     if((size_t)i>=pack.pieces.size()) return 0;
     const Piece& p=pack.pieces[(size_t)i];
-    if(p.kind==1 && ((uint32_t)SDL_GetTicks()/133)%2) return 0;   // the record light blinks
+    if(p.kind==1 && (ttk_draw_clock_ms()/133)%2) return 0;   // the record light blinks
     *px=p.argb.data();*w=p.w;*h=p.h;*x=p.x;*y=p.y;
     return 1;
 }

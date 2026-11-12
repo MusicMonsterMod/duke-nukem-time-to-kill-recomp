@@ -105,6 +105,9 @@ and enter four values, for example `2 windowed 0 linear`:
   copied by the desktop at every refresh (180 times a second on a 180 Hz
   display), which costs graphics time on top of the game's own; borderless
   or exclusive fullscreen is shown directly and avoids that cost (D23L).
+  A maximised window is still a window and is still copied; on a 180 Hz
+  display the copy costs about 5% of a GTX 1080 Ti, the same as EDuke32's
+  window of the same size.
 - **Window width**: `0` fits the window to your screen; otherwise 640-7680
   pixels. The height follows the picture shape (4:3, or the widescreen
   shape below).

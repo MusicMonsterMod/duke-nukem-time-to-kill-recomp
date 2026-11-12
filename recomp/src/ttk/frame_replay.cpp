@@ -42,7 +42,15 @@
 #ifdef __linux__
 #include <malloc.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 #endif
+#include <vector>
+#include <unordered_map>
+#include "render_replay.h"
+#include "mod_memory.h"
+#include "lamp_bake_map.h"
 #include <cstring>
 #include <string>
 
@@ -1650,7 +1658,11 @@ void beams_animate(double t) {
 }
 #include "impact_follow.inc"
 #include "bolt_barrel.inc"
+#include "redraw_check.inc"
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
+    // D23N1: one clock for everything this job draws from the time (live_env.h).
+    // The lamp bake table is held the same way (lamp_bake_map.h).
+    struct ClockHold {ClockHold(){const uint32_t t=(uint32_t)SDL_GetTicks();ttk_draw_clock_hold(t?t:1u);lamp_bake_pin(true);} ~ClockHold(){ttk_draw_clock_hold(0);lamp_bake_pin(false);}} clock_hold;
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
     const uint64_t hits0=substituted,miss0=sub_misses;
@@ -1758,7 +1770,9 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if(p.flags&4) psx_mod_write_half(logo_angle,(uint16_t)((p.logo-(int)psx_mod_read_half(field_delta))&0xfff));
     if(!(p.flags&4)) quake_begin(false);
     if((p.flags&32) && !(p.flags&4)) beams_animate(p.beam_t);
+    n1::begin(cpu,p);   // D23N1 developer check (DNTTK_N1_CHECK)
     psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
+    n1::at_flip(cpu);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {
         CPUState tail=cpu;
@@ -1771,6 +1785,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             ok=tail.pc==0 && !g_psx_call_bail;
         }
     }
+    n1::finish(ok);
     g_psx_call_bail=0;
     sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={}; quake_cam={};
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;

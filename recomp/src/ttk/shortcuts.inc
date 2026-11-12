@@ -74,7 +74,7 @@ static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t*
     CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
     cpu.gpr[4]=a0>=0?(uint32_t)a0:player;cpu.gpr[5]=a1; // a0: Duke unless given
     if(a2>=0)cpu.gpr[6]=(uint32_t)a2;
-    guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     // Restore only what the call changed: guest writes are the costly part
     // (the runtime traces every store), and most of the 5 KiB is untouched.
     for(unsigned i=0;i<1024;++i)if(psx_mod_read_word(base+4*i)!=saved[i])psx_mod_write_word(base+4*i,saved[i]);

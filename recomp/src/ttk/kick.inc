@@ -222,7 +222,7 @@ static bool kick_call(CPUState* source,uint32_t address,const uint32_t (&args)[6
     psx_mod_write_word(cpu.gpr[29]+0x10,args[4]);psx_mod_write_word(cpu.gpr[29]+0x14,args[5]);
     const uint32_t slot=cpu.gpr[29]-sphere_frame+sphere_attacker_slot;
     if(struck) psx_mod_write_word(slot,0);
-    guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     if(struck) *struck=cpu.pc==0 && !g_psx_call_bail && args[4] && psx_mod_read_word(slot)==args[4];
     if(result) *result=cpu.pc==0 && !g_psx_call_bail ? cpu.gpr[2] : 0;
     for(unsigned i=0;i<sizeof saved;++i) psx_mod_write_byte(top-4096+i,saved[i]);

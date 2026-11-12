@@ -36,7 +36,7 @@ static void pole_visibility_draw(CPUState* source,uint32_t ra) {
     // portal list. The normal object renderer retains its sphere, box,
     // polygon clipping, texture transparency and world-depth ordering.
     cpu.gpr[4]=camera;cpu.gpr[5]=object;cpu.gpr[6]=0x800d2210;
-    guest_busy=true;psx_dispatch_call(&cpu,0x80031d10,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,0x80031d10,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     for(unsigned i=0;i<1024;++i)if(psx_mod_read_word(base+4*i)!=saved[i])psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i)if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i])psx_mod_write_word(0x1f800000+4*i,scratch[i]);
 }

@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-12 - D50B, D50C and D41O closed
+
+User after playing: "the game no longer crashes at that point ... testing is solid". All three Done; closeout authorized. [Note 451](451-d50b-d50c-saves-and-the-pit.md).
+
+## 2026-11-12 - D50B, D50C, D41O (Needs playtest)
+
+D50B ([note 451](451-d50b-d50c-saves-and-the-pit.md)): a save loaded back in the same session could end or stop the game (Modernized only). 13 of our host-to-guest calls ran the game on a copied CPU state without declaring it; a load admitted inside one put the loaded registers into the copy and resumed with stale ones. They now bracket with `psx_mod_host_call_begin/end`; 175 save-and-load-back rounds clean (F6/F9 and port, 60/180 Hz, first and third person), Vanilla clean. D50C: the level 3 pit is a death pit; the halts were GP0 words the console ignores (broken packets with Duke dead outside the level). Framework: unknown GP0 commands are NOPs, GP0(1Fh) requests IRQ1, the DMA walker ends a list at a foreign bit-23 link; the pit ends in the death prompt, and a third-person load of UI slot 9 that halted now works. D41O: OPTIONS > DISPLAY > LIVE SHADOWS, SHARP / SIMPLE. Playtest checklist: F6/F9 and SAVE GAME / LOAD GAME at 180 Hz; walk into the level 3 pit (UI slot 9); the new menu wording.
+
 ## 2026-11-12 - D41N and D23S closed
 
 User-accepted after play: "colossally huge improvement in resource usage ... a significant drop in GPU usage in regular gameplay". Both Done; [note 450](450-d41n-moving-lights-d23s-console.md).

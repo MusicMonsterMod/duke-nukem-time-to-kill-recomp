@@ -23,7 +23,7 @@ static bool cheat_call(CPUState* cpu,uint32_t address,uint32_t actor,uint32_t a1
         for(unsigned i=0;i<words;++i)psx_mod_write_word(at+4*i,buffer[i]);
         copy.gpr[6]=at;copy.gpr[7]=0;
     } else if(a1) {copy.gpr[5]=a1;copy.gpr[6]=0;}
-    guest_busy=true;psx_dispatch_call(&copy,address,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&copy,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     if(result)*result=copy.gpr[2];
     for(unsigned i=0;i<sizeof stack;++i)psx_mod_write_byte(top-4096+i,stack[i]);
     for(unsigned i=0;i<sizeof scratch;++i)psx_mod_write_byte(0x1f800000+i,scratch[i]);

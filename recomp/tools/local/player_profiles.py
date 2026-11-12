@@ -609,7 +609,7 @@ def describe(settings):
         lines.append(f"Weapon feel: {controls['weapon_feel']} (retro: every click fires, the first shot comes sooner and held fire keeps a steady rate, close to EDuke32; modern: the original timing)")
         lines.append(f"Earthquakes: {controls['earthquakes']} (on: TNT barrels and explosive vests shake the whole level, Duke Nukem 3D style)")
         lines.append(f"Lighting: {controls['dynamic_lights']} (on: Enhanced, real lights from blasts, guns, lamps and signs on the original light; relit: Relit, the original light dimmed so those lights carry the scene; off: Original; Polymorph renderer only)")
-        lines.append(f"Shadow edges: {controls['shadow_edges']} (smooth: shadows take the exact shape of the walls and objects casting them, anti-aliased; simple: faster, stepped edges; Lighting Enhanced or Relit only)")
+        lines.append(f"Live shadows: {'sharp' if controls['shadow_edges'] == 'smooth' else 'simple'} (shadow edges of blasts and flickering or breakable lamps; sharp: the exact shape of the geometry, anti-aliased; simple: faster, stepped edges; steady lamps are baked; Lighting Enhanced or Relit only)")
         lines.append(f"Security monitors: {controls['security_monitors']} (duke3d: larger lit TV screens and a camera frame with REC, Duke 3D style; ttk: the original monitors; Polymorph renderer only)")
         lines.append(f"Third-person kick: {controls['third_person_kick']} (quick: a fast legs-only kick with any weapon, on the move; original: the holstered Boot's full-body kicks)")
         lines.append(f"Sidearm return: {controls['sidearm_return']} (never: keep a climb sidearm until you choose; auto: your weapon comes back 0.75 s after the last shot)")

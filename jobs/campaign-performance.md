@@ -1548,7 +1548,7 @@ saves in a row, 12 GAME SAVED, each after its successful write.
 
 ### D50C - Walking into the level 3 pit halts the emulation
 
-**Status: Todo (D50A finding, 2026-11-11). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; [note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md)). Dependencies: none.**
 Found in the D50A/D41M lab (offscreen, private copy of UI slot 9, the level
 3 corridor, Duke walking forward with nothing else pressed for about 25 s):
 Duke reaches the end of the corridor, drops about 7000 units (to 24065,
@@ -1568,9 +1568,27 @@ walk of about 13 s from UI slot 9 (offscreen, 180 Hz) dropped Duke from y
 sample 0x800B6E44, no exception pending, I_MASK 0x6D). Log kept locally as
 `recomp/analysis/perf/d50c-repro-1.log`.
 
+Work log, 2026-11-12 (Needs playtest). Duke dies in the pit (flags 0x802,
+health 0); the game's own outcome is its death view and PRESS E TO OPEN
+MENU. The halts came from the GPU stream: with Duke dead outside the level
+the game builds broken packets (a node with a corrupt word count sent link
+headers to the GPU as data; a garbage link 0xA805E5), and the framework
+halted on GP0 words the console ignores. The same family halted a
+third-person load of UI slot 9 (GP0 0xFE). Framework fixes: unknown GP0
+commands are one-word NOPs and GP0(1Fh) requests IRQ1, as on the console
+(logged); the DMA list walker ends a list at a bit-23 link that is not
+allocated mod packet memory instead of folding it into RAM (new walker test
+case). Lab (offscreen, private card copy): 4 pit walks (180 Hz and 60 Hz,
+first and third person) end in the death prompt with no halt; 10
+third-person loads of UI slot 9, none halted (was the first load). Vanilla:
+same framework path, only for words the console ignores. Remaining: after
+the death the game runs at 53-60 of 60 fields a second; the user's look.
+
+User playtest, 2026-11-12: "the game no longer crashes at that point ... testing is solid". Accepted; closeout authorized.
+
 ### D50B - A save can end the game (PC=0)
 
-**Status: In progress (2026-11-11, see the work log). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; [note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md)). Dependencies: none.**
 Found in the D50A lab (offscreen, private card copies, saves through the
 debug port `savestate op=save` in the level 3 corridor of UI slot 9 a few
 seconds after a load): in 4 of about 16 launches the game ended with
@@ -1615,3 +1633,29 @@ Work log, 2026-11-11. Two symptoms, two causes:
    same-thread resume and the top-level resume flag) after an unwinding
    save. Lab: `recomp/analysis/perf/lab.py` cases `saveloop`, `d50b`,
    `loadloop` (local).
+
+Work log, 2026-11-12 (Needs playtest). The old loop (load the player's state,
+save, load the player's state again) no longer failed (185 rounds, 60 of them
+with every save forced through the scheduler unwind). The acceptance loop
+(save through the port or F6, load that save back through the port or F9)
+failed within 2 to 25 rounds at 60 and 180 Hz: PC 0 after the load, or the
+guest stopped, often after a 1 s fresh-frame hold. Vanilla: 50 rounds clean.
+The failing states held a zeroed live frame (the camera render's return
+address 0 at 0x801fff48). Cause: 13 of our host-to-guest calls (host and pole
+visibility, crouch hull, kicks, cheats, gadget HUD, shortcuts, sleeping
+enemies, steroids, damage flash) ran the game on a copied CPU state with only
+our own `guest_busy` flag; a load admitted inside one applied the loaded
+registers to that copy and resumed the game with the real CPU's stale ones
+against the loaded RAM. Fix: those calls now declare themselves to the
+framework (`psx_mod_host_call_begin/end`), as the aim trace and menu text
+already did, so a load or save waits for the next poll. Lab after the fix,
+offscreen, private card copies: 175 save-and-load-back rounds (60 port at
+60 Hz; 50 at 180 Hz, 25 F6/F9 and 25 port; 30 third-person; 35 more at
+180 Hz), no exit, stall or hold; one round of the first 180 Hz run ran at
+8-13 fields a second after the load during the tail of a Timeshift backup
+(08:00-08:26), not reproduced by the same state fresh or by the 50-round
+rerun after the backup (suspected host contention, not established).
+Vanilla: 25 rounds clean. Remaining: the user's playtest of F6/F9 and SAVE
+GAME / LOAD GAME at 180 Hz.
+
+User playtest, 2026-11-12: "the game no longer crashes at that point ... testing is solid". Accepted; closeout authorized.

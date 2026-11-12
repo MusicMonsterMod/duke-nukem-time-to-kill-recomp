@@ -622,7 +622,7 @@ static void host_vis_reach_draw(CPUState* source) {
     for(uint32_t o:draw) {
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
         cpu.gpr[4]=camera;cpu.gpr[5]=o;cpu.gpr[6]=0x800d2210;
-        guest_busy=true;psx_dispatch_call(&cpu,0x80031d10,0x800000fc);guest_busy=false;
+        guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,0x80031d10,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     }
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);

@@ -206,7 +206,7 @@ static bool steroids_use(CPUState* cpu) {
     for(unsigned i=0;i<256;++i) scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState call=*cpu;call.pc=0;call.gpr[29]=top-0x100;call.gpr[31]=0x800000fc;
     call.gpr[4]=0x100f;call.gpr[5]=player+4;call.gpr[6]=0x800;call.gpr[7]=(uint32_t)-10;
-    guest_busy=true;psx_dispatch_call(&call,0x8006b73c,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&call,0x8006b73c,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
     return true;

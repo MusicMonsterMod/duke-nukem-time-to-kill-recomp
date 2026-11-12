@@ -269,7 +269,7 @@ static void keyed_icons_begin(CPUState* source) {
     for(unsigned i=0;i<256;++i) scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
     cpu.gpr[4]=1;cpu.gpr[5]=packet;cpu.gpr[6]=0;cpu.gpr[7]=0;
-    guest_busy=true;psx_dispatch_call(&cpu,0x8002bc18,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,0x8002bc18,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     const bool ok=cpu.pc==0 && !g_psx_call_bail;
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
@@ -314,7 +314,7 @@ static bool hud_box_draw(CPUState* source,uint32_t icon,const GadgetArt* art,int
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
         cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;cpu.gpr[7]=a3;
         psx_mod_write_word(top-0x100+16,100);  // 0x8008b678 scale argument
-        guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
+        guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
         ok=cpu.pc==0 && !g_psx_call_bail;
     };
     if(!bare && !cell_only) {

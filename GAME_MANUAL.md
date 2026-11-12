@@ -455,18 +455,21 @@ and with shadows for the session, `light shadows moving on` / `light shadows
 moving off` gives moving lights shadows again for a comparison (not saved),
 and `light shadows` shows their state.
 
-**OPTIONS > DISPLAY > SHADOW EDGES** sets how shadow edges are drawn (it
-switches at once and is saved):
+**OPTIONS > DISPLAY > LIVE SHADOWS** sets how the edges of live shadows are
+drawn: the shadows of blasts and of lamps that change while you play
+(flickering, pulsing, traffic lights, lamps whose prop can break). The
+level's steady lamps are baked (see Baked lamps below) and keep their slightly
+soft edges whatever this says. It switches at once and is saved:
 
-- **SMOOTH** (default): the edge follows the exact shape of the wall or pillar
+- **SHARP** (default): the edge follows the exact shape of the wall or pillar
   casting it, with straight lines, sharp corners and anti-aliasing, like the
   edges of the geometry itself.
-- **SIMPLE**: a cheaper hard edge with visible steps. Use it if shadows make
+- **SIMPLE**: a cheaper hard edge with visible steps. Use it if blasts make
   the game stutter on your computer.
 
-The launcher saves it with `--shadow-edges smooth|simple`, and the backtick
-console `light shadows smooth` / `light shadows simple` switches it for the
-session without saving it.
+The launcher saves it with `--shadow-edges smooth|simple` (smooth is SHARP),
+and the backtick console `light shadows sharp` / `light shadows simple`
+switches it for the session without saving it.
 
 **Level lights.** Levels can also have placed lights of their own, "lamps":
 neon signs, lamps and coloured rooms cast real light on walls, props, enemies
@@ -490,7 +493,7 @@ before brings it back. They come and go with LIGHTING (ENHANCED or RELIT).
 ceilings from a light map worked out once per level: every lamp lights its
 surroundings all the time (no limit on how many, no lamps fading in and out
 as Duke walks), and walls stop their light also with SHADOWS off; the edges of
-those wall shadows are slightly soft (the map's grain, not SHADOW EDGES). A lamp's
+those wall shadows are slightly soft (the map's grain, not LIVE SHADOWS). A lamp's
 pool keeps the size it has in its own room (in RELIT it no longer widens or
 narrows with the room Duke's camera is in); its strength still follows the
 room as before. Candles, flickering and pulsing lamps, traffic lights and

@@ -408,8 +408,10 @@ std::vector<Screen> make_screens() {
         {"LIGHTING",Section::Controls,"dynamic_lights","DNTTK_LIGHTS",true,"ENHANCED: REAL LIGHTS ADDED. RELIT: LAMPS CARRY THE SCENE",
          {{"ENHANCED","on","\"on\""},{"RELIT","relit","\"relit\""},{"ORIGINAL","off","\"off\""}},0},
         // D41F1: the shadow edge (light_shadows.inc, the GL renderer's shadow_vis).
-        {"SHADOW EDGES",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"SMOOTH: THE EXACT SHAPE OF THE GEOMETRY. SIMPLE: FASTER",
-         {{"SMOOTH","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""}},0},
+        // D41O: since the D41M bake it only changes live lights (blasts, flickering
+        // and breakable lamps); the stored values stay smooth/simple.
+        {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"BLASTS AND FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
+         {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
@@ -1478,15 +1480,25 @@ void back(uint16_t mode) {
 // Quick_Save, Quick_Load and its F2 / F3 save / load menus, in a one-player
 // game (gameplay, or the death list for loads).
 QuickResult game_menu_quick(Quick q) {
-    if(!enabled() || psx_mod_replay_active()) return QuickResult::Ignored;
+    static const bool quick_trace=std::getenv("DNTTK_LOAD_UI_TRACE")!=nullptr;   // D50B: why a key did nothing
+    if(!enabled() || psx_mod_replay_active()) {if(quick_trace) std::fprintf(stderr,"[TTK quick] %d ignored: replay\n",(int)q);return QuickResult::Ignored;}
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    if(!identity_checked || !identity_ok || psx_mod_read_half(game_mode)!=1 || psx_mod_read_word(players)!=1)
+    if(!identity_checked || !identity_ok || psx_mod_read_half(game_mode)!=1 || psx_mod_read_word(players)!=1) {
+        if(quick_trace) std::fprintf(stderr,"[TTK quick] %d ignored: mode %d\n",(int)q,psx_mod_read_half(game_mode));
         return QuickResult::Ignored;
+    }
     // One thing at a time; menus (other than the death list) keep their keys.
     if(quitting || loading || saving || quick_saving || quick_loading || savestate_busy()
-       || pending_final!=Final::None || resumed || direct!=Page::Options) return QuickResult::Done;
+       || pending_final!=Final::None || resumed || direct!=Page::Options) {
+        if(quick_trace) std::fprintf(stderr,"[TTK quick] %d busy: quit %d load %d save %d qsave %d qload %d busy %d final %d resumed %d direct %d\n",(int)q,
+            quitting,loading,saving,quick_saving,quick_loading,savestate_busy(),(int)(pending_final!=Final::None),resumed,(int)(direct!=Page::Options));
+        return QuickResult::Done;
+    }
     const bool death_list=owned && page==Page::Death && psx_mod_read_half(pause_screen)==death_sub;
-    if(!death_list && (owned || psx_mod_read_half(paused) || psx_mod_read_half(pause_screen))) return QuickResult::Done;
+    if(!death_list && (owned || psx_mod_read_half(paused) || psx_mod_read_half(pause_screen))) {
+        if(quick_trace) std::fprintf(stderr,"[TTK quick] %d in a menu: owned %d paused %d screen %d\n",(int)q,owned,psx_mod_read_half(paused),psx_mod_read_half(pause_screen));
+        return QuickResult::Done;
+    }
     if(q==Quick::Save || q==Quick::SaveMenu) {
         if(death_list || duke_dead()) {input_notice("CAN'T SAVE WHILE DEAD");return QuickResult::Done;}
         if(q==Quick::SaveMenu || quick_slot<0) return quick_open(Page::Save);

@@ -69,7 +69,7 @@ static bool sleep_call(const CPUState* cpu,uint32_t address,uint32_t a0,uint32_t
     for(unsigned i=0;i<256;++i) scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState c=*cpu;c.pc=0;c.gpr[29]=top-0x100;c.gpr[31]=0x800000fc;
     c.gpr[4]=a0;c.gpr[5]=a1;c.gpr[6]=a2;c.gpr[7]=a3;
-    guest_busy=true;psx_dispatch_call(&c,address,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&c,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     if(v0) *v0=c.gpr[2];
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=stack[i]) psx_mod_write_word(base+4*i,stack[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
@@ -308,7 +308,7 @@ static void sleeping_draw(CPUState* source) {
         psx_mod_write_word(picks[i].actor+0x3c,0);
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
         cpu.gpr[4]=source->gpr[4];cpu.gpr[5]=picks[i].actor;cpu.gpr[6]=picks[i].entry;
-        guest_busy=true;psx_dispatch_call(&cpu,0x80032e78,0x800000fc);guest_busy=false;
+        guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,0x80032e78,0x800000fc);psx_mod_host_call_end();guest_busy=false;
         if(cpu.pc!=0 || g_psx_call_bail) break;
         ++sleep_last_drawn;
     }

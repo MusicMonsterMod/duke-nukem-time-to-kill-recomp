@@ -92,7 +92,7 @@ static void damage_test_hurt(CPUState* cpu) {
     copy.pc=0;copy.gpr[29]=top-256;copy.gpr[31]=0x800000fc;
     copy.gpr[4]=player;copy.gpr[5]=player+4;copy.gpr[6]=(uint32_t)amount;copy.gpr[7]=(uint32_t)type;
     for(unsigned i=0;i<4;++i)psx_mod_write_word(copy.gpr[29]+0x10+4*i,0);
-    guest_busy=true;psx_dispatch_call(&copy,0x800a40a8,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&copy,0x800a40a8,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     for(unsigned i=0;i<sizeof stack;++i)psx_mod_write_byte(top-4096+i,stack[i]);
     for(unsigned i=0;i<sizeof scratch;++i)psx_mod_write_byte(0x1f800000+i,scratch[i]);
     ++damage_test_hits;

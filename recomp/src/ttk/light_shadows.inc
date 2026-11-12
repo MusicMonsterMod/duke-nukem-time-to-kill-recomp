@@ -295,11 +295,12 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
     else if(!std::strcmp(arg,"off")) light_shadow_mode.store(0);
     else if(!std::strcmp(arg,"default")) light_shadow_mode.store(-1);
     // D41F1: "light shadows smooth|simple" - SHADOW EDGES for this session.
+    else if(!std::strcmp(arg,"sharp")) ttk_live_env_set("DNTTK_SHADOW_EDGES","smooth");   // D41O: the menu's LIVE SHADOWS SHARP
     else if(!std::strcmp(arg,"smooth") || !std::strcmp(arg,"simple") || !std::strcmp(arg,"reference")) ttk_live_env_set("DNTTK_SHADOW_EDGES",arg);   // reference: developer, the exact test everywhere
-    else if(*arg) {say("Light: light shadows [on|off|default|smooth|simple]");return true;}
+    else if(*arg) {say("Light: light shadows [on|off|default|sharp|simple|moving]");return true;}
     uint64_t g[4];gl_shadow_counters(g);
     char b[384];std::snprintf(b,sizeof b,"Light: shadows %s, %s edges; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms; %llu new slots, %llu deferred, moving %s",
-        shadows_on()?"on":"off",shadow_edges_smooth()?"smooth":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0,
+        shadows_on()?"on":"off",shadow_edges_smooth()?"sharp":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0,
         (unsigned long long)shadow_new,(unsigned long long)shadow_deferred,shadow_moving_on()?"shadowed":"unshadowed");
     say(b);
     return true;

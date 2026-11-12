@@ -2045,6 +2045,75 @@ index 7d9ce988..7cba906d 100644
      dma_gpu_ll_start(&gpu_linked_list, start_addr, 0x40000u);
      event_ring_record_aux(EV_DMA_SCHED, 2u, channels[2].chcr);
  }
+diff --git a/runtime/src/dma_gpu_ll.c b/runtime/src/dma_gpu_ll.c
+index 7882b273..de3398dd 100644
+--- a/runtime/src/dma_gpu_ll.c
++++ b/runtime/src/dma_gpu_ll.c
+@@ -1,5 +1,6 @@
+ #include "dma_gpu_ll.h"
+ 
++#include <stdio.h>
+ #include <string.h>
+ 
+ /* PSX DMA2 linked-list timing used by the clean-room state machine. The header
+@@ -15,6 +16,27 @@ static uint32_t resolve_address(const DMAGPULinkedListOps *ops, void *opaque,
+     return ops->resolve_address ? ops->resolve_address(opaque, address) : address;
+ }
+ 
++/* Time to Kill D50C: a link with bit 23 set is never main RAM (2 MiB); only
++ * the mod GPU DMA windows (mod_memory.h) live there. When it does not resolve
++ * to their allocated part (a garbage link from a broken packet, seen as
++ * 0xA805E5 with Duke dead in the level 3 pit), the retail 2 MiB fold would
++ * walk game data as GP0 commands. End the list there, as render_replay.c's
++ * walker does. */
++static int link_ends_list(const DMAGPULinkedListOps *ops, void *opaque,
++                          uint32_t link) {
++    static unsigned s_logged;
++    link &= 0x00FFFFFFu;
++    if (link == 0x00FFFFFFu) return 1;
++    if (!(link & 0x00800000u) || !ops->resolve_address) return 0;
++    if (ops->resolve_address(opaque, link) == (link & 0x00FFFFFCu)) return 0;
++    if (s_logged < 4u) {
++        s_logged++;
++        fprintf(stderr, "dma: GPU list link 0x%06X is outside the allocated mod "
++                        "packet memory; the list ends there\n", (unsigned)link);
++    }
++    return 1;
++}
++
+ static void finish(DMAGPULinkedList *state,
+                    const DMAGPULinkedListOps *ops, void *opaque) {
+     int hit_limit = state->hit_limit != 0;
+@@ -65,6 +87,11 @@ void dma_gpu_ll_advance(DMAGPULinkedList *state, uint32_t cycles,
+             return;
+         }
+ 
++        if (state->nodes_processed == 0 &&
++            link_ends_list(ops, opaque, state->current_addr)) {
++            finish(state, ops, opaque);
++            return;
++        }
+         state->current_addr = resolve_address(ops, opaque, state->current_addr);
+         uint32_t header = ops->read_word(opaque, state->current_addr);
+         state->word_count = header >> 24;
+@@ -85,7 +112,7 @@ void dma_gpu_ll_advance(DMAGPULinkedList *state, uint32_t cycles,
+             ? (uint8_t)(ops->begin_node(opaque, state->current_addr, 0u) != 0)
+             : 1u;
+ 
+-        if (state->next_addr == 0x00FFFFFFu) {
++        if (link_ends_list(ops, opaque, state->next_addr)) {
+             finish(state, ops, opaque);
+             return;
+         }
+@@ -110,7 +137,7 @@ void dma_gpu_ll_advance(DMAGPULinkedList *state, uint32_t cycles,
+         }
+         state->total_words += state->word_count;
+ 
+-        if (state->next_addr == 0x00FFFFFFu) {
++        if (link_ends_list(ops, opaque, state->next_addr)) {
+             state->phase = DMA_GPU_LL_PHASE_COMPLETE;
+             state->cycles_remaining = state->word_count;
+             return;
 diff --git a/runtime/src/frame_pacing.c b/runtime/src/frame_pacing.c
 index be30e5af..f23d273d 100644
 --- a/runtime/src/frame_pacing.c
@@ -2101,7 +2170,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..de269d65 100644
+index aaf69df7..a89a8662 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -14,6 +14,7 @@
@@ -2879,16 +2948,28 @@ index aaf69df7..de269d65 100644
      for (int i = 0; i < 3; i++) {
          vx[i] += draw_offset_x;
          vy[i] += draw_offset_y;
-@@ -4526,7 +5058,7 @@ static void gp0_exec_vram_to_cpu(void) {
+@@ -4526,7 +5058,19 @@ static void gp0_exec_vram_to_cpu(void) {
  /* Determine how many words a GP0 command requires (header only, not counting
   * variable-length data for 0xA0). Returns -1 for polylines (terminated by
   * sentinel). Returns 0 for unknown commands (will be fatal). */
 -static int gp0_command_word_count(uint8_t opcode) {
++/* Time to Kill D50C: GP0 words the console ignores (see the callers). The
++ * first few are logged with the source address; then a count every 4096. */
++static void gp0_garbage_note(uint32_t opcode, uint32_t word) {
++    static uint64_t s_count;
++    s_count++;
++    if (s_count <= 4u || (s_count & 4095u) == 0u)
++        fprintf(stderr, "gpu: GP0 0x%02X (word 0x%08X, from 0x%08X) ignored as "
++                        "the console does (%llu so far)\n", (unsigned)opcode,
++                (unsigned)word, (unsigned)gp0_next_source_addr,
++                (unsigned long long)s_count);
++}
++
 +int gp0_command_word_count(uint8_t opcode) {
      switch (opcode) {
          /* NOP / control */
          case 0x00: return 1;
-@@ -4874,6 +5406,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
+@@ -4874,6 +5418,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
  static uint32_t gp0_ring_head   = 0;      /* next write slot */
  
  static void gp0_ring_record(const uint32_t *words, int n) {
@@ -2899,7 +2980,7 @@ index aaf69df7..de269d65 100644
      if (!gp0_ring) {
          gp0_ring = (GpuGp0RingEntry *)calloc(GP0_RING_CAP, sizeof(*gp0_ring));
          if (!gp0_ring) return;  /* OOM — capture disabled, no other effect */
-@@ -5017,7 +5553,9 @@ static void ws_note_overhang(uint8_t op) {
+@@ -5017,7 +5565,9 @@ static void ws_note_overhang(uint8_t op) {
  }
  
  static void ws_census_record(uint8_t opcode, int32_t x, int32_t y) {
@@ -2910,7 +2991,24 @@ index aaf69df7..de269d65 100644
      if (!ws_census) {
          ws_census = (WsCensusEntry *)calloc(WS_CENSUS_CAP, sizeof(WsCensusEntry));
          if (!ws_census) { ws_census_on = 0; return; }
-@@ -5293,6 +5831,13 @@ void gpu_get_draw_area(GpuDrawArea* out) {
+@@ -5262,6 +5812,16 @@ static void gp0_execute_command(void) {
+                 break;  /* NOP — silently consume */
+             }
+ 
++            /* Time to Kill D50C: GP0(1Fh) requests IRQ1 (psx-spx: sets
++             * GPUSTAT.24 until GP1(02h)). It reaches the GPU only from a
++             * broken packet stream (the game's own, Duke dead far outside the
++             * level); the console carries on, so do the same. */
++            if (opcode == 0x1F) {
++                irq1_flag = 1;
++                psx_irq_raise(1, 0);
++                gp0_garbage_note(opcode, gp0_cmd_buf[0]);
++                break;
++            }
+             /* Any other command (drawing, VRAM-to-VRAM, etc.) is not yet
+              * implemented. Fatal halt so we know exactly what's needed next,
+              * with all rings queryable post-mortem. */
+@@ -5293,6 +5853,13 @@ void gpu_get_draw_area(GpuDrawArea* out) {
      out->offset_y = draw_offset_y;
  }
  
@@ -2924,7 +3022,7 @@ index aaf69df7..de269d65 100644
  uint16_t gpu_vram_peek(int x, int y) {
      if (x < 0 || x >= 1024 || y < 0 || y >= 512) return 0;
      /* Through the facade so the GL backend syncs its FBO down first. */
-@@ -5304,6 +5849,8 @@ static void gpu_write_gp0_body(uint32_t val) {
+@@ -5304,6 +5871,8 @@ static void gpu_write_gp0_body(uint32_t val) {
  
      /* State: consuming pixel data for CPU→VRAM transfer */
      if (gp0_state == GP0_VRAM_WRITE) {
@@ -2933,7 +3031,25 @@ index aaf69df7..de269d65 100644
          /* Capture first few data words for debug */
          if (a0_capture_slot >= 0 && a0_capture_slot < A0_HISTORY_CAP) {
              int wc = a0_history[a0_capture_slot].word_count++;
-@@ -5491,6 +6038,39 @@ void gpu_write_gp0(uint32_t val) {
+@@ -5437,11 +6006,12 @@ static void gpu_write_gp0_body(uint32_t val) {
+     int word_count = gp0_command_word_count(opcode);
+ 
+     if (word_count == 0) {
+-        /* Unknown command — fatal halt with rings queryable post-mortem */
+-        static char reason[96];
+-        snprintf(reason, sizeof(reason),
+-                 "GPU GP0 unknown command 0x%02X (word 0x%08X)", opcode, val);
+-        psx_fatal_halt(reason);
++        /* Time to Kill D50C: the console's GPU ignores an unknown command
++         * word (DuckStation and Mednafen consume it as a one-word NOP). A
++         * halt here ended the game when a broken packet stream reached the
++         * GPU (the level 3 pit), where the console only drew garbage. */
++        gp0_garbage_note(opcode, val);
++        return;
+     }
+ 
+     if (word_count < 0) {
+@@ -5491,6 +6061,39 @@ void gpu_write_gp0(uint32_t val) {
      g_exec_phase = prev_phase;
  }
  
@@ -2973,7 +3089,7 @@ index aaf69df7..de269d65 100644
  /* ---- GP1 write (0x1F801814 write) ---- */
  
  static void gp1_reset(void) {
-@@ -5830,3 +6410,68 @@ int gpu_snapshot_read(const uint8_t *p, uint32_t len) {
+@@ -5830,3 +6433,68 @@ int gpu_snapshot_read(const uint8_t *p, uint32_t len) {
  }
  uint16_t* gpu_get_vram_ptr(void){ return vram; }
  uint32_t  gpu_get_vram_bytes(void){ return (uint32_t)sizeof(vram); }
@@ -17412,6 +17528,31 @@ index 00000000..7cf303c3
 +    subprocess.run([os.environ.get('CC', 'cc'), '-O2', str(path / 'test.c'), '-o', str(path / 'test')], check=True)
 +    subprocess.run([str(path / 'test')], check=True)
 +print('dirty-text restore guards: passed')
+diff --git a/runtime/tests/test_dma_gpu_linked_list_timing.c b/runtime/tests/test_dma_gpu_linked_list_timing.c
+index 37961c90..ab68d5c3 100644
+--- a/runtime/tests/test_dma_gpu_linked_list_timing.c
++++ b/runtime/tests/test_dma_gpu_linked_list_timing.c
+@@ -92,6 +92,20 @@ int main(void) {
+     dma_gpu_ll_advance(&state, 8u, &ops, NULL);
+     CHECK(completed == 1u && hit_limit == 1u && !state.active);
+ 
++    /* Time to Kill D50C: a bit-23 link that does not resolve to itself (not
++     * allocated mod packet memory) ends the list instead of folding into RAM. */
++    completed = hit_limit = 0u;
++    emitted_count = 0u;
++    ram[0x00 / 4] = 0x01800020u;          /* next 0x800020 -> resolves to 0x20 */
++    ram[0x04 / 4] = 0x33333333u;
++    ram[0x20 / 4] = 0x01FFFFFFu;
++    ram[0x24 / 4] = 0x44444444u;
++    dma_gpu_ll_start(&state, 0x00u, 8u);
++    for (int i = 0; i < 8 && state.active; i++)
++        dma_gpu_ll_advance(&state, dma_gpu_ll_cycles_to_event(&state), &ops, NULL);
++    CHECK(completed == 1u && hit_limit == 0u && !state.active);
++    CHECK(emitted_count == 1u && emitted[0] == 0x33333333u);
++
+     puts("dma_gpu_linked_list_timing_test: PASS");
+     return 0;
+ }
 diff --git a/runtime/tests/test_gte_register_access.cpp b/runtime/tests/test_gte_register_access.cpp
 index 8fd223de..369e3128 100644
 --- a/runtime/tests/test_gte_register_access.cpp

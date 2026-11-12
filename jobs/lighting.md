@@ -672,7 +672,7 @@ Accepted, 2026-11-12. User after playing: "colossally huge improvement in resour
 
 ### D41O - Shadow setting names after the bake
 
-**Status: Todo (user suggestion 2026-11-11). Dependencies: D41M.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; [note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md)). Dependencies: D41M.**
 User (UI slot 8): the shadows "still exhibit the same kind of view ...
 blurred at the edges, not like the sharp ones that we made beforehand",
 GPU 20-24% there; "if we're gonna have to keep these then we probably think
@@ -680,6 +680,23 @@ about changing the name of the Shadows in the settings". Fixed lamps are
 baked (soft 32-unit edges) whatever the setting; SHADOWS SMOOTH / SIMPLE now
 only change live lights (shots, blasts, projectiles). Rename or regroup the
 options so they say what they do (and GAME_MANUAL), user to choose wording.
+
+Work log, 2026-11-12 (Needs playtest). OPTIONS > DISPLAY > SHADOW EDGES is
+now **LIVE SHADOWS**, choices **SHARP** (was SMOOTH, default) and SIMPLE,
+help line "BLASTS AND FLICKERING LAMPS. STEADY LAMPS ARE BAKED". The stored
+profile values stay `smooth`/`simple` (no schema change, saved settings and
+`--shadow-edges` keep working); the launcher help and the settings summary
+say LIVE SHADOWS / sharp. Console: `light shadows sharp` (alias of smooth),
+and `light shadows` reports `sharp edges`. GAME_MANUAL section rewritten:
+what the setting covers (blasts and lamps that change: flickering, pulsing,
+traffic lights, breakable), that baked lamps keep their soft edges.
+Verified: build, `test_player_profiles` (136 tests) pass; the in-game
+OPTIONS > DISPLAY page shows LIVE SHADOWS: SHARP with the new help line
+(offscreen shot, local). Wording is the agent's proposal; the user may pick
+other words. [Note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md).
+
+Accepted with D50B and D50C, 2026-11-12 ("lock all this in and close it
+out"); the wording stands.
 
 ### D41H - Smooth light on models
 

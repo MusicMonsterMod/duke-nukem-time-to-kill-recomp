@@ -37,7 +37,7 @@ static bool hull_call(CPUState* source,uint32_t address,uint32_t a0,int32_t* res
     for(unsigned i=0;i<1024;++i)saved[i]=psx_mod_read_word(base+4*i);
     for(unsigned i=0;i<256;++i)scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;cpu.gpr[4]=a0;
-    guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
+    guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,address,0x800000fc);psx_mod_host_call_end();guest_busy=false;
     for(unsigned i=0;i<1024;++i)if(psx_mod_read_word(base+4*i)!=saved[i])psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i)if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i])psx_mod_write_word(0x1f800000+4*i,scratch[i]);
     if(result)*result=(int32_t)cpu.gpr[2];

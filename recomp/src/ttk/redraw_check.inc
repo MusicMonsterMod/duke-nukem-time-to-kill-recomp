@@ -44,9 +44,14 @@
 // in this file runs). DNTTK_N1_DUMP=path also writes the first differing
 // jobs' streams and hook table. Results: "[n1 check]" lines on stderr.
 #if defined(__linux__)
+}  // namespace
+}  // namespace ttk
+extern "C" uint32_t g_debug_last_store_pc;
+namespace ttk {
+namespace {
 namespace n1 {
-struct Store {uint32_t addr,value,size;};
-struct Hook {uint32_t addr,before,after,stores;CPUState cpu;};
+struct Store {uint32_t addr,value,size,pc;};
+struct Hook {uint32_t addr,before,after,stores;CPUState cpu;uint64_t t_in,t_out;};
 constexpr uint32_t max_stores=4u<<20, max_hooks=12288, max_child_words=1u<<20, max_post=1u<<16;
 struct Shared {
     uint32_t nstores,nhooks,prefix,flip_at,overflow,channel[3];
@@ -69,21 +74,26 @@ void (*orig_ww)(uint32_t,uint32_t)=nullptr;
 void (*orig_wh)(uint32_t,uint16_t)=nullptr;
 void (*orig_wb)(uint32_t,uint8_t)=nullptr;
 inline void note(uint32_t a,uint32_t v,uint32_t size) {
-    if(post_log>=0 && sh->npost[post_log]<max_post) sh->post[post_log][sh->npost[post_log]++]={a,v,size};
+    if(post_log>=0 && sh->npost[post_log]<max_post) sh->post[post_log][sh->npost[post_log]++]={a,v,size,g_debug_last_store_pc};
     if(!logging || g_psx_mod_hook_depth) return;
-    if(sh->nstores<max_stores) sh->store[sh->nstores++]={a,v,size}; else sh->overflow|=1;
+    if(sh->nstores<max_stores) sh->store[sh->nstores++]={a,v,size,g_debug_last_store_pc}; else sh->overflow|=1;
 }
 void ww(uint32_t a,uint32_t v) {note(a,v,4);orig_ww(a,v);}
 void wh(uint32_t a,uint16_t v) {note(a,v,2);orig_wh(a,v);}
 void wb(uint32_t a,uint8_t v) {note(a,v,1);orig_wb(a,v);}
+void n2_observe(CPUState* cpu,uint32_t addr,int phase);
+void n2_at_flip(uint64_t,float);
+void n2_begin(const CPUState&);
 void observe(CPUState* cpu,uint32_t addr,int phase) {
     if(!logging) return;
+    n2_observe(cpu,addr,phase);
     uint32_t n=0; render_replay_record_words(&n);
     if(phase==0) {
         if(sh->nhooks>=max_hooks) {sh->overflow|=2;return;}
         Hook& h=sh->hook[sh->nhooks];
-        h.addr=addr;h.before=n;h.after=n;h.stores=sh->nstores;h.cpu=*cpu;
+        h.addr=addr;h.before=n;h.after=n;h.stores=sh->nstores;h.cpu=*cpu;h.t_in=__rdtsc();h.t_out=0;
     } else if(sh->nhooks<max_hooks && sh->hook[sh->nhooks].addr==addr) {
+        sh->hook[sh->nhooks].t_out=__rdtsc();
         sh->hook[sh->nhooks++].after=n;
     }
 }
@@ -95,9 +105,12 @@ pid_t child=-1; int go_fd=-1;
 // frame recorded by this worker: which top-level hooks see other CPU state,
 // and which of the game's top-level stores differ, by the hook they follow.
 int diff_mode() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_DIFF");return t && t[0]=='1' ? 1 : 0;}();return v;}
+#include "redraw_n2.inc"
+bool recording() {return diff_mode() || n2_mask();}
 bool recording_only=false;
 uint64_t cur_serial=0; float cur_alpha=0;
-struct Record {uint64_t serial=~0ull;float alpha=0;std::vector<Store> stores;std::vector<Hook> hooks;} prev;
+struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;} prev;
+uint64_t rec_t0=0,rec_t1=0;
 struct HookStat {uint64_t seen=0,differ=0;uint32_t gpr=0,gte_data=0,gte_ctrl=0,hilo=0;};
 struct StoreStat {uint64_t stores=0,value=0,address=0,length=0;};
 struct DiffTotals {uint64_t pairs=0,same_hooks=0,hook_seq=0,hooks_differ=0,hooks_seen=0,stores=0,value=0,address=0,length=0;} dt;
@@ -150,6 +163,34 @@ void diff_report() {
     std::fprintf(stderr,"[n2 diff]   value differences by page:");
     for(size_t i=0;i<pv.size() && i<16;++i) std::fprintf(stderr," %08x:%llu",pv[i].first<<12,(unsigned long long)pv[i].second);
     std::fprintf(stderr,"\n");
+}
+// DNTTK_N2_TRACE=path (with DNTTK_N2_DIFF=1): the first DNTTK_N2_TRACE_N
+// pairs (default 4) after DNTTK_N2_TRACE_SKIP are written out, both records: "<path>-<pid>-<k>-a|b"
+// (the earlier job, then the later), header {magic, alpha bits, serial lo,
+// nhooks, nstores}, then the hooks {addr, before, after, stores, CPUState},
+// then the stores {addr, value, size, pc}.
+void write_record(const char* name,float alpha,uint64_t serial,uint64_t t0,uint64_t t1,const Hook* hooks,uint32_t nh,const Store* stores,uint32_t ns) {
+    FILE* f=std::fopen(name,"wb"); if(!f) return;
+    uint32_t a; std::memcpy(&a,&alpha,4);
+    const uint32_t head[6]={0x4e325453u,a,(uint32_t)serial,nh,ns,(uint32_t)sizeof(CPUState)};
+    std::fwrite(head,4,6,f);
+    const uint64_t times[2]={t0,t1}; std::fwrite(times,8,2,f);
+    for(uint32_t i=0;i<nh;++i) {std::fwrite(&hooks[i],4,4,f);std::fwrite(&hooks[i].cpu,sizeof(CPUState),1,f);std::fwrite(&hooks[i].t_in,8,2,f);}
+    std::fwrite(stores,sizeof(Store),ns,f);
+    std::fclose(f);
+}
+void trace_pair() {
+    static const char* path=std::getenv("DNTTK_N2_TRACE");
+    static const int limit=[]{const char* t=std::getenv("DNTTK_N2_TRACE_N");return t?std::atoi(t):4;}();
+    static const int skip=[]{const char* t=std::getenv("DNTTK_N2_TRACE_SKIP");return t?std::atoi(t):0;}();
+    static int written=0,seen=0;
+    if(!path || written>=limit || seen++<skip) return;
+    char name[600];
+    std::snprintf(name,sizeof name,"%s-%ld-%d-a",path,(long)getpid(),written);
+    write_record(name,prev.alpha,prev.serial,prev.t0,prev.t1,prev.hooks.data(),(uint32_t)prev.hooks.size(),prev.stores.data(),(uint32_t)prev.stores.size());
+    std::snprintf(name,sizeof name,"%s-%ld-%d-b",path,(long)getpid(),written);
+    write_record(name,cur_alpha,cur_serial,rec_t0,rec_t1,sh->hook,sh->nhooks,sh->store,sh->nstores);
+    ++written;
 }
 const uint32_t* parent_stream=nullptr;
 uint64_t t_begin=0;
@@ -228,9 +269,9 @@ void compare_memory() {
 // In the job, before the composition runs: fork the copy, start recording.
 void begin(CPUState& cpu,const Params& p) {
     child=-1;recording_only=false;
-    if((!every() && !diff_mode()) || (p.flags&4)) return;
+    if((!every() && !recording()) || (p.flags&4)) return;
     static unsigned count=0;
-    if(!diff_mode() && ++count%(unsigned)every()) return;
+    if(!recording() && ++count%(unsigned)every()) return;
     if(!sh) {
         void* m=mmap(nullptr,sizeof(Shared),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
         if(m==MAP_FAILED) return;
@@ -245,8 +286,8 @@ void begin(CPUState& cpu,const Params& p) {
     orig_ww=cpu.write_word;orig_wh=cpu.write_half;orig_wb=cpu.write_byte;
     auto unwrap=[&]{cpu.write_word=orig_ww;cpu.write_half=orig_wh;cpu.write_byte=orig_wb;};
     cpu.write_word=ww;cpu.write_half=wh;cpu.write_byte=wb;
-    if(diff_mode()) {
-        cur_serial=p.serial;cur_alpha=p.alpha;recording_only=true;
+    if(recording()) {
+        cur_serial=p.serial;cur_alpha=p.alpha;recording_only=true;rec_t0=__rdtsc();xf::pending=false;n2_serial=p.serial;n2_alpha=p.alpha;n2_begin(cpu);
         g_psx_mod_hook_observer=observe;logging=true;
         return;
     }
@@ -264,13 +305,16 @@ void begin(CPUState& cpu,const Params& p) {
 // The composition reached the flip: stop recording, let the copy rebuild.
 void at_flip(const CPUState& cpu) {
     if(recording_only) {
-        recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;
+        recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;rec_t1=__rdtsc();
         if(sh->overflow) {prev.serial=~0ull;return;}
+        n2_at_flip(cur_serial,cur_alpha);
+        if(!diff_mode()) return;
         if(prev.serial==cur_serial && prev.alpha!=cur_alpha) {
+            trace_pair();
             diff_records();
             if(dt.pairs%64==0) diff_report();
         }
-        prev.serial=cur_serial;prev.alpha=cur_alpha;
+        prev.serial=cur_serial;prev.alpha=cur_alpha;prev.t0=rec_t0;prev.t1=rec_t1;
         prev.stores.assign(sh->store,sh->store+sh->nstores);
         prev.hooks.assign(sh->hook,sh->hook+sh->nhooks);
         return;

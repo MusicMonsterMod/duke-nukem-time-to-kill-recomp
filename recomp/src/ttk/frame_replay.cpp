@@ -41,6 +41,7 @@
 #include <thread>
 #ifdef __linux__
 #include <malloc.h>
+#include <x86intrin.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/mman.h>

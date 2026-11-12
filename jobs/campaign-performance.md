@@ -1106,7 +1106,7 @@ move to D23K, with the goal of performance comparable to EDuke32.
 
 ### D23K - Performance parity with EDuke32: research and job plan
 
-**Status: Accepted, closeout not yet authorized (user, 2026-11-11: "I accept the D23K report and approve its jobs"; closeout selected with D50A and D23O part 1; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23J.** User
+**Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; report accepted 2026-11-11, its jobs approved; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23J.** User
 goal: "performance comparable or better than eduke32" - that is the real
 target. After D23J the game holds 180 Hz on the player's GTX 1080 Ti with
 about 40-50% whole-GPU use in the heaviest views (castle from jetpack height,
@@ -1224,7 +1224,7 @@ btop was pinned above the game, so Cinnamon kept compositing; the lab
 measurement of note 453 stands. Accepted; closeout authorized.
 ### D23M - Direct redraws: draw into their own target, not emulated VRAM
 
-**Status: Needs playtest (first step 2026-11-11, [note 448](../documentation/448-d23m-direct-redraws.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+**Status: Done (first step accepted, user, 2026-11-12: "if ive closed any out, then they are accepted"; the rest is D23M2; [note 448](../documentation/448-d23m-direct-redraws.md)). Dependencies: D23K.**
 A redraw is drawn into the emulated PS1 VRAM surface, so it saves and
 restores what it overwrites (copy-on-write, 0.14 ms), re-uploads (0.06 ms),
 clears, captures the band and runs an output pass: about 0.35-0.4 ms of the
@@ -1270,6 +1270,73 @@ turning at 180 Hz: UI slot 2 1.008 -> 0.827 ms, UI slot 8 0.990 -> 0.806 ms
 GPU 1-1.5 points lower. `PSX_RT_VALIDATE` exact (457 of 457),
 `PSX_REPLAY_COW_CHECK` clean, no publishes refused for held snapshots. Not
 met: a third (a redraw's own target and upload skipping remain). Note 448.
+
+
+### D23M2 - Direct redraws: their own target and no repeated uploads
+
+**Status: Done (user-accepted 2026-11-12 after playing UI slots 9 and 1, closeout authorized; the third-less acceptance was not met and the remainder is D23M3 and D23U; [note 457](../documentation/457-d23m2-shared-snapshot-redraws.md)). Dependencies: D23M.** The rest of D23M's work (its
+acceptance was a third less GPU a redraw; the first step gave 18-19%). Draw
+each redraw into a target of its own sized for the output, with the frame's
+uploaded VRAM shared read-only, so nothing has to be restored; skip a
+redraw's uploads whose bytes repeat the snapshot's (note 443's idea, never
+built; measure first how many of a redraw's uploads repeat). What a separate
+target must still provide inside a redraw: framebuffer feedback when a
+texture page or CLUT overlaps pixels drawn this frame, VRAM copies and fills
+that read drawn pixels, blending, mask/stencil and depth (D23M work log).
+Acceptance: GPU a redraw down by at least a third against D23K's baseline in
+UI slots 2 and 8 at 180 Hz (lab as note 444), identical pictures
+(`PSX_RT_VALIDATE`), Vanilla unchanged.
+
+
+Work log, 2026-11-12 (Needs playtest). Measured first, as asked: every
+render-thread redraw makes 7 uploads (452 pixels) and all 7 repeat the
+snapshot's bytes over pixels it has not drawn. New timers also showed the
+cost the redraw timeline never counted: the emulation thread copied every
+surface into a snapshot 30 times a second (0.20-0.34 ms) and render thread 0
+copied them all again into its own (0.26-0.44 ms, plus thread 1's loads):
+about 16-27 ms of GPU a second, 0.1-0.18 ms per redraw, while a redraw
+reads well under 2 MB of the 60 MB. Built (framework, `gpu_gl_renderer.c`,
+`render_thread.h`): copy-on-read, the render threads' surfaces start every
+session invalid and load 32 x 32 tiles from the held snapshot on first read
+or partial write (a write that covers a tile whole needs no copy; the raw
+mirror is copied whole only when a session wrote it; nothing is restored any
+more); an exact upload skip (rectangles known to be exactly an upload of the
+current CPU bytes travel with the snapshot; an upload inside one with the
+snapshot's bytes, over pixels the redraw has not written, is skipped); a
+colour-only capture while the stencil is stale; a fast path so the per-
+primitive check costs one comparison. Pictures: `PSX_RT_VALIDATE` exact in
+UI slots 2, 8, 9 and third person except the first redraws at the level's
+bake upload and one 60-pixel edge at the first redraw in UI slot 9, both of
+which the matched unmodified binary shows identically. Matched builds,
+turning at 180 Hz: whole GPU 23.8% -> 22.0% (UI slot 2), 20.8% -> 19.3% (UI
+slot 8); redraw on the GPU timeline 0.835 -> 0.757 and 0.952 -> 0.937 ms
+(another 3-run pair: 0.870 -> 0.789, 1.005 -> 0.858); copies outside redraws
+about 27 / 16 -> 3.2-5 ms a second; uploads 0.04 -> 0.005 ms; CPU equal to
+the baseline (render threads 41% / 15% in UI slot 2). Vanilla screenshots
+byte-identical to the baseline's; `ttk-input-test` and `ttk-near-test` pass;
+patch exported and verified on the pinned `08ec704a`. Not met: a third less
+GPU a redraw against D23K (1.008 / 0.990 ms): now 22-25% less in UI slot 2
+and 5-13% in UI slot 8. What is left is the scene itself (textured batches
+0.58-0.78 ms) at 2.8-2.9 passing samples per output pixel, now D23U, and the
+VRAM-shaped band work (about 0.07 ms), now D23M3. Playtest: 180 Hz in UI slots
+9 and 1, first and third person: no new flicker, stale patches, missing HUD
+rows or lighting pops. [Note 457](../documentation/457-d23m2-shared-snapshot-redraws.md).
+
+Accepted 2026-11-12. User after playing UI slots 9 and 1 at 180 Hz: "performance/gameplay-wise for slots 9 and 1 its perfect ... lock it in and close it out"; the GPU still reaches 49% for a very short time in the heaviest part, "and even then causes absolutely no impediment". Closeout authorized; D23N2 closed with it.
+
+### D23M3 - Redraws straight into an output-sized target
+
+**Status: Todo (from D23M2 2026-11-12, [note 457](../documentation/457-d23m2-shared-snapshot-redraws.md) section 7). Dependencies: D23M2.**
+A render thread's redraw still draws into VRAM-shaped surfaces and then
+copies its band into the cache image, copies the canonical centre into the
+wide surface, mirrors every batch into the two widescreen margins and clears
+depth over the VRAM draw area: about 0.07 ms a redraw at 180 Hz (band 0.03,
+depth clear 0.015-0.02, mirror 0.01, wide clear 0.01, fill 0.008). Draw it
+straight into an output-sized target with the snapshot's VRAM read through
+copy-on-read (D23M2), falling back to the VRAM path for any redraw that
+reads back what it draws (texture pages or CLUTs over drawn pixels, VRAM
+copies out of the band). Acceptance: `PSX_RT_VALIDATE` exact, GPU a redraw
+measured on matched builds in UI slots 2 and 8 at 180 Hz, Vanilla unchanged.
 
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
@@ -1372,13 +1439,15 @@ Accepted 2026-11-12 with D23L after the playtest above ("all these tests
 happily passed"); closeout authorized.
 ### D23N2 - Rebuild for another camera and fraction
 
-**Status: Todo (inventory done 2026-11-12, [note 455](../documentation/455-d23n2-what-a-later-job-changes.md)). Dependencies: D23N1.** Rebuild a later job of the same game
+**Status: Done (pieces 1-3, accepted with D23M2 2026-11-12, closeout authorized; rest in D23N2B; [note 456](../documentation/456-d23n2-transform-camera-visibility.md), inventory [note 455](../documentation/455-d23n2-what-a-later-job-changes.md)). Dependencies: D23N1.** Rebuild a later job of the same game
 frame from the first job's record, with that job's camera and blended
 poses: rooms first, then fixed props, then actors (model-space corners and
 the joint or transform each hangs from, the GTE matrix recomputed exactly
-as the game does). Acceptance: host packets identical word for word to the
-later job's real stream; differences in the game's own packets listed (they
-are D23N3's).
+as the game does). Original acceptance: host packets identical word for
+word to the later job's real stream; differences in the game's own packets
+listed (they are D23N3's). Rescoped 2026-11-12 (see the work log): this job
+is the transform, camera and visibility pieces with their exact checks; the
+rest of the rebuild is D23N2B.
 
 
 Work log, 2026-11-12 (inventory). Added a record diff to the D23N1 tool
@@ -1396,9 +1465,60 @@ HUD hooks, each verified exact against the game's result; build order in
 [note 455](../documentation/455-d23n2-what-a-later-job-changes.md). Next:
 the object transform on the runtime's GTE emulator with its verifier.
 
+
+Work log, 2026-11-12 (pieces 1-3, Needs review). Built in
+`recomp/src/ttk/redraw_n2.inc` (developer `DNTTK_N2_CHECK=mask`, nothing runs
+without it). First the record was extended (store PCs, hook entry and exit
+times, `DNTTK_N2_TRACE` pair dumps) to measure where a later job's time goes:
+UI slot 2 turning, 55.5% our hook work (room walk 25%, objects 17%), 44.5% the
+game's own code; only 5.9% of a job is game code that does the same in two
+jobs of a frame, 40.9% is camera- or fraction-dependent, so a later job must
+recompute nearly all of it (in host code to save anything). Piece 1: a host
+port of the transform `0x800292a0` (halving, ApplyMatrixLV, transpose,
+MulMatrix0), checked at every call against the routine's own stores and the
+GTE state of the next hook: about 1.13 million calls in UI slots 2, 8, 9 and
+third person, all exact (71,267 GTE states, about 25,000 halved
+translations). Piece 1c: every later-job transform's camera predicted at the
+job start (the game's `0x80039c7c` on a scratch CPU, plus our body camera):
+none missed. Piece 1b/1d: substituted object transforms predicted by
+(object, call index), all but 60 of 85,742 in UI slot 9 (cause not
+established); actor joint table entries unchanged since the job start in
+about 46,000 calls (direct in third person, scaled and presented by our own
+code in first person); matrices built during the job (first-person Duke and
+weapon, a few game builders) remain. Pieces 2-3: the game's portal walk
+`0x8006276c` run at a later job's start on a scratch CPU with its writes
+undone gives exactly the room list the job later computes, and every input
+of our host room walk is predicted: 12,190 of 12,190 later jobs. The D23N1
+same-job check is still exact with the extended record (992 jobs). Found on
+the way: the object renderer projects every vertex of a mesh the host
+emptied (about 6-8% of a job), now D23T. Rescoped: the remaining matrices,
+object culling, camera-dependent hooks, the game's sprite and particle code
+and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documentation/456-d23n2-transform-camera-visibility.md).
+
+### D23N2B - The rest of a later job's rebuild
+
+**Status: Todo (split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+With the transform, camera and room visibility of a later job known at its
+start (D23N2), the rest of its inputs: matrices the game and our
+presentation code build during the job (first-person Duke and weapon
+`0x800388e4`, `0x80098204`, `0x8002b068`/`0x8002b188`/`0x800b3e5c`), object
+culling (the props and actors pass `0x8002ffec`, the object pass
+`0x800374cc`, per-object tests), the camera-dependent hooks (water and fills
+`0x8002bc18`/`0x800b4d2c`, small models `0x8002d848`/`0x8002bd48`, the room
+lift `0x800a2690`, the sky, the HUD hooks `0x800b4b28`-`0x800b4b50`), and the
+game's sprite and particle code after them (`0x8002fa48`, `0x8002f450`,
+`0x8002f900`, `0x800b51cc`, `0x80062258`), each as host code with an exact
+check like D23N2's. Then a whole later job rebuilt from the first job's
+record and these pieces, compared word for word with its real stream (the
+D23N1 comparison). Also explain the 60 unmatched substitutions of UI slot 9.
+Acceptance: host packets of rebuilt later jobs identical word for word in UI
+slots 2, 8 and 9 at 180 Hz over thousands of jobs, the game's own packet
+differences listed for D23N3, the rebuild's CPU time measured against the
+job's; Vanilla unchanged.
+
 ### D23N3 - The game's camera-dependent packets
 
-**Status: Todo. Dependencies: D23N2.** About 1 in 10 of the game's own
+**Status: Todo. Dependencies: D23N2B.** About 1 in 10 of the game's own
 packets change between the jobs of a frame (one semi-transparent quad and
 about two textured quads a job, note 449 section 7). Identify their guest
 routines and give each a host equivalent (or run that routine alone).
@@ -1418,7 +1538,7 @@ whenever the capture does not cover a job, Vanilla unchanged.
 
 ### D23O - Leaner render-thread submission
 
-**Status: Needs playtest (part 1 accepted 2026-11-11; part 2 2026-11-11, [note 447](../documentation/447-d23o-render-threads.md); [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K, D23N.**
+**Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; [note 447](../documentation/447-d23o-render-threads.md)). Dependencies: D23K, D23N.**
 The render thread uses about half a core at 180 Hz turning each redraw's GP0
 stream into GL calls. Profile it (perf, `eu-stack`), then apply what pays:
 persistent mapped vertex buffers, fewer state changes, skipping repeated
@@ -1466,7 +1586,7 @@ unmodified build. Note 447, part 2.
 
 ### D23P - Low-end scaling: presets and AUTO from measured headroom
 
-**Status: Needs playtest (CPU part 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K, D23M.**
+**Status: Done (CPU part accepted, user, 2026-11-12: "if ive closed any out, then they are accepted"; GPU presets are D23P2). Dependencies: D23K, D23M.**
 With 4 logical CPUs the game asks 180 and sheds (177, audio low); with 2 it
 holds 88, with one core 58; a Deck-class GPU (about 1/7 of the 1080 Ti)
 would need 7-10 ms a redraw today (note 444). Work: test on a real weak
@@ -1495,6 +1615,18 @@ the profile check reset it to AUTO, which offscreen (no refresh) is 60. Not buil
 shadow quality) chosen from measured GPU headroom, which need a weak GPU or
 a reliable GPU-time estimate at startup.
 
+
+### D23P2 - GPU presets picked from measured headroom
+
+**Status: Todo. Dependencies: D23P.** The GPU half of D23P: performance
+presets (internal scale, redraw rate, light and shadow quality) that AUTO
+picks from headroom measured at startup, the choice shown in the options;
+test on a real weak device if one is available, otherwise simulate (a
+Deck-class GPU is about 1/7 of the 1080 Ti: 7-10 ms a redraw before D23M);
+also check why a fixed 90 Hz presented 60 a second in one headless run.
+Acceptance: on 4 logical CPUs and at scale 1, a steady rate (120 or 90)
+with no audio low and no governor oscillation; the presets in the manual;
+Vanilla unchanged.
 ### D23Q - Renderer restart stall after an early savestate load
 
 **Status: Done (user-accepted 2026-11-12, closeout authorized; [note 452](../documentation/452-d23q-restart-stall.md); D23K finding, [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
@@ -1557,9 +1689,46 @@ while open.
 
 Accepted, 2026-11-12. User after playing: "colossally huge improvement in resource usage ... a significant drop in GPU usage in regular gameplay". Closeout authorized.
 
+
+### D23T - The object renderer projects emptied meshes
+
+**Status: Todo (found in D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 1). Dependencies: D23N1.**
+Since unified geometry (D17AM3) our host draws every polygon of a prop or
+actor joint, and the object hook (`near_clip.cpp`, `object()`) hands the
+game's object renderer `0x80010000` a mesh copy with the polygons it left;
+with none left the routine still projects every vertex (RTPT, the vertex
+pass of `0x80010010`, about 2,900 stores a job). The world renderer got a
+null mesh for the same case in D17AQ. Measured in UI slot 2 turning at 180
+Hz: the game code after the object hook is 7.7% of a redraw job, mostly that
+pass (note 456). Work: pass a null mesh when no polygon is left (the routine
+returns at `0x80010008`), keeping whatever else the vertex pass leaves that
+later code reads (the GTE data registers, the scratch vertex buffer, any
+colour-index side effect: find out first); prove it with a fork-and-compare
+of the same job (the D23N1 tools) and `PSX_RT_VALIDATE`. Acceptance: redraw
+streams identical word for word over thousands of jobs in UI slots 2, 8 and
+9; worker and emulation-thread CPU measured on matched builds; Vanilla
+unchanged.
+
+### D23U - Opaque scene drawn front to back
+
+**Status: Todo (measured in D23M2 2026-11-12, [note 457](../documentation/457-d23m2-shared-snapshot-redraws.md) section 7). Dependencies: D23M2.**
+After D23M2 a redraw is mostly the scene itself: textured batches are
+0.58-0.78 ms of a 0.76-0.94 ms redraw at 180 Hz (UI slots 2 and 8), and
+`[gpu overdraw]` counts 2.8-2.9 samples passing per output pixel: the PS1
+ordering table draws back to front, so every layer of every pixel runs the
+full lighting shader. Our host geometry has exact host depth (D17, D41), so
+opaque host triangles can be drawn nearest first with a strict depth test
+(the ordering table kept for translucent, mask-tested and depthless
+primitives, and the equal-depth tie rule kept: the later primitive of the
+original order must still win), letting the GPU reject hidden fragments
+before shading. Find out first how the texel-0 discard and the STP passes
+limit early depth rejection on the target GPUs. Acceptance: pictures
+identical (`PSX_RT_VALIDATE`, matched shots), GPU a redraw and whole GPU on
+matched builds in UI slots 2 and 8 at 180 Hz and on a Deck-class estimate,
+Vanilla unchanged.
 ### D23R - Parity benchmark and acceptance
 
-**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23L-D23P, D41G, D41F2.**
+**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23N4, D23P2, D23U.**
 The programme's acceptance: re-run the note 444 comparison (EDuke32 Polymost
 and Polymer against our game, same display, windowed and fullscreen, the
 same views, CPU and the 4-CPU test) and check the parity bar in section 5:

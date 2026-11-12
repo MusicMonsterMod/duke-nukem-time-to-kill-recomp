@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-12 - D23M2 and D23N2 closed
+
+User after playing UI slots 9 and 1: "performance/gameplay-wise for slots 9 and 1 its perfect"; the GPU still reaches 49% for a very short time in the heaviest part of UI slot 9 "and even then causes absolutely no impediment"; "lock it in and close it out". D23M2 ([note 457](457-d23m2-shared-snapshot-redraws.md)) and D23N2 ([note 456](456-d23n2-transform-camera-visibility.md)) Done; follow-ups D23M3, D23U, D23N2B and D23T on the board.
+
+## 2026-11-12 - D23N2 pieces 1-3 (Needs review); D23M2 (Needs playtest)
+
+D23N2 ([note 456](456-d23n2-transform-camera-visibility.md)): a later redraw job's transforms (host port of `0x800292a0`, about 1.13 million calls exact), camera and room visibility (the game's portal walk run at the job start, 12,190 of 12,190 jobs exact) are now predicted and checked (`DNTTK_N2_CHECK`); only 5.9% of a job's game code is reusable as it is, so the rest of the rebuild (D23N2B) needs host versions of the camera-dependent routines. D23M2 ([note 457](457-d23m2-shared-snapshot-redraws.md)): render threads load snapshot tiles on first touch instead of copying about 60 MB per frame, repeated uploads (all 7 a redraw) are skipped exactly, the capture is colour-only while the stencil is stale; pictures exact, whole GPU 0.8-1.8 points lower at 180 Hz, CPU unchanged; a third less a redraw is not met. New jobs: D23N2B, D23M3 (output-sized target), D23T (object renderer projects emptied meshes, 6-8% of a job), D23U (front-to-back opaque drawing, 2.8-2.9x overdraw measured). Playtest for D23M2: 180 Hz in UI slots 9 and 1, first and third person.
+
 ## 2026-11-12 - D23L and D23N1 closed; D23N2 inventory; D41P, D41Q on the board
 
 User playtest on the real display after both: "it was smooth across the board", "gameplay-wise it was a perfect experience"; btop 25-30% GPU on average, 50% for about a second in one area of UI slot 9, up to 40% in Family Jewels' larger views. D23L ([note 453](453-d23l-compositor.md)): windowed costs 4.8-5.0 GPU points over fullscreen, EDuke32's window of the same size 3.7-6.3: the desktop compositor's cost, equal for both; GAME_MANUAL says a maximised window is still composited. D23N1 ([note 454](454-d23n1-capture-and-rebuild.md)): a redraw job is recorded and rebuilt without the game's code, word for word identical over about 12,000 jobs (developer check `DNTTK_N1_CHECK`); redraws now hold one draw clock and one lamp bake table each. D23N2 ([note 455](455-d23n2-what-a-later-job-changes.md)): the camera drives the game's whole view pipeline; plan and next step recorded. D41P (soft shadow still seen on Duke's gun) and D41Q (chandelier flames off their candles) are Todo.

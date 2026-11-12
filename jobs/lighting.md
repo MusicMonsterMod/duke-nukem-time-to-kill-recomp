@@ -351,7 +351,7 @@ D41F2 (shadow reuse and cache).
 
 ### D41F2 - Lighter shadows: cached and reused
 
-**Status: Needs playtest (2026-11-11). Dependencies: D41F1.** After the
+**Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; the fixed-lamp cache became the D41M bake). Dependencies: D41F1.** After the
 D41F1 optimization pass, SMOOTH shadows add about 10 points of GPU use over
 Relit in the level 6 view at 180 Hz (42% against 31%), SIMPLE about 6. The
 two larger designs from the D41F1 research (ranks #2 and #4) were left out
@@ -424,7 +424,7 @@ the user's playtest.
 
 ### D41G - Light scale and cost
 
-**Status: Needs playtest (2026-11-11). Dependencies: D41A.** Clustered light lists (Ironwail) when
+**Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"). Dependencies: D41A.** Clustered light lists (Ironwail) when
 lights exceed a few dozen; lighting for untextured polygons (G3/F3), a policy
 for sprites and translucent faces (emissive or lit); measured cost per frame
 at 120/180/240 Hz on busy levels. Acceptance: measured budgets and no
@@ -726,25 +726,36 @@ other words. [Note 451](../documentation/451-d50b-d50c-saves-and-the-pit.md).
 Accepted with D50B and D50C, 2026-11-12 ("lock all this in and close it
 out"); the wording stands.
 
-### D41P - Shadow edges on models match the baked world
+### D41P - Models lit from the bake
 
-**Status: Todo (user reports 2026-11-12). Dependencies: D41M, D41O.**
-User, 2026-11-12, during the D23L session: "im noticing that shadows on game
-geometry is blurred at the edges, but on the character, it's still sharp!"
-Since D41M, fixed lamps are baked for the world with soft 32-unit edges,
-while models (Duke, actors, props) are still lit by those lamps live, with
-the LIVE SHADOWS setting's sharp edges (D41O). So a shadow that crosses from
-a floor onto a character changes edge. Work: confirm which path shades the
-models (live lamp shadow maps under fixed lamps), then give model shadows
-from fixed lamps an edge that matches the bake (or bake-consistent
-filtering), keeping live lights (shots, blasts, flickering lamps) sharp.
-Acceptance: in a view where a fixed lamp's shadow falls across floor and a
-model, the edges match on the real display; GPU cost no higher at 180 Hz
-(lab as D41M); Vanilla and Classic unchanged.
+**Status: Todo (rescoped 2026-11-12). Dependencies: D41M, D41O.**
+User, 2026-11-12: "im noticing that shadows on game geometry is blurred at
+the edges, but on the character, it's still sharp!", and in the playtest:
+"I am still noticing the smooth shadow on duke's gun." Since D41M, fixed
+lamps are baked for walls and floors (soft 32-unit edges, one lookup a
+pixel), while models (Duke, his first-person weapon, actors, props) are
+still shaded by those lamps live, with LIVE SHADOWS edges.
 
+Rescoped with the user the same day: the mismatch itself is fine; the
+cheapest shading is preferred ("i would say we actually go for the cheapest
+shading in that case possible"; "I'm completely down for trying that").
+Reference: Duke Nukem 3D's Build engine, where mappers authored a shade per
+floor, ceiling and wall and sprites took the shade of the sector they stood
+in, with no lighting work at draw time.
 
-User, 2026-11-12 playtest (after D23N1): "I am still noticing the smooth
-shadow on duke's gun." Include the first-person weapon in the comparison.
+Work:
+1. Measure (lab, 180 Hz, UI slots 2, 8 and 9, the player's profile) what
+   live fixed-lamp shading of models costs: GPU per frame with it as now
+   and with fixed lamps removed from model shading.
+2. If the cost matters: models take fixed-lamp light from the bake where
+   they stand (sampled at the model or per vertex), like Build sprites;
+   live lights (shots, blasts, flickering and moving lamps) keep shading
+   models as now. If it does not: record the measurement and close.
+
+Acceptance: the measurement recorded; if built, GPU at 180 Hz lower by the
+measured amount, models brighten and darken smoothly through baked pools of
+light (matched before/after shots), live lights unchanged, Vanilla and
+Classic unchanged.
 
 ### D41Q - Chandelier flames sit on their candles
 

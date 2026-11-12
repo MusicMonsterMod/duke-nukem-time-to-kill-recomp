@@ -75,6 +75,22 @@ static void glDrawArrays(int mode,int first,int n){
 #define wide_target_end(...) (wide_active=0)
 #define wide_set_bd_scale(...) ((void)0)
 #define wide_clear_bd_scale(...) ((void)0)
+/* Later renderer state the flat batch touches (D23O counters, D50 deferred
+ * wide mirror, D23U segments): present here, inert (no deferral). */
+static uint64_t s_fd_flat, s_fd_fv;
+static int s_depth_only_run, s_mask_check, s_area_y1, s_area_y2, s_order_flush;
+typedef struct { unsigned char kind, hz, mask, mask_check, pre_depth_only; signed char semi;
+                 int first, n, dx, ay1, ay2; } MirOp;
+enum { MIR_OPS=1, MIR_GV=1 };
+static MirOp s_mo[MIR_OPS]; static int s_mo_n, s_mgv_n; static float s_mgv[MIR_GV*8];
+static uint64_t s_mir_logged;
+static int mir_defer_on(void){return 0;}
+#define mirror_sync_flush(...) ((void)0)
+#define mirror_drain(...) ((void)0)
+#define WIDE_MARGINS(draw) do { draw; } while (0)
+static int s_sg_n, s_sg_replay, s_sg_defer; static uint64_t s_sg_why[6];
+static int seg_capture_flat(void){return 0;}
+static void seg_drain(void){}
 '''
 MAIN = r'''
 int main(void){

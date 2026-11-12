@@ -63,6 +63,12 @@ uint32_t composition_camera();
 bool game_camera_view();
 // D41D1: the object animation table last seen while objects drew (0 if none).
 uint32_t near_clip_object_animation();
+// D23T: the object renderer's null mesh for an object whose every face is
+// host-drawn: 1 on (default), 0 the original's vertex pass (developer
+// DNTTK_OBJECT_NULL=0), 2 on with the skipped pass's leftovers poisoned (the
+// D23T check). A negative mode only reads it. Returns the previous mode.
+int near_clip_object_null(int mode);
+uint64_t near_clip_object_null_count();
 // D41D1, D41K: neon sign faces of static props (face record addresses,
 // level_lights.inc); dynamic lights skip those faces, so a sign gives light
 // but none falls on its letters, while the rest of the prop takes light.

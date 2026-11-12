@@ -49,6 +49,31 @@ Update the job's table row and append a work-log entry to its section in `jobs/<
 
 Write with ASCII hyphen-minus `-` only; never U+2014 or U+2013.
 
+## GitHub status
+
+Keep the repository's CI green (user request, 2026-11-12, after it had failed
+unnoticed on every push for four days):
+
+- At the start of every invocation (job listing or selected work), check the
+  latest CI runs with the MusicMonsterMod account:
+  `gh run list --repo MusicMonsterMod/duke-nukem-time-to-kill-recomp --limit 5`.
+  If `gh`'s active account is another one, prefix the command with
+  `GH_TOKEN="$(gh auth token --user MusicMonsterMod)"` (never print the token).
+  Report the result in one line, with the job listing or at the start of the work.
+- If the latest run on `main` failed, read the failing job's log (`gh run view
+  <run id> --log-failed`, or `gh api repos/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/jobs/<job id>/logs`),
+  find the cause and reproduce it locally. Fix it in the same session even when
+  it is unrelated to the selected job, and report it. A fix still waits for the
+  user's commit and push instruction, like any other change.
+- Before ending a session that changed code or tests, run the local
+  equivalents of CI: `python3 -m unittest discover -s recomp/tests/local`,
+  `python3 scripts/ci/check_jobs.py` and `python3 scripts/ci/check_repo.py`.
+  Tests skipped in CI (they need the owned EXE) still run locally; report their
+  failures separately.
+- After every authorized push, wait for that push's CI run (`gh run watch
+  <run id> --exit-status`) and confirm it passed. If it fails, fix it, report
+  it and ask before pushing the fix.
+
 ## Git
 
 Commit or push only when the user asks. When they do, commit the public repo as MusicMonsterMod only. Never commit retail media, dumps, BIOS, memory cards, `research/`, generated game code, build output, extracted retail assets, or anything under `game/` except `game/README.md`. `scripts/ci/check_repo.py` enforces this; run it before committing.

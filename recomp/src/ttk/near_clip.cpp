@@ -2130,6 +2130,39 @@ void prop_glows(Frame& f,uint32_t mesh,int kind) {
         draw(f,p);++prop_glow_quads;
     }
 }
+// D23T: what the game's object renderer gets for an object whose every face
+// is host-drawn (no polygons left to it):
+//   1 (default) a mesh copy holding only the last two vertex triples and an
+//     empty polygon list: the vertex pass runs one or two loop iterations
+//     instead of all of them and leaves exactly what the whole pass leaves
+//     (GTE data registers and FLAG from the last two RTPTs, its PGXP state,
+//     v0/v1/t0-t7, the register save area, the cursor store), and our
+//     host code writes the buffer slots after the first two as the pass
+//     would; only buffer slots 0-5 (the last triples' values instead of the
+//     first's) differ, which nothing reads (D23T check, note 458);
+//   0 the whole pass (developer DNTTK_OBJECT_NULL=0, matched comparisons);
+//   2 as 1 (the D23T check's job side);
+//   3 a null mesh (returns at once): leaves v0/v1/t0-t7 and the GTE as they
+//     were, and a caller stores one of those registers into a matrix pad
+//     (0x80010d60 copies it on), so it is not exact; developer only
+//     (DNTTK_OBJECT_NULL=3), for the cost bound;
+//   4 as 3 with every leftover poisoned (the first D23T check).
+int object_null_mode=env_int("DNTTK_OBJECT_NULL",1,0,4);
+uint32_t poison_state=0x9e3779b9u;
+uint32_t poison() {poison_state^=poison_state<<13;poison_state^=poison_state>>17;poison_state^=poison_state<<5;return poison_state;}
+void object_null_poison(CPUState* cpu,uint32_t mesh) {
+    // The vertex buffer (6 words for each three vertices).
+    const unsigned count=psx_mod_read_byte(mesh+6);
+    const uint32_t buffer=psx_mod_read_word(context+0x10);
+    for(uint32_t i=0;i<(count+2)/3*0x18;i+=4) psx_mod_write_word(buffer+i,poison());
+    // GTE data registers the pass writes: VXY/VZ 0-5 (LWC2/MTC2), IR0-3
+    // 8-11, SXY0-2 and SXYP 12-15, SZ0-3 16-19, MAC0-3 24-27 (RTPT); FLAG.
+    for(int r:{0,1,2,3,4,5,8,9,10,11,12,13,14,15,16,17,18,19,24,25,26,27}) cpu->gte_data[r]=poison();
+    cpu->gte_ctrl[31]=poison()&0xfffff000u;
+    // Registers it returns changed: v0, v1, t0-t7; its register save area.
+    for(int r:{2,3,8,9,10,11,12,13,14,15}) cpu->gpr[r]=poison();
+    for(uint32_t i=4;i<=0x38;i+=4) psx_mod_write_word(cpu->gpr[29]-i,poison());
+}
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const LimbPresentation limb=first_person_limb_presentation();
@@ -2257,10 +2290,56 @@ void object(CPUState* cpu) {
         ++mesh_fallbacks;++fallback_kind[f.sky?2:1];near_fallbacks+=!f.far;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     if(!copy || 0x20+list_bytes(groups)>copy_size) {++copy_overflows;return;}
-    for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
-    psx_mod_write_word(copy+0x14,copy+0x20);
-    write_list(copy+0x20,groups);
-    cpu->gpr[4]=copy;
+    // D23T: with every face drawn here the copy would have no polygons, but
+    // the original would still project all its vertices (RTPT, 0x80010070-
+    // 0x800101f4) for nothing. It gets only the last two triples (see
+    // object_null_mode above): exact, proven by the D23T check
+    // (redraw_t_check.inc, note 458), which runs both on one job.
+    if(groups.empty() && object_null_mode>=3) {
+        if(object_null_mode==4) object_null_poison(cpu,mesh);
+        cpu->gpr[4]=0;++object_stats.skipped;
+    } else if(groups.empty() && object_null_mode) {
+        // The pass loads three vertices an iteration while its count stays
+        // positive; the last two iterations start at triple first.
+        const unsigned iterations=(count+2)/3,first=iterations>2?iterations-2:0;
+        // The two iterations write the buffer's first two slots; the slots
+        // after them get what the whole pass would write there (0x800100a8-
+        // 0x800101ec): SXY, then SZ with bit 20 when SZ < H and, under
+        // context flag 0x80, bits 16-19 for x < left, x > right, y < top,
+        // y > bottom. The game reads stale slots: 0x80097b78 builds a
+        // matrix at scratch 0x1f800040 without its pad half, which lands in
+        // slot 3 and is copied on by 0x80010d60 (note 458).
+        if(first) {
+            const NearGte g=read_gte(cpu);
+            const int32_t h=(int32_t)cpu->gte_ctrl[26];
+            const uint32_t buffer=psx_mod_read_word(context+0x10),rect=psx_mod_read_word(context+0x50)&0x80;
+            const uint32_t r0=psx_mod_read_word(context+0x18),r1=psx_mod_read_word(context+0x1c);
+            const int32_t x0=(int16_t)r0,x1=(int32_t)r0>>16,y0=(int16_t)r1,y1=(int32_t)r1>>16;
+            const bool same=g.h==f.g.h;
+            for(unsigned i=6;i<3*iterations;++i) {
+                NearProjected v;
+                if(i<count && same) v=f.verts[i];
+                else {const uint32_t xy=psx_mod_read_word(vertices+8*i);v=near_project(g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4));}
+                uint32_t word=v.sz|((int32_t)v.sz<h ? 1u<<20 : 0u);
+                if(rect) {
+                    const int32_t x=(int16_t)v.sxy,y=(int32_t)v.sxy>>16;
+                    word|=(x<x0?1u<<16:0u)|(x1<x?1u<<17:0u)|(y<y0?1u<<18:0u)|(y1<y?1u<<19:0u);
+                }
+                psx_mod_write_word(buffer+8*i,v.sxy);psx_mod_write_word(buffer+8*i+4,word);
+            }
+        }
+        for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
+        psx_mod_write_byte(copy+6,(uint8_t)(count-3*first));
+        psx_mod_write_word(copy+0x10,vertices+0x18*first);
+        psx_mod_write_word(copy+0x14,copy+0x20);
+        psx_mod_write_word(copy+0x20,0xff);
+        cpu->gpr[4]=copy;++object_stats.skipped;
+    } else {
+        for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
+        psx_mod_write_word(copy+0x14,copy+0x20);
+        write_list(copy+0x20,groups);
+        cpu->gpr[4]=copy;
+    }
     ++object_stats.taken;viewmodel_meshes+=viewmodel;
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
@@ -2519,6 +2598,8 @@ void near_clip_host_world_unlit(uint32_t mesh) {
     if(count && count<=1024 && mesh>=0x80010000u && mesh+0x1c+8*((count+2)/3*3)<=0x80200000u) clear_color_index(mesh,count);
 }
 uint32_t near_clip_object_animation() {return last_object_animation;}
+int near_clip_object_null(int mode) {const int old=object_null_mode;if(mode>=0) object_null_mode=mode;return old;}
+uint64_t near_clip_object_null_count() {return object_stats.skipped;}
 void near_clip_set_glow_faces(std::vector<uint32_t> faces) {
     std::sort(faces.begin(),faces.end());faces.erase(std::unique(faces.begin(),faces.end()),faces.end());glow_faces.swap(faces);
 }
@@ -2789,11 +2870,11 @@ bool game_camera_view() {
 const char* near_clip_debug_json() {
     static char buffer[4096];
     auto part=[](const Stats& s,char* out,size_t n){
-        std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
+        std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu,\"null\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
-            (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
+            (unsigned long long)s.triangles,(unsigned long long)s.budget_hits,(unsigned long long)s.skipped);
     };
-    char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
+    char w[256],o[256];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
     std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),

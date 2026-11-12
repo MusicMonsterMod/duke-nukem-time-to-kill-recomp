@@ -1660,6 +1660,7 @@ void beams_animate(double t) {
 #include "impact_follow.inc"
 #include "bolt_barrel.inc"
 #include "redraw_check.inc"
+#include "redraw_t_check.inc"
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // D23N1: one clock for everything this job draws from the time (live_env.h).
     // The lamp bake table is held the same way (lamp_bake_map.h).
@@ -1772,8 +1773,10 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if(!(p.flags&4)) quake_begin(false);
     if((p.flags&32) && !(p.flags&4)) beams_animate(p.beam_t);
     n1::begin(cpu,p);   // D23N1 developer check (DNTTK_N1_CHECK)
+    tchk::begin(cpu,p); // D23T developer check (DNTTK_T_CHECK)
     psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
     n1::at_flip(cpu);
+    tchk::at_flip(cpu);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {
         CPUState tail=cpu;
@@ -1787,6 +1790,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         }
     }
     n1::finish(ok);
+    tchk::finish(ok);
     g_psx_call_bail=0;
     sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={}; quake_cam={};
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;

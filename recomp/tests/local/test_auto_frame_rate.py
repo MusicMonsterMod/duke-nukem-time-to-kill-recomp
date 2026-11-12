@@ -21,6 +21,7 @@ static double s_rp_host_hz, s_rp_target_hz;
 static uint64_t s_rp_next_deadline, s_rp_last_prefetch;
 static int s_rp_schedule;
 static void frame_interpolation_schedule_reset(int *p) {*p=0;}
+int psx_host_cpus(void) {return 8;}   /* D23P: AUTO caps by CPUs; 8 or more allow 240 */
 '''
         code += function('gl_renderer_set_replay_host_hz') + '\n'
         code += function('gl_renderer_set_replay_target_hz') + '\n'

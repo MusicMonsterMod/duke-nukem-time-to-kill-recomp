@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-12 - D23T, D23U and D23M3 closed; CI green again; D23W on the board
+
+User after playing with `PSX_GL_ZPREPASS=1`: "perfectly smooth, working fine. maxing at 42%gpu", the water "completely fine", 10 minutes in third person "plays absolutely beautifully"; "close it out". D23T ([note 458](458-d23t-object-renderer-short-pass.md)), D23U ([note 459](459-d23u-opaque-depth-prepass.md), off by default until D23W) and D23M3 ([note 460](460-d23m3-output-sized-redraws.md), build in D23M3B) Done. The two stale CI unit tests are fixed and the skill now checks GitHub's CI at every invocation and after every push. Next: D23W on the user's field laptop.
+
+## 2026-11-12 - D23T, D23U, D23M3 (Needs review); D23M3B, D23V added
+
+D23T ([note 458](458-d23t-object-renderer-short-pass.md)): the object renderer no longer projects meshes our host code emptied; it gets its last two vertex triples (a bare null mesh is not exact: its leftovers are read), proven exact over 9,824 forked and compared jobs; workers 1-2 points of a core lighter, 0.10-0.19 ms a job. D23U ([note 459](459-d23u-opaque-depth-prepass.md)): exact depth prepass for opaque host-depth runs, about 1.5 points of whole GPU less in UI slot 8 and none in UI slot 2; off by default (`PSX_GL_ZPREPASS=1`); with no textured scene drawn the GPU is still 14.4-19.2% busy at 180 Hz (new D23V). D23M3 ([note 460](460-d23m3-output-sized-redraws.md)): measured below the noise; design written, build is D23M3B after D23V. Pictures exact (`PSX_REPLAY_VALIDATE_ZPRE`, `PSX_RT_VALIDATE` 691 of 691), Vanilla screenshots byte-identical.
+
 ## 2026-11-12 - D23M2 and D23N2 closed
 
 User after playing UI slots 9 and 1: "performance/gameplay-wise for slots 9 and 1 its perfect"; the GPU still reaches 49% for a very short time in the heaviest part of UI slot 9 "and even then causes absolutely no impediment"; "lock it in and close it out". D23M2 ([note 457](457-d23m2-shared-snapshot-redraws.md)) and D23N2 ([note 456](456-d23n2-transform-camera-visibility.md)) Done; follow-ups D23M3, D23U, D23N2B and D23T on the board.

@@ -1326,7 +1326,7 @@ Accepted 2026-11-12. User after playing UI slots 9 and 1 at 180 Hz: "performance
 
 ### D23M3 - Redraws straight into an output-sized target
 
-**Status: Todo (from D23M2 2026-11-12, [note 457](../documentation/457-d23m2-shared-snapshot-redraws.md) section 7). Dependencies: D23M2.**
+**Status: Done (closed 2026-11-12; build split into D23M3B, [note 460](../documentation/460-d23m3-output-sized-redraws.md)). Dependencies: D23M2.**
 A render thread's redraw still draws into VRAM-shaped surfaces and then
 copies its band into the cache image, copies the canonical centre into the
 wide surface, mirrors every batch into the two widescreen margins and clears
@@ -1337,6 +1337,42 @@ copy-on-read (D23M2), falling back to the VRAM path for any redraw that
 reads back what it draws (texture pages or CLUTs over drawn pixels, VRAM
 copies out of the band). Acceptance: `PSX_RT_VALIDATE` exact, GPU a redraw
 measured on matched builds in UI slots 2 and 8 at 180 Hz, Vanilla unchanged.
+
+Work log, 2026-11-12 (Needs review). Measured before building. New
+developer counters (`[m3 reads]`) over about 3,400 redraw sessions in UI
+slots 2 and 8 at 180 Hz: no pack, VRAM copy, CPU readback or second draw
+area, so a VRAM fallback would almost never be taken. The bound: dropping the
+centre and band copies and the redraw depth clear outright
+(`PSX_GL_DEV_SKIP=96`, wrong pictures), three alternating pairs a view with
+two render threads: whole GPU 22.7 / 25.2 / 24.6% -> 23.0 / 25.2 / 25.3% (UI
+slot 2) and 21.7 / 20.6 / 20.4% -> 21.2 / 20.6 / 21.5% (UI slot 8), no
+difference above the noise; on the timeline about 0.05 ms a redraw at full
+clock (band 0.030, depth clear 0.016-0.030, mirror 0.010). Exact design
+written (note 460 section 4): the centre keeps the canonical projection with
+the viewport origin moved by whole pixels (the wide projection's division
+would change edge pixels), margins keep the mirror mapping, the cache image
+is the target with one output-sized depth-stencil per render thread,
+copy-on-read for its tiles (tile row 7 is not reached by the frame's clear),
+and a VRAM-path redo on any read-back. Not built: below the noise, it reaches
+every draw path of the wide pipeline, and the GPU floor found in D23U is far
+larger. The build is D23M3B, after D23V.
+
+Closed 2026-11-12 with D23T and D23U ("close it out"); the build is D23M3B.
+
+### D23M3B - Build the output-sized redraw target
+
+**Status: Todo (split from D23M3 2026-11-12, [note 460](../documentation/460-d23m3-output-sized-redraws.md)). Dependencies: D23M3, D23V.**
+Build the design of note 460 section 4: a render thread draws a redraw's
+centre into the cache image with the canonical projection and a viewport
+shifted by whole pixels, its margins with the mirror mapping, one
+output-sized depth-stencil per render thread, copy-on-read tiles for the
+output from the snapshot, and a redo on the VRAM path for any redraw with a
+pack, VRAM copy, CPU readback, band upload or second draw area. Expected
+saving about 0.05 ms a redraw at full clock (below one point of whole GPU at
+180 Hz, measured as not resolvable in D23M3); worth doing once D23V has
+lowered the floor, or for a Deck-class GPU where copies cost more.
+Acceptance: `PSX_RT_VALIDATE` exact in UI slots 2, 8 and 9, GPU a redraw and
+whole GPU measured on matched builds at 180 Hz, Vanilla unchanged.
 
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
@@ -1692,7 +1728,7 @@ Accepted, 2026-11-12. User after playing: "colossally huge improvement in resour
 
 ### D23T - The object renderer projects emptied meshes
 
-**Status: Todo (found in D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 1). Dependencies: D23N1.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; [note 458](../documentation/458-d23t-object-renderer-short-pass.md)). Dependencies: D23N1.**
 Since unified geometry (D17AM3) our host draws every polygon of a prop or
 actor joint, and the object hook (`near_clip.cpp`, `object()`) hands the
 game's object renderer `0x80010000` a mesh copy with the polygons it left;
@@ -1709,9 +1745,38 @@ streams identical word for word over thousands of jobs in UI slots 2, 8 and
 9; worker and emulation-thread CPU measured on matched builds; Vanilla
 unchanged.
 
+Work log, 2026-11-12 (Needs review). Asked first: what does the skipped
+vertex pass leave that later code reads? Built a developer check on the
+D23N1 tools (`recomp/src/ttk/redraw_t_check.inc`, `DNTTK_T_CHECK=N`): a checked
+job forks; the copy runs the whole pass, the job the new path; both log every
+top-level store (address, value, size, PC) and the registers at every hook
+entry, record their whole GP0 stream, and are compared after the submit
+(stream, every store, every hook entry, CPU state, RAM, scratchpad and mod
+memory at the flip). With a bare null mesh and every leftover poisoned
+(`DNTTK_T_CHECK_MODE=4`), streams stayed identical, but stores and memory
+differed in 1,542 of 1,632 jobs: callers store v0/v1/t-registers into a
+matrix pad halfword that `0x80010d60` copies on, so a null mesh is not exact.
+A shortened pass then showed the game also reads stale vertex-buffer slots
+(a matrix built at scratchpad `0x1f800040` by `0x80097b78` leaves its pad,
+slot 3 of the buffer, unwritten). Built (`near_clip.cpp`, `object()`, no
+framework change): the routine now gets a mesh copy with only its last two
+vertex triples and an empty list, so its own instructions leave the GTE,
+PGXP, registers and save area exactly as the whole pass does, and our host
+code writes the buffer's later slots from the exact host projections. Check:
+9,824 jobs in UI slots 2, 8, 9 and third person, all exact (about 132
+million stores, 2.1 million hook entries); poisoning every buffer range at
+job start changes nothing read. Cost, same binary with `DNTTK_OBJECT_NULL=0`,
+turning at 180 Hz: workers 1-2 points of a core lower in each view, the
+emulation thread unchanged; per job 0.10-0.15 ms (1.6%) in UI slot 2 and
+0.15-0.19 ms (2.7%) in UI slot 9. The 6-8% estimated in D23N2 was measured
+with every store logged by the recorder. Vanilla never reaches this code
+(every path into `object()` needs the Modernized profile).
+
+Accepted 2026-11-12 after the user's playtest (UI slots 8 and 2 and 10 minutes in third person: "plays absolutely beautifully"); closeout authorized.
+
 ### D23U - Opaque scene drawn front to back
 
-**Status: Todo (measured in D23M2 2026-11-12, [note 457](../documentation/457-d23m2-shared-snapshot-redraws.md) section 7). Dependencies: D23M2.**
+**Status: Done (user-accepted 2026-11-12, closeout authorized; off by default until D23W, [note 459](../documentation/459-d23u-opaque-depth-prepass.md)). Dependencies: D23M2.**
 After D23M2 a redraw is mostly the scene itself: textured batches are
 0.58-0.78 ms of a 0.76-0.94 ms redraw at 180 Hz (UI slots 2 and 8), and
 `[gpu overdraw]` counts 2.8-2.9 samples passing per output pixel: the PS1
@@ -1726,6 +1791,92 @@ limit early depth rejection on the target GPUs. Acceptance: pictures
 identical (`PSX_RT_VALIDATE`, matched shots), GPU a redraw and whole GPU on
 matched builds in UI slots 2 and 8 at 180 Hz and on a Deck-class estimate,
 Vanilla unchanged.
+
+Work log, 2026-11-12 (Needs review). Measured first, as asked: a new
+`GL_FRAGMENT_SHADER_INVOCATIONS` count beside the samples passed shows the
+GPU rejects almost nothing early today (2.94 invocations against 2.78 samples
+a pixel in UI slot 2), and that in a depth-EQUAL pass without depth writes it
+does reject hidden fragments before the textured shader despite its texel-0
+and coverage discards; the STP stencil fix-up runs only under a mask check,
+which no triangle in UI slots 2, 8 or 9 uses. Built (framework,
+`gpu_gl_renderer.c`; ordering table kept): a run of opaque host-depth
+triangles is drawn depth-only with a new prepass program (only the decisions
+that remove a fragment), then shaded at depth EQUAL in submission order, so
+equal depths still resolve to the later primitive; translucent, depthless,
+test-only and depth-only runs and mask checks keep the ordering table. A
+developer segment variant spans one prepass over many batches
+(`PSX_GL_ZPRE_SEGMENT=1`). Pictures: `PSX_REPLAY_VALIDATE_ZPRE` (each redraw
+drawn with and without, RGBA-exact) exact over about 21,000 redraws in UI
+slots 2, 8 and 9 in every variant, except the first redraw at the level's
+lamp bake upload, which differs identically with the prepass off on both
+sides (a validator artifact, as in D23M2); `PSX_RT_VALIDATE` 691 of 691;
+Vanilla screenshots byte-identical to this session's starting binary.
+Modernized screenshots do not repeat between launches (two launches in the
+same mode differ by 296,152 pixels), so matched shots cannot show it there;
+the in-process validator does. Cost: without a length rule the prepass broke
+180 Hz in UI slot 2 with two render threads (84-100 presents; about 143 short
+runs a redraw cost the render thread a third more); with a 64-triangle rule,
+UI slot 8 about 1.5 points of whole GPU lower (9 pairs) and 0.06 ms a redraw
+(6%) lower at full clock, UI slot 2 equal with two render threads and up to
+0.17 ms a redraw higher with one. Cost attribution (`PSX_GL_DEV_SKIP`): the
+opaque host scene is only 0.78 of 2.76 samples a pixel in UI slot 2; with no
+textured scene drawn at all the whole GPU is still 14.4% (UI slot 8) and
+19.2% (UI slot 2): that floor is the larger cost, now D23V. Left off by
+default (`PSX_GL_ZPREPASS=1` enables it). Deck-class estimate (note 444,
+factor 7): UI slot 8 about 0.4 ms a redraw less, UI slot 2 none; the 4 ms bar
+is not reached. Framework patch exported and verified on the pinned
+`08ec704a`.
+
+Accepted 2026-11-12. User, playing with `PSX_GL_ZPREPASS=1`: UI slot 8 "perfectly smooth ... maxing at 42%gpu", the water "completely fine"; closeout authorized. The default is decided on real weak hardware in D23W.
+
+### D23V - The GPU floor
+
+**Status: Todo (found in D23U 2026-11-12, [note 459](../documentation/459-d23u-opaque-depth-prepass.md) section 3). Dependencies: D23K.**
+With no textured scene drawn at all (developer `PSX_GL_DEV_SKIP=31`, wrong
+pictures) the whole GPU at 180 Hz is still 14.4% in UI slot 8 and 19.2% in
+UI slot 2 (normal 19.9% and 24.0%; one render thread, turning, offscreen),
+about 0.8-1.05 ms of GPU a presented frame against the D23K bar of 0.4 ms;
+the redraw timeline still shows 0.54-0.89 ms of "tex" with nothing drawn,
+part of it waiting for the render thread. The textured scene itself is only
+about 5 points. Find what the floor is with the same skip-and-measure method
+(per-batch setup and vertex-ring copies, presents and the output pass,
+captures and loads, lighting, shadow and bake setup, the emulation thread's
+own frames, flat batches, timestamps) and remove the large parts.
+Acceptance: a measured breakdown of the floor in UI slots 2 and 8 at 180 Hz,
+jobs for its parts, pictures exact, Vanilla unchanged.
+
+### D23W - Field laptop: measure on real weak hardware
+
+**Status: Todo (user, 2026-11-12: "i can actually provide some real weak hardware and we can finally test on my field laptop"; they will clone the repo there and call back). Dependencies: D23T, D23U.**
+Every weak-hardware figure so far is an estimate (note 444's factor of 7 for a
+Deck-class GPU) or a CPU-limit simulation on the 1080 Ti machine (D23P). On
+the user's field laptop:
+
+1. Setup with the user: clone the repo (with submodules), install the tools of
+   `documentation/04-build-and-run.md`, place their owned SLUS-00583 dump in
+   `game/`, build with `recomp/tools/local/build.py`. The repo has no saves:
+   the user copies the savestates for UI slots 2, 8 and 9 into the laptop's
+   `recomp/saves/local-play` (the lab works only on private copies of them).
+   Record the hardware (CPU model, logical CPUs, GPU and driver, RAM, display
+   refresh, power profile, on battery or mains) without personal names or
+   paths.
+2. Make the lab vendor-neutral: `recomp/analysis/d23k/lab.py` reads the GPU
+   through `nvidia-smi`; add the laptop GPU's busy measure (for example
+   `gpu_busy_percent` in sysfs on AMD, `intel_gpu_top` on Intel) and keep the
+   CPU-per-thread measure.
+3. Measure, offscreen first, in UI slots 2, 8 and 9, turning and walking: what
+   AUTO picks (D23P), presents a second held, CPU per thread, GPU busy and GPU
+   a redraw (`PSX_GPU_PHASES=1`), audio lows and governor shedding; then the
+   same with `PSX_GL_ZPREPASS=1` (D23U), whose default is decided here (it
+   helped UI slot 8 and did not help UI slot 2 on the 1080 Ti, and was worse
+   there with one render thread, which is what a 4-7 CPU laptop gets); then
+   lower internal scales.
+4. With the user present, a short real-display check of the same views.
+
+Acceptance: a measured weak-hardware report replacing the estimates in notes
+444 and 459, the D23U default decided from it, inputs for D23P2 (presets) and
+D23R (parity bar on a weak GPU), Vanilla unchanged.
+
 ### D23R - Parity benchmark and acceptance
 
 **Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23N4, D23P2, D23U.**

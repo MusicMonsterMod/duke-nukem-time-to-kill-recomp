@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-13 - D08Z10 closed: MANUAL jump is the Modernized default
+
+The field laptop's legacy-feeling jumps were its fresh profile's JUMP ASSISTED (the old launcher default), not a hardware bug. New and reset Modernized profiles now use MANUAL, and confirming CONTROL SCHEME MODERN / LEGACY sets JUMP MANUAL / ASSISTED; saved choices are kept, Vanilla unchanged. User-accepted: "lock it in and close us out". [D08Z10](../jobs/traversal.md#d08z10---manual-jump-is-the-modernized-default).
+
 ## 2026-11-13 - D23X, D23P2, D23Y and D23Y1 closed; GEOMETRY and TEXTURES default to CORRECTED
 
 User, on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop. i still want to take it even further though with efficiency later on. but for now i am pleased with the settings and quality, so lock this in and close it out". D23X (present at the flip, VSYNC), D23P2 (GRAPHICS grades and AUTO), D23Y (research and plan, [note 463](463-d23y-120-on-two-cores.md)) and D23Y1 (game speed first) are Done; GEOMETRY and TEXTURES now default to CORRECTED for new and reset Modernized profiles (saved choices kept; Vanilla and the software renderer stay Original). Further efficiency on 2 cores continues in D23Y2-D23Y5 (D23Y2, the late warp, first).

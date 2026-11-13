@@ -1336,7 +1336,7 @@ class CameraPreferencesTest(unittest.TestCase):
             subprocess.run(cmd+['--camera','original','--mouse-sensitivity','0.25','--invert-y','on'],check=True,capture_output=True)
             raw=path.read_bytes()
             result,_=profiles.load(path)
-            self.assertEqual(result['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'hitscan','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'corrected','texture_precision':'corrected','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','equip_pickups':'if-new','screen_flashes':'on','level_stats':True,'fps':False,'sidearm_return':'never','third_person_kick':'quick','weapon_feel':'retro','earthquakes':'on','dynamic_lights':'on','security_monitors':'duke3d','shadow_edges':'smooth','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern','vsync':'on','graphics':'auto'})
+            self.assertEqual(result['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'hitscan','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'manual','frame_rate':'auto','view_bob':'on','geometry_precision':'corrected','texture_precision':'corrected','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','equip_pickups':'if-new','screen_flashes':'on','level_stats':True,'fps':False,'sidearm_return':'never','third_person_kick':'quick','weapon_feel':'retro','earthquakes':'on','dynamic_lights':'on','security_monitors':'duke3d','shadow_edges':'smooth','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern','vsync':'on','graphics':'auto'})
             invalid=subprocess.run(cmd+['--mouse-sensitivity','nan'],capture_output=True)
             self.assertNotEqual(invalid.returncode,0);self.assertEqual(path.read_bytes(),raw)
             subprocess.run(cmd+['--vanilla'],check=True,capture_output=True)
@@ -1346,7 +1346,7 @@ class CameraPreferencesTest(unittest.TestCase):
     def test_terminal_camera_edit(self):
         replies=iter(['7','independent 0.2 on','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
-        self.assertEqual(edited['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'hitscan','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'corrected','texture_precision':'corrected','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','equip_pickups':'if-new','screen_flashes':'on','level_stats':True,'fps':False,'sidearm_return':'never','third_person_kick':'quick','weapon_feel':'retro','earthquakes':'on','dynamic_lights':'on','security_monitors':'duke3d','shadow_edges':'smooth','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern','vsync':'on','graphics':'auto'})
+        self.assertEqual(edited['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'hitscan','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'manual','frame_rate':'auto','view_bob':'on','geometry_precision':'corrected','texture_precision':'corrected','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','equip_pickups':'if-new','screen_flashes':'on','level_stats':True,'fps':False,'sidearm_return':'never','third_person_kick':'quick','weapon_feel':'retro','earthquakes':'on','dynamic_lights':'on','security_monitors':'duke3d','shadow_edges':'smooth','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern','vsync':'on','graphics':'auto'})
 
     def test_view_bob_menu_and_migration(self):
         replies=iter(['b','subtle','b','wobbly','5'])
@@ -2046,14 +2046,39 @@ class JumpStyleTest(unittest.TestCase):
             bad['profiles']['modernized']['controls']['jump']='floaty'
             path.write_text(json.dumps(bad))
             loaded,notes=profiles.load(path)
-            self.assertEqual(loaded['profiles']['modernized']['controls']['jump'],'assisted')
+            self.assertEqual(loaded['profiles']['modernized']['controls']['jump'],'manual')
 
     def test_menu_edits_jump_style(self):
         settings=profiles.defaults()
-        answers=iter(['j','manual','5'])
+        answers=iter(['j','assisted','5'])
         edited=profiles.menu(settings,read=lambda _: next(answers),write=lambda *_: None)
-        self.assertEqual(edited['profiles']['modernized']['controls']['jump'],'manual')
-        self.assertIn('Jump: manual',profiles.describe(edited))
+        self.assertEqual(edited['profiles']['modernized']['controls']['jump'],'assisted')
+        self.assertIn('Jump: assisted',profiles.describe(edited))
+
+    def test_modernized_defaults_to_manual_vanilla_stays_assisted(self):
+        # D08Z10 (user, 2026-11-13): "on modern controls its gotta be manual".
+        self.assertEqual(profiles.defaults()['profiles']['modernized']['controls']['jump'],'manual')
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json'
+            with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
+                run.main(['--settings-file',str(path),'--no-session-log'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'manual')
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'assisted')
+            # A saved ASSISTED choice is kept.
+            data=profiles.defaults(); data['profiles']['modernized']['controls']['jump']='assisted'
+            path.write_text(json.dumps(data))
+            self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump'],'assisted')
+
+    def test_menu_jump_default_and_scheme_preset(self):
+        # game_menu.cpp: the JUMP row's default (RESET) is MANUAL, and confirming
+        # CONTROL SCHEME MODERN / LEGACY sets JUMP MANUAL / ASSISTED.
+        src=(Path(__file__).resolve().parents[2]/'src/ttk/game_menu.cpp').read_text()
+        m=re.search(r'\{"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"[^"]*",\s*\{(.*?)\},(\d+)\}',src,re.S)
+        self.assertIsNotNone(m)
+        envs=re.findall(r'\{"[A-Z]+","([a-z]+)"',m.group(1))
+        self.assertEqual(envs[int(m.group(2))],profiles.DEFAULT_CONTROLS['jump'])
+        self.assertIn('key=="jump" ? (legacy?"assisted":"manual")',src)
 
 
 class FrameRateTest(unittest.TestCase):

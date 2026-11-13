@@ -372,7 +372,7 @@ std::vector<Screen> make_screens() {
     }};
     s[0]={"CONTROLS",{
         {"CONTROL SCHEME",Section::Controls,"scheme","DNTTK_CONTROL_SCHEME",true,
-         "ALSO SETS AIM AND MARKER DEFAULTS. TWEAK AFTERWARD",
+         "ALSO SETS AIM, MARKER AND JUMP. TWEAK AFTERWARD",
          {{"MODERN","modern","\"modern\""},{"LEGACY","legacy","\"legacy\""}},0},
         {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",true,
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
@@ -481,7 +481,7 @@ std::vector<Screen> make_screens() {
                  "FIRST PERSON ONLY. CLIMBING WALLS AND THEIR EXITS",true),
         heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
-         {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},
+         {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},1},
         {"JUMP WALLS",Section::Controls,"jump_walls","DNTTK_JUMP_WALLS",true,"SLIDE: A WALL ONLY STOPS THE MOTION INTO IT",
          {{"SLIDE","slide","\"slide\""},{"ORIGINAL","original","\"original\""}},0},
         {"WALL BACKFLIP",Section::Controls,"wall_backflip","DNTTK_WALL_BACKFLIP",true,"MODERN: NO BACKWARDS LAUNCH OFF STEEP CARS AND SLOPES",
@@ -1386,14 +1386,17 @@ void open_screen(int s) {
     screen=s;cursor=first_row(screens[s]);top=0;draft[s]=committed[s];sound(0);
 }
 // Apply once on a confirmed scheme transition, never on load or every frame:
-// subsequent manual aiming choices belong to the player.
+// subsequent manual aiming choices belong to the player. D08Z10 (user,
+// 2026-11-13: "on modern controls its gotta be manual"): MODERN also sets
+// JUMP MANUAL, LEGACY sets JUMP ASSISTED.
 void scheme_aim_defaults(bool legacy) {
     for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
         Row& r=screens[s].rows[i];
         if(!r.key)continue;
         const std::string key=r.key;
         const char* value=key=="aim_assist" ? (legacy?"original-lock":"hitscan") :
-            key=="red_dot" ? (legacy?"1":"0") : key=="crosshair" ? (legacy?"0":"1") : nullptr;
+            key=="red_dot" ? (legacy?"1":"0") : key=="crosshair" ? (legacy?"0":"1") :
+            key=="jump" ? (legacy?"assisted":"manual") : nullptr;
         if(!value)continue;
         const int v=choice_from_env(r,value);
         committed[s][i]=draft[s][i]=v;

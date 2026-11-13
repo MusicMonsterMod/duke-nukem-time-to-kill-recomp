@@ -4549,6 +4549,49 @@ Eagle into walls, doors and objects never leaves Duke unable to fire or
 switch; armed mantles, doors, crouch, run and jumps unchanged; no repair in
 normal play; Vanilla unchanged; the user's playtest.
 
+### D08Z10 - MANUAL jump is the Modernized default
+
+**Status: Done (user-accepted 2026-11-13: "lock it in and close us out"). Dependencies: D08Z.**
+
+User, 2026-11-13, on the field laptop: jumping "feels completely different to
+on my PC", Duke "makes the same noises he does in the legacy jumps" and "is
+unable to steer while jumping"; "it feels like old jump logic is being
+executed instead". Asked to check the settings first.
+
+**Finding.** Not a weak-hardware bug. The laptop profile, created fresh on
+2026-11-12 for D23W, had `jump = assisted`, the launcher default since D08Z:
+the original lip launch, standing wind-up and fixed arc, with no air steering.
+The live profile and the copy recovered earlier that day both said `assisted`,
+so the recovery did not reset it. MANUAL (D08Z) is the EDuke32-style jump the
+user plays on the PC. Set to MANUAL on the laptop with
+`run.py --jump manual --show-settings`.
+
+User: "on modern controls its gotta be manual, and the modern control profile
+should be the default." (MODERN was already the default control scheme.)
+
+**Change (2026-11-13).**
+- `player_profiles.DEFAULT_CONTROLS['jump']` is `manual`: new and reset
+  Modernized profiles, and an invalid saved value, use MANUAL. A saved
+  `assisted` choice is kept (no schema bump, as for the 2026-11-13 GEOMETRY and
+  TEXTURES default). Vanilla still launches with `assisted`.
+- `game_menu.cpp`: the JUMP row's default (RESET on the page) is MANUAL;
+  confirming CONTROL SCHEME MODERN sets JUMP MANUAL and LEGACY sets ASSISTED,
+  beside the existing aim and marker presets (help text "ALSO SETS AIM, MARKER
+  AND JUMP. TWEAK AFTERWARD").
+- Manual: CONTROL SCHEME presets and the manual jump section.
+- Tests: profile defaults and fallbacks updated; new checks that fresh
+  Modernized launches send `DNTTK_JUMP=manual`, Vanilla `assisted`, a saved
+  `assisted` is kept, and the menu row default and scheme preset match
+  `DEFAULT_CONTROLS`. Build OK.
+
+**Not verified in game:** the scheme preset was not driven through the menu
+in a running game; it uses the same path as the aim and marker presets.
+
+**Acceptance:** jumps on the field laptop feel like the PC (leave on the press,
+WASD steering, no legacy wind-up); confirming CONTROL SCHEME LEGACY then MODERN
+switches JUMP to ASSISTED and back to MANUAL; Vanilla unchanged; the user
+confirms.
+
 ### D08AA - Unify walking/running speeds across movement states
 
 **Done (user-accepted 2026-10-19).** User: "this is perfect. swimming now feels great! it's responsive, and the gameplay allows the player to dodge enemy fire and not face these jarring speed changes when swimming."

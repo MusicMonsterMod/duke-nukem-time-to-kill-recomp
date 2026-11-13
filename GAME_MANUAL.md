@@ -71,9 +71,9 @@ removed (2026-10-29) and Tab is reserved for a future game action. Use Escape to
 recapture. In **OPTIONS > CONTROLS > CONTROL SCHEME**, choose **MODERN**
 (default) or explicitly choose **LEGACY** and CONFIRM. The choice applies
 immediately and survives relaunches; loading a save cannot change it.
-Changing to **LEGACY** also sets **AUTO AIM ORIGINAL**, **RED DOT ON** and
-**CROSSHAIR OFF**. Changing back to **MODERN** sets **AUTO AIM HITSCAN**,
-**RED DOT OFF** and **CROSSHAIR ON**. These are starting presets: you can
+Changing to **LEGACY** also sets **AUTO AIM ORIGINAL**, **RED DOT ON**,
+**CROSSHAIR OFF** and **JUMP ASSISTED**. Changing back to **MODERN** sets
+**AUTO AIM HITSCAN**, **RED DOT OFF**, **CROSSHAIR ON** and **JUMP MANUAL**. These are starting presets: you can
 adjust the individual settings afterward. Manual adjustments survive restarts
 and save loads; they reset only when you confirm a different control scheme.
 Cancelling the Controls page changes none of them.
@@ -1014,10 +1014,11 @@ waits for the edge and leaps from the lip, so you no longer have to time Space
 to the last moment. A quick tap is enough. Near furniture and small steps the
 jump still fires immediately.
 
-**Manual jump style (optional, Modernized, D08Z, accepted 2026-10-01).** The jump
-above is the default (`assisted`): near a gap the game picks the takeoff point,
-and once Duke is in the air the arc is fixed. The `manual` style hands the
-jump to you:
+**Manual jump style (Modernized default since D08Z10, 2026-11-13; D08Z, accepted
+2026-10-01).** **OPTIONS > CONTROLS > JUMP**. With `assisted`, the original
+style, near a gap the game picks the takeoff point, Duke winds up before a
+standing jump, and once he is in the air the arc is fixed. The `manual` style,
+the Modernized default, hands the jump to you:
 
 - Duke leaves the ground the moment you press **Space**, also near gaps, so
   you time the takeoff yourself.
@@ -1038,8 +1039,9 @@ jump to you:
   crouch instead of a quarter-second wind-up).
 
 The gap help described below (low-lip scramble, E climb) still applies. Gravity,
-jump height and running speed are the original ones. Select it once; it is
-remembered:
+jump height and running speed are the original ones. New Modernized profiles
+start on `manual`, and confirming **CONTROL SCHEME MODERN** selects it; a saved
+`assisted` choice is kept. To choose from the terminal:
 
 ```
 python3 recomp/tools/local/run.py --jump manual --show-settings

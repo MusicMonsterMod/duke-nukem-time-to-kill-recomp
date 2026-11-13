@@ -14,6 +14,24 @@ sys.path.insert(0, str(TOOLS))
 import player_profiles as profiles
 import pc_input
 import run
+import gpu_auto
+
+# D23W: launches in these tests never run the real GPU probe or touch the
+# player's probe cache; AUTO resolves to a fixed fake measurement.
+_probe_dir = tempfile.TemporaryDirectory()
+_probe_patches = [patch.object(gpu_auto, 'DEFAULT_CACHE', Path(_probe_dir.name) / 'gpu-probe.json'),
+                  patch.object(gpu_auto, 'run_probe', return_value={'ms': 6.5, 'renderer': 'test', 'version': 'test'})]
+
+
+def setUpModule():
+    for p in _probe_patches:
+        p.start()
+
+
+def tearDownModule():
+    for p in _probe_patches:
+        p.stop()
+    _probe_dir.cleanup()
 
 
 class ProfilesTest(unittest.TestCase):
@@ -1740,7 +1758,7 @@ class FirstPersonViewTest(unittest.TestCase):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual(env['DNTTK_MENU_SETTINGS_FILE'],str(profiles.menu_settings_path(path.resolve())))
-                self.assertEqual(env['DNTTK_MENU_PRESENTATION'],'renderer=opengl,internal_scale=4,display=windowed,output_filter=linear')
+                self.assertEqual(env['DNTTK_MENU_PRESENTATION'],'renderer=opengl,internal_scale=0,display=windowed,output_filter=linear')
                 launch.side_effect=lambda *a,**k: (state.write_text('{"version":1,"active":"modernized","controls":{"jump":"manual"},"presentation":{}}'),0)[1]
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 launch.side_effect=None
@@ -1794,7 +1812,7 @@ class PresentationTest(unittest.TestCase):
             self.assertEqual(migrated['version'],73)
             self.assertEqual(migrated['active'],'modernized')
             self.assertEqual(migrated['profiles']['vanilla']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software'})
-            self.assertEqual(migrated['profiles']['modernized']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software','internal_scale':4})
+            self.assertEqual(migrated['profiles']['modernized']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software','internal_scale':0})
             self.assertEqual(migrated['profiles']['modernized']['controls']['view'],'first')
             self.assertTrue(any('version 73' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
@@ -1817,15 +1835,21 @@ class PresentationTest(unittest.TestCase):
             path=Path(d)/'profiles.json'
             def flags(argv):
                 return {k:argv[argv.index(k)+1] for k in ('--renderer','--internal-scale','--display','--window-width','--output-filter')}
-            with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
+            # D23W: Modernized starts at AUTO, the scale the GPU probe measured (3 here).
+            with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'),patch.object(run.gpu_auto,'resolve',return_value=3) as probe:
                 run.main(['--settings-file',str(path),'--no-session-log'])
-                self.assertEqual(flags(launch.call_args.args[0]),{'--renderer':'opengl','--internal-scale':'4','--display':'windowed','--window-width':'0','--output-filter':'linear'})
+                self.assertEqual(flags(launch.call_args.args[0]),{'--renderer':'opengl','--internal-scale':'3','--display':'windowed','--window-width':'0','--output-filter':'linear'})
+                self.assertEqual(probe.call_count,1)
                 run.main(['--settings-file',str(path),'--no-session-log','--internal-scale','4','--display','borderless','--window-width','1920','--output-filter','nearest'])
                 self.assertEqual(flags(launch.call_args.args[0]),{'--renderer':'opengl','--internal-scale':'4','--display':'borderless','--window-width':'1920','--output-filter':'nearest'})
                 run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(flags(launch.call_args.args[0])['--internal-scale'],'1')
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(flags(launch.call_args.args[0])['--internal-scale'],'4')
+                self.assertEqual(probe.call_count,1)   # a fixed scale never probes
+                run.main(['--settings-file',str(path),'--no-session-log','--internal-scale','auto'])
+                self.assertEqual(flags(launch.call_args.args[0])['--internal-scale'],'3')
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['presentation']['internal_scale'],0)
             raw=path.read_bytes()
             for bad in (['--internal-scale','5'],['--window-width','100'],['--display','kiosk']):
                 with self.assertRaises(SystemExit):
@@ -1836,7 +1860,7 @@ class PresentationTest(unittest.TestCase):
         replies=iter(['r','3 exclusive 1600 nearest','5'])
         edited=profiles.menu({**profiles.defaults(),'active':'vanilla'},lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['vanilla']['presentation'],{'renderer':'opengl','internal_scale':3,'display':'exclusive','fullscreen_mode':'exclusive','window_width':1600,'output_filter':'nearest'})
-        self.assertEqual(edited['profiles']['modernized']['presentation']['internal_scale'],4)
+        self.assertEqual(edited['profiles']['modernized']['presentation']['internal_scale'],0)
         replies=iter(['R','9 windowed 0 linear','R','two windowed 0 linear','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['modernized']['presentation'],profiles.default_profile('modernized')['presentation'])
@@ -1878,7 +1902,7 @@ class DisplayStateTest(unittest.TestCase):
             state.write_text('{"display": "windowed", "fullscreen_mode": "exclusive", "window_width": 1600}')
             self.assertTrue(profiles.absorb_presentation_state(path,settings,'modernized'))
             p=settings['profiles']['modernized']['presentation']
-            self.assertEqual((p['display'],p['fullscreen_mode'],p['window_width'],p['internal_scale']),('windowed','exclusive',1600,4))
+            self.assertEqual((p['display'],p['fullscreen_mode'],p['window_width'],p['internal_scale']),('windowed','exclusive',1600,0))
             self.assertEqual(settings['profiles']['vanilla']['presentation'],profiles.DEFAULT_PRESENTATION)
             self.assertFalse(state.exists())
             for bad in ['{"display": "kiosk", "fullscreen_mode": "exclusive", "window_width": 0}','{"display": "windowed", "fullscreen_mode": "exclusive", "window_width": 100}','nope','{}']:

@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 import player_profiles as profiles
+import gpu_auto
 import pc_input
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,7 +19,7 @@ def main(argv=None):
     p.add_argument('--diagnostics', action='store_true', help='retain dispatch and stopped guest diagnostics, and the SIO/audio history rings')
     p.add_argument('--debug-port', type=int, default=9123)
     p.add_argument('--renderer', choices=profiles.RENDERERS, help='save renderer for the selected profile')
-    p.add_argument('--internal-scale', type=int, choices=profiles.INTERNAL_SCALES, help='save internal 3D resolution for the selected profile: 1 original, 2..4 times')
+    p.add_argument('--internal-scale', type=lambda v: 0 if v == 'auto' else int(v), choices=profiles.INTERNAL_SCALES, metavar='{auto,1,2,3,4}', help='save internal 3D resolution for the selected profile: auto (measured from the GPU, Modernized default), 1 original, 2..4 times')
     p.add_argument('--display', choices=profiles.DISPLAYS, help='save how the selected profile opens; a fullscreen choice is also the F11 target')
     p.add_argument('--window-width', type=int, metavar='0|640..7680', help='save window width for the selected profile; 0 fits the display')
     p.add_argument('--output-filter', choices=profiles.OUTPUT_FILTERS, help='save how the finished image is scaled to the window')
@@ -221,10 +222,14 @@ def main(argv=None):
     # Developer only: DNTTK_GAME_CONFIG points at a private config copy; normal
     # launches always use game.local.toml.
     game_config = Path(os.environ.get('DNTTK_GAME_CONFIG') or ROOT / 'game.local.toml')
+    # D23W: AUTO internal resolution, measured once per GPU and driver.
+    presentation = settings['profiles'][settings['active']]['presentation']
+    auto_scale = (gpu_auto.resolve(exe, gpu_auto.DEFAULT_CACHE, log=lambda line: print(line, flush=True))
+                  if presentation['internal_scale'] == 0 and presentation['renderer'] == 'opengl' else None)
     command = [str(exe), '--game', str(game_config),
                '--disc', str(ROOT / 'disc/time-to-kill.cue'),
                '--memcard-dir', str(a.memcard_dir.resolve()), '--debug-port', str(a.debug_port),
-               *profiles.presentation_args(settings['profiles'][settings['active']]['presentation']),
+               *profiles.presentation_args(presentation, auto_scale),
                '--presentation-state', str(profiles.presentation_state_path(a.settings_file.resolve())),
                '--headless' if a.headless else '--no-launcher']
     env = os.environ.copy()
@@ -415,14 +420,15 @@ def run_with_session_log(command, env, keep=20):
                 sys.stderr.flush()
                 log.write(line)
                 log.flush()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, OSError):
+        # Ctrl+C or a failed log write: the game keeps its exit code below.
+        # (No return inside finally: Python 3.14 warns, and it hid errors.)
         pass
-    finally:
-        try:
-            return proc.wait()
-        except KeyboardInterrupt:
-            proc.terminate()
-            return proc.wait()
+    try:
+        return proc.wait()
+    except KeyboardInterrupt:
+        proc.terminate()
+        return proc.wait()
 
 
 if __name__ == '__main__':

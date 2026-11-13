@@ -590,6 +590,14 @@ uint32_t append_render(const Frame& base,uint8_t* out,uint32_t used) {
     return used+n;
 }
 
+extern "C" double psx_replay_auto_cap(void);   // render_thread.c
+// D23W: AUTO or DISPLAY capped at 60 by the CPUs (2 or fewer physical cores,
+// or fewer than 4 CPUs) is the original presentation, as a 60 launch: no
+// replay and no redraw workers. On a 2-core i7-5600U replay at 60 slowed the
+// game itself to about 33 frames a second (DISPLAY on its 60 Hz panel: 17-56,
+// with underruns); the original path held 60 with the emulation thread at
+// about 63%. A fixed number is never changed.
+int32_t launch_rate(int32_t hz) {return (hz==-2 || hz==0) && psx_replay_auto_cap()<=60.0 ? 60 : hz;}
 int32_t parse_rate(const char* text) {
     if(!text || !*text || !std::strcmp(text,"auto")) return -2;
     if(!std::strcmp(text,"display")) return 0;
@@ -2338,7 +2346,7 @@ void activate() {
     // emulation thread only emulates. Classic keeps the single-thread path;
     // DNTTK_RENDER_THREAD=0 (developer) does too.
     psx_mod_set_render_thread(render_thread_wanted());
-    const int32_t hz=parse_rate(std::getenv("DNTTK_FRAME_RATE"));
+    const int32_t hz=launch_rate(parse_rate(std::getenv("DNTTK_FRAME_RATE")));
     if(hz==60) return;
     apply_rate(hz);
     replay_on=psx_mod_set_present_replay(provider,nullptr,target_hz)!=0;
@@ -2592,7 +2600,7 @@ bool replay_late_rotation(int16_t rot[9]) {
 bool frame_rate_live() {return modernized_session && (replay_on || psx_mod_present_replay_available());}
 bool frame_rate_set(const char* value) {
     if(!modernized_session) return false;
-    const int32_t hz=parse_rate(value);
+    const int32_t hz=launch_rate(parse_rate(value));
     if(hz==60) {
         if(replay_on && !psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
         replay_on=interp_replay=false;

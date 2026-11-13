@@ -1638,7 +1638,11 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 input_running() && psx_mod_read_byte(player+0x22c)==0 &&
                 psx_mod_read_byte(player+0x22d)==0 && !psx_mod_read_word(player+0x20c) &&
                 lease_ready(true) && identity();
-            if((((animation==63 || (animation>=72 && animation<=75)) && movement_ready()) || stopped_run) &&
+            // D23W: a walk the step probe switched to the run gait (76/78) to
+            // climb a step is still a walk: without this its jump was the
+            // original running jump 104 (the long jump and its vocal).
+            const bool stepped_walk=(animation==76 || animation==78) && !input_running();
+            if((((animation==63 || (animation>=72 && animation<=75) || stepped_walk) && movement_ready()) || stopped_run) &&
                independent_camera() && (f.move_x || f.move_y) &&
                !(psx_mod_read_word(player+0x224)&0x202002c1) && !thrust &&
                !f.held[crouch] && !f.held[original_aim] && input_take_jump()) {

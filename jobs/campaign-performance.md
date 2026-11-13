@@ -1654,7 +1654,7 @@ a reliable GPU-time estimate at startup.
 
 ### D23P2 - GPU presets picked from measured headroom
 
-**Status: Todo. Dependencies: D23P.** The GPU half of D23P: performance
+**Status: Todo (2026-11-12: D23W built its first piece, internal scale AUTO from a measured GPU probe at 60 pictures a second, [note 461](../documentation/461-d23w-field-laptop.md); refresh-aware presets and light and shadow quality remain. 2026-11-13, user: "i think it is more realistic to think we have some graphics profiles like simple, pretty etc, maybe 4 gradings. i want the most out of this small machine": four named profiles, AUTO choosing one). Dependencies: D23P.** The GPU half of D23P: performance
 presets (internal scale, redraw rate, light and shadow quality) that AUTO
 picks from headroom measured at startup, the choice shown in the options;
 test on a real weak device if one is available, otherwise simulate (a
@@ -1847,7 +1847,7 @@ jobs for its parts, pictures exact, Vanilla unchanged.
 
 ### D23W - Field laptop: measure on real weak hardware
 
-**Status: Todo (user, 2026-11-12: "i can actually provide some real weak hardware and we can finally test on my field laptop"; they will clone the repo there and call back). Dependencies: D23T, D23U.**
+**Status: Done (user-accepted 2026-11-13: "it plays well"; closeout authorized; [note 461](../documentation/461-d23w-field-laptop.md)). Dependencies: D23T, D23U.**
 Every weak-hardware figure so far is an estimate (note 444's factor of 7 for a
 Deck-class GPU) or a CPU-limit simulation on the 1080 Ti machine (D23P). On
 the user's field laptop:
@@ -1876,6 +1876,128 @@ the user's field laptop:
 Acceptance: a measured weak-hardware report replacing the estimates in notes
 444 and 459, the D23U default decided from it, inputs for D23P2 (presets) and
 D23R (parity bar on a weak GPU), Vanilla unchanged.
+
+Work log, 2026-11-12 (Needs playtest), [note 461](../documentation/461-d23w-field-laptop.md).
+Setup: cloned with submodules, the user's dump and private card copies in
+place, `build.py --jobs 4` in 55 minutes. Hardware: i7-5600U (2 cores, 4
+logical CPUs), Intel HD Graphics 5500 on Mesa 26.2.6, 8 GB, 1920x1080 at
+60 Hz, XFCE on X11, performance profile, mains. The user plays UZDoom (native
+1080p, dynamic lights, SSAO and MSAA off, 60 cap), EDuke32 (Polymost
+1600x900) and Banjo Recompiled (MSAA 2x) here. Lab `recomp/analysis/d23w/`
+(local): the D23K lab with a vendor-neutral GPU busy (`gpu.py`: nvidia-smi,
+amdgpu `gpu_busy_percent`, Intel RC6 residency without root) and a `rates`
+case (game frames, pictures shown, busiest thread, CPU clock, per second).
+
+Found: the user's first play ("it runs like ass") was AUTO slowing the game
+itself: 4 logical CPUs allowed the replay path, and AUTO keeps replay at any
+cap, so in UI slot 2 the game ran 33 frames a second with 14 underruns in
+25 s, against 60 with no underrun at a fixed 60. Fewer workers did not help;
+the replay share of the emulation thread is the cost. Built: physical cores
+in the cap (`psx_host_physical_cores`, `replay_auto_cap_for`: 2 or fewer cores
+-> 60) and AUTO at 60 as the original presentation (`launch_rate` in
+`frame_replay.cpp`, at launch and in OPTIONS). Then the GPU: 4x failed on the
+real display (dips to 41), 3x dipped to 42, 2x held 60 every second. Built:
+`--gpu-probe` (`gpu_probe.c`, a timed synthetic 4x frame, about 1 s) and
+`gpu_auto.py` (largest scale with probe x scale^2/16 <= 2.5 ms, cached in
+`config/gpu-probe.json` per GPU PCI ids and binary, failures not cached, 2x
+fallback); internal scale 0 = AUTO is the Modernized default (`--internal-scale
+auto`, OPTIONS > DISPLAY > RESOLUTION > AUTO), saved fixed scales unchanged.
+Here: 6.33-6.94 ms -> 2x.
+
+Evidence, fresh default profile on the real display, 30 s walking, turning
+and firing: UI slots 2, 8 and 9 each 60 game frames and 60 pictures a second
+(lowest tenth 59), busiest thread 63-66%, GPU busy 65-71%, no underrun; worst
+seconds 51 and 54 with one "behind" each. D23U prepass (`PSX_GL_ZPREPASS=1`):
+70% against 71% (UI slot 8), 68% against 65% (UI slot 2), within noise;
+whether this path engaged it is not shown by the logs; it stays off. Vanilla
+checked: 1x, fixed 60, no probe, no workers, 60. Tests: `test_gpu_auto.py`
+(rule, cache, parsing), the AUTO cap cases in `test_auto_frame_rate.py`,
+profile tests for AUTO (the probe isolated from the player's cache). Also
+fixed: `run.py` returned from a `finally` (Python 3.14 warning; it also hid
+errors).
+
+Remaining: the user's own play of the new defaults on the laptop (gameplay
+acceptance); one laptop calibrates the probe budget, which is for 60 pictures
+a second (refresh-aware presets and light and shadow quality stay D23P2); the
+Windows core count is compile-checked only.
+
+Work log, 2026-11-13 (Needs playtest), second pass, [note 461](../documentation/461-d23w-field-laptop.md) section 6.
+The user's settings (DISPLAY, 3x, Relit, first person): DISPLAY had brought
+replay back (session log 17-56 game frames a second); it now takes AUTO's CPU
+cap. UZDoom reference (Ancient Aliens MAP01, the user's settings): GPU busy
+62%, main thread 28%. Mesa `INTEL_MEASURE` per render pass showed about 3.6 ms
+of a 9.5-10 ms GPU frame around the scene; removed without changing the
+picture: the per-present drawable copy for hold-last (only rewind and netplay
+show it), the widescreen centre copy over the full VRAM height (now the band
+the caller reads; the opening matches row for row), the full window clear for
+pillarbox bars (bars only). Blits 2.21 -> 0.55 ms, clears 0.84 -> 0.42 ms;
+the user's settings: lowest tenth 56/55/55 -> 58/59/58, GPU busy 80/78/75% ->
+72/73/68%. Remaining dips are one-off CPU events (lamp snapshot, sleeping-enemy
+handovers, relit room changes). Jump: a walking jump at a step got the original
+running jump (the step probe's run gait 76 was outside the takeoff's walk
+gaits); fixed in `modern_controls.cpp`. Tests: 251 local, OK.
+
+Accepted 2026-11-13. User after playing with their settings (DISPLAY, 3x,
+Relit, first person): "it plays well, but there feels to be a slight latency";
+at 120 "the visuals seem way smoother ... but there's so much stuttering the
+gameplay becomes unplayable". Closeout authorized; follow-ups D23X (latency
+and vsync), D23Y (120 fps on 2-core hardware), D23Z (one-off CPU spikes) and
+the four graphics profiles of D23P2.
+
+### D23X - Input latency and vsync on the field laptop
+
+**Status: Todo (backlog, user 2026-11-13: "it plays well, but there feels to
+be a slight latency with it. i cant quite explain. am i imagining this?").
+Dependencies: D23W.** On the field laptop (note 461) the original 60
+presentation shows each new game image for two refreshes (the game updates
+about 30 times a second), under the driver's vsync at 60 Hz with the
+wall-clock pacer; 120 on the 60 Hz panel felt like "vsync off" to the user.
+Measure input-to-picture latency (input sample to the present that first shows
+it, the debug latency ring and a camera-free method such as a key-triggered
+colour flash read back from the window) at 60, at DISPLAY and at 120 against
+EDuke32 and UZDoom on the same machine; find where the time goes (input
+sampling point, emulation frame, present queue, compositor, driver buffering);
+offer a player-facing vsync choice (on, off, adaptive where the driver has it)
+in the options and the manual. Acceptance: measured latency numbers before and
+after, the user's judgement on the laptop, Vanilla unchanged.
+
+### D23Y - 120 fps on 2-core hardware
+
+**Status: Todo (backlog, user 2026-11-13: "we need to put a backlog job in,
+or series of backlog jobs in now to get hardware of this level to work with
+our 120 fps. ancient aliens can do it. eduke can do it. half life can do it.
+there's no reason why we cant do it with enough deep research ... i want it
+feeling essentially perfect on this computer"). Dependencies: D23W;
+coordinate D23N (captured redraws) and D23X.** On the field laptop (i7-5600U, 2
+cores, 4 threads; HD Graphics 5500) any replay rate slowed the game itself
+(AUTO at 120: 33 game frames a second; note 461): the replay path's share of
+the emulation thread, not the worker processes, was the cost (one worker
+changed nothing), and the CPU and GPU share one 15 W budget. First a deep
+research report: where every millisecond of a 120 Hz frame goes on this
+machine (emulation thread, capture, workers, render thread, GPU, power), how
+EDuke32, UZDoom and Half-Life reach 120 here, what D23N's captured redraws
+(no game code re-run per redraw) would save, and alternatives (interpolating
+from the captured scene on the GPU, one render thread sharing the emulation
+core, fewer redraws with frame generation), then a plan of child jobs, each
+with a measured target. Acceptance for the series: a steady 120 on the
+laptop's 60 Hz panel and on a 120 Hz display if one is available, in UI slots
+2, 8 and 9 with the user's settings, game speed never lowered, and the user's
+judgement that it feels right.
+
+### D23Z - One-off CPU spikes on the emulation thread
+
+**Status: Todo (backlog, found in D23W 2026-11-13). Dependencies: D23W.** On
+the field laptop the remaining short slowdowns at 60 (one or two seconds of
+45-57 game frames in a 30 s walk, each followed by a 5 s overclock pause)
+lined up with one-off events on the emulation thread: the level-start lamp
+snapshot (24 ms on the game thread), sleeping-enemy handovers as Duke moves
+between rooms, and Relit room brightness changes; continuous firing and a walk
+with lights off showed none (note 461 section 6). Measure each with the host
+profiler over the event, move the work off the emulation thread or spread it
+over frames, and decide whether the overclock pause should wait for a second
+behind second on weak CPUs. Acceptance: no "behind" second in 30 s walks of UI
+slots 2, 8 and 9 on the laptop with the user's settings, pictures and
+behaviour unchanged.
 
 ### D23R - Parity benchmark and acceptance
 

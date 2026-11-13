@@ -90,11 +90,20 @@ camera and aiming. Vanilla remains a separate one-launch option.
 Each profile remembers its own picture settings. In `--settings`, choose **R**
 and enter four values, for example `2 windowed 0 linear`:
 
-- **Internal resolution** `1`-`4`: draws the 3D world at that many times the
-  original resolution, so models and edges get sharper (textures keep their
-  original look). `1` is the original. Vanilla starts at 1, Modernized at 4.
-  Higher values need the OpenGL renderer; with the software renderer the game
-  always uses 1 and keeps your choice for later.
+- **Internal resolution** `1`-`4`, or `0` for AUTO: draws the 3D world at that
+  many times the original resolution, so models and edges get sharper
+  (textures keep their original look). `1` is the original. Vanilla starts at
+  1. Modernized starts at **AUTO** (D23W): the first launch on a computer
+  measures its graphics chip for about a second and picks the sharpest
+  resolution it can keep at 60 pictures a second, for example 2x on an
+  Intel HD Graphics 5500 laptop and 4x on a desktop graphics card. The
+  measurement is kept and taken again only when the graphics chip, its
+  driver or the game build changes; the launcher prints the choice
+  (`AUTO resolution: 2x ...`) and `--show-settings` shows it. Higher values
+  need the OpenGL renderer; with the software renderer the game always uses
+  1 and keeps your choice for later. Settings saved before AUTO existed keep
+  their resolution; choose AUTO with `--internal-scale auto` or in OPTIONS >
+  DISPLAY > RESOLUTION.
 - **Display**: `windowed` (the default), `borderless` (fullscreen at your
   desktop resolution) or `exclusive` (true exclusive fullscreen). **F11**
   switches between a window and fullscreen in game, using the last
@@ -115,9 +124,9 @@ and enter four values, for example `2 windowed 0 linear`:
   window; `nearest` keeps hard pixels.
 
 The same settings are available as launcher flags, for example
-`python3 recomp/tools/local/run.py --internal-scale 3 --display borderless`.
-Changes take effect on the next launch. If the game slows down, lower the
-internal resolution.
+`python3 recomp/tools/local/run.py --internal-scale 3 --display borderless`
+(or `--internal-scale auto`). Changes take effect on the next launch. If the
+game slows down, lower the internal resolution.
 
 ### Widescreen (Modernized)
 
@@ -164,8 +173,13 @@ for the next launch):
   On a computer with fewer processor threads AUTO also stays within what
   they can redraw (D23P): with 4 to 7 logical CPUs at most 120 pictures a
   second (180 Hz -> 90, 120 or 240 Hz -> 120), with fewer than 4 the original
-  60. Eight or more (most desktop processors) are not limited. A fixed
-  choice below is never changed.
+  60. Eight or more (most desktop processors) are not limited. A processor
+  with only 2 physical cores (a laptop with 4 threads, for example) also
+  gets the original 60 presentation (D23W): drawing extra pictures there
+  took so much processor time that the game itself slowed to about half
+  speed. A fixed choice below is never changed.
+  `display` follows the same limit: on such a processor it is the original
+  60 presentation too (D23W).
   AUTO follows display changes and preserves fractional rates such as 59.94.
   Existing saved choices stay selected; choose AUTO explicitly to try it.
 - `60`: the original presentation.

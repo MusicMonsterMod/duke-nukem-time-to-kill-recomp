@@ -13,7 +13,8 @@ RENDERERS = ('opengl', 'software')
 # D13 presentation. Internal scale renders the 3D scene at N times the original
 # resolution (runtime supersampling, 1..4); display, window width and output
 # filter only change how the finished image reaches the screen.
-INTERNAL_SCALES = (1, 2, 3, 4)
+# D23W: 0 is AUTO, measured from the GPU at launch (gpu_auto.py).
+INTERNAL_SCALES = (0, 1, 2, 3, 4)
 DISPLAYS = ('windowed', 'borderless', 'exclusive')
 FULLSCREEN_MODES = ('borderless', 'exclusive')
 OUTPUT_FILTERS = ('linear', 'nearest')
@@ -176,7 +177,7 @@ DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'w
 DEFAULT_PROFILE = {'presentation': DEFAULT_PRESENTATION, 'bindings': pc_input.DEFAULTS, 'controls': DEFAULT_CONTROLS}
 # Modernized renders at four times the original resolution (user choice after
 # the D13 playtest: 60 fps on a GTX 1080 Ti); Vanilla keeps the original.
-MODE_PRESENTATION = {'vanilla': {}, 'modernized': {'internal_scale': 4}}
+MODE_PRESENTATION = {'vanilla': {}, 'modernized': {'internal_scale': 0}}
 PREVIEW = ('Modernized first-map preview: captured WASD is camera-relative; mouse orbits the '
            'third-person camera. Unavailable hooks never switch the selected control scheme. '
            'View aiming covers supported weapons, with AUTO AIM HITSCAN for the Desert Eagle, Combat Shotgun, Buffalo Rifle and Gatling; others retain original aiming. Gameplay captures automatically on first entry; Escape pauses and frees the mouse; resume captures automatically. OPTIONS > CONTROLS selects Modern or Legacy; F10 has no action.')
@@ -246,7 +247,7 @@ def validate_presentation(value):
             value['fullscreen_mode'] not in FULLSCREEN_MODES or
             value['output_filter'] not in OUTPUT_FILTERS or type(width) is not int or
             not (width == 0 or WINDOW_WIDTH_RANGE[0] <= width <= WINDOW_WIDTH_RANGE[1])):
-        raise ValueError('Renderer opengl/software; internal scale 1..4; display windowed/borderless/exclusive; '
+        raise ValueError('Renderer opengl/software; internal scale 0 (auto) or 1..4; display windowed/borderless/exclusive; '
                          'fullscreen mode borderless/exclusive; '
                          'window width 0 (fit the display) or 640..7680; output filter linear/nearest.')
     return dict(value)
@@ -260,32 +261,46 @@ def default_profile(mode):
     return profile
 
 
-def effective_scale(presentation):
+def effective_scale(presentation, auto_scale=None):
     """Software supersampling is CPU-bound (measured 29 fps at 2x against 60 at
     1x), so the software renderer always runs at the original resolution. The
-    saved scale is kept for OpenGL."""
-    return 1 if presentation['renderer'] == 'software' else presentation['internal_scale']
+    saved scale is kept for OpenGL. D23W: AUTO (0) takes the measured scale
+    (gpu_auto.resolve), or gpu_auto.FALLBACK_SCALE when none is given."""
+    if presentation['renderer'] == 'software':
+        return 1
+    if presentation['internal_scale'] == 0:
+        import gpu_auto
+        return auto_scale or gpu_auto.FALLBACK_SCALE
+    return presentation['internal_scale']
 
 
-def presentation_args(presentation):
+def presentation_args(presentation, auto_scale=None):
     """Runtime flags for the saved presentation (patched runtime CLI overrides)."""
     return ['--renderer', presentation['renderer'],
-            '--internal-scale', str(effective_scale(presentation)),
+            '--internal-scale', str(effective_scale(presentation, auto_scale)),
             '--display', presentation['display'],
             '--fullscreen-mode', presentation['fullscreen_mode'],
             '--window-width', str(presentation['window_width']),
             '--output-filter', presentation['output_filter']]
 
 
-def describe_presentation(presentation):
-    scale = effective_scale(presentation)
+def describe_presentation(presentation, auto_scale=None):
     width = presentation['window_width']
-    held = (f"; saved {presentation['internal_scale']}x applies with OpenGL"
-            if scale != presentation['internal_scale'] else '')
-    return (f"Internal resolution: {scale}x ({'original, ' if scale == 1 else ''}512x240 gameplay renders at "
-            f"{512 * scale}x{240 * scale}{held}); display: {presentation['display']} "
-            f"(F11: {presentation['fullscreen_mode']}); "
+    tail = (f"display: {presentation['display']} (F11: {presentation['fullscreen_mode']}); "
             f"window width: {width or 'fit the display'}; output filter: {presentation['output_filter']}")
+    if presentation['internal_scale'] == 0 and presentation['renderer'] != 'software':
+        if auto_scale is None:
+            import gpu_auto
+            auto_scale = gpu_auto.cached_scale()
+        if not auto_scale:
+            return f"Internal resolution: auto (measured from the GPU at the next launch); {tail}"
+        return (f"Internal resolution: auto, {auto_scale}x on this GPU ({'original, ' if auto_scale == 1 else ''}512x240 "
+                f"gameplay renders at {512 * auto_scale}x{240 * auto_scale}); {tail}")
+    scale = effective_scale(presentation, auto_scale)
+    saved = 'auto' if presentation['internal_scale'] == 0 else f"{presentation['internal_scale']}x"
+    held = f"; saved {saved} applies with OpenGL" if scale != presentation['internal_scale'] else ''
+    return (f"Internal resolution: {scale}x ({'original, ' if scale == 1 else ''}512x240 gameplay renders at "
+            f"{512 * scale}x{240 * scale}{held}); {tail}")
 
 
 def presentation_state_path(settings_path):
@@ -753,7 +768,7 @@ def menu(settings, read=input, write=print):
             presentation = edited['profiles'][edited['active']]['presentation']
             write(describe_presentation(presentation))
             write('Internal scale renders the 3D scene at 1x (original 512x240), 2x, 3x or 4x resolution with OpenGL '
-                  '(the software renderer always uses 1x). '
+                  '(the software renderer always uses 1x); 0 is AUTO, measured from the GPU at launch. '
                   'Display, window width (0 fits the display) and output filter only change how the image is shown.')
             values = read('scale display width filter (e.g. 2 windowed 0 linear; blank cancels): ').split()
             if not values:

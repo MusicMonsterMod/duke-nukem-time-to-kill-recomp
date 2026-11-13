@@ -393,8 +393,9 @@ std::vector<Screen> make_screens() {
     s[1]={"DISPLAY",{
         {"WINDOW",Section::Presentation,"display",nullptr,true,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
          {{"WINDOWED","windowed","\"windowed\""},{"BORDERLESS","borderless","\"borderless\""},{"EXCLUSIVE","exclusive","\"exclusive\""}},0},
-        {"RESOLUTION",Section::Presentation,"internal_scale",nullptr,false,"INTERNAL 3D RESOLUTION. 1X IS THE ORIGINAL",
-         {{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},3},
+        // D23W: AUTO (0) is measured from the GPU at launch (gpu_auto.py).
+        {"RESOLUTION",Section::Presentation,"internal_scale",nullptr,false,"INTERNAL 3D RESOLUTION. AUTO MEASURES THE GPU. 1X IS THE ORIGINAL",
+         {{"AUTO","0","0"},{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},0},
         {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",true,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
          {{"16:9","16:9","\"16:9\""},{"16:10","16:10","\"16:10\""},{"21:9","21:9","\"21:9\""},{"AUTO","auto","\"auto\""},{"OFF","off","\"off\""}},0},
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",

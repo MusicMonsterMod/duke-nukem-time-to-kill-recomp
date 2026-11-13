@@ -64,6 +64,18 @@ CUE is missing, it searches `game/` and imports a known USA dump before launch.
 `--settings-file` isolates test preferences. See [schema/recovery](17-player-profiles.md).
 Renderer choices are persistent; other runtime preferences remain shared.
 
+## gpu_auto.py / --gpu-probe (D23W)
+
+`Duke_Nukem__Time_to_Kill_Recompiled --gpu-probe` (first argument) opens a
+hidden OpenGL 3.3 window, times a synthetic 4x frame (2048x960, three layers
+of a lit textured shader, scaled to 1920x1080) with GL timer queries, prints
+`psxrecomp: gpu probe: ms=... renderer="..." version="..."` and exits; nothing
+of the game loads. `gpu_auto.py` turns it into the AUTO internal scale (largest
+with ms x scale^2/16 <= 2.5) and caches it in `recomp/config/gpu-probe.json`
+with the GPUs' PCI ids and the binary's size and time; delete the file to
+measure again. `run.py` resolves AUTO only for an OpenGL launch with internal
+scale 0. See [note 461](461-d23w-field-laptop.md).
+
 ## ttk_state_probe.py
 
 Read-only guarded D03 candidate sampler, enabled by

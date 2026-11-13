@@ -391,6 +391,11 @@ std::vector<Screen> make_screens() {
          {{">",">",">"}},0,false,0,0,1,1,true},
     }};
     s[1]={"DISPLAY",{
+        // D23P2: a grade sets RESOLUTION, LIGHTING, LIVE SHADOWS, DRAW DISTANCE
+        // and FRAME RATE (graphics_grade); changing one of them makes it CUSTOM.
+        {"GRAPHICS",Section::Controls,"graphics","DNTTK_GRAPHICS",true,"QUALITY PRESET. AUTO PICKS ONE FOR YOUR GPU",
+         {{"AUTO","auto","\"auto\""},{"SIMPLE","simple","\"simple\""},{"BALANCED","balanced","\"balanced\""},
+          {"PRETTY","pretty","\"pretty\""},{"ULTRA","ultra","\"ultra\""},{"CUSTOM","custom","\"custom\""}},0},
         {"WINDOW",Section::Presentation,"display",nullptr,true,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
          {{"WINDOWED","windowed","\"windowed\""},{"BORDERLESS","borderless","\"borderless\""},{"EXCLUSIVE","exclusive","\"exclusive\""}},0},
         // D23W: AUTO (0) is measured from the GPU at launch (gpu_auto.py).
@@ -401,6 +406,9 @@ std::vector<Screen> make_screens() {
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",
          {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
+        // D23X: the original presentation's swap interval (psx_mod_request_vsync).
+        {"VSYNC",Section::Controls,"vsync","DNTTK_VSYNC",true,"AT 60 FPS. ON: NO TEARING. OFF: LESS INPUT LAG",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""},{"ADAPTIVE","adaptive","\"adaptive\""}},0},
         // D17AR6: the world renderer (D17AM/D17AR switches). D40: live, from the next frame.
         {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",true,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
          {{"POLYMORPH","polymorph","\"polymorph\""},{"CLASSIC","classic","\"classic\""}},0},
@@ -519,9 +527,9 @@ std::vector<Screen> make_screens() {
         {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: MAXIMUM VIEW, DISTANT ENEMIES WAIT UNTIL NEAR",
          {{"EXTENDED","extended","\"extended\""},{"ORIGINAL","original","\"original\""}},0},
         {"GEOMETRY",Section::Controls,"geometry_precision","DNTTK_GEOMETRY_PRECISION",false,"CORRECTED: STEADIER POLYGON EDGES",
-         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
+         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},1},
         {"TEXTURES",Section::Controls,"texture_precision","DNTTK_TEXTURE_PRECISION",false,"CORRECTED: NO TEXTURE WARP",
-         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
+         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},1},
         heading("PERFORMANCE"),
         {"CPU SPEED",Section::Controls,"cpu_overclock","PSX_CPU_OVERCLOCK",false,"150 KEEPS BUSY SCENES SMOOTH. 100 IS THE ORIGINAL",
          {{"100","100","100"},{"125","125","125"},{"150","150","150"},{"175","175","175"},{"200","200","200"}},2},
@@ -1322,6 +1330,7 @@ void apply_live(const Row& r,int v) {
     }
     if(key=="frame_rate" && !frame_rate_set(value)) return;
     if(key=="fps") {fps_seen=!std::strcmp(value,"1");psx_mod_set_fps_display(fps_seen);return;}
+    if(key=="vsync") psx_mod_request_vsync(!std::strcmp(value,"off") ? 0 : !std::strcmp(value,"adaptive") ? -1 : 1);
     if(key=="world_renderer" && !world_renderer_request(!std::strcmp(value,"classic"))) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
@@ -1391,8 +1400,56 @@ void scheme_aim_defaults(bool legacy) {
         apply_live(r,v);
     }
 }
+// D23P2: GRAPHICS. The rows a grade sets (player_profiles.GRAPHICS_PRESETS,
+// kept in step by test_graphics_presets), and AUTO's grade from the launcher.
+struct GradeRow {const char* key; const char* value[4];};
+const char* const grade_names[4]={"simple","balanced","pretty","ultra"};
+const GradeRow grade_rows[]={
+    {"internal_scale",{"1","2","3","4"}},
+    {"dynamic_lights",{"off","on","relit","relit"}},
+    {"shadow_edges",{"simple","simple","smooth","smooth"}},
+    {"draw_distance",{"original","extended","extended","extended"}},
+    {"frame_rate",{"60","auto","auto","auto"}},
+};
+bool grade_key(const char* key) {
+    for(const auto& g:grade_rows) if(key && !std::strcmp(key,g.key)) return true;
+    return false;
+}
+// Sets every row a grade owns, on every screen, live where the row is.
+void graphics_grade(const char* grade) {
+    if(grade && !std::strcmp(grade,"auto")) grade=std::getenv("DNTTK_GRAPHICS_AUTO");
+    int k=-1;
+    for(int i=0;i<4;++i) if(grade && !std::strcmp(grade,grade_names[i])) k=i;
+    if(k<0) return;
+    for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
+        Row& r=screens[s].rows[i];
+        for(const auto& g:grade_rows) if(r.key && !std::strcmp(r.key,g.key)) {
+            const int v=choice_from_env(r,g.value[k]);
+            if(committed[s][i]==v) continue;
+            committed[s][i]=draft[s][i]=v;
+            if(row_live(r)) apply_live(r,v);
+        }
+    }
+}
+// A row a grade owns, changed by hand: GRAPHICS becomes CUSTOM.
+void graphics_custom() {
+    for(size_t s=0;s<screens.size();++s) {
+        const int g=row_of((int)s,"graphics");
+        if(g<0) continue;
+        Row& r=screens[s].rows[g];
+        const int v=choice_from_env(r,"custom");
+        committed[s][g]=draft[s][g]=v;
+        apply_live(r,v);
+    }
+}
 void leave_screen(bool keep) {
     const int s=screen;
+    // D23P2: a new GRAPHICS grade, or a grade's row changed by hand.
+    const int graphics=row_of(s,"graphics");
+    const bool graphics_changed=keep && graphics>=0 && draft[s][graphics]!=committed[s][graphics];
+    bool grade_row_changed=false;
+    if(keep) for(size_t i=0;i<screens[s].rows.size();++i)
+        if(grade_key(screens[s].rows[i].key) && draft[s][i]!=committed[s][i]) grade_row_changed=true;
     const int scheme=row_of(s,"scheme");
     const bool scheme_changed=scheme>=0 && draft[s][scheme]!=committed[s][scheme];
     const int red_dot=row_of(s,"red_dot");
@@ -1403,6 +1460,8 @@ void leave_screen(bool keep) {
             if((draft[s][i]!=committed[s][i] || s==4) && !r.link && !r.heading && row_live(r)) apply_live(r,draft[s][i]);
         }
         committed[s]=draft[s];
+        if(graphics_changed) graphics_grade(screens[s].rows[graphics].choices[committed[s][graphics]].env);
+        else if(grade_row_changed) graphics_custom();
         if(scheme_changed) scheme_aim_defaults(!std::strcmp(screens[s].rows[scheme].choices[committed[s][scheme]].env,"legacy"));
         // Replay workers are forked processes: inherit the completed preset,
         // including live marker visibility, before rendering resumed gameplay.

@@ -1654,7 +1654,7 @@ a reliable GPU-time estimate at startup.
 
 ### D23P2 - GPU presets picked from measured headroom
 
-**Status: Todo (2026-11-12: D23W built its first piece, internal scale AUTO from a measured GPU probe at 60 pictures a second, [note 461](../documentation/461-d23w-field-laptop.md); refresh-aware presets and light and shadow quality remain. 2026-11-13, user: "i think it is more realistic to think we have some graphics profiles like simple, pretty etc, maybe 4 gradings. i want the most out of this small machine": four named profiles, AUTO choosing one). Dependencies: D23P.** The GPU half of D23P: performance
+**Status: Done (user-accepted 2026-11-13, closeout authorized; 2026-11-13, [note 464](../documentation/464-d23p2-graphics-profiles.md); 2026-11-12: D23W built its first piece, internal scale AUTO from a measured GPU probe at 60 pictures a second, [note 461](../documentation/461-d23w-field-laptop.md). 2026-11-13, user: "i think it is more realistic to think we have some graphics profiles like simple, pretty etc, maybe 4 gradings. i want the most out of this small machine": four named profiles, AUTO choosing one). Dependencies: D23P.** The GPU half of D23P: performance
 presets (internal scale, redraw rate, light and shadow quality) that AUTO
 picks from headroom measured at startup, the choice shown in the options;
 test on a real weak device if one is available, otherwise simulate (a
@@ -1663,6 +1663,31 @@ also check why a fixed 90 Hz presented 60 a second in one headless run.
 Acceptance: on 4 logical CPUs and at scale 1, a steady rate (120 or 90)
 with no audio low and no governor oscillation; the presets in the manual;
 Vanilla unchanged.
+
+Work log, 2026-11-13 (Needs playtest), [note 464](../documentation/464-d23p2-graphics-profiles.md).
+Built: OPTIONS > DISPLAY > GRAPHICS (first row) with SIMPLE (1x, original
+light, simple shadows, original draw distance, 60), BALANCED (2x, Enhanced,
+simple, extended, AUTO), PRETTY (3x, Relit, sharp, extended, AUTO), ULTRA (4x,
+Relit, sharp, extended, AUTO), AUTO (one of the four from the D23W probe:
+`gpu_auto.grade_for`, at or under 2.5 / 5.0 / 14.0 ms) and CUSTOM; profile
+schema 74 `graphics` (fresh installs AUTO, older profiles CUSTOM with every
+choice kept); `run.py --graphics`, the grade applied at launch and shown and
+saved back by OPTIONS; a row a grade sets, changed by hand or by flag, makes
+it CUSTOM (`game_menu.cpp` `graphics_grade` / `graphics_custom`, table
+checked against the Python presets by a test). Only AUTO runs the probe.
+Measured on the field laptop (the user's other settings, real display, 30 s
+walks, UI slots 2/8/9): SIMPLE 60 game frames, lowest tenth 59-60, GPU busy
+38-46%; BALANCED 60, 60, 51-54%, no underrun; PRETTY 59-60, 57-59, 64-69%,
+one underrun a walk; ULTRA 56-59, 51-54, 74-79%. AUTO picks BALANCED there
+(probe 6.3-6.9 ms). Checked in game with real keys: a grade confirmed in
+OPTIONS > DISPLAY set and saved its rows. Tests: schema 74 migration, the
+launch rows per grade, AUTO, CUSTOM by flag, Vanilla never graded, the grade
+rule, the menu table; 141 profile tests pass. The redraw-rate side of the
+original job (refresh-aware presets above 60) is D23Y's on 2 cores and stays
+with D23R elsewhere. Remaining: the user's play of the grades on the laptop.
+
+- 2026-11-13 closeout: the user, playing on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop ... i am pleased with the settings and quality, so lock this in and close it out". GRAPHICS grades and AUTO kept as built; GEOMETRY and TEXTURES now default to CORRECTED for new and reset profiles.
+
 ### D23Q - Renderer restart stall after an early savestate load
 
 **Status: Done (user-accepted 2026-11-12, closeout authorized; [note 452](../documentation/452-d23q-restart-stall.md); D23K finding, [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
@@ -1946,7 +1971,7 @@ the four graphics profiles of D23P2.
 
 ### D23X - Input latency and vsync on the field laptop
 
-**Status: Todo (backlog, user 2026-11-13: "it plays well, but there feels to
+**Status: Done (user-accepted 2026-11-13, closeout authorized; 2026-11-13, [note 462](../documentation/462-d23x-input-latency.md); backlog, user 2026-11-13: "it plays well, but there feels to
 be a slight latency with it. i cant quite explain. am i imagining this?").
 Dependencies: D23W.** On the field laptop (note 461) the original 60
 presentation shows each new game image for two refreshes (the game updates
@@ -1961,9 +1986,36 @@ offer a player-facing vsync choice (on, off, adaptive where the driver has it)
 in the options and the manual. Acceptance: measured latency numbers before and
 after, the user's judgement on the laptop, Vanilla unchanged.
 
+Work log, 2026-11-13 (Needs playtest), [note 462](../documentation/462-d23x-input-latency.md).
+Measured with a camera-free probe (XTest mouse turn, XShm screen polling;
+local lab `recomp/analysis/d23x/`), median input to picture in UI slot 2:
+ours 129-135 ms at the original 60 (vsync on or off, windowed, borderless or
+exclusive within a few ms), 66 ms with late-camera redraws at 60, 64-74 at
+120; EDuke32 22, Quake Brutalist Jam III about 35, UZDoom with Ancient Aliens
+40, Quake Alkaline about 52. The user is not imagining it. Traced
+(`PSX_LAT_TRACE`, `DNTTK_LAT_TRACE`, new developer traces): the event reaches
+the next field's pump, the next 30 Hz logic frame takes the look and the view
+composition reads it within 2 ms, and the image is flipped two game frames
+later; the same with the Classic renderer, so it is the original game's
+pipeline. Ours added one field: the present ran at the start of vblank and
+the game flips about 19,900 cycles later, inside the console's vertical
+blank. Built: present at the flip (framework `main.cpp` display half split
+out as `sdl_present_display`, run from the service edge after GP1(05h) or the
+end of vertical blank; `gpu.c` flip flag; `psx_mod_set_flip_present`,
+Modernized only, `DNTTK_FLIP_PRESENT=0` off; netplay, movies and replay keep
+the old path): 113-119 ms with vsync off, 126-129 with vsync on. OPTIONS >
+DISPLAY > VSYNC ON / OFF / ADAPTIVE (schema 74 `vsync`, `run.py --vsync`,
+`PSX_VSYNC`, live through the new `psx_mod_request_vsync`), checked in game
+with real keys (`psxrecomp: vsync off`, saved). Opening, gameplay and pause
+menu pictures compared with the old path: the same. The rest of the latency
+needs the late camera at every present, which on 2 cores is D23Y's work
+(note 463). Remaining: the user's judgement on the laptop.
+
+- 2026-11-13 closeout: the user, playing on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop ... i am pleased with the settings and quality, so lock this in and close it out". present at the flip and VSYNC kept as built; the remaining latency (the game's 30 Hz pipeline) moves to the late camera and D23Y2-D23Y3.
+
 ### D23Y - 120 fps on 2-core hardware
 
-**Status: Todo (backlog, user 2026-11-13: "we need to put a backlog job in,
+**Status: Done (research and plan accepted 2026-11-13, closeout authorized; further efficiency continues in D23Y2-D23Y5; [note 463](../documentation/463-d23y-120-on-two-cores.md); child jobs D23Y1-D23Y5; backlog, user 2026-11-13: "we need to put a backlog job in,
 or series of backlog jobs in now to get hardware of this level to work with
 our 120 fps. ancient aliens can do it. eduke can do it. half life can do it.
 there's no reason why we cant do it with enough deep research ... i want it
@@ -1983,6 +2035,83 @@ with a measured target. Acceptance for the series: a steady 120 on the
 laptop's 60 Hz panel and on a 120 Hz display if one is available, in UI slots
 2, 8 and 9 with the user's settings, game speed never lowered, and the user's
 judgement that it feels right.
+
+Work log, 2026-11-13 (Needs review), [note 463](../documentation/463-d23y-120-on-two-cores.md).
+Research on the field laptop: the package is limited to 15 W sustained (RAPL
+PL1, 25 W for about 28 s) for CPU and GPU together; redraws at 60 raised all
+threads from 61-67% to 121-138% and the clock fell from about 3.1 GHz to
+1.2-2.3, so the game itself slowed (54-58 game frames, lowest tenth 36-48;
+at 120: 43-51, 26-33). With the governor off a redraw costs the workers
+23-30 ms of CPU here (about 10 ms on the desktop); the emulation thread's
+profile is unchanged with redraws but needs 38% more CPU time at the same
+clock (shared core and cache). References on the laptop: EDuke32 holds 120
+(one thread, GPU 73%); UZDoom with the user's settings reaches about 70 at a
+120 cap (GPU-bound, 92%); both use one thread for a whole frame. Plan:
+D23Y1 (built), D23Y2-D23Y3 a GPU late warp for in-between presents (the
+likeliest way to 120 here, also the latency fix), D23Y4 thread placement,
+D23Y5 a lighter emulation thread, D23N2B-N4 with a laptop target. Waits for
+the user's review of the plan.
+
+- 2026-11-13 closeout: the user, playing on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop ... i am pleased with the settings and quality, so lock this in and close it out". the plan stands; D23Y2 (late warp) is the next step when efficiency work resumes.
+
+### D23Y1 - Game speed first: the governor's last step
+
+**Status: Done (user-accepted 2026-11-13, closeout authorized). Dependencies: D23Y.** The D23H
+governor stepped presents down to every 3rd refresh and then paused the CPU
+overclock, but the redraws kept running and the game stayed slow (the field
+laptop at a fixed 120: 43-56 game frames a second). Acceptance: no second
+under 57 game frames after the fallback in UI slots 2, 8 and 9 at a fixed
+120 on the laptop; retries bounded; FRAME RATE unchanged; faster machines
+unaffected while they keep up.
+
+Work log, 2026-11-13 (Needs playtest), [note 463](../documentation/463-d23y-120-on-two-cores.md) section 4.
+Built (`frame_replay.cpp`, `replay_load_window`): still behind at every 3rd
+refresh for 3 judged seconds, the redraws stop and the original presentation
+runs; retry after 120 s of gameplay, the wait doubling (to 8 minutes) when a
+retry falls back within a minute, a retry behind in its first 20 s back at
+its first slow second; a FRAME RATE choice cancels a pending retry; log
+`[TTK pace] the original presentation (...)` and `redraws again`; developer
+`DNTTK_REPLAY_FLOOR=0`, `DNTTK_REPLAY_FLOOR_WAIT`. Measured at 120, 45 s
+walks: fallback after 10-11 s, then 58-60 game frames a second (UI slots 2
+and 9); a retry cost one second at 24. Remaining: UI slot 8, and the user's
+play.
+
+- 2026-11-13 closeout: the user, playing on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop ... i am pleased with the settings and quality, so lock this in and close it out". the fallback to the original 60 kept as built.
+
+### D23Y2 - Late warp research spike
+
+**Status: Todo (D23Y plan). Dependencies: D23Y.** For each in-between
+present, re-draw the newest finished scene image with the newest camera
+look using its host depth, and draw the HUD, first-person weapon and screen
+overlays unwarped on top; measure on the field laptop. Acceptance: 120
+pictures a second at 2x with CPU as the original 60 (all threads under 75%),
+GPU busy under 80%, input to picture under 50 ms (note 462's probe), the
+artefacts listed (uncovered edges, transparent layers, moving objects).
+
+### D23Y3 - Late warp in the player build
+
+**Status: Todo (D23Y plan). Dependencies: D23Y2.** The warp of D23Y2 as the
+2-core path above 60: edge fill, transparent layers, moving objects, the
+OPTIONS behaviour (FRAME RATE above 60 on 2 cores uses it), Vanilla
+unchanged. Acceptance: D23Y's series acceptance on the laptop.
+
+### D23Y4 - Thread placement on 2 cores
+
+**Status: Todo (D23Y plan). Dependencies: D23Y.** With redraws on a
+2-core, 4-thread CPU, keep the emulation thread's physical core free of
+redraw workers (affinity), one worker on the other core; A/B against the
+default over five runs each (the laptop's clock varies run to run).
+Acceptance: redraws at 60 with 60 game frames and the lowest tenth 57 or
+more, or a measured reason why not.
+
+### D23Y5 - A lighter emulation thread
+
+**Status: Todo (D23Y plan). Dependencies: D23Y; coordinate D23Z.** The
+original 60 presentation's emulation thread takes 55-70% of a core at
+3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
+and cut its largest shares (memory access, dispatch lookups, SPU reverb,
+dirty tracking). Acceptance: under 50% at 3.1 GHz in UI slots 2, 8 and 9,
+behaviour and pictures unchanged.
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

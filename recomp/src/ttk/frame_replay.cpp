@@ -2342,6 +2342,9 @@ void activate() {
     if(const char* t=std::getenv("DNTTK_RT_DUE_WAIT_MS")) due_wait_ms=std::clamp(std::atof(t),0.0,8.0);
     psx_mod_set_replay_status(status_json);
     psx_mod_set_present_tint(present_tint,nullptr);
+    // D23X: the original presentation shows the buffer the game flips to in
+    // this vertical blank (a field sooner, as the console scans it out).
+    {const char* t=std::getenv("DNTTK_FLIP_PRESENT");psx_mod_set_flip_present(!(t && t[0]=='0' && !t[1]));}
     // D17AW: Polymorph draws its redraws on the host render thread, so the
     // emulation thread only emulates. Classic keeps the single-thread path;
     // DNTTK_RENDER_THREAD=0 (developer) does too.
@@ -2385,6 +2388,18 @@ void composition_entry(CPUState* cpu,uint32_t address) {
     }
     // D44A: this image's earthquake offset is fixed before the capture (its
     // render state carries it to the redraws) and shown after.
+    {
+        // D23X developer trace (DNTTK_LAT_TRACE): the camera the composition reads.
+        static const bool lat_trace=std::getenv("DNTTK_LAT_TRACE")!=nullptr;
+        if(lat_trace && !psx_mod_replay_active() && address==composition) {
+            static double traced=1e9;
+            const double m0=(int16_t)psx_mod_read_half(0x800d6eb0),m2=(int16_t)psx_mod_read_half(0x800d6eb4);
+            const double y=std::atan2(-m2,m0);
+            double d=std::fmod(y-traced+9.42477796,6.28318531)-3.14159265;
+            if(std::abs(d)>0.2) std::fprintf(stderr,"[lat] compose %.2f\n",input_clock_ms());
+            traced=y;
+        }
+    }
     const bool quake=!psx_mod_replay_active() && address==composition && cpu->gpr[31]==composition_ret;
     if(quake) {quake_end();earthquake_compose();}
     composition_hook(cpu,address);
@@ -2597,9 +2612,14 @@ bool replay_late_rotation(int16_t rot[9]) {
 // rate. 60 stops replay presentation and returns to the original present path
 // (as a 60 launch); another rate starts it, the render workers at the next
 // composition. False when it cannot apply now (software renderer).
+// D23Y1 governor fallback state (replay_load_window).
+int floor_bad=0, floor_wait=120, floor_elapsed=0, floor_since_retry=1000;
+int32_t floor_rate=0;   // the rate the redraws ran at before the fallback (0: none)
+uint64_t floor_fallbacks=0, floor_retries=0;
 bool frame_rate_live() {return modernized_session && (replay_on || psx_mod_present_replay_available());}
 bool frame_rate_set(const char* value) {
     if(!modernized_session) return false;
+    floor_rate=0;floor_bad=0;   // D23Y1: the player's choice replaces a fallback
     const int32_t hz=launch_rate(parse_rate(value));
     if(hz==60) {
         if(replay_on && !psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
@@ -2648,8 +2668,43 @@ static void shed_step(double feed,const char* why) {
     shed_since_probe=1000;
     pace_log(failed_probe?"emulation behind, faster rate failed":why,0,shed_backoff);
 }
+// D23Y1: the governor's last step. Still behind at every 3rd refresh for
+// FLOOR_SECONDS judged seconds, the redraws stop and the original
+// presentation runs (the field laptop at 120: 43-51 game frames a second with
+// the redraws, 60 without); the FRAME RATE setting is unchanged. After
+// floor_wait seconds of gameplay it tries the redraws again; a retry that
+// falls back within a minute doubles the wait (2, 4, 8 minutes at most), and
+// one that falls behind in its first 20 s returns at its first slow second.
+// DNTTK_REPLAY_FLOOR=0 (developer) keeps the redraws at any speed.
+static bool floor_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_REPLAY_FLOOR");return !(t && t[0]=='0' && !t[1]);}();return v;}
+constexpr int floor_seconds=3;
+static bool floor_fallback() {
+    if(!psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
+    // DNTTK_REPLAY_FLOOR_WAIT=seconds (developer): the first wait before a retry.
+    static const bool wait_set=[]{const char* t=std::getenv("DNTTK_REPLAY_FLOOR_WAIT");
+        if(t && std::atoi(t)>0) floor_wait=std::clamp(std::atoi(t),5,480);return true;}();
+    (void)wait_set;
+    floor_rate=target_hz;
+    if(floor_since_retry<=60) floor_wait=std::min(floor_wait*2,480);
+    replay_on=interp_replay=false;target_hz=60;reset_timeline();
+    floor_bad=0;floor_elapsed=0;++floor_fallbacks;
+    std::fprintf(stderr,"[TTK pace] the original presentation (emulation behind at every 3rd refresh); redraws again in %d s\n",floor_wait);
+    return true;
+}
+static void floor_retry() {
+    const int32_t hz=floor_rate;floor_rate=0;
+    if(!psx_mod_request_present_replay(provider,nullptr,hz)) return;
+    reset_timeline();apply_rate(hz);replay_on=true;
+    floor_since_retry=0;++floor_retries;
+    std::fprintf(stderr,"[TTK pace] redraws again (%d Hz requested)\n",(int)hz);
+}
 int replay_load_window(int window) {
     if(!shed_enabled()) window=window==1 ? 2 : window;
+    if(floor_rate && !replay_on) {
+        if(window==0 && ++floor_elapsed>=floor_wait) floor_retry();
+        return window==1 ? -1 : 0;
+    }
+    if(replay_on && floor_since_retry<1000) ++floor_since_retry;
     if(!replay_on || !interp_replay || !late_camera()) {shed_bad=shed_clean=0;return window==1 ? -1 : 0;}
     shed_steps=std::min(shed_steps,pace_div-1);  // Unlimited's late_pace shares the divisor
     ++shed_since_probe;
@@ -2661,15 +2716,22 @@ int replay_load_window(int window) {
     if(window==2) {shed_bad=0;return 0;}
     if(window==1) {
         shed_clean=0;shed_full_clean=0;
+        // D23Y1: a retry of the redraws that falls behind in its first 20 s
+        // goes straight back to the original presentation.
+        if(floor_enabled() && floor_since_retry<=20 && target_hz!=-1 && floor_fallback()) return 1;
         // D17AR3 part 4: a step up that falls behind in its first seconds goes
         // back after one slow second, so a probe costs the game less speed.
+        if(pace_div>=(target_hz==-1 ? 16 : 3)) {
+            shed_bad=0;
+            if(floor_enabled() && target_hz!=-1 && ++floor_bad>=floor_seconds && floor_fallback()) return 1;
+            return -1;
+        }
         if(++shed_bad<(shed_since_probe<=10 ? 1 : 2)) return 0;
         shed_bad=0;
-        if(pace_div>=(target_hz==-1 ? 16 : 3)) return -1;
         shed_step(feed,"emulation behind");
         return 1;
     }
-    shed_bad=0;
+    shed_bad=0;floor_bad=0;
     if(shed_steps>0) {
         // D17AR3 part 4: step back up once the view's redraws are clearly
         // cheaper than when it shed (turned away from a heavy vista), or

@@ -103,7 +103,8 @@ and enter four values, for example `2 windowed 0 linear`:
   need the OpenGL renderer; with the software renderer the game always uses
   1 and keeps your choice for later. Settings saved before AUTO existed keep
   their resolution; choose AUTO with `--internal-scale auto` or in OPTIONS >
-  DISPLAY > RESOLUTION.
+  DISPLAY > RESOLUTION. While GRAPHICS (below) is on a grade, the grade sets
+  the resolution; choosing one yourself switches GRAPHICS to CUSTOM.
 - **Display**: `windowed` (the default), `borderless` (fullscreen at your
   desktop resolution) or `exclusive` (true exclusive fullscreen). **F11**
   switches between a window and fullscreen in game, using the last
@@ -127,6 +128,34 @@ The same settings are available as launcher flags, for example
 `python3 recomp/tools/local/run.py --internal-scale 3 --display borderless`
 (or `--internal-scale auto`). Changes take effect on the next launch. If the
 game slows down, lower the internal resolution.
+
+### Graphics (Modernized)
+
+**OPTIONS > DISPLAY > GRAPHICS** (D23P2) sets the five settings that cost the
+graphics chip most in one go. Everything else stays as you set it.
+
+| GRAPHICS | Resolution | LIGHTING | LIVE SHADOWS | Draw distance | FRAME RATE |
+| --- | --- | --- | --- | --- | --- |
+| SIMPLE | 1x | ORIGINAL | SIMPLE | original | 60 |
+| BALANCED | 2x | ENHANCED | SIMPLE | extended | AUTO |
+| PRETTY | 3x | RELIT | SHARP | extended | AUTO |
+| ULTRA | 4x | RELIT | SHARP | extended | AUTO |
+
+- **AUTO** (the default for new settings) picks one of the four from the same
+  one-second measurement of your graphics chip as resolution AUTO (taken once
+  per chip, driver and game build). On an Intel HD Graphics 5500 laptop it
+  picks BALANCED, which holds 60 there; PRETTY also plays at about 60 there
+  with an occasional dip. A desktop graphics card gets ULTRA.
+- **CUSTOM**: your own choices. Changing one of the five rows above by hand
+  (in OPTIONS or with a launcher flag) switches GRAPHICS to CUSTOM. Settings
+  saved before GRAPHICS existed start as CUSTOM, so nothing changes for you
+  until you pick a grade.
+
+Confirming a grade changes LIGHTING, LIVE SHADOWS and FRAME RATE at once;
+resolution and draw distance follow at the next launch. Launcher:
+`python3 recomp/tools/local/run.py --graphics pretty` (or `auto`, `simple`,
+`balanced`, `ultra`, `custom`); this updates your saved Modernized
+preferences. Vanilla is never graded.
 
 ### Widescreen (Modernized)
 
@@ -189,6 +218,35 @@ for the next launch):
 - `120`, `144`, `165`, `180`, `240`: a fixed target rate.
 - `unlimited`: the fastest paced redraw rate the scene can sustain; useful
   for stress testing, with no promise of one new image per monitor refresh.
+
+If the extra pictures above 60 slow the game itself down on your computer
+(it cannot keep up even when showing a picture at only every third refresh),
+the game drops to the original 60 presentation for a while instead, so Duke
+and the enemies keep their speed, and tries the faster rate again after two
+minutes of play (then four, then eight if it still cannot). Your FRAME RATE
+setting is not changed (D23Y1). On a 2-core laptop such as an i7-5600U this
+happens within about ten seconds at a fixed 120.
+
+**VSYNC** (OPTIONS > DISPLAY, Modernized; `--vsync`; D23X) applies to the
+original 60 presentation: `on` (the default) waits for the display's refresh,
+so the picture never tears; `off` shows each picture as soon as it is ready,
+about 10-15 ms less delay between a mouse move and the picture (in a window a
+Linux desktop compositor still keeps it tear-free; in fullscreen it can
+tear); `adaptive` waits like `on` but shows a late picture at once (where the
+graphics driver offers it, otherwise `on`). It applies as soon as you
+confirm. Above 60 the extra pictures pace themselves without the driver's
+vsync, as before.
+
+Delay between your mouse and the picture: the original game updates 30 times
+a second and shows each update two updates after it reads the controls, so at
+the original 60 presentation a turn reaches the screen about 115-130 ms after
+the mouse moves (measured on a laptop; EDuke32 about 20 ms, UZDoom about 40).
+Modernized shows each new picture in the same refresh the game finishes it,
+as the console does; with VSYNC OFF that saves about one refresh (with VSYNC
+ON the picture still waits for the next refresh, a few milliseconds less). Above 60 the camera of
+every extra picture takes your newest mouse look, which halves the delay
+(about 65 ms at 60 with extra pictures, about 70 at 120); on computers where
+those extra pictures are too slow, work continues (D23Y).
 
 Above 60, the extra pictures in between are drawn by the game's own renderer
 with the camera, Duke and moving objects placed part-way between two game
@@ -286,8 +344,8 @@ D15's player-accepted options independently reduce geometry jitter and texture
 perspective distortion. Choose **G** in `--settings`, or use
 `--geometry-precision original|corrected` and
 `--texture-precision original|corrected`. They apply on the next launch and
-save your preferences. Both default to `original`; choose `corrected` for the
-stabilized presentation. Vanilla and the software renderer use Original.
+save your preferences. Both default to `corrected` (the stabilized
+presentation); choose `original` for the console's look. Vanilla and the software renderer use Original.
 
 For the accepted 120 Hz presentation:
 

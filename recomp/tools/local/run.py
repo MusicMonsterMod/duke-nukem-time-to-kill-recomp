@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Launch Time to Kill with persistent profiles and explicit memory-card paths."""
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -68,6 +69,8 @@ def main(argv=None):
     p.add_argument('--fire-cpu', choices=('on', 'off'), help='this launch only: off keeps CPU SPEED unchanged while you hold fire on a WEAPON FEEL RETRO gun (on, the default, runs CPU SPEED 200 for a steady fire rate)')
     p.add_argument('--earthquakes', choices=profiles.EARTHQUAKE_MODES, help='save Modernized EARTHQUAKES: on (default; TNT barrels and explosive vests shake the whole level like Duke Nukem 3D) or off (the original short camera jitter); Vanilla never has earthquakes')
     p.add_argument('--security-monitors', choices=profiles.SECURITY_MONITORS_MODES, help='save Modernized SECURITY MONITORS: duke3d (default; larger lit TV screens and a Duke 3D camera frame, Polymorph renderer) or ttk (the original monitors); Vanilla always keeps the original')
+    p.add_argument('--vsync', choices=profiles.VSYNC_MODES, help='save Modernized VSYNC for the 60 presentation: on (default, tear-free), off (about 10 ms less input lag; a desktop compositor keeps a window tear-free, fullscreen can tear) or adaptive (tears only when a frame is late, where the driver has it)')
+    p.add_argument('--graphics', choices=profiles.GRAPHICS_MODES, help='save Modernized GRAPHICS: auto (one of the four grades from the measured GPU, the default), simple, balanced, pretty, ultra (each sets resolution, lighting, live shadows, draw distance and frame rate), or custom (your own rows)')
     p.add_argument('--shadow-edges', choices=profiles.SHADOW_EDGES_MODES, help='save Modernized LIVE SHADOWS (blasts and flickering or breakable lamps; steady lamps are baked): smooth (menu SHARP, default; the exact shape of the geometry, anti-aliased) or simple (faster, stepped edges); Lighting Enhanced or Relit, Polymorph renderer')
     p.add_argument('--dynamic-lights', choices=profiles.DYNAMIC_LIGHTS_MODES, help='save Modernized LIGHTING by its stored value: on (Enhanced, the default), relit or off (Original); Vanilla never has dynamic lights')
     p.add_argument('--lighting', choices=tuple(profiles.LIGHTING_NAMES), help='save Modernized LIGHTING: enhanced (default; blasts, guns, lamps and signs light the world on top of the original light), relit (the original light dimmed so those lights carry the scene) or original (only the original light); Polymorph renderer; Vanilla never has them')
@@ -108,7 +111,11 @@ def main(argv=None):
         if a.renderer or a.internal_scale is not None or a.display or a.window_width is not None or a.output_filter:
             presentation = dict(settings['profiles'][settings['active']]['presentation'])
             if a.renderer: presentation['renderer'] = a.renderer
-            if a.internal_scale is not None: presentation['internal_scale'] = a.internal_scale
+            if a.internal_scale is not None:
+                presentation['internal_scale'] = a.internal_scale
+                # D23P2: choosing the resolution yourself makes GRAPHICS CUSTOM.
+                if settings['active'] == 'modernized' and a.graphics is None:
+                    settings['profiles']['modernized']['controls']['graphics'] = 'custom'
             if a.display:
                 presentation['display'] = a.display
                 if a.display in profiles.FULLSCREEN_MODES: presentation['fullscreen_mode'] = a.display
@@ -122,7 +129,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.dynamic_lights is not None or a.lighting is not None or a.security_monitors is not None or a.shadow_edges is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.vsync is not None or a.graphics is not None or a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.dynamic_lights is not None or a.lighting is not None or a.security_monitors is not None or a.shadow_edges is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -145,6 +152,7 @@ def main(argv=None):
             if a.lighting is not None: controls['dynamic_lights'] = profiles.LIGHTING_NAMES[a.lighting]
             if a.security_monitors is not None: controls['security_monitors'] = a.security_monitors
             if a.shadow_edges is not None: controls['shadow_edges'] = a.shadow_edges
+            if a.vsync is not None: controls['vsync'] = a.vsync
             if a.level_stats is not None: controls['level_stats'] = a.level_stats == 'on'
             if a.fps is not None: controls['fps'] = a.fps == 'on'
             if a.night_vision is not None: controls['night_vision'] = a.night_vision
@@ -178,6 +186,11 @@ def main(argv=None):
             if a.camera is not None: controls['camera'] = a.camera
             if a.mouse_sensitivity is not None: controls['mouse_sensitivity'] = a.mouse_sensitivity
             if a.invert_y is not None: controls['invert_y'] = a.invert_y == 'on'
+            # D23P2: a flag for a row a grade sets makes the profile CUSTOM.
+            if (a.dynamic_lights is not None or a.lighting is not None or a.shadow_edges is not None or
+                    a.draw_distance is not None or a.frame_rate is not None):
+                controls['graphics'] = 'custom'
+            if a.graphics is not None: controls['graphics'] = a.graphics
             settings['profiles']['modernized']['controls'] = profiles.validate_controls(controls)
             changed = True
         if a.settings:
@@ -222,6 +235,22 @@ def main(argv=None):
     # Developer only: DNTTK_GAME_CONFIG points at a private config copy; normal
     # launches always use game.local.toml.
     game_config = Path(os.environ.get('DNTTK_GAME_CONFIG') or ROOT / 'game.local.toml')
+    # D23P2: GRAPHICS. A grade (AUTO: picked from the measured GPU probe) sets
+    # its rows for this launch; the menu shows them and saves them back.
+    graphics_auto = None
+    if settings['active'] == 'modernized':
+        mod = settings['profiles']['modernized']
+        grade = mod['controls']['graphics']
+        # Only AUTO measures; otherwise the menu's AUTO uses the last measurement.
+        if mod['presentation']['renderer'] == 'opengl':
+            graphics_auto = (gpu_auto.resolve_grade(exe, gpu_auto.DEFAULT_CACHE, log=lambda line: print(line, flush=True))
+                             if grade == 'auto' else gpu_auto.cached_grade(exe))
+        grade = (graphics_auto or 'balanced') if grade == 'auto' else grade
+        if grade in profiles.GRAPHICS_GRADES:
+            settings = json.loads(json.dumps(settings))
+            mod = settings['profiles']['modernized']
+            mod['presentation'], mod['controls'] = profiles.apply_graphics(mod['presentation'], mod['controls'], grade)
+            print(f"Graphics: {grade}" + (' (AUTO)' if settings['profiles']['modernized']['controls']['graphics'] == 'auto' else ''), flush=True)
     # D23W: AUTO internal resolution, measured once per GPU and driver.
     presentation = settings['profiles'][settings['active']]['presentation']
     auto_scale = (gpu_auto.resolve(exe, gpu_auto.DEFAULT_CACHE, log=lambda line: print(line, flush=True))
@@ -302,6 +331,12 @@ def main(argv=None):
     env['DNTTK_LIGHTS'] = controls['dynamic_lights'] if modernized else 'off'
     env['DNTTK_SECURITY_MONITORS'] = controls['security_monitors'] if modernized else 'ttk'
     env['DNTTK_SHADOW_EDGES'] = controls['shadow_edges'] if modernized else 'simple'
+    # D23X: VSYNC (the original presentation's swap interval); Vanilla keeps the runtime's.
+    env['DNTTK_VSYNC'] = controls['vsync'] if modernized else 'on'
+    if modernized: env.setdefault('PSX_VSYNC', profiles.VSYNC_SWAP_INTERVAL[controls['vsync']])
+    # D23P2: the GRAPHICS setting and the grade AUTO stands for here (OPTIONS).
+    env['DNTTK_GRAPHICS'] = controls['graphics'] if modernized else 'custom'
+    env['DNTTK_GRAPHICS_AUTO'] = graphics_auto or 'balanced'
     env.pop('DNTTK_WEAPON_FEEL_CPU', None)
     if a.fire_cpu == 'off': env['DNTTK_WEAPON_FEEL_CPU'] = '100'
     env['DNTTK_LEVEL_STATS'] = '1' if modernized and controls['level_stats'] else '0'

@@ -764,6 +764,10 @@ void input_event(const SDL_Event& e) {
             for(int i=0;i<std::abs(steps);++i)command(steps>0?weapon_next:weapon_previous);
         }
     } else if (e.type == SDL_MOUSEMOTION && captured && e.motion.windowID == SDL_GetWindowID(window)) {
+        // D23X developer trace (DNTTK_LAT_TRACE): a large motion's arrival.
+        static const bool lat_trace=std::getenv("DNTTK_LAT_TRACE")!=nullptr;
+        if(lat_trace && std::abs(e.motion.xrel)>=100)
+            std::fprintf(stderr,"[lat] motion %.2f event %.2f xrel %d\n",input_clock_ms(),event_ms(e),(int)e.motion.xrel);
         dx = std::clamp(dx + (float)e.motion.xrel, -32768.f, 32768.f);
         look_cx+=e.motion.xrel; look_cy+=e.motion.yrel;
         look_ring[look_n++%512]={event_ms(e),look_cx,look_cy};

@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-11-13 - D23X, D23P2, D23Y and D23Y1 closed; GEOMETRY and TEXTURES default to CORRECTED
+
+User, on the field laptop: "it runs so unbelievably well in this latest iteration. it's now totally playable and acceptable on this laptop. i still want to take it even further though with efficiency later on. but for now i am pleased with the settings and quality, so lock this in and close it out". D23X (present at the flip, VSYNC), D23P2 (GRAPHICS grades and AUTO), D23Y (research and plan, [note 463](463-d23y-120-on-two-cores.md)) and D23Y1 (game speed first) are Done; GEOMETRY and TEXTURES now default to CORRECTED for new and reset Modernized profiles (saved choices kept; Vanilla and the software renderer stay Original). Further efficiency on 2 cores continues in D23Y2-D23Y5 (D23Y2, the late warp, first).
+
+## 2026-11-13 - D23X, D23P2 (Needs playtest), D23Y research and plan (Needs review), D23Y1 built
+
+Autonomous session on the field laptop (user: "work on all of these autonomously and completely"; Quake Alkaline, Hexen 2 and the Brutalist Jam suggested as references).
+- D23X ([note 462](462-d23x-input-latency.md)): input to picture measured with a camera-free probe. Ours 129-135 ms at the original 60 whatever the vsync or window mode; EDuke32 22, Brutalist Jam about 35, UZDoom 40, Alkaline about 52. Traced: the game's 30 Hz logic and two frames of its own buffering are most of it (same with Classic); ours added a field by presenting before the game's flip. Built: present at the flip (Modernized; 113-119 ms with vsync off) and OPTIONS > DISPLAY > VSYNC ON / OFF / ADAPTIVE (live). The late camera halves the latency (66 ms at 60), which on 2 cores is D23Y.
+- D23Y ([note 463](463-d23y-120-on-two-cores.md)): the 15 W package is the wall: redraws push all threads from about 65% to 120-290% and the clock from 3.1 GHz to 1.2-2.3, so the game slows; a redraw costs 23-30 ms of worker CPU here. EDuke32 holds 120 on one thread; UZDoom with the user's settings is GPU-bound at about 70. Plan: D23Y1 (built: the governor's last step is the original presentation, so a fixed 120 plays at 60 game frames after 10 s instead of 43-56), D23Y2-Y3 a GPU late warp for in-between presents, D23Y4 thread placement, D23Y5 a lighter emulation thread.
+- D23P2 ([note 464](464-d23p2-graphics-profiles.md)): OPTIONS > DISPLAY > GRAPHICS SIMPLE / BALANCED / PRETTY / ULTRA, AUTO (from the D23W probe: BALANCED on the laptop) and CUSTOM; schema 74 (old profiles become CUSTOM); measured per grade in UI slots 2, 8 and 9.
+Tests: 256 local (4 skipped), profile tests 141. Vanilla unchanged (no flip present, no vsync or graphics settings).
+
 ## 2026-11-13 - D23W closed; D23X, D23Y, D23Z on the board; D23P2 gets four graphics profiles
 
 User after playing their settings on the field laptop: "it plays well, but there feels to be a slight latency"; 120 looks "way smoother" but stutters until "the gameplay becomes unplayable"; "lock in and close out the work". D23W Done ([note 461](461-d23w-field-laptop.md)): AUTO and DISPLAY keep 2-core machines on the original 60 presentation, AUTO internal resolution from a GPU probe, about 2 ms less GPU a frame around the scene, the walking jump at a step. Backlog, not started: D23X (input latency and a vsync choice), D23Y (120 fps on 2-core hardware: deep research, then child jobs; reference: Ancient Aliens, EDuke32 and Half-Life reach 120 on the laptop), D23Z (one-off CPU spikes on the emulation thread); D23P2 now asks for four graphics profiles with AUTO choosing one.

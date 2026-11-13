@@ -112,3 +112,42 @@ def cached_scale(cache_path=DEFAULT_CACHE):
     """The last measured AUTO scale, without probing (None when unmeasured)."""
     cached = load_cache(cache_path)
     return cached.get('scale') if cached and isinstance(cached.get('scale'), int) else None
+
+
+# D23P2: GRAPHICS AUTO picks a grade from the same probe (milliseconds for the
+# synthetic 4x frame). Calibrated on the field laptop (Intel HD Graphics 5500,
+# probe 6.3-6.9 ms; note 464), 30 s walks in UI slots 2, 8 and 9: BALANCED held
+# 60 with the lowest tenth 59-60 and no underrun (GPU busy 51-54%); PRETTY
+# averaged 59-60 but dipped to 57 with an audio underrun in each walk (GPU
+# 64-69%); SIMPLE 38-46%. AUTO takes BALANCED there; PRETTY needs a GPU about
+# 1.3 times faster (its 3x cost scales as RESOLUTION's does), ULTRA 4x's
+# 2.5 ms of gpu_auto.scale_for. At or under a limit takes that grade; slower
+# than every limit gets SIMPLE.
+GRADE_LIMITS_MS = (('ultra', 2.5), ('pretty', 5.0), ('balanced', 14.0))
+FALLBACK_GRADE = 'balanced'
+
+
+def grade_for(ms):
+    """The richest GRAPHICS grade a probe time allows."""
+    for grade, limit in GRADE_LIMITS_MS:
+        if ms <= limit:
+            return grade
+    return 'simple'
+
+
+def resolve_grade(exe, cache_path, log=None):
+    """GRAPHICS AUTO's grade for this machine (probing when the cache does not
+    match, as resolve); None when the probe failed."""
+    resolve(exe, cache_path, log=log)
+    cached = load_cache(cache_path)
+    if cached and cached.get('fingerprint') == fingerprint(exe) and isinstance(cached.get('ms'), (int, float)):
+        return grade_for(float(cached['ms']))
+    return None
+
+
+def cached_grade(exe, cache_path=DEFAULT_CACHE):
+    """The grade of the last matching measurement, without probing (None if none)."""
+    cached = load_cache(cache_path)
+    if cached and cached.get('fingerprint') == fingerprint(exe) and isinstance(cached.get('ms'), (int, float)):
+        return grade_for(float(cached['ms']))
+    return None

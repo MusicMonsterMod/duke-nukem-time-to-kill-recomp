@@ -590,6 +590,11 @@ static void orbit_begin(uint32_t sp) {
     }
     if(f.active && !frozen && !free_look.held) {key_look(f,delta.x || delta.z);key_turn(f);}
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
+    {
+        static const bool lat_trace=std::getenv("DNTTK_LAT_TRACE")!=nullptr;
+        if(lat_trace && std::abs(delta.x)>=100)
+            std::fprintf(stderr,"[lat] yaw %.2f dx %.0f seq %llu\n",input_clock_ms(),delta.x,(unsigned long long)f.sequence);
+    }
     yaw=wrap_yaw(yaw+delta.x*sensitivity());
     pitch=clamp_pitch(pitch+delta.z*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
     if (delta.x || delta.z) ++looks;
@@ -611,6 +616,13 @@ static void view_matrix(uint32_t destination) {
         }
     }
     for(int i=0;i<9;++i) psx_mod_write_half(destination+2*i,(int16_t)std::lround(matrix[i]*4096));
+    {
+        static const bool lat_trace=std::getenv("DNTTK_LAT_TRACE")!=nullptr;
+        static double traced=1e9;
+        if(lat_trace && std::abs(wrap_yaw(inspection_yaw()-traced))>0.2)
+            std::fprintf(stderr,"[lat] viewm %.2f dest %08x\n",input_clock_ms(),destination);
+        traced=inspection_yaw();
+    }
 }
 // D36H9: requested eye delta (world) of a fully blended first-person
 // mantle/hang eye, for first_person_unsolved_eye after the native solve.
@@ -1249,6 +1261,13 @@ static bool facing_ready() {
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;
+    {
+        static const bool lat_trace=std::getenv("DNTTK_LAT_TRACE")!=nullptr;
+        static int traced=-1;
+        if(lat_trace && traced>=0 && std::abs(((heading-traced+2048)&4095)-2048)>=64)
+            std::fprintf(stderr,"[lat] face %.2f heading %d\n",input_clock_ms(),heading);
+        traced=heading;
+    }
     psx_mod_write_half(player+0x1c,heading);
     psx_mod_write_half(player+0x24,heading);
     ++facings;

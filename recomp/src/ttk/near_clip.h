@@ -43,6 +43,7 @@ void near_clip_light_frame(bool valid,const double m[9],bool smooth=false,const 
 std::vector<std::array<float,3>> near_clip_shadow_probe_take();
 // D41K: DNTTK_LIGHT_PROBE=1 (developer): the image's lights for the probe.
 void near_clip_light_probe_lights(const void* lights,int n,float amb); // PSXModLight[n]
+void near_clip_glow_sources(const float* g,int n);   // D41S: n sources of 8 floats (world x y z, reach, r g b, kind)
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();

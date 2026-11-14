@@ -45,6 +45,12 @@ constexpr uint32_t prop_light_tpage=0x124;
 constexpr int prop_flame_u=0,prop_flame_w=16,prop_flame_h=32;     // a candle flame, base at the bottom
 constexpr int prop_halo_u=16,prop_halo_w=32,prop_halo_h=32;       // a soft round glow
 constexpr int prop_ember_u=48,prop_ember_w=32,prop_ember_h=16;    // embers behind a grate, hottest low
+// D41S: a neutral halo (tinted by the vertex colour: glows at flames and
+// missiles) and a black semi-transparent patch (planar model shadows, drawn
+// with prop_shade_tpage: the same page in mode 0, half the background).
+constexpr int prop_white_halo_u=80,prop_white_halo_w=32,prop_white_halo_h=32;
+constexpr int prop_shade_u=112,prop_shade_w=4,prop_shade_h=4;
+constexpr uint32_t prop_shade_tpage=0x104;
 
 // Smooth value noise, 0..1, from a time in steps and a seed.
 inline float prop_light_noise(double t,uint32_t seed) {

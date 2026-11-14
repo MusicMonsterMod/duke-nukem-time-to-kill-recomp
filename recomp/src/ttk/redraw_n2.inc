@@ -33,6 +33,12 @@
 //      first takes the eye piece 2 predicts (bit 8 runs it). Every 4th
 //      gameplay job; by the kind of matrix the job passed (the table entry,
 //      our mod memory, the camera block).
+//  64  with 16: every call of the transform, by caller (piece 4d): the
+//      matrix the call passes, from the job start, against the job's.
+//  32  with 16: the hooks' CPU state taken from the earlier job of the same
+//      frame instead of the later job's own (D23N2B piece 4c): jobs whose
+//      hook list differs from the earlier job's, call for call, are counted
+//      and skipped.
 //   4  rooms and visibility (pieces 2 and 3): the game's portal walk
 //      0x8006276c run at the later job's start on a scratch CPU (its writes
 //      undone afterwards) with the predicted camera, and the room selection
@@ -40,6 +46,7 @@
 //      projection, and the view rectangle the earlier job had at the call),
 //      against what the job really had at the room walk entry.
 // Results: "[n2 check]" lines on stderr.
+uint64_t n2_serial=0; float n2_alpha=0;   // the job being recorded (its frame and fraction)
 int n2_mask() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_CHECK");return t?(int)std::strtol(t,nullptr,0):0;}();return v;}
 
 namespace xf {
@@ -414,11 +421,13 @@ void report() {
 
 namespace jr {
 // Piece 4b: the job's joint matrices, written by the job; the copy's results.
-struct Out {uint32_t hook,mat,w[8];};
+struct Out {uint32_t hook,mat,ra,w[8];};
 constexpr uint32_t max_out=8192;
-struct Shared {uint32_t n,done,overflow,eye_predicted;uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;Out real[max_out];};
+struct Shared {uint32_t n,done,overflow,eye_predicted,from_prev,order_differs;uint32_t ra_n,ra[8],ra_exact[8],ra_differ[8];uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;Out real[max_out];};
 Shared* s=nullptr; pid_t child=-1; int go=-1; bool active=false;
-struct Stats {uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0;} st;
+struct RaStat {uint32_t ra=0;uint64_t exact=0,differ=0;};
+RaStat ra_st[16];unsigned ra_st_n=0;
+struct Stats {uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0,from_prev=0,no_prev=0,order_differs=0;} st;
 unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0xff000000u)==0x9f000000u ? 1u : mat==tab ? 0u : 1u;}
 [[noreturn]] void run(int fd) {
     char c=0;
@@ -431,11 +440,22 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
     // patched camera, not yet the derived eye.
     s->eye_predicted=in::pred_ok?1u:0u;
     if(in::pred_ok) for(int k=0;k<3;++k) {orig_ww(camera_base+0x14+4*k,(uint32_t)in::pred_eye[k]);orig_ww(camera_base+0x34+4*k,(uint32_t)in::pred_eye[k]);}
+    // Piece 4c (bit 32): the hooks' CPU state from the earlier job of the same
+    // frame (another fraction: its own registers), as a rebuild (D23N4)
+    // would have it, when its hook list is the later job's, call for call.
+    const Hook* hooks=sh->hook;
+    if(n2_mask()&32) {
+        bool same=prev.serial==n2_serial && prev.alpha!=n2_alpha && prev.hooks.size()==sh->nhooks;
+        for(uint32_t i=0;same && i<sh->nhooks;++i) same=prev.hooks[i].addr==sh->hook[i].addr && prev.hooks[i].cpu.gpr[31]==sh->hook[i].cpu.gpr[31];
+        if(same) {hooks=prev.hooks.data();s->from_prev=1;}
+        else {s->from_prev=0;s->order_differs=prev.serial==n2_serial && prev.alpha!=n2_alpha;__atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);_exit(0);}
+    }
     uint32_t k=0;
     for(uint32_t i=0;i<sh->nhooks && !g_psx_call_bail;++i) {
-        const Hook& h=sh->hook[i];
+        const Hook& h=hooks[i];
         CPUState cpu=h.cpu;
-        const bool joint=h.addr==0x800292a0u && cpu.gpr[31]==0x80034c6cu;
+        // Bit 64 (piece 4d): every caller of the transform, not only the joint loop.
+        const bool joint=h.addr==0x800292a0u && (cpu.gpr[31]==0x80034c6cu || (n2_mask()&64));
         const uint32_t tab=joint ? psx_mod_read_word(cpu.gpr[20]+0x3c)+cpu.gpr[22] : 0;
         psx_mod_function_entry(&cpu,h.addr);
         if(!joint) continue;
@@ -446,14 +466,21 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
         bool same=cpu.gpr[5]==r.mat;
         uint32_t w[8];for(int j=0;j<8;++j) w[j]=psx_mod_read_word(cpu.gpr[5]+4*j);
         same=same && !std::memcmp(w,r.w,sizeof w);
+        if(r.ra!=0x80034c6cu) {   // piece 4d: by caller
+            uint32_t j=0;while(j<s->ra_n && s->ra[j]!=r.ra) ++j;
+            if(j==s->ra_n && j<8) {s->ra[j]=r.ra;++s->ra_n;}
+            if(j<8) ++(same?s->ra_exact[j]:s->ra_differ[j]);
+            continue;
+        }
         if(same) ++s->exact[kd]; else {
             ++s->differ[kd];
             if(s->nfirst<4) {uint32_t* f=s->first_differ[s->nfirst++];f[0]=i;f[1]=r.mat;f[2]=cpu.gpr[5];f[3]=cpu.gpr[23];for(int j=0;j<4;++j) {f[4+j]=r.w[j+4];f[8+j]=w[j+4];}}
         }
     }
     for(;k<s->n;++k) {
+        if(s->real[k].ra!=0x80034c6cu) continue;
         const uint32_t i=s->real[k].hook;
-        const uint32_t tab=i<sh->nhooks ? psx_mod_read_word(sh->hook[i].cpu.gpr[20]+0x3c)+sh->hook[i].cpu.gpr[22] : 0;
+        const uint32_t tab=i<sh->nhooks ? psx_mod_read_word(hooks[i].cpu.gpr[20]+0x3c)+hooks[i].cpu.gpr[22] : 0;
         ++s->missing[kind(s->real[k].mat,tab)];
     }
     s->failed=g_psx_call_bail?1u:0u;
@@ -483,10 +510,10 @@ void begin() {
 }
 // Phase 1 of the transform entry from the joint loop: what the job passes.
 void entry_done(CPUState* cpu) {
-    if(!active || cpu->gpr[31]!=0x80034c6cu) return;
+    if(!active || (cpu->gpr[31]!=0x80034c6cu && !(n2_mask()&64))) return;
     if(s->n>=max_out) {s->overflow=1;return;}
     Out& o=s->real[s->n++];
-    o.hook=sh->nhooks;o.mat=cpu->gpr[5];
+    o.hook=sh->nhooks;o.mat=cpu->gpr[5];o.ra=cpu->gpr[31];
     for(int j=0;j<8;++j) o.w[j]=psx_mod_read_word(o.mat+4*j);
 }
 void at_flip() {
@@ -501,8 +528,17 @@ void at_flip() {
     waitpid(child,nullptr,0);child=-1;
     if(g!='g') return;
     if(!done) {++st.timeouts;return;}
+    if(n2_mask()&32) {
+        if(!s->from_prev) {++(s->order_differs?st.order_differs:st.no_prev);return;}
+        ++st.from_prev;
+    }
     ++st.jobs;st.calls+=s->n;st.failed+=s->failed;st.no_eye+=!s->eye_predicted;
     for(int k=0;k<3;++k) {st.exact[k]+=s->exact[k];st.differ[k]+=s->differ[k];st.missing[k]+=s->missing[k];}
+    for(uint32_t j=0;j<s->ra_n && j<8;++j) {
+        unsigned q=0;while(q<ra_st_n && ra_st[q].ra!=s->ra[j]) ++q;
+        if(q==ra_st_n && q<16) ra_st[ra_st_n++].ra=s->ra[j];
+        if(q<16) {ra_st[q].exact+=s->ra_exact[j];ra_st[q].differ+=s->ra_differ[j];}
+    }
     static unsigned shown=0;
     for(uint32_t j=0;j<s->nfirst && shown<8;++j,++shown) {const uint32_t* f=s->first_differ[j];
         std::fprintf(stderr,"[n2 check %ld]   joint differs: hook %u joint %u passed %08x, from the start %08x; t %d %d %d / %d %d %d\n",(long)getpid(),f[0],f[3],f[1],f[2],(int32_t)f[5],(int32_t)f[6],(int32_t)f[7],(int32_t)f[9],(int32_t)f[10],(int32_t)f[11]);}
@@ -514,6 +550,13 @@ void report() {
         (unsigned long long)st.exact[1],(unsigned long long)st.differ[1],(unsigned long long)st.missing[1],
         (unsigned long long)st.exact[2],(unsigned long long)st.differ[2],(unsigned long long)st.missing[2],
         (unsigned long long)st.failed,(unsigned long long)st.timeouts,(unsigned long long)st.no_eye);
+    if(n2_mask()&64) {
+        std::string t;char b[64];
+        for(unsigned q=0;q<ra_st_n;++q) {std::snprintf(b,sizeof b," %08x exact %llu differ %llu |",ra_st[q].ra,(unsigned long long)ra_st[q].exact,(unsigned long long)ra_st[q].differ);t+=b;}
+        std::fprintf(stderr,"[n2 check %ld] piece 4d, other transform callers:%s\n",(long)getpid(),t.c_str());
+    }
+    if(n2_mask()&32) std::fprintf(stderr,"[n2 check %ld] piece 4c: jobs run from the earlier job's record %llu, no earlier job of the frame %llu, hook lists differ %llu\n",
+        (long)getpid(),(unsigned long long)st.from_prev,(unsigned long long)st.no_prev,(unsigned long long)st.order_differs);
 }
 }  // namespace jr
 
@@ -636,7 +679,6 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
         if(phase==0 && addr==0x80062b48u && cpu->gpr[31]==0x8002e688u) vis::walk_entry(cpu);
     }
 }
-uint64_t n2_serial=0; float n2_alpha=0;
 void n2_begin(const CPUState& job) {
     if(n2_mask()&14) in::begin(job);
     if(n2_mask()&4) vis::begin(job,n2_serial,n2_alpha);

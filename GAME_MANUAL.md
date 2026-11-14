@@ -552,13 +552,32 @@ soft edges whatever this says. It switches at once and is saved:
 - **SIMPLE**: a cheaper hard edge with visible steps. Use it if blasts make
   the game stutter on your computer.
 - **OFF**: no live shadows at all, the fastest on a weak computer. Blasts and
-  changing lamps then light through walls and pillars, and lamps light
-  Duke, his weapon, enemies and props without shadows. The baked shadows of
-  steady lamps on walls and floors stay as they are.
+  changing lamps then light through walls and pillars. The baked shadows of
+  steady lamps on walls and floors stay as they are, and Duke, his weapon,
+  enemies and props still take the steady lamps from the floor they stand on.
 
 The launcher saves it with `--shadow-edges smooth|simple|off` (smooth is
 SHARP), and the backtick console `light shadows sharp`, `light shadows simple`
 or `light shadows off` switches it for the session without saving it.
+
+With LIVE SHADOWS OFF two cheap effects in the style of the Quake and
+Hexen II ports take their place (OPTIONS > DISPLAY, saved, both ON by
+default; they do nothing with SHARP or SIMPLE, LIGHTING ORIGINAL or the
+CLASSIC renderer):
+
+- **MODEL SHADOWS**: a dark shadow on the floor under each enemy. **SHAPE**
+  (default) is the enemy's own flattened shape, as Quake's model shadows;
+  **ROUND** is a plain dark oval like the one under Duke, simpler and
+  steadier; **OFF** draws none. Both follow sloped floors and stop at the edge
+  of a ledge or a pit instead of hanging in the air. Changing it applies when
+  you leave the screen (with a short pause). Duke keeps the game's own
+  shadow; pickups and props cast none.
+- **GLOWS**: a soft halo at flames and at glowing shots in flight (the
+  flamethrower's fire, bolts, energy and freezer rounds), tinted by their
+  light, as Hexen II's glows.
+
+The launcher saves them with `--model-shadows on|round|off` (on is SHAPE) and
+`--glows on|off`.
 
 **Level lights.** Levels can also have placed lights of their own, "lamps":
 neon signs, lamps and coloured rooms cast real light on walls, props, enemies
@@ -593,7 +612,9 @@ at once. Duke, his weapon, enemies and props take the level's lamps from the
 same map, from the floor they stand on (D41P, as Quake lights its models), so
 they brighten and darken as they walk through the pools of light, at almost
 no cost to the graphics chip; blasts, shots and other live lights still
-light them directly.
+light them directly. Since D41P2 the steady lamps reach every surface only
+through that map (they draw no live shadows of their own any more); a model
+over a pit or beyond the level's floors takes its painted light.
 The backtick console's `light bake off` / `light bake on` compares the live
 lamps with the baked ones for the session.
 

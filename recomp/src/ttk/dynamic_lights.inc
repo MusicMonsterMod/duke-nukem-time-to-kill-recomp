@@ -43,7 +43,9 @@ static LightSrc light_srcs[24];static unsigned light_src_count;
 struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];
     // D41M: baked lamps (lamp_bake.inc): the gain on their steady light and
     // each lamp's current colour (its channel light), bake_n 0 when no bake.
-    uint32_t bake_n=0;float bake_gain=1;float bake_rgb[PSX_MOD_BAKE_LAMPS*3];};
+    uint32_t bake_n=0;float bake_gain=1;float bake_rgb[PSX_MOD_BAKE_LAMPS*3];
+    // D41S: glow sources (rounds and bolts in flight, flames): x y z, reach, r g b, kind (0 round, 1 flame).
+    uint32_t ng=0;float glow[16*8];};
 static LightView light_view;                 // this image's lights (RenderState)
 static std::atomic<int> light_console{0};    // 1 add test light, 2 clear
 static std::atomic<int> light_smooth{-1};     // D41H session override (-1 default)
@@ -301,6 +303,7 @@ static void shadow_mesh_tick();
 static bool shadow_moving_on();   // D41N (light_shadows.inc)
 static double shadow_probe_eye[3];
 static bool shadows_console(const char* arg,void (*say)(const char*));
+extern "C" void gl_shadow_counters(uint64_t out[4]);   // D41P2 developer count
 static void lights_publish() {
     LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
     uint8_t cand[PSX_MOD_MAX_LIGHTS]={};
@@ -349,13 +352,31 @@ static void lights_publish() {
         l.flags=0;
         cand[v.n-1]=s.kind==light_kind_blast || s.kind==light_kind_test;
     }
+    // D41S: the glows' sources, before the light list changes below.
+    v.ng=0;
+    auto add_glow=[&](const PSXModLight& l,float kind){
+        if(v.ng>=16) return;
+        float* g=&v.glow[8*v.ng++];g[0]=l.x;g[1]=l.y;g[2]=l.z;g[3]=l.radius;g[4]=l.r;g[5]=l.g;g[6]=l.b;g[7]=kind;
+    };
+    for(unsigned i=0;i<scene0;++i) add_glow(v.l[i],0);
+    for(unsigned i=fire0;i<fire0+light_fire_count && i<v.n;++i) add_glow(v.l[i],1);
+    if(static const bool tr=std::getenv("DNTTK_D41S_TRACE")!=nullptr;tr && v.ng) {static unsigned k;if(k++%30==0) std::fprintf(stderr,"[TTK d41s] publish: %u glow sources (%u in flight, %u flames)\n",v.ng,scene0,light_fire_count);}
     const int d41p=lamp_bake_d41p(cand,scene0,lamps_end);
     shadows_assign(v,cand);
     lamp_bake_levels(v,scene0,lamps_end);   // D41M: after the slots (it marks the baked lamps)
-    if(d41p==2 && lamps_end>scene0) {   // D41P developer: the baked lamps left out of model shading
+    if(d41p==2 && lamps_end>scene0) {   // D41P2: the baked lamps light only through the bake
         const unsigned k=lamps_end-scene0;
         for(unsigned i=lamps_end;i<v.n;++i) v.l[i-k]=v.l[i];
         v.n-=k;
+    }
+    // D41P2 developer (DNTTK_SHADOW_COUNT=1): every 300 ticks, the list (lamps,
+    // the shadowed lights among them) and the maps this process drew since.
+    if(static const bool count=std::getenv("DNTTK_SHADOW_COUNT")!=nullptr;count && light_ticks%300==0) {
+        static uint64_t last[4];uint64_t g[4];gl_shadow_counters(g);
+        unsigned lamp_maps=0;for(unsigned i=0;i<v.n;++i) if(v.l[i].flags>=127.5f && (((int)(v.l[i].flags+0.5f)&127)>>1)) ++lamp_maps;
+        std::fprintf(stderr,"[TTK shadow count] lights %u (fixed lamps %u, %s; with a map %u), shadowed %u, maps drawn %llu (%.1f ms)\n",v.n,lamps_end-scene0,
+            d41p==2?"left out":"listed",lamp_maps,v.nsh,(unsigned long long)(g[0]-last[0]),(g[2]-last[2])/1000.0);
+        std::memcpy(last,g,sizeof g);
     }
     light_view=v;
 }
@@ -562,7 +583,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     // D41H: normals only matter where the shader lights (a light or a dimmed
     // ambient); otherwise lit triangles keep their original colour.
     near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f),eye);
-    if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);return;}
+    if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);near_clip_glow_sources(nullptr,0);return;}
     for(int i=0;i<3;++i) shadow_probe_eye[i]=eye[i];   // D41F developer probe
     PSXModLight l[PSX_MOD_MAX_LIGHTS];
     const unsigned n=std::min<unsigned>(light_view.n,PSX_MOD_MAX_LIGHTS);
@@ -576,6 +597,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
     if(light_view.bake_n) {const float e[3]={(float)eye[0],(float)eye[1],(float)eye[2]};psx_mod_gpu_set_lamp_levels(e,light_view.bake_gain,light_view.bake_rgb,(int)light_view.bake_n);}
     near_clip_light_probe_lights(l,(int)n,light_view.amb);
+    near_clip_glow_sources(light_view.glow,(int)light_view.ng);   // D41S
 }
 // Backtick console: "light" (a test light at Duke), "light <r> <g> <b>
 // [radius]" (colour 0..4 each, radius 500..30000), "light off" (test lights

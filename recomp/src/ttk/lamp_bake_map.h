@@ -17,10 +17,14 @@ void lamp_bake_pin(bool on);
 // bake of the floor it stands on). Built from the bake's triangles and faces
 // (face i is surface i+1); kept with the face map, published by the next
 // lamp_bake_map_publish (call this first).
-struct LampFloorGrid {float x0=0,z0=0,cell=128;uint32_t w=0,h=0;std::vector<uint32_t> start;std::vector<float> y;std::vector<uint32_t> surf;};
+struct LampFloorGrid {float x0=0,z0=0,cell=128;uint32_t w=0,h=0;std::vector<uint32_t> start;std::vector<float> y;std::vector<uint32_t> surf;std::vector<float> gx,gz;};
 LampFloorGrid lamp_bake_floor_build(const std::vector<float>& tris,const std::vector<std::pair<uint32_t,uint32_t>>& faces);
 void lamp_bake_floor_stage(const LampFloorGrid& g);
 // Any thread or worker: the surface of the nearest floor at or below (x,y,z)
 // (TTK's y grows downward); 0 when none.
 uint32_t lamp_bake_floor(float x,float y,float z);
+// D41S: the exact height of the nearest floor at or below (x,y,z) in its own
+// cell only (no neighbours: a ledge's edge must not count), in *floor_y, and
+// that floor's slope (dy/dx, dy/dz) in slope[0..1]; 0 when none.
+uint32_t lamp_bake_floor_height(float x,float y,float z,float* floor_y,float* slope=nullptr,bool ring=false);   // ring: the eight cells around when its own has none
 }

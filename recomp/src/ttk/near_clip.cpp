@@ -121,6 +121,28 @@ bool tint() {static const bool v=env_int("DNTTK_NEAR_TINT",0,0,1)==1;return v;}
 // outside unified geometry are split only to keep their sort depth local.
 uint64_t precise_triangles;
 uint64_t baked_corners;   // D41M: world corners emitted with a baked surface
+// D41P2 census (developer, DNTTK_BAKE_CENSUS=1): lit polygons by how they
+// take the fixed lamps, per process every 5 s: world faces with their own
+// bake, world faces without one, flat object faces, models over a baked
+// floor, models with no floor found.
+uint64_t bake_census[6];
+void bake_census_count(unsigned k) {
+    static const bool on=std::getenv("DNTTK_BAKE_CENSUS")!=nullptr;if(!on) return;
+    static thread_local auto t0=std::chrono::steady_clock::now();
+    ++bake_census[k];
+    const auto t=std::chrono::steady_clock::now();
+    if(t-t0<std::chrono::seconds(5)) return;
+    t0=t;
+    std::fprintf(stderr,"[TTK bake census] pid %ld world baked %llu world unbaked %llu object flat %llu floor under polygon %llu model on floor %llu model no floor %llu\n",
+        
+#ifdef _WIN32
+        (long)_getpid(),
+#else
+        (long)getpid(),
+#endif
+        (unsigned long long)bake_census[0],(unsigned long long)bake_census[1],(unsigned long long)bake_census[2],(unsigned long long)bake_census[5],(unsigned long long)bake_census[3],(unsigned long long)bake_census[4]);
+    std::memset(bake_census,0,sizeof bake_census);
+}
 double precise_split_pixels() {static const double v=env_int("DNTTK_NEAR_SPLIT_PX",192,32,1024);return v;}
 double precise_depth_ratio() {static const double v=env_int("DNTTK_NEAR_SPLIT_RATIO",150,105,400)/100.0;return v;}
 // D17AM unified geometry (Modernized default since D17AM3, notes 324-326):
@@ -409,6 +431,7 @@ struct Poly {
     bool glow=false; // D41K: a neon sign face (glow_faces): gives light, never lit
     uint32_t surface=0; // D41M: its baked lamp surface (lamp_bake_map; 0 none)
     bool foreign=false; // D41L: textured from the second bank (prop flames and glows)
+    bool shade=false;   // D41S: a planar model shadow: translucent, yet depth-tested and written
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
     double key_z;
@@ -638,6 +661,11 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 // so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
 bool light_frame=false,light_smooth=false;double light_inv[9];
 bool light_eye_valid=false;double light_eye[3];   // D41P
+double light_m[9];   // D41S: view = light_m (world - eye) / 4096
+uint32_t image_serial=0;   // D41S: images composed (glows once per image)
+// D41P2: polygon floors for meshes without one and flat object faces;
+// developer DNTTK_POLY_FLOOR=0 keeps D41P's mesh-origin floors alone.
+const bool model_bake_floors=[]{const char* t=std::getenv("DNTTK_POLY_FLOOR");return !(t && t[0]=='0');}();
 // D41F (DNTTK_SHADOW_PROBE=1, developer): unclipped world corners as emitted
 // (eye-relative), for light_shadows.inc to compare with the shadow mesh.
 std::mutex shadow_probe_lock;std::vector<std::array<float,3>> shadow_probe_samples;
@@ -761,7 +789,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     // of the PS1's affine warp across a polygon beside the eye.
     double trace_raster[4][4];
     // D17AM2: translucent faces keep painter order (no depth test or write).
-    const bool painter=f.viewmodel || f.sky || (unified_scene(f) && (poly.command&0x02000000u));
+    const bool painter=f.viewmodel || f.sky || (unified_scene(f) && (poly.command&0x02000000u) && !poly.shade);
     const bool lit=lit_frame(f,poly);
     if(light_probe_on() && light_frame && f.object && !f.viewmodel) {
         std::lock_guard<std::mutex> g(light_probe_lock);
@@ -770,6 +798,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
         ++light_probe_polys[light_probe_cur|(poly.actor?1u:0u)][lit?0:1];
     }
     {
+        uint32_t poly_floor=0;float poly_fn[3]={0,0,0};   // D41P2
         for(unsigned i=0;i<n;++i) {
             const uint32_t addr=prim+8+stride*i,word=psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
@@ -814,9 +843,39 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                         const double t[3]={(double)f.g.tr[0],(double)f.g.tr[1],(double)f.g.tr[2]};
                         double o[3];for(int k=0;k<3;++k) o[k]=m[3*k]*t[0]+m[3*k+1]*t[1]+m[3*k+2]*t[2]+light_eye[k];
                         f.floor_surf=lamp_bake_floor((float)o[0],(float)o[1],(float)o[2]);
+                        if(!f.floor_surf && std::getenv("DNTTK_BAKE_CENSUS")) {static thread_local unsigned k;if(k++%400==0) std::fprintf(stderr,"[TTK bake census] no floor: mesh %08x object %d viewmodel %d duke %d at %.0f %.0f %.0f\n",f.mesh,(int)f.object,(int)f.viewmodel,(int)f.duke_lit,o[0],o[1],o[2]);}
                     }
                 }
-                if((nv[0]!=0 || nv[1]!=0 || nv[2]!=0) && f.floor_surf>0) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],(uint32_t)f.floor_surf);
+                // D41P2: a mesh whose origin finds no floor (a door or lift at its
+                // room's corner, a prop beside a ledge) and flat object faces take
+                // the floor under the polygon's own centre; a flat face is sent
+                // with its face normal (two-sided, as the shader derives it), so
+                // the shader reads the floor's lit side as for a model.
+                const bool smooth=nv[0]!=0 || nv[1]!=0 || nv[2]!=0;
+                if(i==0) {
+                    poly_floor=0;
+                    if(model_bake_floors && light_eye_valid && !poly.surface && (!smooth || f.floor_surf==0)) {
+                        if(!smooth && f.floor_surf>0) poly_floor=(uint32_t)f.floor_surf;   // a prop: its own floor first
+                        else {
+                            double c[3]={0,0,0};
+                            for(unsigned j=0;j<n;++j) for(int k=0;k<3;++k) c[k]+=(m[3*k]*v[j].p[0]+m[3*k+1]*v[j].p[1]+m[3*k+2]*v[j].p[2])/n;
+                            poly_floor=lamp_bake_floor((float)(c[0]+light_eye[0]),(float)(c[1]+light_eye[1]),(float)(c[2]+light_eye[2]));
+                        }
+                        if(poly_floor && !smooth && n>=3) {
+                            double q[3][3];
+                            for(int c2=0;c2<3;++c2) for(int k=0;k<3;++k) q[c2][k]=m[3*k]*v[c2].p[0]+m[3*k+1]*v[c2].p[1]+m[3*k+2]*v[c2].p[2];
+                            const double e1[3]={q[1][0]-q[0][0],q[1][1]-q[0][1],q[1][2]-q[0][2]},e2[3]={q[2][0]-q[0][0],q[2][1]-q[0][1],q[2][2]-q[0][2]};
+                            double fn[3]={e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]};
+                            const double l=std::sqrt(fn[0]*fn[0]+fn[1]*fn[1]+fn[2]*fn[2]);
+                            if(l>1e-9) for(int k=0;k<3;++k) poly_fn[k]=(float)(0.3*fn[k]/l);   // under 0.6: two-sided
+                            else poly_floor=0;
+                        }
+                    }
+                    bake_census_count(smooth ? (f.floor_surf>0?3u:poly_floor?5u:4u) : poly.surface ? 0u : poly_floor ? 5u : f.object ? 2u : 1u);
+                }
+                if(!smooth && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,poly_fn[0],poly_fn[1],poly_fn[2],poly_floor);
+                else if(smooth && f.floor_surf<=0 && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],poly_floor);
+                else if((nv[0]!=0 || nv[1]!=0 || nv[2]!=0) && f.floor_surf>0) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],(uint32_t)f.floor_surf);
                 else if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
                 else if(poly.surface) {psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,poly.surface);++baked_corners;}   // D41M
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
@@ -1374,12 +1433,14 @@ bool repeated_corner_triangle(Poly& p) {
     return false;
 }
 // 0x80011020 entry: a0 mesh, a1 ordering table, a2 render context, a3 bitmap.
+void scene_glows(CPUState* cpu);   // D41S (after prop_glows)
 void world(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4],ra=cpu->gpr[31];
     if(ra!=0x80037344 && ra!=0x80037c54 && ra!=0x80062db8) return;
     ++world_stats.seen;
     const unsigned count=psx_mod_read_half(mesh+0x14);
     if(!count || count>256) return;
+    if(unified()) scene_glows(cpu);   // D41S: once per image, at its first room piece
     Frame f{};if(!begin(f,cpu,false)) return;
     f.scene=true;
     trace_begin(f,cpu);
@@ -2144,6 +2205,233 @@ void prop_glows(Frame& f,uint32_t mesh,int kind) {
         draw(f,p);++prop_glow_quads;
     }
 }
+// D41S: Quake-style cheap effects for LIVE SHADOWS OFF (documentation/471).
+// Planar model shadows (Quake and Hexen II r_shadows): each mesh of a moving
+// object (enemies, Duke in third person; not the static-prop loop, which also
+// draws the pickups) is
+// flattened along a fixed downward direction onto the plane of the floor
+// under its origin (the D41P floor grid) and drawn half dark: a black
+// semi-transparent texel in mode 0, depth-tested and written a little above
+// the floor. Each corner must stand over that same floor (the ground check,
+// QSS-M r_shadows_groundcheck): a face reaching past a ledge, into a pit or
+// up a wall is left out. The mesh's shadow faces share one ordering slot,
+// bracketed by GP0 E6 (set and check the mask bit, then clear): the PS1's
+// own stencil, so where faces of one shadow (or two shadows) overlap the
+// floor darkens once, as QuakeSpasm's stencil shadows.
+// Glows (Hexen II gl_glows, gl_missile_glows): an additive halo facing the
+// camera at each round, bolt and flame in flight, tinted by its light,
+// painter-ordered like the D41L prop glows.
+// Both need LIVE SHADOWS OFF; developer DNTTK_MODEL_SHADOWS=off and
+// DNTTK_GLOWS=off (also the menu rows) turn each off.
+std::vector<std::array<float,8>> glow_src;
+uint32_t glow_serial=~0u;
+uint64_t shade_seen=0,shade_emitted=0;
+uint64_t glow_quads=0,shade_meshes=0,shade_faces=0,shade_dropped=0,shade_skipped=0;
+bool d41s_base() {const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");return t && !std::strcmp(t,"off");}
+bool d41s_switch(const char* name) {const char* t=ttk_live_env(name);return !(t && !std::strcmp(t,"off"));}
+bool model_shades_on() {return d41s_base() && d41s_switch("DNTTK_MODEL_SHADOWS");}
+// D41S2: MODEL SHADOWS ROUND ("round"): one soft round shadow per enemy.
+bool model_shades_round() {const char* t=ttk_live_env("DNTTK_MODEL_SHADOWS");return t && !std::strcmp(t,"round");}
+bool scene_glows_on() {return d41s_base() && d41s_switch("DNTTK_GLOWS");}
+void world_to_view(const double w[3],double v[3]) {
+    const double d[3]={w[0]-light_eye[0],w[1]-light_eye[1],w[2]-light_eye[2]};
+    for(int k=0;k<3;++k) v[k]=(light_m[3*k]*d[0]+light_m[3*k+1]*d[1]+light_m[3*k+2]*d[2])/4096.0;
+}
+void view_to_world(const double v[3],double w[3]) {
+    for(int k=0;k<3;++k) w[k]=light_inv[3*k]*v[0]+light_inv[3*k+1]*v[1]+light_inv[3*k+2]*v[2]+light_eye[k];
+}
+// A one-word GP0 packet linked at the head of ordering slot index.
+bool gp0_word_packet(const Frame& f,int index,uint32_t word) {
+    const uint32_t prim=packet_alloc(f,8);
+    if(!prim) return false;
+    psx_mod_write_word(prim+4,word);
+    const uint32_t slot=ordering+(uint32_t)index*8,head=psx_mod_read_word(slot),tag=1u<<24;
+    if(!head) {
+        psx_mod_write_word(prim,tag);psx_mod_write_word(slot,prim);psx_mod_write_word(slot+4,prim);
+        const uint32_t word2=bitmap+((uint32_t)index>>5)*4;
+        psx_mod_write_word(word2,psx_mod_read_word(word2)|(0x80000000u>>(index&31)));
+    } else {psx_mod_write_word(slot,prim);psx_mod_write_word(prim,tag|(head&0xffffff));}
+    return true;
+}
+// Shadow direction: down, leaning a quarter toward +x and a fifth toward +z
+// (fixed in the world, not turning with the model as Quake's did).
+constexpr double shade_dx=0.25,shade_dz=0.2,shade_lift=4.0,shade_ground=24.0,shade_rank=0.1;
+void model_shade(Frame& f,const std::vector<Poly>& polys) {
+    if(!light_eye_valid || polys.empty()) return;
+    // The mesh's corners in the world; its lowest point and footprint centre.
+    std::vector<std::array<double,3>> w(f.verts.size());std::vector<uint8_t> have(f.verts.size(),0);
+    double low=-1e30,cx=0,cz=0;unsigned nc=0;
+    for(const Poly& p:polys) for(unsigned j=0;j<p.count;++j) {
+        const int k=p.idx[j];if(have[k]) continue;
+        have[k]=1;view_to_world(f.verts[k].view,w[k].data());
+        low=std::max(low,w[k][1]);cx+=w[k][0];cz+=w[k][2];++nc;
+    }
+    if(!nc) return;
+    cx/=nc;cz/=nc;
+    // The floor under it: at or below its lowest point (a little above counts:
+    // feet sunk into the floor), on that floor's own plane (slopes included).
+    float fy=0,sl[2]={0,0};
+    const uint32_t found=lamp_bake_floor_height((float)cx,(float)low-64.0f,(float)cz,&fy,sl,true);
+    if(static const bool tr=std::getenv("DNTTK_D41S_TRACE")!=nullptr;tr) {static thread_local unsigned k;if(k++%97==0) std::fprintf(stderr,"[TTK d41s] mesh at %.0f %.0f %.0f (lowest) floor %u at %.0f slope %.2f %.2f\n",cx,low,cz,found,found?fy:0.0f,sl[0],sl[1]);}
+    if(!found || fy-low>4096) {++shade_skipped;return;}
+    auto plane_at=[&](double x,double z){return fy+sl[0]*(x-cx)+sl[1]*(z-cz);};
+    static const int debug=env_int("DNTTK_SHADE_DEBUG",0,0,1);   // developer: opaque red, no ground check
+    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;
+    std::vector<Poly> out;out.reserve(polys.size());
+    double zsum=0;unsigned zn=0;
+    for(const Poly& p:polys) {
+        if(p.command&0x02000000u) continue;   // translucent faces cast nothing
+        Poly q{};q.count=p.count;q.textured=!debug;q.command=debug?0x30000000u:0x36000000u;q.tpage=prop_shade_tpage;q.clut=0;
+        q.foreign=true;q.shade=true;q.glow=true;q.actor=true;q.two_sided=true;
+        bool ok=true;const size_t first=s.verts.size();
+        for(unsigned j=0;j<p.count && ok;++j) {
+            const auto& c=w[p.idx[j]];
+            const double h=std::max(0.0,plane_at(c[0],c[2])-c[1]);
+            double g[3]={c[0]+shade_dx*h,0,c[2]+shade_dz*h};
+            const double expect=plane_at(g[0],g[2]);
+            float gy=0;
+            // Ground check: the floor under the shadow's corner lies on the plane.
+            ok=lamp_bake_floor_height((float)g[0],(float)(expect-shade_ground),(float)g[2],&gy) && std::fabs(gy-expect)<=shade_ground;
+            if(!ok && debug) {ok=true;gy=(float)expect;}
+            g[1]=gy-shade_lift;
+            double v[3];world_to_view(g,v);
+            ok&=v[2]>8;
+            s.verts.push_back(project_view(f.g,v));zsum+=v[2];++zn;
+            q.idx[j]=(int)(first+j);q.colors[j]=debug?0x0000ffu:0x808080u;
+            q.uv[j]=(uint32_t)(prop_shade_u+1+(j&1))|(uint32_t)(1+(j>>1))<<8;
+        }
+        if(!ok) {s.verts.resize(first);++shade_dropped;continue;}
+        out.push_back(q);
+    }
+    if(out.empty() || !zn) return;
+    const int slot=std::clamp((int)(zsum/zn)>>5,1,0x7ff);
+    if(budget(s)<split_reserve+64*(uint32_t)out.size()) {++shade_skipped;return;}
+    // One slot for the mesh's shadow, head insertion: the face emitted last is
+    // drawn first. Each face is lifted a further shade_rank units toward the eye
+    // than the one emitted before it (a depth scale of its plane, as the D17AT
+    // decals), so where faces overlap the first drawn wins the depth test and
+    // the floor darkens once; 64 ranks at most (about 6 units).
+    // Developer DNTTK_SHADE_MASK=1: the GP0 E6 mask bracket instead (the GL
+    // renderer's stencil keeps stale mask bits: nothing is drawn).
+    static const bool masked=env_int("DNTTK_SHADE_MASK",0,0,1)!=0;
+    if(masked && !gp0_word_packet(s,slot,0xe6000000u)) return;
+    const unsigned e0=s.emitted;unsigned rank=0;
+    for(Poly& q:out) {
+        q.native_order=true;q.native_slot=slot;
+        const NearDepthPlane pl=near_depth_plane(s.verts[q.idx[0]].view,s.verts[q.idx[1]].view,s.verts[q.idx[2]].view);
+        const double dist=std::abs(pl.d);
+        if(!masked && dist>64) q.depth_scale=1-(shade_rank*std::min(rank,63u))/dist;
+        ++rank;draw(s,q);
+    }
+    shade_emitted+=s.emitted-e0;
+    if(masked) gp0_word_packet(s,slot,0xe6000003u);
+    ++shade_meshes;shade_faces+=out.size();
+}
+// D41S2: MODEL SHADOWS ROUND, a dark disc on the floor under each enemy, as
+// the game's own shadow under Duke (a hard-edged oval halving the floor, the
+// PS1's mode 0 over black) and Quake's blob shadows (QSS r_shadows 1). The
+// enemy is the object in s3 at the actor draw (callers 0x80033778 and
+// 0x80034448; position at +4, the hips). One disc per enemy and image, at its
+// first limb; its size follows how far the enemy's limbs reached from its
+// centre in the image before. A fan of round_sides triangles on the floor's
+// plane with the planar shadow's black patch; a triangle is dropped where the
+// floor under a rim corner is not on that plane (the ground check). Drawn and
+// ordered as the planar shadow's faces.
+constexpr int round_sides=12;
+constexpr double round_scale=0.6,round_min=80,round_max=300,round_first=150;
+uint64_t round_discs=0;
+struct RoundSeen {uint32_t serial=~0u;double cur=0,last=0;};
+void model_round(Frame& f,const std::vector<Poly>& polys,uint32_t obj) {
+    if(!light_eye_valid || polys.empty() || obj<0x80010000u || obj>0x801fff00u || (obj&3)) return;
+    const double ox=(int32_t)psx_mod_read_word(obj+4),oy=(int32_t)psx_mod_read_word(obj+8),oz=(int32_t)psx_mod_read_word(obj+12);
+    static thread_local std::unordered_map<uint32_t,RoundSeen> seen;
+    if(seen.size()>512) seen.clear();
+    RoundSeen& r=seen[obj];
+    const bool first=r.serial!=image_serial;
+    if(first) {r.last=r.cur>0?r.cur:r.last;r.cur=0;r.serial=image_serial;}
+    // This limb's reach from the centre (a limb far from it: another object).
+    double reach=0;
+    for(const auto& v:f.verts) {
+        double w[3];view_to_world(v.view,w);
+        const double d=std::hypot(w[0]-ox,w[2]-oz);
+        if(d>2000 || std::fabs(w[1]-oy)>2000) return;
+        reach=std::max(reach,d);
+    }
+    r.cur=std::max(r.cur,reach);
+    if(!first) return;
+    const double R=std::clamp((r.last>0?r.last:round_first)*round_scale,round_min,round_max);
+    float fy=0,sl[2]={0,0};
+    if(!lamp_bake_floor_height((float)ox,(float)oy,(float)oz,&fy,sl,true) || fy-oy>4096) {++shade_skipped;return;}
+    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;
+    bool ok[round_sides+1];double zsum=0;unsigned zn=0;
+    for(int i=0;i<=round_sides;++i) {   // 0: the centre, then the rim
+        const double a=2*3.14159265358979*(i-1)/round_sides;
+        double g[3]={ox+(i?std::cos(a)*R:0),0,oz+(i?std::sin(a)*R:0)};
+        const double expect=fy+sl[0]*(g[0]-ox)+sl[1]*(g[2]-oz);
+        float gy=0;
+        ok[i]=lamp_bake_floor_height((float)g[0],(float)(expect-shade_ground),(float)g[2],&gy) && std::fabs(gy-expect)<=shade_ground;
+        g[1]=(ok[i]?gy:expect)-shade_lift;
+        double v[3];world_to_view(g,v);
+        ok[i]=ok[i] && v[2]>8;
+        s.verts.push_back(project_view(f.g,v));
+        if(ok[i]) {zsum+=v[2];++zn;}
+    }
+    if(!zn || !ok[0]) {++shade_dropped;return;}
+    std::vector<Poly> out;
+    for(int i=1;i<=round_sides;++i) {
+        const int j=i%round_sides+1;
+        if(!(ok[i] && ok[j])) {++shade_dropped;continue;}
+        Poly q{};q.count=3;q.textured=true;q.command=0x36000000u;q.tpage=prop_shade_tpage;q.clut=0;
+        q.foreign=true;q.shade=true;q.glow=true;q.actor=true;q.two_sided=true;
+        const int c[3]={0,i,j};
+        for(int k=0;k<3;++k) {q.idx[k]=c[k];q.colors[k]=0x808080u;q.uv[k]=(uint32_t)(prop_shade_u+1+(k&1))|(uint32_t)(1+(k>>1))<<8;}
+        out.push_back(q);
+    }
+    if(out.empty()) return;
+    const int slot=std::clamp((int)(zsum/zn)>>5,1,0x7ff);
+    if(budget(s)<split_reserve+64*(uint32_t)out.size()) {++shade_skipped;return;}
+    const unsigned e0=s.emitted;
+    for(Poly& q:out) {q.native_order=true;q.native_slot=slot;draw(s,q);}
+    shade_emitted+=s.emitted-e0;++round_discs;shade_faces+=out.size();
+}
+void scene_glows(CPUState* cpu) {
+    if(glow_serial==image_serial) return;
+    // Developer DNTTK_D41S_TRACE=1: the counters every 300 images, per process.
+    if(static const bool tr=std::getenv("DNTTK_D41S_TRACE")!=nullptr;tr && image_serial%300==0)
+        std::fprintf(stderr,"[TTK d41s] pid %ld images %u: meshes seen %llu shadowed %llu skipped %llu, faces %llu dropped %llu emitted %llu, glow sources %zu quads %llu, base %d light %d eye %d\n",
+            (long)trace_pid(),image_serial,(unsigned long long)shade_seen,(unsigned long long)shade_meshes,(unsigned long long)shade_skipped,(unsigned long long)shade_faces,
+            (unsigned long long)shade_dropped,(unsigned long long)shade_emitted,glow_src.size(),(unsigned long long)glow_quads,(int)d41s_base(),(int)light_frame,(int)light_eye_valid);
+    if(!light_eye_valid || !light_frame) return;
+    glow_serial=image_serial;
+    if(static const bool tr=std::getenv("DNTTK_D41S_TRACE")!=nullptr;tr && !glow_src.empty()) {static unsigned k;if(k++%30==0) std::fprintf(stderr,"[TTK d41s] glows: %zu sources, on %d, first at %.0f %.0f %.0f reach %.0f\n",glow_src.size(),(int)scene_glows_on(),glow_src[0][0],glow_src[0][1],glow_src[0][2],glow_src[0][3]);}
+    if(glow_src.empty() || !scene_glows_on()) return;
+    Frame f{};if(!begin(f,cpu,false)) return;
+    f.scene=true;
+    for(const auto& g:glow_src) {
+        const double w[3]={g[0],g[1],g[2]};double c[3];world_to_view(w,c);
+        // Size from the light's reach; a flame's halo larger than a round's.
+        const double size=std::clamp((double)g[3]*(g[7]>0.5f?0.16:0.10),120.0,900.0);
+        if(static const bool tr=std::getenv("DNTTK_D41S_TRACE")!=nullptr;tr) {static unsigned k;if(k++%30==0) std::fprintf(stderr,"[TTK d41s] glow view %.0f %.0f %.0f size %.0f\n",c[0],c[1],c[2],size);}
+        if(c[2]<size*0.5+64) continue;   // at or behind the eye: no halo in the face
+        // Brighter for a stronger light, faded in over the last two sizes toward the eye.
+        const double near_fade=std::clamp((c[2]-size*0.5-64)/(2*size),0.0,1.0);
+        const double k=0.55*near_fade;
+        const size_t first=f.verts.size();
+        // Drawn a half size toward the eye, so a halo by a wall is not cut by it.
+        const double z=c[2]-size*0.5,sc=z/c[2];
+        const double corners[4][3]={{c[0]*sc-size/2,c[1]*sc-size/2,z},{c[0]*sc+size/2,c[1]*sc-size/2,z},{c[0]*sc-size/2,c[1]*sc+size/2,z},{c[0]*sc+size/2,c[1]*sc+size/2,z}};
+        for(const auto& v:corners) f.verts.push_back(project_view(f.g,v));
+        Poly p{};p.count=4;p.actor=false;p.textured=true;p.two_sided=true;p.glow=true;p.foreign=true;p.bias=-1;
+        p.command=0x36000000u;p.tpage=prop_light_tpage;p.clut=0;
+        const uint32_t u0=prop_white_halo_u,u1=u0+prop_white_halo_w-1,v1=prop_white_halo_h-1;
+        p.uv[0]=u0;p.uv[1]=u1;p.uv[2]=u0|v1<<8;p.uv[3]=u1|v1<<8;
+        const double m=std::max({(double)g[4],(double)g[5],(double)g[6],1e-3});
+        uint32_t col=0;
+        for(int a=0;a<3;++a) col|=(uint32_t)std::clamp((int)std::lround(255*k*g[4+a]/m),0,255)<<(8*a);
+        for(unsigned j=0;j<4;++j) {p.idx[j]=(int)(first+j);p.colors[j]=col;}
+        draw(f,p);++glow_quads;
+    }
+}
 // D23T: what the game's object renderer gets for an object whose every face
 // is host-drawn (no polygons left to it):
 //   1 (default) a mesh copy holding only the last two vertex triples and an
@@ -2427,6 +2715,13 @@ void object(CPUState* cpu) {
     if(light_frame && light_smooth && !f.sky && !f.biomask && (unified_scene(f) || f.duke_lit))
         smooth_model_normals(f,polys,list,count,flags);
     for(const auto& p:polys) draw(f,p);
+    // D41S: moving objects only (not the static-prop loop), not the sky, a
+    // TV, the first-person layer or Duke's own body in first person.
+    if(light_frame && unified_scene(f) && !viewmodel && !tv && !f.sky && cpu->gpr[31]!=0x80032288u &&
+       !(body && !third_person_camera_live()) && (++shade_seen,model_shades_on())) {
+        if(!model_shades_round()) model_shade(f,polys);
+        else if(cpu->gpr[31]==0x80033778u || cpu->gpr[31]==0x80034448u) model_round(f,polys,cpu->gpr[19]);
+    }
     // D41L: a woodburner's embers and a chandelier's flames (prop_lights.cpp).
     if(prop_light_kind && prop_light_glows && unified_scene(f) && !actor && !viewmodel && !body)
         if(const int kind=prop_light_kind(mesh)) prop_glows(f,mesh,kind);
@@ -2557,6 +2852,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
             frame_first_cursor=psx_mod_read_word(context);
             host_frame_reset();
             held_packets.clear();
+            ++image_serial;   // D41S
         }
         return;
     }
@@ -2659,6 +2955,10 @@ void near_clip_light_probe_lights(const void* lights,int n,float amb) {
     light_probe_n=std::min(n,(int)PSX_MOD_MAX_LIGHTS);light_probe_amb=amb;
     for(int i=0;i<light_probe_n;++i) light_probe_l[i]=l[i];
 }
+void near_clip_glow_sources(const float* g,int n) {
+    glow_src.clear();
+    for(int i=0;g && i<n;++i) {std::array<float,8> a;for(int k=0;k<8;++k) a[k]=g[8*i+k];glow_src.push_back(a);}
+}
 std::vector<std::array<float,3>> near_clip_shadow_probe_take() {
     std::lock_guard<std::mutex> g(shadow_probe_lock);std::vector<std::array<float,3>> r;r.swap(shadow_probe_samples);return r;
 }
@@ -2667,6 +2967,7 @@ void near_clip_light_frame(bool valid,const double m[9],bool smooth,const double
     light_eye_valid=eye!=nullptr;
     if(eye) for(int k=0;k<3;++k) light_eye[k]=eye[k];
     if(!valid) return;
+    for(int k=0;k<9;++k) light_m[k]=m[k];   // D41S
     const double a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7],i=m[8];
     const double det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);
     if(std::fabs(det)<1) return;

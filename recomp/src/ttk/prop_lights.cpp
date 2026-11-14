@@ -307,6 +307,15 @@ void paint(uint16_t* bank) {
         const float g=std::max(0.0f,std::exp(-r*r*4.0f)-std::exp(-4.0f))/(1-std::exp(-4.0f));
         bank[(size_t)y*1024+base+prop_halo_u+x]=texel(g*1.0f,g*0.62f,g*0.30f);
     }
+    // D41S: the neutral halo (a falloff steeper at the rim than the warm one,
+    // so a small glow reads as a point of light) and the shadow patch
+    // (opaque black with STP: blended in mode 0 it halves the background).
+    for(int y=0;y<prop_white_halo_h;++y) for(int x=0;x<prop_white_halo_w;++x) {
+        const float dx=(x+0.5f)/prop_white_halo_w*2-1,dy=(y+0.5f)/prop_white_halo_h*2-1,r=std::sqrt(dx*dx+dy*dy);
+        const float g=std::max(0.0f,std::exp(-r*r*5.0f)-std::exp(-5.0f))/(1-std::exp(-5.0f));
+        bank[(size_t)y*1024+base+prop_white_halo_u+x]=texel(g,g,g);
+    }
+    for(int y=0;y<prop_shade_h;++y) for(int x=0;x<prop_shade_w;++x) bank[(size_t)y*1024+base+prop_shade_u+x]=0x8000;
     // Embers: red-orange, hottest along the bottom, soft at the sides,
     // brighter in uneven clumps.
     for(int y=0;y<prop_ember_h;++y) for(int x=0;x<prop_ember_w;++x) {

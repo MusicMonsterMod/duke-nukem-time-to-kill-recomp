@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-14, piece 4b exact, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-14, pieces 4c exact and 4d measured, [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b exact, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1584,6 +1584,22 @@ earlier job's record of the frame (as D23N4 will run), the other transform
 callers (`0x80033584`, `0x8003133c`, `0x80038c68` / `0x80038d7c` /
 `0x80038e18`), then note 456 section 6 (object culling, camera-dependent
 hooks, sprites and particles, a whole later job).
+
+Work log 2026-11-14, afternoon ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md)
+section 3; user: "resume after piece 4b ... Go as far as exact matches
+allow, then leave a clear handoff"). `DNTTK_N2_CHECK` bits 32 and 64
+(`redraw_n2.inc`; `redraw_check.inc` keeps the previous job's record for
+them). Piece 4c (bit 32): the hooks run with the earlier job's registers
+(same frame, another fraction) when its hook list matches call for call:
+every joint matrix exact, UI slots 2, 8, 9 walking 3,315 / 972 / 4,284 of
+as many; 27-62 jobs a run skipped because their hook list differs from the
+earlier job's. Piece 4d (bit 64): every transform call by caller, from the
+job start: `0x80031dec` 98% and `0x80032f48` 93% exact, `0x80033584` 82%,
+`0x8003133c` and the sky's `0x80038c68` / `0x80038d7c` / `0x80038e18` never
+(one each a job, built from the camera), a few rare callers. Next
+(resumable): host builds of the camera-built matrices (sky, `0x8003133c`),
+then what differs in `0x80033584` and the others (objects, matrix words),
+the hook-list differences of piece 4c, then note 456 section 6.
 
 ### D23N3 - The game's camera-dependent packets
 

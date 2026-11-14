@@ -24,7 +24,7 @@ namespace {
 constexpr uint32_t lbm_cap = 1u << 17;   // faces (level 0: about 25,000 triangles)
 // D41P: floor grid capacity (cells and floor entries; pages are touched only as used).
 constexpr uint32_t lbf_cells = 1u << 20, lbf_entries = 1u << 21;
-struct Floor {float x0,z0,cell;uint32_t w,h,n;uint32_t start[lbf_cells+1];float y[lbf_entries];uint32_t surf[lbf_entries];};
+struct Floor {float x0,z0,cell;uint32_t w,h,n;uint32_t start[lbf_cells+1];float y[lbf_entries];uint32_t surf[lbf_entries];float gx[lbf_entries],gz[lbf_entries];};   // D41S: the face's slope
 struct Half {uint32_t n;uint32_t pad;uint64_t key[lbm_cap];Floor floor;};   // record << 32 | surface
 struct Shared {std::atomic<uint32_t> active;uint32_t pad;Half half[2];};
 Shared* lbm=nullptr;
@@ -86,7 +86,8 @@ LampFloorGrid lamp_bake_floor_build(const std::vector<float>& tris,const std::ve
         if((uint64_t)g.w*g.h<=lbf_cells) break;
         g.cell*=2;
     }
-    std::vector<std::vector<std::pair<float,uint32_t>>> cells((size_t)g.w*g.h);
+    struct E {float y;uint32_t surf;float gx,gz;};
+    std::vector<std::vector<E>> cells((size_t)g.w*g.h);
     for(const T& t:flat) {
         const float* v=t.v;
         const float x0=std::min({v[0],v[3],v[6]}),x1=std::max({v[0],v[3],v[6]}),z0=std::min({v[2],v[5],v[8]}),z1=std::max({v[2],v[5],v[8]});
@@ -95,18 +96,21 @@ LampFloorGrid lamp_bake_floor_build(const std::vector<float>& tris,const std::ve
         const float ax=v[0],az=v[2],bx=v[3]-ax,bz=v[5]-az,cx=v[6]-ax,cz=v[8]-az;
         const float den=bx*cz-bz*cx;
         if(std::fabs(den)<1e-6f) continue;
+        // D41S: the plane's slope, y = y0 + gx (x - x0) + gz (z - z0).
+        const float by=v[4]-v[1],cy=v[7]-v[1];
+        const float gx=(by*cz-cy*bz)/den,gz=(bx*cy-cx*by)/den;
         for(int i=cx0;i<=cx1;++i) for(int j=cz0;j<=cz1;++j) {
             const float px=g.x0+(i+0.5f)*g.cell-ax,pz=g.z0+(j+0.5f)*g.cell-az;
             const float s=(px*cz-pz*cx)/den,u=(bx*pz-bz*px)/den;
             if(s<-1e-4f || u<-1e-4f || s+u>1.0001f) continue;
             const float y=v[1]+s*(v[4]-v[1])+u*(v[7]-v[1]);
-            cells[(size_t)j*g.w+i].push_back({y,t.surf});
+            cells[(size_t)j*g.w+i].push_back({y,t.surf,gx,gz});
         }
     }
     g.start.assign((size_t)g.w*g.h+1,0);
     for(size_t c=0;c<cells.size();++c) {
         g.start[c]=(uint32_t)g.y.size();
-        for(auto& e:cells[c]) {if(g.y.size()>=lbf_entries) break;g.y.push_back(e.first);g.surf.push_back(e.second);}
+        for(auto& e:cells[c]) {if(g.y.size()>=lbf_entries) break;g.y.push_back(e.y);g.surf.push_back(e.surf);g.gx.push_back(e.gx);g.gz.push_back(e.gz);}
     }
     g.start[cells.size()]=(uint32_t)g.y.size();
     return g;
@@ -120,6 +124,8 @@ void lamp_bake_floor_stage(const LampFloorGrid& g) {
     f.x0=g.x0;f.z0=g.z0;f.cell=g.cell;f.w=g.w;f.h=g.h;
     std::memcpy(f.start,g.start.data(),g.start.size()*4);
     std::memcpy(f.y,g.y.data(),g.y.size()*4);std::memcpy(f.surf,g.surf.data(),g.surf.size()*4);
+    if(g.gx.size()==g.y.size()) {std::memcpy(f.gx,g.gx.data(),g.gx.size()*4);std::memcpy(f.gz,g.gz.data(),g.gz.size()*4);}
+    else {std::memset(f.gx,0,g.y.size()*4);std::memset(f.gz,0,g.y.size()*4);}
     f.n=(uint32_t)g.y.size();
 }
 
@@ -139,11 +145,47 @@ uint32_t lamp_bake_floor(float x,float y,float z) {
     if(!f.n || !h.n) return 0;
     const float cx=(x-f.x0)/f.cell,cz=(z-f.z0)/f.cell;
     if(!(cx>=0) || !(cz>=0) || cx>=(float)f.w || cz>=(float)f.h) return 0;
-    const size_t c=(size_t)cz*f.w+(size_t)cx;
     uint32_t best=0;float by=1e30f;
     // The nearest floor at or below the point (a little above counts: a
     // joint at the feet), TTK's y growing downward.
-    for(uint32_t i=f.start[c];i<f.start[c+1];++i) if(f.y[i]>=y-64.0f && f.y[i]<by) {by=f.y[i];best=f.surf[i];}
+    auto scan=[&](int i,int j){
+        if(i<0 || j<0 || i>=(int)f.w || j>=(int)f.h) return;
+        const size_t c=(size_t)j*f.w+(size_t)i;
+        for(uint32_t k=f.start[c];k<f.start[c+1];++k) if(f.y[k]>=y-64.0f && f.y[k]<by) {by=f.y[k];best=f.surf[k];}
+    };
+    const int ix=(int)cx,iz=(int)cz;
+    scan(ix,iz);
+    // D41P2: a floor smaller than a cell covers no cell centre (a beam, a
+    // step, a ledge): the eight cells around.
+    if(!best) for(int dj=-1;dj<=1;++dj) for(int di=-1;di<=1;++di) if(di || dj) scan(ix+di,iz+dj);
+    return best;
+}
+
+uint32_t lamp_bake_floor_height(float x,float y,float z,float* floor_y,float* slope,bool ring) {
+    const Shared* s=lbm;
+    if(!s) return 0;
+    const Half& h=s->half[lbm_pinned>=0 ? (unsigned)lbm_pinned : s->active.load(std::memory_order_acquire)&1u];
+    const Floor& f=h.floor;
+    if(!f.n || !h.n) return 0;
+    const float cx=(x-f.x0)/f.cell,cz=(z-f.z0)/f.cell;
+    if(!(cx>=0) || !(cz>=0) || cx>=(float)f.w || cz>=(float)f.h) return 0;
+    // The exact height of each floor of the cell under (x,z) (its plane from
+    // the cell centre and its slope); the nearest at or below y. With ring,
+    // a cell without one takes the eight around (their planes carried over).
+    uint32_t best=0;float by=1e30f,bgx=0,bgz=0;
+    auto scan=[&](int i,int j){
+        if(i<0 || j<0 || i>=(int)f.w || j>=(int)f.h) return;
+        const size_t c=(size_t)j*f.w+(size_t)i;
+        const float dx=x-(f.x0+((float)i+0.5f)*f.cell),dz=z-(f.z0+((float)j+0.5f)*f.cell);
+        for(uint32_t k=f.start[c];k<f.start[c+1];++k) {
+            const float h=f.y[k]+f.gx[k]*dx+f.gz[k]*dz;
+            if(h>=y && h<by) {by=h;best=f.surf[k];bgx=f.gx[k];bgz=f.gz[k];}
+        }
+    };
+    scan((int)cx,(int)cz);
+    if(!best && ring) for(int dj=-1;dj<=1;++dj) for(int di=-1;di<=1;++di) if(di || dj) scan((int)cx+di,(int)cz+dj);
+    if(best && floor_y) *floor_y=by;
+    if(best && slope) {slope[0]=bgx;slope[1]=bgz;}
     return best;
 }
 

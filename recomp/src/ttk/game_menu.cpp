@@ -422,6 +422,11 @@ std::vector<Screen> make_screens() {
         // ("off") draws no live shadow maps (light_shadows.inc shadows_on).
         {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"BLASTS AND FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
          {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""},{"OFF","off","\"off\""}},0},
+        // D41S: Quake-style effects for LIVE SHADOWS OFF (near_clip.cpp model_shade, scene_glows).
+        {"MODEL SHADOWS",Section::Controls,"model_shadows","DNTTK_MODEL_SHADOWS",true,"LIVE SHADOWS OFF: SHAPE OF EACH ENEMY, OR A ROUND SHADOW",
+         {{"SHAPE","on","\"on\""},{"ROUND","round","\"round\""},{"OFF","off","\"off\""}},0},
+        {"GLOWS",Section::Controls,"glows","DNTTK_GLOWS",true,"LIVE SHADOWS OFF: HALOS AT FLAMES AND SHOTS IN FLIGHT",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
@@ -1458,6 +1463,13 @@ void leave_screen(bool keep) {
     const bool scheme_changed=scheme>=0 && draft[s][scheme]!=committed[s][scheme];
     const int red_dot=row_of(s,"red_dot");
     const bool marker_changed=red_dot>=0 && draft[s][red_dot]!=committed[s][red_dot];
+    // D41S: model shadows and glows are drawn by the replay workers, which
+    // read these rows (and LIVE SHADOWS, their condition) from their own copy.
+    bool worker_row_changed=false;
+    for(const char* k:{"model_shadows","glows","shadow_edges"}) {
+        const int i=row_of(s,k);
+        if(keep && i>=0 && draft[s][i]!=committed[s][i]) worker_row_changed=true;
+    }
     if(keep && (draft[s]!=committed[s] || s==4)) {
         for(size_t i=0;i<screens[s].rows.size();++i) {
             const Row& r=screens[s].rows[i];
@@ -1469,7 +1481,7 @@ void leave_screen(bool keep) {
         if(scheme_changed) scheme_aim_defaults(!std::strcmp(screens[s].rows[scheme].choices[committed[s][scheme]].env,"legacy"));
         // Replay workers are forked processes: inherit the completed preset,
         // including live marker visibility, before rendering resumed gameplay.
-        if(scheme_changed || marker_changed) psx_mod_replay_workers_refresh();
+        if(scheme_changed || marker_changed || worker_row_changed) psx_mod_replay_workers_refresh();
         write_settings();
     }
     draft[s]=committed[s];

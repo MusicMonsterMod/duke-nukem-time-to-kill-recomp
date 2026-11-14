@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-11-14 - D41P2 and D41S closed
+
+User: "lock it in and close it out. amazing". D41P2 and D41S are Done (note 471 sections 1, 2 and 2a). D41S3 holds the pause menu frame and the real-display cost at 120. D23N2B stays In progress.
+
+Next: the user's choice. Resumable: D41S3 (pause menu frame shadows, the real-display cost at 120), D23N2B (camera matrices rebuilt on the host, then note 456 section 6), D41Q.
+
+## 2026-11-14 - D41S2: playtest fixes, MODEL SHADOWS ROUND, D41S cost redone
+
+[Note 471](471-d41p2-d41s-d23n2b-field-laptop.md) section 2a. User playtest: D41P2's baked lamps confirmed, the flamethrower glow works, settings kept after a relaunch. MODEL SHADOWS and GLOWS now apply on leaving the screen (the replay workers are restarted). New MODEL SHADOWS ROUND: a dark oval under each enemy like Duke's own. The first D41S cost runs were void because the launcher overrode the lab's switches. Redone offscreen at 180: SHAPE, ROUND and glows are each within the noise (at most 1.3%). The real-display check at 120 is still to do. Both jobs Needs playtest.
+
+Next: the user retests MODEL SHADOWS SHAPE / ROUND / OFF switching in the menu and ROUND's look; the D41S real-display A/B at 120 (set the modes with the lab's `CTRL`, not `LAB_` switches) when the user is away; the pause menu frame without model shadows.
+
+## 2026-11-14 - D41P2 and D41S built (Needs playtest), D23N2B pieces 4c and 4d
+
+[Note 471](471-d41p2-d41s-d23n2b-field-laptop.md). Autonomous session on the field laptop (user: "work on the D41P follow-up, then D41S, then D23N2B ... autonomously"). D41P2 added to the board and built: measured first (the census found flat prop faces and meshes with no floor, not water, still on the live lamps); they take the floor's bake and the fixed lamps leave the live light list (no shadow maps); GPU at the player's LIVE SHADOWS OFF within the noise, at SIMPLE UI 2 -7.7% and UI 8 -6.5%; pictures 0-1.3% of pixels, wall shadows unchanged. D41S built: OPTIONS > DISPLAY > MODEL SHADOWS and GLOWS for LIVE SHADOWS OFF (planar enemy shadows with a ground check, halos at flames and bolts), `--model-shadows`, `--glows`, profile schema 75, manual; at 120 game frames unchanged, GPU within the noise. D23N2B: piece 4c (from the earlier job's record) exact, piece 4d (the other transform callers) measured; handoff in the note. Local tests 259 OK; nothing committed.
+
+Next: the user's playtest of D41P2 (Duke, enemies and props walking through lamp pools at their settings; LIVE SHADOWS SIMPLE and SHARP for blasts) and D41S (OPTIONS > DISPLAY > MODEL SHADOWS and GLOWS with LIVE SHADOWS OFF: enemies on floors, ledges and slopes; flamethrower and bolts); the menu rows were not driven by eye. Resumable: D23N2B (note 471 section 3: host builds of the sky's and `0x8003133c`'s matrices first); a GL renderer fix for the mask-bit stencil would allow D41S's E6 bracket (developer `DNTTK_SHADE_MASK=1`). Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-14 - D41R and D41P closed: the next performance step
 
 User: "we can commit and push the current work, thus closing it out. accepted as the next incremental performance hike". D41R (LIVE SHADOWS OFF) and D41P (models lit from the floor's bake) Done; [note 470](470-d41r-d41p-d23y8-field-laptop.md). D23Y5, D23Y7 and D23Y8 stay Blocked with their measurements, D23N2B In progress (piece 4b exact), D41S proposed.

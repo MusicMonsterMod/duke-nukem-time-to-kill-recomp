@@ -105,11 +105,12 @@ pid_t child=-1; int go_fd=-1;
 // frame recorded by this worker: which top-level hooks see other CPU state,
 // and which of the game's top-level stores differ, by the hook they follow.
 int diff_mode() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_DIFF");return t && t[0]=='1' ? 1 : 0;}();return v;}
+// The previous job recorded by this worker (DNTTK_N2_DIFF, and the D23N2B piece 4c check).
+struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;} prev;
 #include "redraw_n2.inc"
 bool recording() {return diff_mode() || n2_mask();}
 bool recording_only=false;
 uint64_t cur_serial=0; float cur_alpha=0;
-struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;} prev;
 uint64_t rec_t0=0,rec_t1=0;
 struct HookStat {uint64_t seen=0,differ=0;uint32_t gpr=0,gte_data=0,gte_ctrl=0,hilo=0;};
 struct StoreStat {uint64_t stores=0,value=0,address=0,length=0;};
@@ -308,8 +309,8 @@ void at_flip(const CPUState& cpu) {
         recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;rec_t1=__rdtsc();
         if(sh->overflow) {prev.serial=~0ull;return;}
         n2_at_flip(cur_serial,cur_alpha);
-        if(!diff_mode()) return;
-        if(prev.serial==cur_serial && prev.alpha!=cur_alpha) {
+        if(!diff_mode() && !(n2_mask()&32)) return;
+        if(diff_mode() && prev.serial==cur_serial && prev.alpha!=cur_alpha) {
             trace_pair();
             diff_records();
             if(dt.pairs%64==0) diff_report();

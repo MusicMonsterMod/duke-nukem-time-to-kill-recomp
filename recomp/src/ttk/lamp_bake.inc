@@ -190,11 +190,15 @@ static float lamp_bake_published_reach(unsigned lamp) {
     if(!bake_state.active || lamp>=bake_state.reach.size()) return -1.0f;
     return bake_state.reach[lamp];
 }
-// D41P measurement (developer, DNTTK_D41P): with a bake, "noshadow" gives
-// the baked lamps no shadow maps (models still lit by them, unshadowed),
-// "nolamps" leaves them out of model shading entirely. Returns 0, 1 or 2.
+// D41P2: with a bake shown, the fixed lamps light every surface only through
+// the bake (world faces their own, models, props and room-attached meshes the
+// floor under them, near_clip.cpp): they leave the live light list (no
+// shadow map, no shader loop; Quake's lightmaps and R_LightPoint). Returns 2
+// for that, after clearing the lamps' shadow candidacy. Developer DNTTK_D41P:
+// "live" keeps them in the list with their shadow maps (D41P as accepted),
+// "noshadow" in the list without maps (note 470's measurement).
 static int lamp_bake_d41p(uint8_t* cand,unsigned lamp0,unsigned lamp1) {
-    static const int mode=[]{const char* t=std::getenv("DNTTK_D41P");return !t ? 0 : !std::strcmp(t,"noshadow") ? 1 : !std::strcmp(t,"nolamps") ? 2 : 0;}();
+    static const int mode=[]{const char* t=std::getenv("DNTTK_D41P");return !t ? 2 : !std::strcmp(t,"live") ? 0 : !std::strcmp(t,"noshadow") ? 1 : 2;}();
     if(!mode || !bake_state.active) return 0;
     for(unsigned i=lamp0;i<lamp1;++i) cand[i]=0;
     return mode;

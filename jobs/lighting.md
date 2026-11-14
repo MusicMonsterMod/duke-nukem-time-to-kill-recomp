@@ -787,6 +787,50 @@ GPU scene work) is not part of this job; propose it as its own job when
 selected.
 
 
+### D41P2 - Fixed lamps only through the bake
+
+**Status: Done (user-accepted 2026-11-14: "baked lamps look great"; closeout authorized; [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 1). Dependencies: D41P.**
+User, 2026-11-14: "D41P follow-up (add it to the board as its own job
+first): unbaked surfaces (water, fills) take the fixed lamps from the bake
+too; then baked lamps draw no shadow maps at all. Measure first (note 470
+measured -5% to -8% GPU scene work), then matched before/after pictures in UI
+slots 2, 8, 9 and DUKE HILL from the slot 5 copy. Baked lamp shadows on walls
+must look the same; SHARP, SIMPLE, OFF, Classic, ORIGINAL and Vanilla
+otherwise unchanged."
+
+Acceptance: what still shades the fixed lamps live gets them from the bake;
+the fixed lamps then leave the live light list (no shadow map, no shader
+loop); the GPU cost measured before and after on the field laptop; matched
+pictures in UI slots 2, 8, 9 and DUKE HILL's town; the bake on walls
+unchanged; the other modes unchanged.
+
+Work log 2026-11-14 ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md)
+section 1): measured first. A census of lit polygons (developer
+`DNTTK_BAKE_CENSUS=1`) showed water is not lit at all and every world face
+has its bake; what still took the fixed lamps live was flat prop faces (1-3%
+of lit polygons) and meshes whose origin found no floor (UI 2: about 8% of
+model polygons; room-attached meshes at their room's corner). Built:
+`near_clip.cpp` gives those the floor under the polygon's own centre (a
+flat face sent with its face normal so the shader reads the floor's lit
+side), `lamp_bake_floor` searches the 8 cells around a cell with no floor
+(UI 2 no-floor share 8% -> 3%, UI 8, 9, DH5 0); `lamp_bake.inc` then leaves
+the fixed lamps out of the live list whenever the bake shows (no shadow
+candidacy, no shader loop; note 470's `nolamps` mode is now the default;
+developer `DNTTK_D41P=live|noshadow`, `DNTTK_POLY_FLOOR=0`). Counts
+(`DNTTK_SHADOW_COUNT=1`, SIMPLE): fixed lamps in the list with a map before
+10 / 5 / 12 / 10 (UI 8, 2, 9, DH5; DH5's 18 lights overflowed the 16 slots),
+after 0. GPU per redraw, offscreen at 180, 3 interleaved runs: at the
+player's OFF within the noise (scene ms 12.96/12.97, 9.57/9.47,
+13.37/13.46, 9.24/9.35); at SIMPLE UI 2 -7.7%, UI 8 -6.5% (ms x clock), UI 9
+and DH5 within the noise; CPU unchanged. Pictures (matched stills): UI 2 and
+DH5 identical in OFF and SIMPLE, UI 9 identical in OFF; UI 8 the blood pools
+on the floor now take the floor's bake (0.8% of pixels darker), UI 9 SIMPLE
+1.3% of pixels slightly brighter; the baked shadows on walls unchanged.
+Vanilla, Classic and ORIGINAL: no bake, unchanged by construction. Needs
+playtest.
+
+- 2026-11-14 closeout: user playtest, "baked lamps look great"; then "lock it in and close it out". Done.
+
 ### D41Q - Chandelier flames sit on their candles
 
 **Status: Todo (user report 2026-11-12). Dependencies: D41L.**
@@ -853,7 +897,7 @@ to D41S (planar model shadows and glows for LIVE SHADOWS OFF).
 
 ### D41S - Quake-style model shadows and glows
 
-**Status: Todo (proposed 2026-11-14, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 8). Dependencies: D41R, D41P.**
+**Status: Done (user-accepted 2026-11-14: "that flamethrower glow is magical", "lock it in and close it out"; [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) sections 2 and 2a). Dependencies: D41R, D41P.**
 User, 2026-11-14: "quake alkaline can clearly do lighting and shadows on this
 computer ... if we can squeeze in some basic lighting and shadow effects, im
 here for it". The Quake and Hexen II ports the user plays on the field
@@ -869,6 +913,50 @@ flames and missiles if the first-person view benefits; (3) measure on the
 field laptop (DUKE HILL's town, UI slots 2, 8, 9) at FRAME RATE 120 and 2x.
 Acceptance: the user can choose it with LIVE SHADOWS OFF, measured within
 the D23Y7 budget, Vanilla and Classic unchanged.
+
+Work log 2026-11-14 ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md)
+section 2; user: "Learn from Ironwail/QSS-M and Hammer of Thyrion on this
+laptop. Measure the cost at my settings at 120; each effect gets its own
+setting if it costs anything; matched pictures; manual entry"). Built for
+LIVE SHADOWS OFF (Polymorph, ENHANCED or RELIT): MODEL SHADOWS
+(`near_clip.cpp` `model_shade`): each enemy mesh flattened along a fixed
+direction onto the plane of the floor under its lowest point (the D41P grid
+now keeps each floor's slope), drawn half dark from a black semi-transparent
+texel, depth-tested above the floor; a ground check per corner (the floor
+under it on that plane within 24 units, own cell only) stops the shadow at
+ledges and pits; a mesh's faces ranked a tenth of a unit apart in depth so
+overlaps darken once (the PS1 mask bracket drew nothing: the GL renderer's
+stencil keeps stale mask bits). GLOWS (`scene_glows`): an additive halo at
+each flame and glowing shot in flight, tinted by its light. Settings:
+OPTIONS > DISPLAY > MODEL SHADOWS, GLOWS (ON default), `--model-shadows`,
+`--glows`, schema 75, manual. Cost at the player's settings at 120 (real
+display, 3 interleaved runs): game frames unchanged (lowest tenth e.g.
+three enemies 56.9 -> 57.4, DH5 56.7 -> 57.8); presents vary both ways with
+the governor; GPU per redraw offscreen within the noise (three enemies
+11.09 -> 11.14 ms). Pictures: the enemy's shadow on DUKE HILL's street
+(0.57% of pixels darker, nothing else). Not covered: Duke (third person),
+pickups and props cast none; RPG rockets have no glow; the menu rows not
+driven by eye. Needs playtest.
+
+- 2026-11-14 playtest (user): model shadows show under enemies; the flamethrower glow works; GLOWS OFF and MODEL SHADOWS OFF are kept after a relaunch; baked lamps (D41P2) confirmed. Bug: MODEL SHADOWS OFF did not remove the shadows until a relaunch, because the effects are drawn by the forked replay workers, which keep their own copy of the settings. Fixed: leaving a screen with MODEL SHADOWS, GLOWS or LIVE SHADOWS changed restarts the workers (`game_menu.cpp` leave_screen, as the control scheme already did). Built; not yet retested in the menu. Also reported: no model shadows in the pause menu's frozen frame (not investigated).
+
+- 2026-11-14 D41S2 ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 2a). User: "should we add a cheaper model shadow then? we clearly already have it, the cheap sprite circle under duke", then "yes proceed". MODEL SHADOWS is now SHAPE / ROUND / OFF (`--model-shadows on|round|off`, no schema change, manual updated). Duke's shadow is drawn by the game, not by a host mesh; measured in a picture as a hard-edged oval at about 55% (PS1 mode 0 over black). ROUND draws the same under each enemy: a 12-sided fan of the planar shadow's black patch on the floor's plane. The enemy is the object in s3 at the actor draw (callers 0x80033778 and 0x80034448). Its size comes from the limbs' reach in the image before, and the ground check works per wedge. A subtractive soft version was tried and dropped (black centre, red rim on sand). Pictures: a neutral oval matching Duke's. **Correction:** the first D41S cost runs (offscreen and real display) were void: the launcher overrode the lab's `LAB_DNTTK_MODEL_SHADOWS`/`LAB_DNTTK_GLOWS`, and every "off" run logged both on. Redone offscreen at 180 with the modes in the lab's profile copy (each run's settings line checked, 3 interleaved runs per mode). Raw scene ms, none / SHAPE / ROUND / glows only: DH5 + 3 enemies 11.55 / 11.58 / 11.64 / 11.43, DH5 9.50 / 9.49 / 9.62 / 9.53, UI 8 9.22 / 9.25 / 9.25 / 9.27. That is within the noise (spread 5-7%); ROUND is not measurably cheaper than SHAPE. Still to do: the real-display check at 120 (needs the player away), the menu rows by eye, the pause menu frame. Needs playtest.
+
+- 2026-11-14 closeout: user, "lock it in and close it out. amazing". Done. The pause menu frame and the real-display cost at 120 move to D41S3.
+
+
+### D41S3 - D41S follow-ups
+
+**Status: Todo. Dependencies: D41S.**
+
+Two items left open when D41S closed ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 2a):
+
+- The pause menu's frozen picture shows no model shadows (user, 2026-11-14). Find which path draws that frame and give it the shadows SHAPE or ROUND would draw in play.
+- The D41S cost at the player's settings at 120 on the real display: none against SHAPE, ROUND and glows, interleaved, while the player is away. Set the modes in the lab's profile copy (`CTRL`), not with `LAB_` switches, which the launcher overrides, and check each run's settings line. Offscreen at 180, all were within the noise.
+
+#### Work log
+
+- 2026-11-14: added at D41S's closeout.
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

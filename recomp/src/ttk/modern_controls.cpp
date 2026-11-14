@@ -1288,6 +1288,7 @@ static void face_view() {
 #include "weapon_feel.inc"
 #include "pole_visibility.inc"
 #include "earthquake.inc"
+#include "blast_audio.inc"   // after kick.inc (kick_call)
 
 static void hook_body(CPUState* cpu, uint32_t address);
 // Frame diagnostics (DNTTK_FRAME_TRACE=1): wall time between player updates
@@ -1437,8 +1438,11 @@ void frame_trace_account(uint32_t address,long us) {frame_us+=us;frame_per[addre
 // request with its caller and Duke's mode, pose and height.
 static void d08q10_sound_trace(CPUState* cpu,uint32_t address) {
     static const bool on=std::getenv("DNTTK_SOUND_TRACE")!=nullptr;
-    if(on)std::fprintf(stderr,"ttk-sound %08x id=%04x ra=%08x mode=%u anim=%u y=%d\n",address,cpu->gpr[4],cpu->gpr[31],
-        psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x60),(int32_t)psx_mod_read_word(player+8));
+    // D41U: also the position (a1) and the game tick, and 0x8006b73c's calls.
+    if(on){const uint32_t a1=cpu->gpr[5];const bool pos=a1>=0x80000000u && a1<=0x801ffff0u;
+        std::fprintf(stderr,"ttk-sound %08x id=%04x ra=%08x mode=%u anim=%u y=%d tick=%u at=%d,%d,%d\n",address,cpu->gpr[4],cpu->gpr[31],
+        psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x60),(int32_t)psx_mod_read_word(player+8),(unsigned)input_host_frame(),
+        pos?(int32_t)psx_mod_read_word(a1):0,pos?(int32_t)psx_mod_read_word(a1+4):0,pos?(int32_t)psx_mod_read_word(a1+8):0);}
 }
 // D23Z developer (DNTTK_SPIKE_TRACE=MS): each update of Duke whose
 // emulation-thread CPU time or wall time since the previous update exceeds MS
@@ -2739,9 +2743,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // neck query only. Other joint lookups retain the cheap caller check.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007a9f8u)ttk::swim_plunge_sweep(cpu);else if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);ttk::lights_sound(cpu);if(cpu->gpr[31]==0x800828d8u){ttk::steroids_pickup_sound(cpu);ttk::pickup_flash_sound(cpu);}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);ttk::d08q10_sound_trace(cpu,0x8006b73c);ttk::lights_sound(cpu);ttk::blast_audio_positional(cpu);if(cpu->gpr[31]==0x800828d8u){ttk::steroids_pickup_sound(cpu);ttk::pickup_flash_sound(cpu);}});
     // D27A: the player update; only Duke's call goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::lights_tick();ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::lights_tick();ttk::blast_audio_tick();ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
@@ -2767,5 +2771,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006d594,[](CPUState* cpu,uint32_t){ttk::dynamite_sparks(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006b270);if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);if(cpu->gpr[31]==0x800538c4u)ttk::weapon_feel_bump(cpu);ttk::dynamite_sizzle(cpu);ttk::lights_sound_water(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006b270);if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);if(cpu->gpr[31]==0x800538c4u)ttk::weapon_feel_bump(cpu);ttk::dynamite_sizzle(cpu);ttk::lights_sound_water(cpu);ttk::blast_audio_plain(cpu);});
 }

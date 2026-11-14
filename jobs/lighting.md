@@ -1509,7 +1509,7 @@ Work log:
 
 ### D41U - Explosion chains sound as one blast
 
-**Status: Todo (user 2026-11-14). Dependencies: D41T.**
+**Status: Done (2026-11-14). Dependencies: D41T.**
 User, 2026-11-14, closing D41T: "make sure that we can consolidate the audio
 too. the same way we have consolidated the explosions there".
 
@@ -1542,4 +1542,9 @@ Work (Modernized only; Vanilla unchanged):
 Acceptance: a measured voice count before and after on a barrel chain (level
 7 and MINER 69ER), no other sound cut off during a chain, and the user's
 playtest.
+
+Work log:
+
+- 2026-11-14 ([note 473](../documentation/473-d41u-blast-chain-audio.md)). Found the barrel's bang: the object death-sound dispatcher `0x80098a88` (a switch on type) plays the type's sound, `0x8006b270(0x6002, barrel+4, 0x800)` for type 944 and `0x6001` for TNT 299; a barrel is a type with flag bit `0x10000`, so no per-level data. Measured before: one voice per barrel (8 barrels 8 voices, 5 started in one tick; 20 bunched took all 24 SPU voices, which the game never steals, so other sounds could not start; the mix clipped, -0.5 dBFS). Built (`blast_audio.inc`, Modernized, not Classic): the first blast plays at once; barrels within 4500 units of a chain whose bang began under 15 tics ago are refused and swell and move its voice; the chain's next stage adds one deeper rumble (pitch -2, about 3 semitones down); a chain still going after 15 tics bangs again with the old voices ducked to a tail; rockets, grenades, pipe bombs and dynamite join only when they go off together (RPG blasts 13-14 tics apart each bang). After: 1 barrel unchanged; 8 barrels 3 voices over the chain, 20 bunched 2, MINER 69ER 2; peak 6-8 SPU voices in use; no clipping; held RPG fire identical to before; `chainsound off` reproduces the original. Native group D41U passes (the suite now links; it stops later at older stale groups). Recordings and waveforms in `research/before-after/D41U/` (local). Trade-off for the playtest: the chain's peak is about one close barrel's (one voice is at the SPU ceiling), longer and with a second boom; knobs in note 473 section 5. Not exercised in game: dynamite, pipe bombs, under water. Needs playtest.
+- 2026-11-14: accepted and closed. User: "working beautifully. i'd give it a 10/10 in fact. lock it in and commit".
 

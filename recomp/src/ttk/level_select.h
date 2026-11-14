@@ -10,6 +10,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
 bool spawn_console_command(const char* line, void (*say)(const char*), bool& close);
 bool earthquake_console_command(const char* line, void (*say)(const char*), bool& close);
 bool lights_console_command(const char* line, void (*say)(const char*), bool& close);
+bool blast_audio_console_command(const char* line, void (*say)(const char*), bool& close); // D41U
 bool lamp_console_command(const char* line, void (*say)(const char*), bool& close); // D41D
 // D08A10: "sfx <id>" plays a game sound at Duke (debug audition).
 bool beat_console_command(const char* line, void (*say)(const char*), bool& close);

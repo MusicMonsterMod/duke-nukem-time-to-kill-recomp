@@ -674,6 +674,23 @@ the neon face itself is left out: the rest of the prop it sits on (a control
 panel beside its screen, the bar's shelves) takes light. Lamps still shine through walls (shadows are a
 later job).
 
+### Explosion chains sound as one blast (Modernized, Polymorph, D41U)
+
+When barrels set each other off, the chain sounds like one big blast rolling
+through the room instead of a stack of identical bangs. The first barrel
+bangs at once; barrels that go off near it within about half a second join
+its sound instead of starting their own, and the chain's next wave adds one
+deeper boom. A chain that keeps going for longer bangs again as it rolls on.
+A barrel far enough away to explode on its own keeps its own bang. Rockets
+fired one after another each bang as before; a rocket or pipe bomb that goes
+off together with barrels joins their blast. This works in every level,
+including custom ones, for black barrels and MINER 69ER's TNT barrels alike.
+Before, a row of barrels started one sound per barrel: twenty barrels took
+every sound channel the game has (so other sounds could not start) and the
+mix distorted. Vanilla and the Classic renderer keep the original sound. The
+backtick console's `chainsound off` / `chainsound on` compares the two for the
+session (`chainsound default` returns to the profile's behaviour).
+
 ### Portable steroids (Modernized)
 
 With `portable` (the Modernized default), steroids work as in EDuke32: picking

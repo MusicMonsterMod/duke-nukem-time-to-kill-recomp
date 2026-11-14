@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-14 - D41U closed
+
+User: "working beautifully. i'd give it a 10/10 in fact. lock it in and commit". D41U is Done ([note 473](473-d41u-blast-chain-audio.md)).
+
+## 2026-11-14 - D41U built (Needs playtest)
+
+[Note 473](473-d41u-blast-chain-audio.md). An explosion chain sounds as one blast, game-wide and decided live: the first blast plays at once, barrels joining within 0.5 s and 4500 units merge into its voice, the chain's next stage adds one deeper rumble, a longer chain bangs again; rockets in a row each bang. 20 bunched barrels: 2 barrel voices instead of 20, 6 SPU voices in use instead of all 24, no clipping. Needs the user's playtest (RESISTANCE IS FEUDAL, MINER 69ER), especially whether the chain is big enough (knobs in note 473 section 5). Console `chainsound off|on` compares. Lab: `recomp/analysis/d50e/lab.py` case `snd` (`N`, `BT`, `WEAPON=5` for the RPG, `CON` console lines).
+
 ## 2026-11-14 - D50E and D41T closed
 
 User: "lock it in and close it out! it 100% works". D50E and D41T are Done ([note 472](472-d50e-d41t-barrel-chains.md)). D41U (explosion chain audio, the same consolidation for sound) added as Todo.

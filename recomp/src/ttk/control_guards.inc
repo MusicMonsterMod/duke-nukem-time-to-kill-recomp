@@ -202,6 +202,8 @@ static const Guard guards[] = {
     {0x80068738, 104, "54f1d3ee93201d0049fbf50cfbe5a25578a279c45529ecab74e85595bd88178a"},
     // D12C: the stop the impact uses for an already-playing 0x2007.
     {0x80068900, 52, "9f8a5470fa4a0cf1673484e6f97ae4f41d885cc49d741630c9b7884cb4d3941f"},
+    // D41U: the death-sound dispatcher; a barrel's bang returns inside it.
+    {0x80098a88, 744, "d338ae0b18135380c2892da70a83882f0bed6c85d4f228165b09ea9da4177c37"},
     // D12C: the voice update's reads of the sound's volume +0x6a (ramp, set).
     {0x80068ddc, 180, "6e06c75ee40b7aaf578b62f58441fdfd9c285e3d84eb1fedce02cca9c278ebc5"},
     {0x80069004, 16, "ef5d2a90fe57552346f7988f32d4f5571d463df1eeae71315ebca85dc167009e"},

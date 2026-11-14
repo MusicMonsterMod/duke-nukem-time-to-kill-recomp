@@ -16,6 +16,9 @@ extern "C" {int g_pgxp_mesh_active=0;}
 extern "C" int pgxp_mesh_vertex(uint32_t,uint32_t,int32_t*,int32_t*,uint16_t*) {return 0;}
 extern "C" void gte_nclip_culling_set(int) {}
 extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*checks=*flips=0;}
+// D23Z runtime symbols (spike trace, neon VRAM copy) the suite does not exercise.
+extern "C" int gpu_vram_copy_async(uint16_t*,int) {return 0;}
+extern "C" {uint64_t s_frame_count=0;void (*g_psx_mod_hook_observer)(struct CPUState*,uint32_t,int)=nullptr;}
 // Owned-data integration harness. Models call contracts, not terrain/animation.
 #include "modern_controls.h"
 #include "level_select.h"
@@ -218,6 +221,10 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     if(address==0x8003e2d0) {++edge_launches;cpu->pc=0;return;}
     if(address==0x8006b73c) { // D08A4: the pickup sound R plays at Duke
         steroid_sounds.push_back({cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]});
+        if(cpu->gpr[4]==0x6002) { // D41U rumble: a sound object and its handle
+            psx_mod_write_word(0x801cc300+0x5c,0x6002);psx_mod_write_half(0x801cc300+8,0x8803);psx_mod_write_half(0x801cc300+0x6a,13000);
+            cpu->gpr[2]=0x05000000u|(0x801cc300u&0xffffffu);
+        }
         if(cpu->gpr[4]==0x2007) { // D12C impact: a sound object (id +0x5c, table volume +0x6a) and its handle
             kick_calls.push_back({0x8006b73c,{cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]},{},{}});
             psx_mod_write_word(0x801e1000+0x5c,0x2007);psx_mod_write_half(0x801e1000+0x6a,5192);
@@ -507,6 +514,65 @@ int main(int argc,char** argv) {
            psx_mod_read_word(0x800cc580)==0x30a30400);
     assert(psx_mod_read_word(0x800dd878)==secret_flags); // no invented conversation
     call(0x8003ade4,c,p,0x80025ee8);assert(code_writes==2); // idempotent
+    {
+        // D41U: a barrel chain is one voice. The first barrel's bang plays; a
+        // barrel near it in the bang window is refused (a0 -1) and the
+        // playing sound swells and moves; a far barrel, a non-barrel type,
+        // another caller and Vanilla play as before; after the window a
+        // still-going chain bangs again and the old voice becomes a tail.
+        const uint32_t saved_table=psx_mod_read_word(0x800d2660),types=0x801c0000,list=0x800da5b8;
+        const uint32_t saved_list=psx_mod_read_word(list),saved_state=psx_mod_read_word(0x800c39b4);
+        psx_mod_write_word(0x800d2660,types);psx_mod_write_word(types+28*944,0x10000);psx_mod_write_word(types+28*945,0);
+        psx_mod_write_word(0x800c39b4,7);psx_mod_write_word(list,0);
+        auto barrel=[&](unsigned i,unsigned type,int32_t x){
+            const uint32_t o=0x801c8000+0x100*i;psx_mod_write_half(o+0x2c,type);
+            psx_mod_write_word(o+4,(uint32_t)x);psx_mod_write_word(o+8,20995);psx_mod_write_word(o+12,76324);return o;};
+        auto bang=[&](uint32_t o,uint32_t ra=0x80098d5c,uint32_t entry=0x8006b270){
+            CPUState cpu{};cpu.gpr[4]=0x6002;cpu.gpr[5]=o+4;cpu.gpr[6]=0x800;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=ra;
+            hooks().at(entry)(&cpu,entry);return cpu.gpr[4];};
+        // The game's sound object for a bang that played (what 0x8006b270 builds).
+        auto playing=[&](uint32_t node,uint32_t o){
+            psx_mod_write_word(node,psx_mod_read_word(list));psx_mod_write_word(list,node);
+            psx_mod_write_word(node+0x5c,0x6002);psx_mod_write_half(node+8,0x8803);psx_mod_write_word(node+0x18,node+0x1c);
+            for(int k=0;k<3;++k) psx_mod_write_word(node+0x1c+4*k,psx_mod_read_word(o+4+4*k));
+            psx_mod_write_half(node+0x6a,13000);};
+        auto update=[&]{CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[29]=0x801fff00;hooks().at(0x800412a4)(&cpu,0x800412a4);};
+        update();
+        const uint32_t a=barrel(0,944,65587),b=barrel(1,944,66587),far=barrel(2,944,72587),other=barrel(3,945,65800);
+        constexpr uint32_t na=0x801cc000,nf=0x801cc100;
+        assert(bang(a)==0x6002);playing(na,a);
+        assert(bang(b)==0xffffffffu);
+        assert(psx_mod_read_half(na+0x6a)==14560);
+        assert((int32_t)psx_mod_read_word(na+0x1c)==65587+650);
+        assert(bang(other)==0x6002);                      // not a barrel type
+        assert(bang(b,0x80070000)==0x6002);               // another caller
+        assert(bang(far)==0x6002);playing(nf,far);        // 7000 away: its own blast
+        ttk::modern=false;assert(bang(b)==0x6002);ttk::modern=true;
+        bool close=false;ttk::blast_audio_console_command("chainsound off",[](const char*){},close);
+        assert(bang(b)==0x6002);
+        ttk::blast_audio_console_command("chainsound default",[](const char*){},close);
+        for(int t=0;t<10;++t) update();
+        const size_t sounds=steroid_sounds.size();
+        assert(bang(b)==0xffffffffu && psx_mod_read_half(na+0x6a)==16120);
+        // The chain's next stage adds its one rumble: its sound 2 steps lower.
+        assert(steroid_sounds.size()==sounds+1 && steroid_sounds.back()==(std::array<uint32_t,4>{0x6002,b+4,0x800,(uint32_t)-2}));
+        assert(psx_mod_read_half(0x801cc300+0x6a)==13000);
+        assert(bang(b)==0xffffffffu && steroid_sounds.size()==sounds+1);   // only one rumble
+        for(int t=0;t<6;++t) update();
+        assert(bang(b)==0x6002);                          // 16 tics on, chain still going: bangs again
+        assert(psx_mod_read_half(na+0x6a)==16383*4/10);   // the old voice is a tail
+        assert(psx_mod_read_half(0x801cc300+0x6a)==5200);  // and its rumble
+        for(int t=0;t<40;++t) update();
+        assert(bang(a)==0x6002);                          // the chain has ended: a new blast
+        constexpr uint32_t na2=0x801cc200;playing(na2,a);
+        auto rocket=[&](uint32_t o){return bang(o,0x80070418,0x8006b73c);};
+        assert(rocket(b)==0xffffffffu);                   // a rocket going off with the barrel joins it
+        for(int t=0;t<3;++t) update();
+        const uint16_t v=psx_mod_read_half(na2+0x6a);
+        assert(rocket(b)==0x6002 && psx_mod_read_half(na2+0x6a)==v);   // rockets fired one after another each bang
+        psx_mod_write_word(0x800d2660,saved_table);psx_mod_write_word(list,saved_list);psx_mod_write_word(0x800c39b4,saved_state);
+        std::puts("PASS: D41U a barrel chain is one voice: merged bangs refused, the voice swells and moves; far, other type, other caller, Vanilla and chainsound off play; a long chain bangs again with the old voice a tail; a rocket joins only when together; one rumble at the next stage");
+    }
     // D07E: the lease lasts one game frame. Slow updates (5 fields, an upgraded
     // energy stream) widen it to 6; a pause longer than the cap resets it to 4.
     {

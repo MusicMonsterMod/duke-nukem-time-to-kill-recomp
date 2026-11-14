@@ -551,10 +551,14 @@ soft edges whatever this says. It switches at once and is saved:
   edges of the geometry itself.
 - **SIMPLE**: a cheaper hard edge with visible steps. Use it if blasts make
   the game stutter on your computer.
+- **OFF**: no live shadows at all, the fastest on a weak computer. Blasts and
+  changing lamps then light through walls and pillars, and lamps light
+  Duke, his weapon, enemies and props without shadows. The baked shadows of
+  steady lamps on walls and floors stay as they are.
 
-The launcher saves it with `--shadow-edges smooth|simple` (smooth is SHARP),
-and the backtick console `light shadows sharp` / `light shadows simple`
-switches it for the session without saving it.
+The launcher saves it with `--shadow-edges smooth|simple|off` (smooth is
+SHARP), and the backtick console `light shadows sharp`, `light shadows simple`
+or `light shadows off` switches it for the session without saving it.
 
 **Level lights.** Levels can also have placed lights of their own, "lamps":
 neon signs, lamps and coloured rooms cast real light on walls, props, enemies
@@ -585,7 +589,11 @@ room as before. Candles, flickering and pulsing lamps, traffic lights and
 lamps whose prop breaks still change live. The first visit to a level works
 its map out in the background in a few seconds (the live lamps show
 meanwhile) and keeps it beside the game, so later visits and loads take it
-at once. Duke, enemies and props are lit by the nearest lamps as before.
+at once. Duke, his weapon, enemies and props take the level's lamps from the
+same map, from the floor they stand on (D41P, as Quake lights its models), so
+they brighten and darken as they walk through the pools of light, at almost
+no cost to the graphics chip; blasts, shots and other live lights still
+light them directly.
 The backtick console's `light bake off` / `light bake on` compares the live
 lamps with the baked ones for the session.
 

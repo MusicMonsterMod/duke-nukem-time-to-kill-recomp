@@ -117,7 +117,7 @@ SECURITY_MONITORS_MODES = ('duke3d', 'ttk')
 # D41F1 (Modernized, Polymorph with LIGHTING on): SHADOW EDGES. smooth (the
 # default since schema 73) gives shadows the exact, anti-aliased shape of the
 # occluding geometry; simple is the cheaper stepped shadow-map edge.
-SHADOW_EDGES_MODES = ('smooth', 'simple')
+SHADOW_EDGES_MODES = ('smooth', 'simple', 'off')   # D41R: off draws no live shadow maps
 # D23X OPTIONS > DISPLAY (Modernized only; Vanilla keeps the driver vsync):
 # VSYNC. on (the default) holds the original presentation to the display's
 # refresh; off presents without waiting for it (about 10 ms less input lag at
@@ -271,7 +271,7 @@ def validate_controls(value):
         raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic/eduke32; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
-                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; auto_bio_mask on/off; equip_pickups if-new/never; screen_flashes on/reduced/off; sidearm_return auto/never; third_person_kick quick/original; weapon_feel retro/modern; earthquakes on/off; dynamic_lights on/relit/off; security_monitors duke3d/ttk; shadow_edges smooth/simple; vsync on/off/adaptive; graphics auto/simple/balanced/pretty/ultra/custom; level_stats and fps booleans; night_vision modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original; crouch modern/original.')
+                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; auto_bio_mask on/off; equip_pickups if-new/never; screen_flashes on/reduced/off; sidearm_return auto/never; third_person_kick quick/original; weapon_feel retro/modern; earthquakes on/off; dynamic_lights on/relit/off; security_monitors duke3d/ttk; shadow_edges smooth/simple/off; vsync on/off/adaptive; graphics auto/simple/balanced/pretty/ultra/custom; level_stats and fps booleans; night_vision modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original; crouch modern/original.')
     return dict(value)
 
 
@@ -662,7 +662,7 @@ def describe(settings):
         lines.append(f"Weapon feel: {controls['weapon_feel']} (retro: every click fires, the first shot comes sooner and held fire keeps a steady rate, close to EDuke32; modern: the original timing)")
         lines.append(f"Earthquakes: {controls['earthquakes']} (on: TNT barrels and explosive vests shake the whole level, Duke Nukem 3D style)")
         lines.append(f"Lighting: {controls['dynamic_lights']} (on: Enhanced, real lights from blasts, guns, lamps and signs on the original light; relit: Relit, the original light dimmed so those lights carry the scene; off: Original; Polymorph renderer only)")
-        lines.append(f"Live shadows: {'sharp' if controls['shadow_edges'] == 'smooth' else 'simple'} (shadow edges of blasts and flickering or breakable lamps; sharp: the exact shape of the geometry, anti-aliased; simple: faster, stepped edges; steady lamps are baked; Lighting Enhanced or Relit only)")
+        lines.append(f"Live shadows: {dict(smooth='sharp', simple='simple', off='off')[controls['shadow_edges']]} (shadows of blasts and flickering or breakable lamps, and lamp shadows on models; sharp: the exact shape of the geometry, anti-aliased; simple: faster, stepped edges; off: none, fastest; steady lamps' wall shadows are baked; Lighting Enhanced or Relit only)")
         lines.append(f"Vsync: {controls['vsync']} (the 60 presentation; off: about 10 ms less input lag, a window stays tear-free under a desktop compositor, fullscreen can tear; adaptive: tears only when a frame is late)")
         lines.append(f"Graphics: {controls['graphics']} (auto: a grade from the measured GPU; simple, balanced, pretty, ultra set resolution, lighting, live shadows, draw distance and frame rate; custom: your own rows)")
         lines.append(f"Security monitors: {controls['security_monitors']} (duke3d: larger lit TV screens and a camera frame with REC, Duke 3D style; ttk: the original monitors; Polymorph renderer only)")

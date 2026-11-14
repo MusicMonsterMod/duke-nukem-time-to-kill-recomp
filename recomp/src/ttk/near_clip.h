@@ -38,7 +38,7 @@ void near_clip_flip();
 // D41A: the frame's camera (camera +0x20 matrix, 4.12 with row 0's aspect)
 // for world positions of lit corners (relative to the eye); valid false
 // stops them (dynamic_lights.inc).
-void near_clip_light_frame(bool valid,const double m[9],bool smooth=false);
+void near_clip_light_frame(bool valid,const double m[9],bool smooth=false,const double* eye=nullptr);   // D41P: eye (world) for the floor lookup
 // D41F (DNTTK_SHADOW_PROBE=1, developer): emitted world corners (eye-relative) since the last call.
 std::vector<std::array<float,3>> near_clip_shadow_probe_take();
 // D41K: DNTTK_LIGHT_PROBE=1 (developer): the image's lights for the probe.

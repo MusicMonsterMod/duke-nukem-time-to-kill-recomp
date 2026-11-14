@@ -2598,6 +2598,12 @@ class ShadowEdgesOptionTest(unittest.TestCase):
                 run.main(['--settings-file',str(path),'--no-session-log','--shadow-edges','simple'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SHADOW_EDGES'],'simple')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['shadow_edges'],'simple')
+                # D41R: LIVE SHADOWS OFF
+                run.main(['--settings-file',str(path),'--no-session-log','--shadow-edges','off'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SHADOW_EDGES'],'off')
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['shadow_edges'],'off')
+                run.main(['--settings-file',str(path),'--no-session-log','--shadow-edges','off','--vanilla'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SHADOW_EDGES'],'simple')
                 run.main(['--settings-file',str(path),'--no-session-log','--shadow-edges','smooth','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SHADOW_EDGES'],'simple')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['shadow_edges'],'smooth')

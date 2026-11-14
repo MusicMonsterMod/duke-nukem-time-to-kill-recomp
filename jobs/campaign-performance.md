@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-14, piece 4a, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-14, piece 4b exact, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1570,6 +1570,20 @@ inputs our joint callbacks read, checked as at the job start or predicted;
 then the callbacks run from the later job's start and compared word for
 word; then the other callers (`0x80033584`, `0x8003133c`, the weapon/HUD
 `0x80038c68`/`0x80038d7c`/`0x80038e18`), and the rest of note 456 section 6.
+
+Work log, 2026-11-14 (In progress, piece 4b), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6. New developer
+check, bit 16 of `DNTTK_N2_CHECK` (`redraw_n2.inc`, namespace `jr`): a copy
+of the worker forked at every 4th job's start runs the job's top-level hooks
+with their recorded CPU state on the job-start memory (none of the game's
+stores), with the eye piece 2 predicts, and compares every matrix our D36
+joint callbacks pass for Duke's joints word for word. Offscreen at 180: UI
+slots 2, 8, 9 still 4,320 / 5,472 / 3,744 exact, walking, turning and firing
+7,072 / 5,760 / 9,216 exact, none differ (without the predicted eye about a
+quarter differed by 1-2 units of translation). Next: the same from the
+earlier job's record of the frame (as D23N4 will run), the other transform
+callers (`0x80033584`, `0x8003133c`, `0x80038c68` / `0x80038d7c` /
+`0x80038e18`), then note 456 section 6 (object culling, camera-dependent
+hooks, sprites and particles, a whole later job).
 
 ### D23N3 - The game's camera-dependent packets
 
@@ -2192,7 +2206,7 @@ reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
 
 ### D23Y5 - A lighter emulation thread
 
-**Status: Blocked (2026-11-14, measured, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4; the structural step is D23Y8). Dependencies: D23Y; coordinate D23Z.** The
+**Status: Blocked (2026-11-14, re-measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 4; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4). Dependencies: D23Y; coordinate D23Z.** The
 original 60 presentation's emulation thread takes 55-70% of a core at
 3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
 and cut its largest shares (memory access, dispatch lookups, SPU reverb,
@@ -2236,6 +2250,13 @@ emulated GPU's commands and presentation on their own thread, is D23Y8. The
 model pass's emission in redraw-only frames (8.5% inclusive in DUKE HILL)
 is another candidate, but skipping it changes what the DMA walker reads and
 needs its own proof.
+
+Work log, 2026-11-14 (Blocked, re-measured), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 4. The original 60,
+offscreen, 3 runs each at 3.09-3.12 GHz: emulation thread median UI slot 2
+57.0-58.8%, UI slot 8 63.3-64.5%, UI slot 9 57.0-57.5% (target under 50%).
+Unchanged. D23Y8 measured: at most about 9 points could move to a GPU
+thread. What remains: guest memory access and the title's host emission
+(note 469), and D23N2B-N4 for redraws.
 
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
@@ -2340,7 +2361,7 @@ less GPU per picture; the emulation thread's share (D23Y5).
 
 ### D23Y7 - The remaining dips at 120 (Duke Hill)
 
-**Status: Blocked (2026-11-14, measured, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3; found in the D23Y6 playtest 2026-11-14). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
+**Status: Blocked (2026-11-14, re-measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
 After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
 second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
 to 30 a second and falls back to the original presentation for minutes
@@ -2378,9 +2399,21 @@ most 60-picture time (screen fresh 72.5% against 56.0% and 63.4%), kept.
 Blocked until a redraw or the emulation thread costs less (D23N2B-N4,
 D23Y8), or a lighter picture chosen by the player.
 
+Work log, 2026-11-14 (Blocked, re-measured), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5. The real display,
+the player's settings at 120 and governor, 3 interleaved runs each, with
+D41P on: DUKE HILL's start meets the target with SIMPLE (game 59.9 / lowest
+tenth 58.6, presents 60 / 59, screen fresh 98.1%, no rate changes) and with
+LIVE SHADOWS OFF (59.9 / 58.7, 60 / 59, 97.8%). The town (UI slot 5 copy)
+meets the game-frame part (lowest tenth 57.7 SIMPLE, 57.8 OFF) but still
+steps to 30 (presents median 42 and 40, 4.0 and 4.7 rate changes a run).
+Held at a steady 60 there, OFF gains about 5 points of game lowest tenth
+(D41R). D23Y6's cap, placement and one worker kept; the late warp stays
+cancelled. User target 2026-11-14: 60 game frames and 120 pictures at 2x on
+this laptop, original lighting if need be.
+
 ### D23Y8 - Emulated GPU commands on their own thread
 
-**Status: Todo (proposed 2026-11-14 from D23Y5, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4). Dependencies: D23Y5; coordinate D23Y7, D23N4.**
+**Status: Blocked (2026-11-14, measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 3; proposed from D23Y5). Dependencies: D23Y5; coordinate D23Y7, D23N4.**
 At the original 60 the emulation thread spends 13.7% of its samples in the
 emulated GPU's command processing (DMA linked lists, GP0 into the GL
 renderer's batches) and 6.4% presenting, in UI slot 2 on the field laptop.
@@ -2391,6 +2424,21 @@ redraw snapshots and the render threads synchronised. Acceptance: the
 emulation thread under 50% of a core at 3.1 GHz in UI slots 2, 8 and 9 at
 the original 60; pictures identical (frame checks), behaviour unchanged
 (guest timing as before), Vanilla unchanged.
+
+Work log, 2026-11-14 (Blocked, measured), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 3. A read-only map of
+the GPU path (CODE): the emulation thread owns the GL context; GP0
+processing feeds guest-visible state (VRAM reads come from GL through
+`ensure_cpu`, the widescreen classifier reads guest RAM) and the title sets
+renderer state in GP0 order, so only the GL backend calls and presentation
+can leave the thread, behind drain barriers at every readback. Measured from
+note 469's 21,495 call stacks of UI slot 2 at the original 60
+(`d23y8_split.py`): GL backend work 7.2%, presentation's display half 1.9%,
+GP0 decode (stays) 4.8%. At most about 9 points could move before the
+queue's own cost: UI slot 2 near 48-50% at best, UI slot 8 (63-64%) near
+55%, so D23Y5's target is not reachable by this job alone; not built (the
+exact queue touches the renderer's three copies, render threads, redraw
+sessions and savestates). Resumable plan in the note: presentation on a
+shared-context thread first, then a `gr_*` / `gl_set_*` proxy queue.
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

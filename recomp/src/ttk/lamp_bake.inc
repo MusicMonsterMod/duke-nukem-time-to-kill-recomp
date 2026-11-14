@@ -16,13 +16,20 @@
 // Enhanced and Relit, on every level, with SHADOWS on or off (walls always
 // stop baked lamps); developer DNTTK_LAMP_BAKE=0 or console "light bake
 // off" for this session keeps the live lamps.
+// D41P: models (Duke, his weapon, enemies, props) take the fixed lamps from
+// the bake of the floor they stand on, as Quake's R_LightPoint; developer
+// DNTTK_MODEL_BAKE=0 keeps them on the live lamps (as before) for an A/B.
+static bool model_bake_on() {
+    static const bool v=[]{const char* t=std::getenv("DNTTK_MODEL_BAKE");return !(t && t[0]=='0');}();
+    return v;
+}
 static bool lamp_bake_wanted() {
     const int o=lamp_bake_override.load(std::memory_order_relaxed);
     if(o>=0) return o!=0;
     static const bool v=[]{const char* t=std::getenv("DNTTK_LAMP_BAKE");return !(t && t[0]=='0');}();
     return v;
 }
-struct LampBakeJob {ttk::BakeOutput out;bool ok=false,cached=false;std::string error,path;unsigned faces=0,lamps=0;};
+struct LampBakeJob {ttk::BakeOutput out;bool ok=false,cached=false;std::string error,path;unsigned faces=0,lamps=0;ttk::LampFloorGrid floor;};   // D41P: the floor grid
 static struct {
     uint64_t key=0;                 // inputs of the bake shown (or being made)
     bool active=false;
@@ -108,6 +115,9 @@ static void lamp_bake_tick() {
         LampBakeJob r=bake_state.job.get();
         if(bake_state.job_key!=key) {psx_mod_gpu_set_lightmap(nullptr);return;}   // inputs changed meanwhile: bake again below
         if(!r.ok) {std::fprintf(stderr,"[TTK bake] level %u failed: %s\n",level,r.error.c_str());bake_state.key=key;return;}
+        if(model_bake_on()) ttk::lamp_bake_floor_stage(r.floor);   // D41P: before the publish that flips the table
+        else ttk::lamp_bake_floor_stage(ttk::LampFloorGrid{});
+        std::fprintf(stderr,"[TTK bake] level %u: models lit from the floors' bake %s (%ux%u cells of %.0f, %zu floor entries)\n",level,model_bake_on()?"on":"off",r.floor.w,r.floor.h,r.floor.cell,r.floor.y.size());
         ttk::lamp_bake_map_publish(bake_state.job_records);
         bake_state.active=true;bake_state.key=key;bake_state.level=level;
         if(r.cached) std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), loaded from the cache in %.0f ms\n",
@@ -150,8 +160,12 @@ static void lamp_bake_tick() {
     bake_state.job=std::async(std::launch::async,[in=std::move(in),path]{
         // The renderers' copy is made here, off the game thread (90 MB on
         // level 3); the texels are then dropped, the statistics kept.
-        auto publish=[](LampBakeJob& r){
+        auto publish=[&in](LampBakeJob& r){
             if(!r.ok) return;
+            // D41P: the floors models take their fixed-lamp light from.
+            std::vector<std::pair<uint32_t,uint32_t>> faces;faces.reserve(in.faces.size());
+            for(const auto& f:in.faces) faces.push_back({f.first,f.count});
+            r.floor=ttk::lamp_bake_floor_build(in.tris,faces);
             PSXModLightmap m{};m.width=r.out.width;m.height=r.out.height;m.steady=r.out.steady.data();m.channels=r.out.channels.data();
             m.charts=r.out.charts.data();m.nsurf=(uint32_t)(r.out.charts.size()/16);
             psx_mod_gpu_set_lightmap(&m);
@@ -175,6 +189,15 @@ static void lamp_bake_tick() {
 static float lamp_bake_published_reach(unsigned lamp) {
     if(!bake_state.active || lamp>=bake_state.reach.size()) return -1.0f;
     return bake_state.reach[lamp];
+}
+// D41P measurement (developer, DNTTK_D41P): with a bake, "noshadow" gives
+// the baked lamps no shadow maps (models still lit by them, unshadowed),
+// "nolamps" leaves them out of model shading entirely. Returns 0, 1 or 2.
+static int lamp_bake_d41p(uint8_t* cand,unsigned lamp0,unsigned lamp1) {
+    static const int mode=[]{const char* t=std::getenv("DNTTK_D41P");return !t ? 0 : !std::strcmp(t,"noshadow") ? 1 : !std::strcmp(t,"nolamps") ? 2 : 0;}();
+    if(!mode || !bake_state.active) return 0;
+    for(unsigned i=lamp0;i<lamp1;++i) cand[i]=0;
+    return mode;
 }
 // Game tick, in lights_publish after the shadow slots: the image's lamp
 // colours and gain, and the lamps the bake holds marked for the renderer.

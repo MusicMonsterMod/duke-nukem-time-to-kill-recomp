@@ -418,9 +418,10 @@ std::vector<Screen> make_screens() {
          {{"ENHANCED","on","\"on\""},{"RELIT","relit","\"relit\""},{"ORIGINAL","off","\"off\""}},0},
         // D41F1: the shadow edge (light_shadows.inc, the GL renderer's shadow_vis).
         // D41O: since the D41M bake it only changes live lights (blasts, flickering
-        // and breakable lamps); the stored values stay smooth/simple.
+        // and breakable lamps); the stored values stay smooth/simple. D41R: OFF
+        // ("off") draws no live shadow maps (light_shadows.inc shadows_on).
         {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"BLASTS AND FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
-         {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""}},0},
+         {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""},{"OFF","off","\"off\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},

@@ -292,6 +292,7 @@ static unsigned prop_lamps_publish(PSXModLight* out,unsigned room);  // D41L (le
 // (cand, one per light), then slots for the strongest of them near Duke.
 static void shadows_assign(LightView& v,const uint8_t* cand);
 static void lamp_bake_levels(LightView& v,unsigned lamp0,unsigned lamp1);   // D41M (lamp_bake.inc)
+static int lamp_bake_d41p(uint8_t* cand,unsigned lamp0,unsigned lamp1);      // D41P developer (lamp_bake.inc)
 static float lamp_bake_published_reach(unsigned lamp);                      // D41M (lamp_bake.inc)
 static unsigned level_lamps_out_index[PSX_MOD_MAX_LIGHTS];   // D41M: level_lamps_publish's lights, by lamp
 static void lamp_bake_tick();
@@ -348,8 +349,14 @@ static void lights_publish() {
         l.flags=0;
         cand[v.n-1]=s.kind==light_kind_blast || s.kind==light_kind_test;
     }
+    const int d41p=lamp_bake_d41p(cand,scene0,lamps_end);
     shadows_assign(v,cand);
     lamp_bake_levels(v,scene0,lamps_end);   // D41M: after the slots (it marks the baked lamps)
+    if(d41p==2 && lamps_end>scene0) {   // D41P developer: the baked lamps left out of model shading
+        const unsigned k=lamps_end-scene0;
+        for(unsigned i=lamps_end;i<v.n;++i) v.l[i-k]=v.l[i];
+        v.n-=k;
+    }
     light_view=v;
 }
 
@@ -554,7 +561,7 @@ static void lights_shake(CPUState* cpu) {
 static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     // D41H: normals only matter where the shader lights (a light or a dimmed
     // ambient); otherwise lit triangles keep their original colour.
-    near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f));
+    near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f),eye);
     if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);return;}
     for(int i=0;i<3;++i) shadow_probe_eye[i]=eye[i];   // D41F developer probe
     PSXModLight l[PSX_MOD_MAX_LIGHTS];

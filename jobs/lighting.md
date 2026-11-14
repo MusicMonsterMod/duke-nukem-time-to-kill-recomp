@@ -728,7 +728,7 @@ out"); the wording stands.
 
 ### D41P - Models lit from the bake
 
-**Status: Todo (rescoped 2026-11-12). Dependencies: D41M, D41O.**
+**Status: Done (accepted and closed 2026-11-14, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 2; rescoped 2026-11-12). Dependencies: D41M, D41O.**
 User, 2026-11-12: "im noticing that shadows on game geometry is blurred at
 the edges, but on the character, it's still sharp!", and in the playtest:
 "I am still noticing the smooth shadow on duke's gun." Since D41M, fixed
@@ -757,6 +757,36 @@ measured amount, models brighten and darken smoothly through baked pools of
 light (matched before/after shots), live lights unchanged, Vanilla and
 Classic unchanged.
 
+Work log, 2026-11-14 (Needs playtest), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 2. Measured first (GPU per
+redraw, `PSX_GPU_PHASES=2`, scene ms x GPU clock, offscreen at 180,
+developer `DNTTK_D41P`): baked lamps without shadow maps -5.4% / -7.4% /
+-7.8% (UI slots 2, 8, 9), baked lamps left off models +2.7% (noise) / -12.1%
+/ -11.6%, all live shadows off -2.2% / -11.7% / -8.8%. It matters, so built
+after Quake's `R_LightPoint` (user 2026-11-14 pointed at the Quake and
+Hexen II ports on the laptop): when a bake goes live its job rasterises the
+level's floor faces into a 128-unit grid shared with the redraw workers
+(`lamp_bake_map.cpp`); each model mesh draw (`near_clip.cpp`, the GTE
+translation as origin) takes the baked surface of the nearest floor at or
+below it for its corners (framework `psx_mod_gpu_host_vertex_world_normal_surface`,
+a 9-word kind 6 stream record); the renderer then leaves the baked lamps out
+of that triangle's light loop and adds the floor's bake (the shader reads the
+floor chart from the fragment's side of the plane). Live lights still light
+models directly. Developer `DNTTK_MODEL_BAKE=0` restores the live lamps.
+Result, 3 interleaved runs each: UI 8 -9.9% (raw 9.94 -> 9.58 ms), UI 2
+-2.7%, UI 9 within the noise; in UI 8 the lit triangles with a bake surface
+198,544 -> 238,036 a 5 s window. Matched still pictures: 0.00-0.87% of
+pixels changed, the weapon and arms barely by eye. The baked lamps keep
+their shadow maps for the unbaked surfaces (water, fills): giving those the
+bake too would drop the maps (measured -5% to -8%), a follow-up. Playtest:
+models walking through lamp pools (the town, UI slot 8).
+
+Work log, 2026-11-14 (Done). User: "we can commit and push the current work, thus closing it out. accepted as the next incremental performance hike". Closed with the build as measured
+above. The follow-up (the unbaked surfaces, water and fills, from the bake
+too, so baked lamps need no shadow maps at all, measured -5% to -8% of the
+GPU scene work) is not part of this job; propose it as its own job when
+selected.
+
+
 ### D41Q - Chandelier flames sit on their candles
 
 **Status: Todo (user report 2026-11-12). Dependencies: D41L.**
@@ -771,7 +801,7 @@ no cost at 180 Hz; Vanilla and Classic unchanged.
 
 ### D41R - Live shadows off
 
-**Status: Todo (user request 2026-11-14). Dependencies: D41F1, D41O.**
+**Status: Done (accepted and closed 2026-11-14, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 1). Dependencies: D41F1, D41O.**
 User, 2026-11-14: "a really, really quick win for improving frame rate on
 these low end systems too which id like you to add in, is the ability to
 turn shadows off in polymorph". Today OPTIONS > DISPLAY > LIVE SHADOWS has
@@ -795,6 +825,50 @@ Work:
    the live-light shadows gone (baked lamp shadows unchanged); SHARP and
    SIMPLE unchanged; Classic, ORIGINAL and Vanilla unchanged.
 
+Work log, 2026-11-14 (Needs playtest), [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 1. Autonomous session on
+the field laptop (first of D41R, D41P, D23Y8, D23Y5, D23Y7, D23N2B). Host
+quiet. Measured first, `DNTTK_SHADOWS=off` (as the console `light shadows
+off`) against SIMPLE, interleaved on the real display at the player's
+settings at 120, 3 runs each: DUKE HILL's town (UI slot 5 copy) game lowest
+tenth 55.3 -> 57.0, presents median 43 -> 59, screen fresh 74.1% -> 80.7%;
+UI slots 2, 8 and 9 already near 60, within the noise. Held at a steady 60
+in the town: game lowest tenth 51.7 -> 56.5, CPU clock 2.05 -> 2.20 GHz,
+emulation thread 91% -> 87%. Built: LIVE SHADOWS SHARP / SIMPLE / OFF (saved
+`off`, `run.py --shadow-edges off`, the terminal settings line), OFF draws no
+live shadow map (`shadow_edges_off()` in `light_shadows.inc`); the console
+`light shadows off` now sets OFF for the session (not saved), `light shadows
+on` forces them on as before. SHARP, SIMPLE and the GRAPHICS grades
+unchanged; the player's saved settings untouched. Pictures: with a test live
+light its shadows go (1.0% of pixels), without it the town matches SIMPLE
+(0.04%); baked lamp shadows on walls unchanged. Unit test extended
+(`--shadow-edges off`, Vanilla still gets `simple`). Manual: OPTIONS >
+DISPLAY > LIVE SHADOWS. Not checked by eye: the menu row (scripted keys do
+not reach the pause menu offscreen). Playtest: OPTIONS > DISPLAY > LIVE
+SHADOWS OFF in DUKE HILL's town.
+
+Work log, 2026-11-14 (Done). User: "we can commit and push the current work, thus closing it out. accepted as the next incremental performance hike". Closed with the build as measured
+above; the user accepted it without a further report. Remaining ideas move
+to D41S (planar model shadows and glows for LIVE SHADOWS OFF).
+
+
+### D41S - Quake-style model shadows and glows
+
+**Status: Todo (proposed 2026-11-14, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 8). Dependencies: D41R, D41P.**
+User, 2026-11-14: "quake alkaline can clearly do lighting and shadows on this
+computer ... if we can squeeze in some basic lighting and shadow effects, im
+here for it". The Quake and Hexen II ports the user plays on the field
+laptop light with baked lightmaps, unshadowed dynamic lights and, for
+characters, planar shadows: the model flattened onto the floor under it and
+drawn dark and translucent (`r_shadows`, Alkaline at 0.6 with a ground
+check); Hexen II adds glows (additive halos at flames and missiles,
+`gl_glows`). With LIVE SHADOWS OFF and D41P we have the first two.
+
+Work: (1) planar shadows for Duke (third person), enemies and props, from
+the floor D41P finds, dark and translucent, no shadow maps; (2) glows at
+flames and missiles if the first-person view benefits; (3) measure on the
+field laptop (DUKE HILL's town, UI slots 2, 8, 9) at FRAME RATE 120 and 2x.
+Acceptance: the user can choose it with LIVE SHADOWS OFF, measured within
+the D23Y7 budget, Vanilla and Classic unchanged.
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

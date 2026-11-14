@@ -40,9 +40,16 @@ static bool shadow_moving_on() {
     static const bool env=[]{const char* t=std::getenv("DNTTK_SHADOWS_MOVING");return t && !std::strcmp(t,"on");}();
     return env;
 }
+// D41R: LIVE SHADOWS OFF (profile shadow_edges "off", DNTTK_SHADOW_EDGES,
+// live) draws no live shadow maps, as the console "light shadows off" did.
+static bool shadow_edges_off() {
+    const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");
+    return t && !std::strcmp(t,"off");
+}
 static bool shadows_on() {
     const int o=light_shadow_mode.load(std::memory_order_relaxed);
     if(o>=0) return o!=0;
+    if(shadow_edges_off()) return false;
     const char* t=ttk_live_env("DNTTK_SHADOWS");
     return !(t && !std::strcmp(t,"off"));
 }
@@ -51,7 +58,7 @@ static bool shadows_on() {
 // simple = one shadow-map texel, stepped but cheaper.
 static bool shadow_edges_smooth() {
     const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");
-    return !(t && !std::strcmp(t,"simple"));
+    return !(t && (!std::strcmp(t,"simple") || !std::strcmp(t,"off")));
 }
 static uint64_t shadow_mesh_sig;static uint32_t shadow_mesh_loads=~0u;
 static uint64_t shadow_dropped;   // D41E: lights dimmed or dropped for want of a map
@@ -291,16 +298,19 @@ static bool shadows_console(const char* arg,void (*say)(const char*)) {
         say(shadow_moving_on()?"Light: moving lights cast shadows (session)":"Light: moving lights cast no shadows");
         return true;
     }
-    if(!std::strcmp(arg,"on")) light_shadow_mode.store(1);
-    else if(!std::strcmp(arg,"off")) light_shadow_mode.store(0);
+    // D41R: "off" is LIVE SHADOWS OFF for this session (not saved, as sharp/simple);
+    // "on" forces them on (developer, also over DNTTK_SHADOWS=off), from OFF
+    // with SIMPLE edges.
+    if(!std::strcmp(arg,"on")) {light_shadow_mode.store(1);if(shadow_edges_off()) ttk_live_env_set("DNTTK_SHADOW_EDGES","simple");}
+    else if(!std::strcmp(arg,"off")) {light_shadow_mode.store(-1);ttk_live_env_set("DNTTK_SHADOW_EDGES","off");}
     else if(!std::strcmp(arg,"default")) light_shadow_mode.store(-1);
     // D41F1: "light shadows smooth|simple" - SHADOW EDGES for this session.
     else if(!std::strcmp(arg,"sharp")) ttk_live_env_set("DNTTK_SHADOW_EDGES","smooth");   // D41O: the menu's LIVE SHADOWS SHARP
     else if(!std::strcmp(arg,"smooth") || !std::strcmp(arg,"simple") || !std::strcmp(arg,"reference")) ttk_live_env_set("DNTTK_SHADOW_EDGES",arg);   // reference: developer, the exact test everywhere
-    else if(*arg) {say("Light: light shadows [on|off|default|sharp|simple|moving]");return true;}
+    else if(*arg) {say("Light: light shadows [sharp|simple|off|on|default|moving]");return true;}
     uint64_t g[4];gl_shadow_counters(g);
     char b[384];std::snprintf(b,sizeof b,"Light: shadows %s, %s edges; mesh %u triangles in %u pieces (%.1f ms); %u shadowed now; %llu maps drawn, %.1f ms; %llu new slots, %llu deferred, moving %s",
-        shadows_on()?"on":"off",shadow_edges_smooth()?"sharp":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0,
+        shadows_on()?"on":"off",shadow_edges_off()?"no":shadow_edges_smooth()?"sharp":"simple",shadow_mesh_tris,shadow_mesh_chunks,shadow_mesh_ms,light_view.nsh,(unsigned long long)g[0],g[2]/1000.0,
         (unsigned long long)shadow_new,(unsigned long long)shadow_deferred,shadow_moving_on()?"shadowed":"unshadowed");
     say(b);
     return true;

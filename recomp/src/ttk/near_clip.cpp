@@ -444,6 +444,7 @@ struct Frame {
     // display or contact limbs) that takes the frame's lights.
     bool duke_lit=false;
     bool glow=false; // D41D1: a neon sign prop: gives light, never lit
+    int64_t floor_surf=-1;   // D41P: the baked floor under this mesh's origin (-1 not looked up)
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -636,6 +637,7 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 // D41A: view to world (relative to the eye) for lit corners: v = M d / 4096,
 // so d = 4096 M^-1 v. Set by the host walk each frame, cleared at its start.
 bool light_frame=false,light_smooth=false;double light_inv[9];
+bool light_eye_valid=false;double light_eye[3];   // D41P
 // D41F (DNTTK_SHADOW_PROBE=1, developer): unclipped world corners as emitted
 // (eye-relative), for light_shadows.inc to compare with the shadow mesh.
 std::mutex shadow_probe_lock;std::vector<std::array<float,3>> shadow_probe_samples;
@@ -803,7 +805,19 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                     light_probe_corner(!f.object?0:poly.actor?2:1,light_probe_cur,v[i].rgb,w3,fn,nv);
                 }
                 if(!f.object && v[i].original>=0) shadow_probe_corner(wx,wy,wz);   // D41F developer probe
-                if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
+                // D41P: a model takes the fixed lamps from the bake of the floor
+                // under its mesh's origin (the GTE translation), as Quake's
+                // R_LightPoint; none found: the live lamps, as before.
+                if(f.floor_surf<0) {
+                    f.floor_surf=0;
+                    if(light_eye_valid) {
+                        const double t[3]={(double)f.g.tr[0],(double)f.g.tr[1],(double)f.g.tr[2]};
+                        double o[3];for(int k=0;k<3;++k) o[k]=m[3*k]*t[0]+m[3*k+1]*t[1]+m[3*k+2]*t[2]+light_eye[k];
+                        f.floor_surf=lamp_bake_floor((float)o[0],(float)o[1],(float)o[2]);
+                    }
+                }
+                if((nv[0]!=0 || nv[1]!=0 || nv[2]!=0) && f.floor_surf>0) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],(uint32_t)f.floor_surf);
+                else if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
                 else if(poly.surface) {psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,poly.surface);++baked_corners;}   // D41M
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
@@ -2648,8 +2662,10 @@ void near_clip_light_probe_lights(const void* lights,int n,float amb) {
 std::vector<std::array<float,3>> near_clip_shadow_probe_take() {
     std::lock_guard<std::mutex> g(shadow_probe_lock);std::vector<std::array<float,3>> r;r.swap(shadow_probe_samples);return r;
 }
-void near_clip_light_frame(bool valid,const double m[9],bool smooth) {
+void near_clip_light_frame(bool valid,const double m[9],bool smooth,const double* eye) {
     light_frame=false;light_smooth=smooth;
+    light_eye_valid=eye!=nullptr;
+    if(eye) for(int k=0;k<3;++k) light_eye[k]=eye[k];
     if(!valid) return;
     const double a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7],i=m[8];
     const double det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);

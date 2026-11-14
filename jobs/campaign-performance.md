@@ -1601,6 +1601,23 @@ job start: `0x80031dec` 98% and `0x80032f48` 93% exact, `0x80033584` 82%,
 then what differs in `0x80033584` and the others (objects, matrix words),
 the hook-list differences of piece 4c, then note 456 section 6.
 
+Work log, 2026-11-14 (piece 5, exact), [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6. Disassembled the
+four calls built in the job: the sky routine `0x800388e4` builds three
+matrices from the camera block (the backdrop from the look direction through
+VectorNormal, ratan2 and an acos table; two cloud layers from the timer
+`0x800c0c64`, one scaled) through `0x8002afe4` (rsin/rcos products, then
+MatrixNormal with GTE OP and the VectorNormal core); `0x8003133c` is not from
+the camera (note 471 inferred that): `0x80030fe8` builds an object's yaw
+matrix from its record and a height argument. Host ports in
+`redraw_n2.inc` (namespace `sk`, developer `DNTTK_N2_CHECK=128`), checked at
+each transform entry before our callbacks: offscreen at 180, all four exact,
+0 differ (UI 2 2,240 each, UI 8 1,664, UI 9 2,624 of `0x8003133c`, DUKE
+HILL's town 64). One decoding slip (the core's GPF is sf 0) was found by the
+check itself. Next (resumable): what differs in `0x80033584` (82% exact from
+the start) and the 2-7% of `0x80031dec` / `0x80032f48`, the hook-list
+differences of piece 4c, then note 456 section 6. D23N3 and D23N4 not
+reached this session.
+
 ### D23N3 - The game's camera-dependent packets
 
 **Status: Todo. Dependencies: D23N2B.** About 1 in 10 of the game's own
@@ -2455,6 +2472,44 @@ queue's own cost: UI slot 2 near 48-50% at best, UI slot 8 (63-64%) near
 exact queue touches the renderer's three copies, render threads, redraw
 sessions and savestates). Resumable plan in the note: presentation on a
 shared-context thread first, then a `gr_*` / `gl_set_*` proxy queue.
+
+### D23Y9 - Resolution headroom at 120
+
+**Status: Cancelled (2026-11-14, user: "i dont want to degrade the game that way ... revert it first, and then scratch it off the board"). Dependencies: D23Y7; coordinate D23P2.**
+Measure DUKE HILL's town (DH5, private slot 4) and start (DH, private slot
+10) and UI slots 2, 8 and 9 at the player's settings at FRAME RATE 120 on
+the real display at 1x against 2x (and 1.5x if the renderer allows it),
+interleaved, with game frames, present cadence, GPU busy and clock and CPU
+clock per run, to find whether the town is GPU-bound or CPU-bound at 120 on
+the field laptop. If a lower resolution holds the pictures, design and build
+a dynamic internal resolution that drops below 2x only while a redraw misses
+its budget and returns when it fits, as a setting with 2x fixed the default
+until the user's playtest; matched before/after pictures and a manual entry.
+If not, record the measurement. Acceptance: the measurement; if built, the
+setting off by default, pictures at 2x unchanged, Vanilla unchanged.
+
+Work log, 2026-11-14 (measured, built, then Cancelled and removed), [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) sections 1-5.
+Real display, the player's settings at 120, 3 interleaved runs per scale:
+at 1x every scene holds 60 even pictures (screen fresh 95.7-98.3%, no rate
+changes); at 2x the town (presents median 31, lowest tenth 30, 2.7 changes a
+run), UI 8 (lowest tenth 31) and UI 9 (one run at 30) step down, every step
+"emulation behind", GPU busy only 69-76% but its clock 130-250 MHz higher and
+the CPU's lower (UI 2 3.12 -> 2.30 GHz): power-bound, the GPU's share of the
+15 W package. 1.5x does not exist (the GL surfaces are VRAM at a whole
+multiple). Built DYNAMIC RESOLUTION (framework live rescale between presents,
+render threads following the snapshot's scale, a governor step before the
+present-rate step, OPTIONS row, schema 76): pictures exact (the 1x stretch
+equals a 1x launch, the return equals 2x, 0.00% at the original 60); on
+against off at 120: the town held 60 (screen fresh 97.6-97.7% against
+76.1-76.5%, no rate changes) but it also dropped to 1x for 57-96% of walks
+that hold 60 at 2x. User 2026-11-14: "i just cant accept this dynamic
+resolution thing as a solution when quake alkaline plays at the full 120fps
+at native resolution ... i dont want to degrade the game that way, and for
+that reason, i request we revert it first, and then scratch it off the
+board". Removed completely (framework patch identical to before, the menu
+row, flag, console command and manual entry gone); the profile schema stays
+76 and drops the retired key. The measurement stands: the town's cure is
+less CPU and package power per redraw (D23N2B-N4, D23V).
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

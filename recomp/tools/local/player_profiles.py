@@ -229,7 +229,8 @@ def validate_controls(value):
     # D19V: discard retired overrides, including stale menu sidecar values.
     # Keep other preferences even when an obsolete value is malformed.
     if isinstance(value, dict):
-        value = {k: v for k, v in value.items() if k not in ('use_view', 'mirror_view')}
+        # D23Y9: DYNAMIC RESOLUTION was built and withdrawn (2026-11-14); schema 76 drops it.
+        value = {k: v for k, v in value.items() if k not in ('use_view', 'mirror_view', 'dynamic_resolution')}
         # D10H4: WEAPON FEEL's first build saved retro as eduke32.
         if value.get('weapon_feel') == 'eduke32':
             value['weapon_feel'] = 'retro'
@@ -472,7 +473,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 75, 'active': 'modernized',
+    return {'version': 76, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -518,7 +519,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 75:
+        if type(version) is int and version > 76:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -527,8 +528,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 75.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75):
+            notices.append('Migrated version 0 profile settings to version 76.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -611,8 +612,8 @@ def load(path):
                 return result, notices
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 75; retained preferences and added control and presentation defaults.'
-                               if version < 75 else
+                notices.append(f'Migrated version {version} profile settings to version 76; retained preferences and added control and presentation defaults.'
+                               if version < 76 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

@@ -1465,8 +1465,11 @@ void leave_screen(bool keep) {
     const bool marker_changed=red_dot>=0 && draft[s][red_dot]!=committed[s][red_dot];
     // D41S: model shadows and glows are drawn by the replay workers, which
     // read these rows (and LIVE SHADOWS, their condition) from their own copy.
+    // LIGHTING too (user report 2026-11-14: at FRAME RATE 120 a LIGHTING
+    // change was saved but showed only after a relaunch: every picture there
+    // is a worker's redraw).
     bool worker_row_changed=false;
-    for(const char* k:{"model_shadows","glows","shadow_edges"}) {
+    for(const char* k:{"model_shadows","glows","shadow_edges","dynamic_lights"}) {
         const int i=row_of(s,k);
         if(keep && i>=0 && draft[s][i]!=committed[s][i]) worker_row_changed=true;
     }
@@ -1894,6 +1897,10 @@ const char* needs(const Row& r) {
     if(k=="crosshair" && is("red_dot","1")) return "RED DOT ON HIDES THE MODERN CROSSHAIR";
     if(k=="crosshair" && is("weapon_aim","original")) return "NEEDS WEAPON AIM VIEW, IN ADVANCED";
     if((k=="internal_scale" || k=="geometry_precision" || k=="texture_precision") && is("renderer","software")) return "NEEDS BACKEND OPENGL, IN ADVANCED";
+    // The lights are attached in the host world pass, which runs only with
+    // DRAW DISTANCE EXTENDED (draw_distance.inc): at ORIGINAL every lighting
+    // effect is off (user report 2026-11-14; making them work there is D41V).
+    if((k=="dynamic_lights" || k=="shadow_edges" || k=="model_shadows" || k=="glows") && is("draw_distance","original")) return "NEEDS DRAW DISTANCE EXTENDED, IN ADVANCED";
     return nullptr;
 }
 void draw_settings(Guest& g,const Geometry& geo) {

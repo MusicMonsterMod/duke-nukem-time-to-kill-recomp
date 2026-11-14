@@ -35,6 +35,8 @@
 //      our mod memory, the camera block).
 //  64  with 16: every call of the transform, by caller (piece 4d): the
 //      matrix the call passes, from the job start, against the job's.
+// 128  the sky's three camera-built matrices built in host code (D23N2B
+//      piece 5, namespace sk), checked at each transform call's entry.
 //  32  with 16: the hooks' CPU state taken from the earlier job of the same
 //      frame instead of the later job's own (D23N2B piece 4c): jobs whose
 //      hook list differs from the earlier job's, call for call, are counted
@@ -665,8 +667,161 @@ void report() {
 }
 }  // namespace vis
 
+namespace sk {
+// D23N2B piece 5 (bit 128): the matrices a job builds from the camera (and
+// static data) before calling the transform, built in host code and checked
+// word for word at the transform's entry, before our callbacks. CONFIRMED by
+// the disassembly (the sky routine 0x800388e4, camera a0 = s2):
+//   ra 0x80038c68 (the backdrop): v = (cam +0xc, 0, cam +0x10) as VECTOR,
+//     VectorNormal 0x800b3d3c, angles 0x80066f88 = (ratan2 0x800b530c(v.x,
+//     v.z), -0x8002b564(v.y low half), 0), RotMatrix-like 0x8002afe4, t = eye;
+//   ra 0x80038d7c: angles ((int16)(*0x800c0c64 >> 5), 0, 0), 0x8002afe4,
+//     t = eye, ScaleMatrix 0x800b4b5c by (0x1000, 0xa00, 0x1000);
+//   ra 0x80038e18: angles ((int16)(*0x800c0c64 >> 3), 0, 0), 0x8002afe4, t = eye.
+// 0x8002afe4: rsin/rcos 0x800b3a9c/0x800b3b6c of the three angles (table
+// 0x800c8758), products truncated toward zero (>> 12), then MatrixNormal
+// 0x800b3e5c (GTE OP sf 1 twice, each row through the VectorNormal core
+// 0x800b3d9c: SQR, LZCS, table 0x800c8f8c, GPF sf 0, >> (31 - lzc & ~1) / 2).
+// The matrix's pad half (+0x12) is stack and not compared.
+constexpr uint32_t sin_tbl=0x800c8758u,atan_tbl=0x800c9428u,acos_tbl=0x800beb48u,rsq_tbl=0x800c8f8cu,sky_timer=0x800c0c64u;
+inline int32_t T(uint32_t base,int32_t i) {return (int16_t)psx_mod_read_half(base+2u*(uint32_t)i);}
+int32_t sin1(int32_t a) {
+    if(a<=0x800) return a<=0x400 ? T(sin_tbl,a) : T(sin_tbl,0x800-a);
+    return a<=0xc00 ? -T(sin_tbl,a-0x800) : -T(sin_tbl,0x1000-a);
+}
+int32_t rsin(int32_t a) {return a<0 ? -sin1((int32_t)((0u-(uint32_t)a)&0xfffu)) : sin1(a&0xfff);}
+int32_t rcos(int32_t a) {
+    a=(int32_t)((a<0?0u-(uint32_t)a:(uint32_t)a)&0xfffu);
+    if(a<=0x800) return a<=0x400 ? T(sin_tbl,0x400-a) : -T(sin_tbl,a-0x400);
+    return a<=0xc00 ? -T(sin_tbl,0xc00-a) : T(sin_tbl,a-0xc00);
+}
+bool ratan2(int32_t y,int32_t x,int32_t& out) {
+    const bool nx=x<0,ny=y<0;
+    if(nx) x=-x; if(ny) y=-y;
+    if(x==0 && y==0) {out=0;return true;}
+    int32_t r;
+    if(y<x) {
+        int32_t t;
+        if(y&0x7fe00000) {if(!(x>>10)) return false;t=y/(x>>10);} else t=(int32_t)((uint32_t)y<<10)/x;
+        r=T(atan_tbl,t);
+    } else {
+        int32_t t;
+        if(x&0x7fe00000) {if(!(y>>10)) return false;t=x/(y>>10);} else t=(int32_t)((uint32_t)x<<10)/y;
+        r=0x400-T(atan_tbl,t);
+    }
+    if(nx) r=0x800-r;
+    if(ny) r=-r;
+    out=r;return true;
+}
+int32_t acos_like(int32_t a) {   // 0x8002b564
+    a=(int16_t)a;
+    if(a<-0x1000) a=-0x1000; else if(a>0x1000) a=0x1000;
+    if(a<0) return (int16_t)(psx_mod_read_half(acos_tbl+2u*(uint32_t)(a+0x1000))-0x400);
+    if(a==0) return 0;
+    return (int16_t)(0x400-psx_mod_read_half(acos_tbl+2u*(uint32_t)(0x1000-a)));
+}
+inline int32_t q12(int32_t a,int32_t b) {const int32_t p=(int32_t)((uint32_t)a*(uint32_t)b);return (p<0?p+0xfff:p)>>12;}
+inline int32_t lzc(int32_t v) {uint32_t u=v<0?~(uint32_t)v:(uint32_t)v;int n=0;while(n<32 && !(u&0x80000000u)) {u<<=1;++n;}return n;}
+// The VectorNormal core on (x, y, z) as IR1-3 take them (low 16 bits).
+void vnorm(int32_t& x,int32_t& y,int32_t& z) {
+    const int64_t ix=(int16_t)x,iy=(int16_t)y,iz=(int16_t)z;
+    const int32_t s=(int32_t)((uint32_t)(ix*ix)+(uint32_t)(iy*iy)+(uint32_t)(iz*iz));
+    const int32_t v1=lzc(s)&~1,t6=(31-v1)>>1;
+    const int32_t t4=v1-24>=0 ? (int32_t)((uint32_t)s<<(v1-24)) : s>>(24-v1);
+    const int64_t f=T(rsq_tbl,t4-64);
+    x=(int32_t)(f*ix)>>(t6&31);y=(int32_t)(f*iy)>>(t6&31);z=(int32_t)(f*iz)>>(t6&31);   // GPF sf 0 (0x4b90003d)
+}
+inline int16_t sat(int64_t v) {return (int16_t)std::clamp<int64_t>(v,-0x8000,0x7fff);}
+// RotMatrix-like 0x8002afe4 with MatrixNormal: the 9 halves.
+void rot(const int16_t ang[3],int16_t m[9]) {
+    const int32_t sx=rsin(ang[0]),sy=rsin(ang[1]),sz=rsin(ang[2]),cx=rcos(ang[0]),cy=rcos(ang[1]),cz=rcos(ang[2]);
+    const int32_t t1=q12(sz,sx),a3=q12(sz,cx),a1=q12(cz,sx),t0=q12(cz,cx);
+    int16_t r[9];
+    r[0]=(int16_t)(t0+q12(t1,sy)); r[1]=(int16_t)q12(sz,cy); r[2]=(int16_t)(-a1+q12(a3,sy));
+    r[3]=(int16_t)(-a3+q12(a1,sy)); r[4]=(int16_t)q12(cz,cy); r[5]=(int16_t)(t1+q12(t0,sy));
+    r[6]=(int16_t)q12(cy,cx); r[7]=(int16_t)-sy; r[8]=(int16_t)q12(cy,sx);
+    // MatrixNormal: c = r0 x r1 (OP sf 1, IR saturated), r0' = r1 x c.
+    auto op=[](const int64_t d[3],const int64_t ir[3],int64_t mac[3]) {
+        mac[0]=(d[1]*ir[2]-d[2]*ir[1])>>12;mac[1]=(d[2]*ir[0]-d[0]*ir[2])>>12;mac[2]=(d[0]*ir[1]-d[1]*ir[0])>>12;};
+    const int64_t r0[3]={r[0],r[1],r[2]},r1[3]={r[3],r[4],r[5]};
+    int64_t c[3],ci[3],a[3];
+    op(r0,r1,c);for(int k=0;k<3;++k) ci[k]=sat(c[k]);
+    op(r1,ci,a);
+    int32_t x=(int32_t)a[0],y=(int32_t)a[1],z=(int32_t)a[2];vnorm(x,y,z);m[0]=(int16_t)x;m[1]=(int16_t)y;m[2]=(int16_t)z;
+    x=r[3];y=r[4];z=r[5];vnorm(x,y,z);m[3]=(int16_t)x;m[4]=(int16_t)y;m[5]=(int16_t)z;
+    x=(int32_t)c[0];y=(int32_t)c[1];z=(int32_t)c[2];vnorm(x,y,z);m[6]=(int16_t)x;m[7]=(int16_t)y;m[8]=(int16_t)z;
+}
+// The host build for the call at ra from the camera block cam: 9 halves and t.
+bool build(uint32_t ra,uint32_t cam,int16_t m[9],int32_t t[3]) {
+    int16_t ang[3]={0,0,0};
+    if(ra==0x80038c68u) {
+        int32_t x=(int16_t)psx_mod_read_half(cam+0xc),y=0,z=(int16_t)psx_mod_read_half(cam+0x10);
+        vnorm(x,y,z);
+        int32_t a=0;if(!ratan2(x,z,a)) return false;
+        ang[0]=(int16_t)a;ang[1]=(int16_t)-acos_like((int16_t)y);
+    } else if(ra==0x80038d7cu) ang[0]=(int16_t)((int32_t)psx_mod_read_word(sky_timer)>>5);
+    else if(ra==0x80038e18u) ang[0]=(int16_t)((int32_t)psx_mod_read_word(sky_timer)>>3);
+    else return false;
+    rot(ang,m);
+    for(int k=0;k<3;++k) t[k]=(int32_t)psx_mod_read_word(cam+0x14+4*k);
+    if(ra==0x80038d7cu) {
+        uint16_t in[10],out[10];for(int k=0;k<9;++k) in[k]=(uint16_t)m[k];in[9]=0;
+        const int32_t v[3]={0x1000,0xa00,0x1000};jt::scale(in,v,out);
+        for(int k=0;k<9;++k) m[k]=(int16_t)out[k];
+    }
+    return true;
+}
+// ra 0x8003133c, in 0x80030fe8(a0 camera, a1 object s1, a2 height): CONFIRMED
+// by its disassembly, not from the camera (note 471 section 3 inferred that):
+// the object's record r = *(s1 +0x3c) + 32 * byte[*(s1 +0x40) +0x24]; v =
+// (r +0xc, 0, r +0x10) when |r +0xe| < |r +0x8|, else (-(r +0x6), 0, -(r +0xa))
+// (halves), VectorNormal; the yaw matrix (v.z 0 -v.x / 0 0x1000 0 / v.x 0 v.z),
+// t = (r +0x14, a2, r +0x1c). At the transform's entry s1 is still the
+// object and a2 is in the caller's frame (sp +0x2c).
+bool build_obj(const CPUState* cpu,int16_t m[9],int32_t t[3]) {
+    const uint32_t s1=cpu->gpr[17];
+    const uint32_t r=psx_mod_read_word(s1+0x3c)+32u*psx_mod_read_byte(psx_mod_read_word(s1+0x40)+0x24);
+    const int32_t e=std::abs((int32_t)(int16_t)psx_mod_read_half(r+0xe)),h8=std::abs((int32_t)(int16_t)psx_mod_read_half(r+0x8));
+    int32_t x,y=0,z;
+    if(e<h8) {x=(int16_t)psx_mod_read_half(r+0xc);z=(int16_t)psx_mod_read_half(r+0x10);}
+    else {x=-(int32_t)(int16_t)psx_mod_read_half(r+0x6);z=-(int32_t)(int16_t)psx_mod_read_half(r+0xa);}
+    vnorm(x,y,z);
+    m[0]=(int16_t)z;m[1]=0;m[2]=(int16_t)-x;m[3]=0;m[4]=0x1000;m[5]=0;m[6]=(int16_t)x;m[7]=0;m[8]=(int16_t)z;
+    t[0]=(int32_t)psx_mod_read_word(r+0x14);t[1]=(int32_t)psx_mod_read_word(cpu->gpr[29]+0x2c);t[2]=(int32_t)psx_mod_read_word(r+0x1c);
+    return true;
+}
+struct RaStat {uint32_t ra=0;uint64_t exact=0,differ=0,failed=0;};
+RaStat st[4];unsigned shown=0;
+void entry(const CPUState* cpu) {
+    const uint32_t ra=cpu->gpr[31];
+    unsigned i=ra==0x80038c68u?0:ra==0x80038d7cu?1:ra==0x80038e18u?2:ra==0x8003133cu?3:4;
+    if(i==4) return;
+    st[i].ra=ra;
+    int16_t m[9];int32_t t[3];
+    if(!(i==3 ? build_obj(cpu,m,t) : build(ra,cpu->gpr[4],m,t))) {++st[i].failed;return;}
+    const uint32_t mat=cpu->gpr[5];
+    bool same=true;
+    for(int k=0;k<9;++k) same&=(int16_t)psx_mod_read_half(mat+2*k)==m[k];
+    for(int k=0;k<3;++k) same&=(int32_t)psx_mod_read_word(mat+0x14+4*k)==t[k];
+    ++(same?st[i].exact:st[i].differ);
+    if(!same && shown<6) {
+        ++shown;std::fprintf(stderr,"[n2 check %ld]   built matrix differs at ra %08x: host",(long)getpid(),ra);
+        for(int k=0;k<9;++k) std::fprintf(stderr," %d",m[k]);
+        std::fprintf(stderr," | job");
+        for(int k=0;k<9;++k) std::fprintf(stderr," %d",(int16_t)psx_mod_read_half(mat+2*k));
+        std::fprintf(stderr," | t %d %d %d / %d %d %d\n",t[0],t[1],t[2],(int32_t)psx_mod_read_word(mat+0x14),(int32_t)psx_mod_read_word(mat+0x18),(int32_t)psx_mod_read_word(mat+0x1c));
+    }
+}
+void report() {
+    std::fprintf(stderr,"[n2 check %ld] piece 5, camera-built matrices on the host:",(long)getpid());
+    for(const RaStat& s:st) if(s.ra) std::fprintf(stderr," %08x exact %llu differ %llu failed %llu |",s.ra,(unsigned long long)s.exact,(unsigned long long)s.differ,(unsigned long long)s.failed);
+    std::fprintf(stderr,"\n");
+}
+}  // namespace sk
+
 // Called from the D23N1 observer for each top-level hook entry.
 void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
+    if((n2_mask()&128) && phase==0 && addr==0x800292a0u) sk::entry(cpu);
     if(n2_mask()&1) {
         if(phase==0) xf::settle(cpu,addr);
         else if(addr==0x800292a0u) xf::on_entry_done(cpu);
@@ -702,4 +857,5 @@ void n2_at_flip(uint64_t serial,float alpha) {
     }
     if((n2_mask()&8) && jobs%64==0) jt::report();
     if(n2_mask()&16) {jr::at_flip();if(jobs%64==0) jr::report();}
+    if((n2_mask()&128) && jobs%64==0) sk::report();
 }

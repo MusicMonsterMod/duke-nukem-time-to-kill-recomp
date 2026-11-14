@@ -458,6 +458,12 @@ show the original monitors.
 **OPTIONS > DISPLAY > LIGHTING** has three settings (it switches at once and
 saves):
 
+Every lighting effect (ENHANCED, RELIT, the lamps' baked light, LIVE
+SHADOWS, MODEL SHADOWS and GLOWS) currently needs **DRAW DISTANCE
+EXTENDED** (OPTIONS > ADVANCED, the default). With DRAW DISTANCE ORIGINAL
+they are all off, and OPTIONS shows their rows grey with "NEEDS DRAW
+DISTANCE EXTENDED" (making them work at ORIGINAL is backlog job D41V).
+
 - **ENHANCED** (the default): the dynamic lights below on top of the game's
   own painted lighting, which stays as it was.
 - **RELIT**: the painted lighting is turned down so the lamps, signs,

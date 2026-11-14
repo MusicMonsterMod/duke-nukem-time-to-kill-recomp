@@ -1,5 +1,15 @@
 # Next-session handoff
 
+## 2026-11-14 - D23Y9 cancelled, D23N2B piece 5 exact, D41V added
+
+[Note 474](474-d23y9-d23n2b-field-laptop.md). Autonomous session on the field laptop (user away; asked for D23Y9, then D23V, then D23N2B-N4), paused for the user's playtest and closed out at their request.
+- D23Y9 (added, then Cancelled): at the player's settings at 120 on the real display, 1x holds 60 even pictures in DUKE HILL's town and start and UI slots 2, 8 and 9; 2x steps to 30 in the town, UI 8 and UI 9, power-bound (GPU 69-76% busy, but its share of the 15 W package lowers the CPU clock). DYNAMIC RESOLUTION was built (live rescale between presents, exact pictures) and measured (the town held 60, but it also lowered the resolution in scenes that hold 60 at 2x), then removed. User: "i dont want to degrade the game that way ... revert it first, and then scratch it off the board". Framework patch identical to before; profile schema 76 drops the retired key.
+- D23N2B piece 5 exact: the sky's three camera-built matrices and `0x8003133c` (an object's yaw matrix, not the camera's) built in host code, 0 differ in UI 2, 8, 9 and DUKE HILL's town (developer `DNTTK_N2_CHECK=128`). In progress.
+- From the user's playtest: a LIGHTING change at FRAME RATE 120 now reaches the redraw workers when OPTIONS is left (it showed only after a relaunch); with DRAW DISTANCE ORIGINAL no lighting effect works (measured), so OPTIONS greys out LIGHTING, LIVE SHADOWS, MODEL SHADOWS and GLOWS there, and the fix is the new backlog job [D41V](../jobs/lighting.md#d41v---lighting-with-draw-distance-original).
+- D23V not started; D23N3 and D23N4 not reached.
+
+Next: the user's choice. Resumable: D23N2B (what differs in `0x80033584` and the other transform callers, piece 4c's hook lists, then note 456 section 6; note 474 section 6), D23V (the GPU floor, the offscreen skip-and-measure script `recomp/analysis/d23y6/d23v.sh` is written, not run), D41V. Lab: `recomp/analysis/d23y6/` (`comb3.py`, `d23y9.sh`). Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-14 - D41U closed
 
 User: "working beautifully. i'd give it a 10/10 in fact. lock it in and commit". D41U is Done ([note 473](473-d41u-blast-chain-audio.md)).

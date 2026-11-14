@@ -133,11 +133,13 @@ VSYNC_SWAP_INTERVAL = {'on': '1', 'off': '0', 'adaptive': '-1'}
 # rows as the player set them). A grade sets internal resolution, LIGHTING,
 # LIVE SHADOWS, DRAW DISTANCE and FRAME RATE at launch; changing one of those
 # rows makes the profile CUSTOM. Fresh installs start at AUTO; profiles from
-# before schema 74 become CUSTOM, keeping every choice.
+# before schema 74 become CUSTOM, keeping every choice. D23Y6: SIMPLE renders
+# at 2x (the user, 2026-11-13: "1x is really bad ... 2x is the first
+# 'acceptible' look"); its other rows stay the lightest.
 GRAPHICS_MODES = ('auto', 'simple', 'balanced', 'pretty', 'ultra', 'custom')
 GRAPHICS_GRADES = ('simple', 'balanced', 'pretty', 'ultra')
 GRAPHICS_PRESETS = {
-    'simple': ({'internal_scale': 1},
+    'simple': ({'internal_scale': 2},
                {'dynamic_lights': 'off', 'shadow_edges': 'simple', 'draw_distance': 'original', 'frame_rate': '60'}),
     'balanced': ({'internal_scale': 2},
                  {'dynamic_lights': 'on', 'shadow_edges': 'simple', 'draw_distance': 'extended', 'frame_rate': 'auto'}),

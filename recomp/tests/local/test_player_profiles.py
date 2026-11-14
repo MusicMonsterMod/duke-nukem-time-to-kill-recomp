@@ -2694,3 +2694,6 @@ class VsyncAndGraphicsTest(unittest.TestCase):
             pres,ctrl=profiles.GRAPHICS_PRESETS[grade]
             for key,value in {**pres,**ctrl}.items():
                 self.assertEqual(rows[key][i],str(value),(grade,key))
+        # D23Y6: SIMPLE renders at 2x (1x was "really bad"); the lightest other rows.
+        self.assertEqual(profiles.GRAPHICS_PRESETS['simple'][0]['internal_scale'],2)
+        self.assertEqual(rows['internal_scale'][0],'2')

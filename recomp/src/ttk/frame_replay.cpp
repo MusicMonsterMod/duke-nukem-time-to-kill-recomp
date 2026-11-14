@@ -591,6 +591,7 @@ uint32_t append_render(const Frame& base,uint8_t* out,uint32_t used) {
 }
 
 extern "C" double psx_replay_auto_cap(void);   // render_thread.c
+extern "C" int psx_placement_active(void);     // render_thread.c (D23Y4/D23Y6)
 // D23W: AUTO or DISPLAY capped at 60 by the CPUs (2 or fewer physical cores,
 // or fewer than 4 CPUs) is the original presentation, as a 60 launch: no
 // replay and no redraw workers. On a 2-core i7-5600U replay at 60 slowed the
@@ -2369,7 +2370,12 @@ void start_workers_once() {
     impact_follow_prepare();
     workers_started=true;
     psx_mod_replay_workers_visual_timing(1);
-    int workers=3;
+    // D23Y6: with placement (a 2-core CPU with SMT: the workers share one
+    // core) one worker. Measured on the field laptop at FRAME RATE 120 (the
+    // display's 60): BALANCED UI slot 8 game frames lowest tenth 59.2 and
+    // presents 59 with one, 56.7-56.9 and 30-52 with three; SIMPLE equal or
+    // better everywhere; D23Y4 at 3x Relit 56.2 against 55.3.
+    int workers=psx_placement_active() ? 1 : 3;
     if(const char* t=std::getenv("DNTTK_REPLAY_WORKERS")) workers=std::clamp(std::atoi(t),1,8);
     if(psx_mod_replay_workers_start(workers,worker_draw)<=0) interp_replay=false;
 }
@@ -2613,13 +2619,16 @@ bool replay_late_rotation(int16_t rot[9]) {
 // (as a 60 launch); another rate starts it, the render workers at the next
 // composition. False when it cannot apply now (software renderer).
 // D23Y1 governor fallback state (replay_load_window).
-int floor_bad=0, floor_wait=120, floor_elapsed=0, floor_since_retry=1000;
-int32_t floor_rate=0;   // the rate the redraws ran at before the fallback (0: none)
+int floor_bad=0, floor_good=0, floor_wait=120, floor_elapsed=0, floor_since_retry=1000;
+int32_t floor_rate=0;   // the rate the redraws ran at before the fallback (0: display)
+int32_t capped_hz=0;     // D23Y6: the chosen rate while the display caps it (0: none)
+bool floor_active=false; // D23Y6: a fallback is running (floor_rate 0 is the display's rate)
 uint64_t floor_fallbacks=0, floor_retries=0;
 bool frame_rate_live() {return modernized_session && (replay_on || psx_mod_present_replay_available());}
 bool frame_rate_set(const char* value) {
     if(!modernized_session) return false;
-    floor_rate=0;floor_bad=0;   // D23Y1: the player's choice replaces a fallback
+    floor_rate=0;floor_active=false;floor_bad=0;   // D23Y1: the player's choice replaces a fallback
+    capped_hz=0;                // D23Y6: and a display cap (checked again within a second)
     const int32_t hz=launch_rate(parse_rate(value));
     if(hz==60) {
         if(replay_on && !psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
@@ -2677,30 +2686,65 @@ static void shed_step(double feed,const char* why) {
 // one that falls behind in its first 20 s returns at its first slow second.
 // DNTTK_REPLAY_FLOOR=0 (developer) keeps the redraws at any speed.
 static bool floor_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_REPLAY_FLOOR");return !(t && t[0]=='0' && !t[1]);}();return v;}
-constexpr int floor_seconds=3;
+constexpr int floor_seconds=3, floor_clear=10;
 static bool floor_fallback() {
     if(!psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
     // DNTTK_REPLAY_FLOOR_WAIT=seconds (developer): the first wait before a retry.
     static const bool wait_set=[]{const char* t=std::getenv("DNTTK_REPLAY_FLOOR_WAIT");
         if(t && std::atoi(t)>0) floor_wait=std::clamp(std::atoi(t),5,480);return true;}();
     (void)wait_set;
-    floor_rate=target_hz;
+    floor_rate=capped_hz ? capped_hz : target_hz;floor_active=true;capped_hz=0;
     if(floor_since_retry<=60) floor_wait=std::min(floor_wait*2,480);
     replay_on=interp_replay=false;target_hz=60;reset_timeline();
-    floor_bad=0;floor_elapsed=0;++floor_fallbacks;
-    std::fprintf(stderr,"[TTK pace] the original presentation (emulation behind at every 3rd refresh); redraws again in %d s\n",floor_wait);
+    floor_bad=floor_good=0;floor_elapsed=0;++floor_fallbacks;
+    std::fprintf(stderr,"[TTK pace] the original presentation (emulation behind at every %d%s refresh); redraws again in %d s\n",pace_div,pace_div==1?"st":pace_div==2?"nd":"rd",floor_wait);
     return true;
 }
 static void floor_retry() {
-    const int32_t hz=floor_rate;floor_rate=0;
+    const int32_t hz=floor_rate;floor_rate=0;floor_active=false;
     if(!psx_mod_request_present_replay(provider,nullptr,hz)) return;
     reset_timeline();apply_rate(hz);replay_on=true;
     floor_since_retry=0;++floor_retries;
     std::fprintf(stderr,"[TTK pace] redraws again (%d Hz requested)\n",(int)hz);
 }
+// D23Y6: a fixed FRAME RATE above the display's refresh presents at the
+// display's rate. Pictures past the panel's refresh never reach the screen
+// (the window is unsynchronised and the compositor shows the newest at each
+// refresh), yet each costs a redraw: on the field laptop's 60 Hz panel 120
+// redraws a second used the 15 W package's headroom for pictures nobody saw,
+// the game fell behind and the governor swung between every 1st, 2nd and 3rd
+// refresh (120, 60, 40 a second: 40 is an uneven 17/33 ms on 60 Hz). Timed on
+// the display (target 0), the presents keep the panel's own period. The
+// setting is unchanged; a faster display gets the chosen rate back.
+// DNTTK_DISPLAY_CAP=0 (developer) presents at the chosen rate as before.
+static bool display_cap_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_DISPLAY_CAP");return !(t && t[0]=='0' && !t[1]);}();return v;}
+static void display_cap_check() {
+    if(!replay_on || !display_cap_enabled()) return;
+    const double host=psx_mod_display_refresh_hz();
+    if(host<30.0) return;
+    if(target_hz>0 && target_hz>host*1.05) {
+        if(!psx_mod_request_present_replay_rate(0)) return;
+        capped_hz=target_hz;apply_rate(0);
+        std::fprintf(stderr,"[TTK replay] frame rate %d on a %.2f Hz display: presents at the display's rate\n",(int)capped_hz,host);
+    } else if(target_hz==0 && capped_hz>0 && capped_hz<=host*1.05) {
+        if(!psx_mod_request_present_replay_rate(capped_hz)) return;
+        const int32_t hz=capped_hz;capped_hz=0;apply_rate(hz);
+        std::fprintf(stderr,"[TTK replay] frame rate %d (the %.2f Hz display shows it)\n",(int)hz,host);
+    }
+}
+// The governor's slowest step with redraws: the largest divisor that keeps 30
+// presents a second, at most every 3rd period (a 120 or 144 Hz timeline: 40
+// or 48, as before; a 60 Hz display: every 2nd, 30, never an uneven 20 or 40).
+static int last_div() {
+    if(target_hz==-1) return 16;
+    const double rate=target_hz>0 ? (double)target_hz : psx_mod_display_refresh_hz();
+    if(rate<=0.0) return 3;
+    return std::clamp((int)(rate/30.0+1e-6),1,3);
+}
 int replay_load_window(int window) {
+    display_cap_check();
     if(!shed_enabled()) window=window==1 ? 2 : window;
-    if(floor_rate && !replay_on) {
+    if(floor_active && !replay_on) {
         if(window==0 && ++floor_elapsed>=floor_wait) floor_retry();
         return window==1 ? -1 : 0;
     }
@@ -2721,8 +2765,9 @@ int replay_load_window(int window) {
         if(floor_enabled() && floor_since_retry<=20 && target_hz!=-1 && floor_fallback()) return 1;
         // D17AR3 part 4: a step up that falls behind in its first seconds goes
         // back after one slow second, so a probe costs the game less speed.
-        if(pace_div>=(target_hz==-1 ? 16 : 3)) {
+        if(pace_div>=last_div()) {
             shed_bad=0;
+            floor_good=0;
             if(floor_enabled() && target_hz!=-1 && ++floor_bad>=floor_seconds && floor_fallback()) return 1;
             return -1;
         }
@@ -2731,7 +2776,13 @@ int replay_load_window(int window) {
         shed_step(feed,"emulation behind");
         return 1;
     }
-    shed_bad=0;floor_bad=0;
+    // D23Y6: slow seconds at the last step count until floor_clear clean
+    // seconds in a row (before: one clean second cleared them). On the field
+    // laptop at 3x Relit and every 2nd refresh the slow seconds came one or
+    // two at a time between clean ones (game frames lowest tenth 45-53) and
+    // never reached three in a row.
+    shed_bad=0;
+    if(floor_bad && (pace_div<last_div() || ++floor_good>=floor_clear)) floor_bad=floor_good=0;
     if(shed_steps>0) {
         // D17AR3 part 4: step back up once the view's redraws are clearly
         // cheaper than when it shed (turned away from a heavy vista), or
@@ -2761,7 +2812,7 @@ int replay_load_window(int window) {
 int replay_audio_low() {
     if(!shed_enabled() || !replay_on || !interp_replay || !late_camera()) return 0;
     shed_steps=std::min(shed_steps,pace_div-1);
-    if(pace_div>=(target_hz==-1 ? 16 : 3)) return 0;
+    if(pace_div>=last_div()) return 0;
     const double feed=window_feed_n ? window_feed_sum/(double)window_feed_n : shed_feed_ms;
     shed_bad=shed_clean=shed_full_clean=0;
     shed_step(feed,"audio running low");shed_audio=true;
@@ -2839,9 +2890,9 @@ const char* frame_replay_debug_json() {
     static char buffer[98304];
     uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
     gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
-    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"impact\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"impact\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"capped_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"game_camera_blends\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
-        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),impact_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
+        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),impact_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,(int)capped_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,

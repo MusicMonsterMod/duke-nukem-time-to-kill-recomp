@@ -1408,7 +1408,7 @@ void scheme_aim_defaults(bool legacy) {
 struct GradeRow {const char* key; const char* value[4];};
 const char* const grade_names[4]={"simple","balanced","pretty","ultra"};
 const GradeRow grade_rows[]={
-    {"internal_scale",{"1","2","3","4"}},
+    {"internal_scale",{"2","2","3","4"}},
     {"dynamic_lights",{"off","on","relit","relit"}},
     {"shadow_edges",{"simple","simple","smooth","smooth"}},
     {"draw_distance",{"original","extended","extended","extended"}},

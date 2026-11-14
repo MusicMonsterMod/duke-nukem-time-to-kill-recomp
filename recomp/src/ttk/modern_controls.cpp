@@ -1,5 +1,6 @@
 #include "tight_camera.h"
 #include <cstdarg>
+#include <ctime>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -1355,8 +1356,17 @@ static void hitch_second(double rate,double dt,bool unjudged) {
         fill_start,audio?fill:0.0,fill_min>=1e9?0.0:fill_min,(unsigned long long)dur,(unsigned long long)drb,(unsigned long long)dro,(unsigned)psx_mod_read_byte(player+0x3b9),light_view.n,
         first_person_view_live()?"first":"third",(int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12));
 }
+// D23Z: slow seconds in a row before the overclock pause. Developer
+// DNTTK_OC_PAUSE_AFTER=N (1-5) overrides.
+static int overclock_pause_after() {
+    static const int v=[]{
+        if(const char* t=std::getenv("DNTTK_OC_PAUSE_AFTER");t && *t) return std::clamp(std::atoi(t),1,5);
+        return 1;}();
+    return v;
+}
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
+    static int slow_run=0;
     static clk::time_point window_start,paused_until,settle_until,last_call,audio_quiet_until,audio_arm_at;static uint64_t window_frame;static unsigned pauses;
     static bool audio_filled;static double audio_shed_fill;
     static clk::time_point low_seen_at;static double low_seen_fill;static uint64_t low_underruns;static unsigned steady_notes;  // D50
@@ -1403,13 +1413,19 @@ static void overclock_lease() {
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
         hitch_second(rate,dt,now<settle_until || now<paused_until || dt>=3.0);
-        const int verdict=replay_load_window(dt>=3.0 || now<paused_until || now<settle_until ? 2 : rate<57.0 ? 1 : 0);
+        const int window=dt>=3.0 || now<paused_until || now<settle_until ? 2 : rate<57.0 ? 1 : 0;
+        const int verdict=replay_load_window(window);
         if(verdict>0) {
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
         } else if(verdict<0) {
-            paused_until=now+std::chrono::seconds(5);
-            if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
+            // D23Z: the pause waits for overclock_pause_after() slow seconds in a row.
+            if(++slow_run>=overclock_pause_after()) {
+                slow_run=0;
+                paused_until=now+std::chrono::seconds(5);
+                if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
+            } else if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): one slow second, overclock kept\n",rate);
         }
+        if(verdict>=0 || window!=1) slow_run=0;
         window_start=now;window_frame=frame;
     }
     if(now>=paused_until)psx_overclock_renew();
@@ -1424,8 +1440,42 @@ static void d08q10_sound_trace(CPUState* cpu,uint32_t address) {
     if(on)std::fprintf(stderr,"ttk-sound %08x id=%04x ra=%08x mode=%u anim=%u y=%d\n",address,cpu->gpr[4],cpu->gpr[31],
         psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x60),(int32_t)psx_mod_read_word(player+8));
 }
+// D23Z developer (DNTTK_SPIKE_TRACE=MS): each update of Duke whose
+// emulation-thread CPU time or wall time since the previous update exceeds MS
+// is logged with the field counter (PSX_PROF_FRAMES tags profiler stacks
+// with it) and the plugin hooks that took the most time in it.
+extern "C" uint64_t s_frame_count;
+static int spike_trace_ms() {static const int v=[]{const char* t=std::getenv("DNTTK_SPIKE_TRACE");return t?std::max(1,std::atoi(t)):0;}();return v;}
+static std::map<uint32_t,uint64_t> spike_hooks;static uint64_t spike_hook_t0;
+#if defined(__linux__)
+static uint64_t spike_now_ns(bool thread_cpu) {timespec ts;clock_gettime(thread_cpu?CLOCK_THREAD_CPUTIME_ID:CLOCK_MONOTONIC,&ts);return (uint64_t)ts.tv_sec*1000000000ull+(uint64_t)ts.tv_nsec;}
+#else
+static uint64_t spike_now_ns(bool) {return (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
+#endif
+static void spike_observe(CPUState*,uint32_t address,int phase) {
+    if(!phase) {spike_hook_t0=spike_now_ns(false);return;}
+    spike_hooks[address]+=spike_now_ns(false)-spike_hook_t0;
+}
+static void spike_tick() {
+    const int ms=spike_trace_ms();if(!ms) return;
+    if(!g_psx_mod_hook_observer) g_psx_mod_hook_observer=spike_observe;
+    static uint64_t last_cpu,last_wall,last_field;
+    const uint64_t cpu=spike_now_ns(true),wall=spike_now_ns(false),field=s_frame_count;
+    if(last_wall) {
+        const double c=(cpu-last_cpu)/1e6,w=(wall-last_wall)/1e6;
+        if(c>ms || w>ms*1.6) {
+            std::vector<std::pair<uint64_t,uint32_t>> top;for(auto& kv:spike_hooks) top.push_back({kv.second,kv.first});
+            std::sort(top.rbegin(),top.rend());
+            std::fprintf(stderr,"[TTK spike] fields %llu-%llu cpu %.1f ms wall %.1f ms hooks",(unsigned long long)last_field,(unsigned long long)field,c,w);
+            for(size_t i=0;i<top.size() && i<5;++i) std::fprintf(stderr," %08x=%.1f",top[i].second,top[i].first/1e6);
+            std::fputc('\n',stderr);
+        }
+    }
+    spike_hooks.clear();last_cpu=cpu;last_wall=wall;last_field=field;
+}
 static void hook(CPUState* cpu, uint32_t address) {
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
+    if(update) spike_tick();
     if(update && input_modernized() && psx_mod_read_word(0x800c27bc)==1) {overclock_lease();ttk_fast_timing_renew();}
     const bool trace=frame_trace_on();
     if(!trace) {hook_body(cpu,address);grounded_water_query(cpu,address);return;}

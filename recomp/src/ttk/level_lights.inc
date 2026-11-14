@@ -917,13 +917,6 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
 // dark and 10% neon) from a copy of main RAM and VRAM taken in one step, and
 // runs on its own thread; the game thread polls for the result.
 struct NeonSnapshot {std::vector<uint8_t> ram;std::vector<uint16_t> vram;};
-static NeonSnapshot neon_snapshot_take() {
-    NeonSnapshot s;
-    s.ram.assign(g_psx_ram,g_psx_ram+0x200000);
-    s.vram.resize(1024*512);
-    gpu_vram_copy(s.vram.data());
-    return s;
-}
 static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
     std::vector<uint32_t> neon;
     auto ok=[](uint32_t a,uint32_t n){return a>=0x80010000u && a<=0x80200000u-n;};
@@ -1283,6 +1276,7 @@ static void level_lamps_update(CPUState* cpu) {
     static unsigned neon_level=~0u,neon_loads=~0u;static uint32_t neon_due;static bool neon_had_table;
     static std::future<std::vector<uint32_t>> neon_job;static unsigned neon_gen,neon_job_gen,neon_job_level;static bool neon_job_table;
     static double neon_snap_ms;static std::chrono::steady_clock::time_point neon_job_t0;
+    static std::shared_ptr<NeonSnapshot> neon_pending;static unsigned neon_pending_gen,neon_vram_polls;static bool neon_vram_wait;
     if(const unsigned loads=psx_mod_savestate_loads();level!=neon_level || loads!=neon_loads) {
         neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});++neon_gen;
     }
@@ -1290,23 +1284,44 @@ static void level_lamps_update(CPUState* cpu) {
         neon_due=0;neon_had_table=near_clip_object_animation()!=0;
         // D50A: snapshot here (the same moment the pass ran before), scan on
         // a worker thread; the result is applied on the game thread below.
+        // D23Z: RAM is copied here; VRAM is read back without waiting for
+        // the GPU (gpu_vram_copy_async: VRAM as of this tick, delivered a
+        // tick or two later), so the 8-24 ms GPU wait at a level start is
+        // gone. DNTTK_NEON_CHECK keeps the synchronous copy beside the old pass.
         const auto t0=std::chrono::steady_clock::now();
-        auto snap=std::make_shared<NeonSnapshot>(neon_snapshot_take());
+        const bool check=std::getenv("DNTTK_NEON_CHECK")!=nullptr;
+        neon_pending=std::make_shared<NeonSnapshot>();
+        neon_pending->ram.assign(g_psx_ram,g_psx_ram+0x200000);
+        neon_pending->vram.resize(1024*512);
+        bool ready=check;
+        if(check) gpu_vram_copy(neon_pending->vram.data());
+        else ready=gpu_vram_copy_async(neon_pending->vram.data(),1)!=0;
         neon_snap_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
-        if(std::getenv("DNTTK_NEON_CHECK")) {   // developer: the old pass beside it, for comparison
+        if(check) {   // developer: the old pass beside it, for comparison
             std::vector<uint32_t> old;level_lamps_signs(&old);std::sort(old.begin(),old.end());old.erase(std::unique(old.begin(),old.end()),old.end());
-            std::vector<uint32_t> fresh=neon_scan(*snap);std::sort(fresh.begin(),fresh.end());fresh.erase(std::unique(fresh.begin(),fresh.end()),fresh.end());
+            std::vector<uint32_t> fresh=neon_scan(*neon_pending);std::sort(fresh.begin(),fresh.end());fresh.erase(std::unique(fresh.begin(),fresh.end()),fresh.end());
             std::fprintf(stderr,"[TTK lamp] neon check level %u: old %zu new %zu faces, %s\n",level,old.size(),fresh.size(),old==fresh?"identical":"DIFFERENT");
         }
-        neon_job_gen=++neon_gen;neon_job_level=level;neon_job_table=neon_had_table;neon_job_t0=t0;
+        neon_job_gen=++neon_gen;neon_job_level=level;neon_job_table=neon_had_table;neon_job_t0=t0;neon_pending_gen=neon_job_gen;
+        if(!ready) neon_vram_wait=true;
+    } else if(neon_vram_wait && neon_pending && neon_pending_gen==neon_gen) {
+        const auto t1=std::chrono::steady_clock::now();
+        if(gpu_vram_copy_async(neon_pending->vram.data(),0)) neon_vram_wait=false;
+        neon_snap_ms+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t1).count();
+        ++neon_vram_polls;
+    }
+    if(neon_pending && (neon_pending_gen!=neon_gen || neon_job_level!=level)) {neon_pending.reset();neon_vram_wait=false;}
+    if(neon_pending && !neon_vram_wait) {
+        auto snap=std::move(neon_pending);neon_pending.reset();
         neon_job=std::async(std::launch::async,[snap]{return neon_scan(*snap);});
     }
     if(neon_job.valid() && neon_job.wait_for(std::chrono::seconds(0))==std::future_status::ready) {
         std::vector<uint32_t> neon=neon_job.get();
         const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-neon_job_t0).count();
         if(neon_job_gen==neon_gen && neon_job_level==level) {
-            std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (snapshot %.1f ms on the game thread, scan %.1f ms off it%s)\n",
-                         level,neon.size(),neon_snap_ms,ms,neon_job_table?"":", animated faces not yet known");
+            std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (snapshot %.1f ms on the game thread over %u polls, scan %.1f ms off it%s)\n",
+                         level,neon.size(),neon_snap_ms,neon_vram_polls,ms,neon_job_table?"":", animated faces not yet known");
+            neon_vram_polls=0;
             near_clip_set_glow_faces(std::move(neon));
         }
     }

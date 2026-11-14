@@ -2080,7 +2080,7 @@ play.
 
 ### D23Y2 - Late warp research spike
 
-**Status: Todo (D23Y plan). Dependencies: D23Y.** For each in-between
+**Status: Cancelled (user, 2026-11-13: "lets just absolutely can that warp thing. its awful"; code removed; [note 467](../documentation/467-d23y2-late-warp.md) keeps the measurements). Dependencies: D23Y.** For each in-between
 present, re-draw the newest finished scene image with the newest camera
 look using its host depth, and draw the HUD, first-person weapon and screen
 overlays unwarped on top; measure on the field laptop. Acceptance: 120
@@ -2088,21 +2088,88 @@ pictures a second at 2x with CPU as the original 60 (all threads under 75%),
 GPU busy under 80%, input to picture under 50 ms (note 462's probe), the
 artefacts listed (uncovered edges, transparent layers, moving objects).
 
+Work log, 2026-11-13 (Needs playtest), [note 467](../documentation/467-d23y2-late-warp.md).
+Built as an experimental option, off by default (`run.py --late-warp HZ`,
+this launch only; `DNTTK_LATE_WARP=HZ`): replay presentation at HZ with no
+redraw workers, and at each present the real image's world layer re-projected
+on the GPU to the newest look (a rotation about the eye, no depth needed).
+The world layer is copied when the GPU display list reaches the first packet
+after the world (slot 1's head once near_clip links the weapon; framework
+`dma.c` boundary, `gl_late_warp_world_done`), one layer per buffer; pixels
+where the final image differs from it (weapon, HUD) are shown as drawn
+(`lw_render`); the frame camera comes from the host visibility walk, with the
+game's aspect in its rows (focal 256 across, 160 down); the tint and
+overlays stay unwarped. Checked: a 3-degree warp of a still view against a
+real 3-degree turn: no horizontal shift (1 pixel vertically); 10 degrees: 2
+pixels. Measured on the field laptop, three interleaved 30 s walks per slot
+(UI slots 2, 8, 9): at 2x, 120 pictures a second (lowest tenth 119-120),
+game frames 60 (lowest tenth 59.4-59.6), GPU busy 73-77%, all threads 67-78%
+(UI slot 8 over 75%: the presents run on the emulation thread); at the
+user's 3x the GPU reaches 87-89% and the game slows. Input to picture
+(note 462's probe, UI slot 2): 110-119 ms at the original 60 -> 20 ms with
+the warp at 120 (2x), 30 ms at 3x, 33 ms with the warp at 60 (where the
+timeline presented only 22-30 pictures a second: a phase bug for D23Y3).
+Artefacts: clamped edges on turns, translucent HUD layers keep the old world
+behind them, world and enemies still at 30 images a second, a 0.07-degree
+pitch offset (1 pixel), no warp without the weapon on screen. Default path
+unchanged (still views identical). Remaining: D23Y3 decides the player build
+(edge fill, calibration, HUD boundary, presents off the emulation thread,
+OPTIONS); the user's judgement.
+
+- 2026-11-13 playtest: the user: "late warp is completely unplayable. it stutters and glitches like absolutely crazy"; FRAME RATE 120 (redraws) "feels like how the real 60fps should actually feel. it's playable, but i think we can get it even smoother". Their warp session at 3x: game 44-46 frames a second (GPU), 1,623 of about 5,600 presents refused (snap back); host quiet. Lab turns with real mouse events: the warp runs 5-20 degrees ahead of the image on fast turns (the game's ~100 ms pipeline), so a band of 15-26% of the width is uncovered; the note and manual corrected (they had called it a few pixels). The spike's verdict: not playable as built; a warp limited to the change since the image appeared, or a wider image, is the D23Y3 question. Status stays experimental, off by default.
+- 2026-11-13 after the playtest: the stutter's main cause found and fixed ([note 467](../documentation/467-d23y2-late-warp.md) section 9): the game draws a buffer's next frame while its image is still presented, so the world layer was overwritten on screen and the final image re-copied mid-display; those presents (measured: up to 93% of the picture) fell back to the unwarped picture, jumping 30-35 pixels back on a steady turn. Now three world layers and the final image frozen at its flip: no backward steps in 40 shots of a steady turn. Edge band, 3x GPU and 30-image world remain; needs the user's retest.
+- 2026-11-13 retest with the fixed build (user's screen recording, 20:38, and session log): the edge band dominates. In real mouse play the warp ran 10-20 degrees ahead of the image in 1,267 presents, 20-35 in 644 and over 35 in 244 of about 4,700 (lab xdotool turns had shown mostly 5-20), so a third to half of the screen is smeared on every turn; game frames 47-60 at 3x. Conclusion for D23Y3: a rotation warp over this game's ~100 ms pipeline is not usable as the player's picture; only a warp limited to the change since the image appeared (at most about one game image) or a much wider image could be.
+- 2026-11-13 user's recording 20:42 (8.6 s, frame-to-frame motion measured): steady turns move 5-25 pixels a frame (658 wide) with smeared bands of a third to half of the screen, and on fast turns the picture swings back and forth by 135-190 pixels (a quarter of the width) between consecutive frames: presents whose lead passed 35 degrees are drawn unwarped, a snap back to the 100 ms old image. The rotation warp is not playable here.
+- 2026-11-13 cancelled by the user: "lets just absolutely can that warp thing. its awful. our goal needs to be to make 120fps playable on this laptop". Removed: the framework boundary and warp pass (`dma.c`, `gpu_gl_renderer.c`, `main.cpp`, `mod_plugins.h`, the render-copy names), the title's camera, boundary and provider (`frame_replay.cpp`, `modern_controls.cpp`, `near_clip.cpp`, `host_visibility.inc`), `run.py --late-warp` and the manual entry; the patch re-exported; local tests 258 OK. The work continues as D23Y6.
+
 ### D23Y3 - Late warp in the player build
 
-**Status: Todo (D23Y plan). Dependencies: D23Y2.** The warp of D23Y2 as the
+**Status: Cancelled (with D23Y2, user 2026-11-13). Dependencies: D23Y2.** The warp of D23Y2 as the
 2-core path above 60: edge fill, transparent layers, moving objects, the
 OPTIONS behaviour (FRAME RATE above 60 on 2 cores uses it), Vanilla
 unchanged. Acceptance: D23Y's series acceptance on the laptop.
 
+Work log, 2026-11-13 (inputs from D23Y2, not started; [note 467](../documentation/467-d23y2-late-warp.md) sections 5-6).
+The spike's warp gives 120 at 2x on the field laptop and about 20 ms input
+to picture; for the player build: an edge fill (turns clamp the last
+column), the 0.07-degree pitch offset, slot 0's head as the boundary when no
+weapon is drawn, presents off the emulation thread (UI slot 8 reached 78% of
+all threads at 2x), the 60 timeline that presented only 22-30 pictures a
+second at the guest's own rate, an OPTIONS row, and whether 3x should warp at
+60 (33 ms, GPU 62-67%) rather than 120.
+
 ### D23Y4 - Thread placement on 2 cores
 
-**Status: Todo (D23Y plan). Dependencies: D23Y.** With redraws on a
+**Status: Blocked (2026-11-13, measured: placement does not win and no placement reaches the bar; the redraws' power is the wall, [note 466](../documentation/466-d23y4-thread-placement.md); D23Y plan). Dependencies: D23Y.** With redraws on a
 2-core, 4-thread CPU, keep the emulation thread's physical core free of
 redraw workers (affinity), one worker on the other core; A/B against the
 default over five runs each (the laptop's clock varies run to run).
 Acceptance: redraws at 60 with 60 game frames and the lowest tenth 57 or
 more, or a measured reason why not.
+
+Work log, 2026-11-13 (Blocked, measured reason), [note 466](../documentation/466-d23y4-thread-placement.md).
+Built: developer `PSX_PLACEMENT=1` (`render_thread.c`, `render_worker.c`):
+on Linux with 2 physical cores and SMT, the emulation thread is pinned to
+the first core's logical CPUs when the workers start, and each worker process
+and render thread pins itself to the other core (checked: CPUs 0-1 against
+2-3). Measured redraws at 60 (DISPLAY on the 60 Hz panel with the developer
+`PSX_AUTO_CPUS=8` and `DNTTK_REPLAY_FLOOR=0`), the user's 3x Relit settings,
+the real display, 30 s walks of UI slots 2, 8 and 9, five interleaved runs
+per configuration and slot: lowest tenth of game frames (pooled) default
+55.2, placement 55.3, placement with one worker 56.2; seconds under 57
+12.4% / 13.6% / 11.7%; per-run lowest tenths 37-59 in every configuration;
+all threads 120-126%, clock 2.3-2.5 GHz (3.1 at the original 60). No clear
+win, so not the default; none reaches 57. Reason: with redraws the 15 W
+package limit lowers the clock and the emulation thread (about 80% of a core
+in UI slot 8) falls behind whichever core the workers use; placement does not
+reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
+(late warp), D23N2B-N4, D23Y5.
+
+- 2026-11-14 (D23Y6, note 468): at SIMPLE with presents at the display's rate
+  the clock stays high and placement wins (UI slot 8 emulation thread 81%
+  instead of 87%, presents lowest tenth 56 instead of 30; with one worker
+  59): it is now the default on 2-core SMT CPUs once workers start, with one
+  worker. This job's status is unchanged (its 3x Relit bar is still not met).
 
 ### D23Y5 - A lighter emulation thread
 
@@ -2113,9 +2180,146 @@ and cut its largest shares (memory access, dispatch lookups, SPU reverb,
 dirty tracking). Acceptance: under 50% at 3.1 GHz in UI slots 2, 8 and 9,
 behaviour and pictures unchanged.
 
+Work log, 2026-11-13 (notes from D23Z, [note 465](../documentation/465-d23z-emulation-thread-spikes.md) section 2; not started).
+Hotspots on the emulation thread found while profiling D23Z on the field
+laptop (the user's 3x Relit settings, original 60): (1) heavy views just after
+a load in UI slots 2 and 9 cost 14.5-16.6 ms of CPU a 16.7 ms field for about
+1.5 s and make the one slow second left in those walks (52-56 game frames);
+against the same walk later they add host world emission (`host_vis_walk` ->
+`near_clip_host_world_piece`, draw/emit) +1.7 ms a field, the emulated GPU's
+command processing (`dma_gpu_ll_advance` -> `gpu_write_gp0` ->
+`gp0_execute_command` -> `glb_draw_shaded_textured_triangle`,
+`prepare_precise_triangle`, `tex_ring_put`) +2.7 ms, and in UI slot 9 the
+sleeping copies (`sleeping_draw`, the game's actor renderer) +1.4 ms; a GPU
+command thread or a cheaper host emission would take most of it. (2) Flat
+shares over a whole walk: shared libraries 24% (clock reads 7.7%, now gone
+with the pacer change; libc 7%; the Mesa driver 5% on this thread even with
+its own driver thread), `psx_write_word_raw` 3.7%, `psx_game_find_entry`
+2.4%, `psx_read_word` 2.2%, `psx_write_word` 2.0%,
+`dirty_ram_text_native_ok_ranges_from` 1.6%, `spu_render` 1.4%. The
+overclock costs CPU in heavy views: without its pause UI slot 9's heavy
+second fell to 39 game frames. Tools: `PSX_PROF_FRAMES=1` and the lab's
+`stackdiff.py` profile a window of fields.
+
+### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
+
+**Status: Done (user-accepted 2026-11-14, closeout authorized; [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md)). Dependencies: D23Y; coordinate D23Y5, D23N2B-N4, D23P2.**
+User, 2026-11-13, after the late warp was cancelled: "our goal needs to be
+to make 120fps playable on this laptop. even at simple settings. the simple
+profile needs to ideally be 2x, 1x is really bad btw. 2x is the first
+'acceptible' look, and it does work on here. 120fps does sort of work, but i
+feel its jerkier now than when i playtested it on the gold and guns level a
+few hours ago." On the field laptop (note 461) FRAME RATE 120 runs the
+late-camera redraws; in the user's sessions the governor settled at every
+3rd refresh (41-46 redrawn pictures a second) with seconds of 13-35 game
+frames (session logs 13:16 and 20:10-20:48 in `recomp/build-local/logs`).
+
+1. **The regression first.** The user feels 120 is jerkier than at the
+   13:16 playtest (before D23Z). Compare those session logs (present
+   cadence, governor steps, hitch seconds, game frames) and A/B on the
+   laptop at 120 with redraws, same scenes: the D23Z frame-pacer sleep
+   (`PSX_PACER_SPIN=1` restores the spin; under full load a sleeping
+   emulation thread may wake late, and the pacer also drives the present
+   deadlines), the asynchronous neon snapshot (`PSX_GL_ASYNC_SNAPSHOT=0`),
+   anything else changed since 13:16; measure present intervals (the replay
+   interval histogram, repeats), not only counts. Restore the old behaviour
+   where it was the cause (for example the spin only while redraws run).
+2. **SIMPLE at 2x.** The SIMPLE grade's resolution becomes 2x (was 1x;
+   `player_profiles.GRAPHICS_PRESETS`, the OPTIONS table in `game_menu.cpp`,
+   `test_menu_table_matches_the_presets`, the manual); the other rows stay
+   the lightest. Check what AUTO picks on the laptop.
+3. **120 playable at SIMPLE (2x), then the heavier grades.** Measure the
+   redraw path's cost on the laptop and cut it: captured redraws (D23N2B-N4,
+   no game code re-run per later job), the lighter emulation thread (D23Y5,
+   hotspots in its log), fewer or cheaper redraw jobs per picture, even
+   present cadence from the governor (an even 60 or 120 rather than every
+   3rd refresh), the 15 W package budget (note 463). Interleaved A/B runs,
+   medians and the lowest tenth, the CPU clock noted per run.
+
+Acceptance: at FRAME RATE 120 with SIMPLE (2x) on the field laptop, UI slots
+2, 8 and 9 and the Gold and Guns level: 60 game frames with the lowest tenth
+57 or more, evenly paced pictures (no every-3rd-refresh spells in normal
+play), pictures unchanged where exact; the regression explained and fixed;
+the user's judgement that 120 feels smooth; Vanilla unchanged.
+
+Work log, 2026-11-13/14 (Needs playtest), [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md).
+Autonomous session on the field laptop (user: "work on D23Y6 autonomously and
+completely ... Don't stop to ask me anything"). Lab `recomp/analysis/d23y6/`
+(local): 30 s walks on the real display (offscreen ran far lighter than the
+window and does not show the compositor's cadence), private settings and
+card copies, runs held while the user was active; per second game frames,
+presents, CPU clock; every swap time, modelled against the 60.01 Hz panel.
+Scenes: Gold and Guns (level 3, savestate slot 0, the 13:16 playtest) and UI
+slots 2, 8 and 9.
+
+1. Regression: the 13:16 session played Gold and Guns, tonight's UI slot 2
+   (level 6); the logs show more rate changes tonight (every 2nd and 3rd
+   refresh, 4-6 a minute), not slower game frames. A/B at 120 with the
+   user's settings, 3 interleaved runs per scene: `PSX_PACER_SPIN=1` and
+   `PSX_GL_ASYNC_SNAPSHOT=0` within the run-to-run spread both ways (game
+   lowest tenth 53.6-56.9 in every configuration); D23Z stays. The cause is
+   the scene plus the governor: 120 on a 60 Hz panel draws pictures the
+   panel never shows, the game falls behind and presents swing between 120,
+   60 and an uneven 40 (UI slot 2: 25 ms gaps 39% of a walk, 5 changes).
+2. Built: a fixed FRAME RATE above the display's refresh presents at the
+   display's rate (`display_cap_check`, framework
+   `psx_mod_display_refresh_hz`; developer `DNTTK_DISPLAY_CAP=0`); the
+   governor's last step keeps at least 30 even presents (`last_div`: every
+   2nd on 60 Hz); slow seconds there clear after 10 clean ones
+   (`floor_good`), so the D23Y1 fallback is reached; the fallback keeps the
+   display rate for its retry (`floor_active`); D23Y4 placement on by default
+   on 2-core SMT CPUs once workers start, with one redraw worker
+   (`PSX_PLACEMENT=0`, `DNTTK_REPLAY_WORKERS` override); the latency query
+   sorts once per finished redraw. SIMPLE renders at 2x (presets, OPTIONS
+   table, test, manual); GRAPHICS AUTO still picks BALANCED here (probe 6.3
+   ms).
+3. Measured, final build against the old behaviour on the same build, 2
+   interleaved runs per scene (SIMPLE also 3 earlier): SIMPLE at 120 game
+   lowest tenth 59.0-59.2 (before 53.9-56.8), presents lowest tenth 59 (before
+   40-60), 0 rate changes (before 2.5-4.5), screen fresh 97.7-98.2%; BALANCED
+   58.9-59.3, presents 59-60 in three scenes and one even-30 spell a walk in
+   UI slot 9 (before 52.9-57.3 with 40-69% uneven 25 ms gaps); PRETTY
+   GPU-bound: even 30 or the original presentation, game lowest tenth
+   54.4-59.0 (before 31.0-52.9). UI slot 8's emulation thread: 63% at the
+   original 60, 88-90% with redraws at the same 3.1 GHz, the extra spread
+   over the whole profile (sharing the core with workers); placement 81%.
+4. Pictures: Vanilla paused shots 0 differing pixels (new default against
+   placement off); Modernized changes only the present schedule, CPUs and
+   worker count; paused shots differ only in animated sky, title glow and a
+   flame, as much as two runs of one build. Local tests 258 OK.
+
+Remaining: the user's judgement; BALANCED UI slot 9's 30 spell; PRETTY needs
+less GPU per picture; the emulation thread's share (D23Y5).
+
+- 2026-11-14 playtest and closeout. User: "it's completely playable. yes of
+  course, there are a few slowdowns, but i'm fine ... I'm very happy with the
+  performance. there are a few bits where it dips but they dont usually last
+  long, such as on duke hill. the best overall performance was on time to
+  kill. this job is accepted but i still want to revisit this to squeeze even
+  more out of it ... lock it in and close it out". Their session logs
+  (00:30-00:56): TIME TO KILL (level 0) about 12 minutes at 120 with 60
+  pictures a second (median) and game frames median 59; DUKE HILL (level 1)
+  stepped to an even 30 and twice to the original presentation (game frames
+  50-58 in its slow seconds). Done; the dips are D23Y7.
+
+### D23Y7 - The remaining dips at 120 (Duke Hill)
+
+**Status: Todo (found in the D23Y6 playtest 2026-11-14). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4.**
+After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
+second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
+to 30 a second and falls back to the original presentation for minutes
+(user's session 2026-11-14 00:30-00:56). Measure DUKE HILL's views at 120 with
+the D23Y6 lab (`recomp/analysis/d23y6/`, case `cad`; add a DUKE HILL savestate
+to the private card copy), profile the emulation thread, worker and GPU, and
+cut the cost there (D23Y5's emulation-thread hotspots, fewer or cheaper
+redraws, D23N2B-N4 captured redraws). Acceptance: DUKE HILL at 120 with the
+user's settings, 60 game frames with the lowest tenth 57 or more and 60 even
+pictures in normal play; pictures and behaviour unchanged; Vanilla unchanged;
+the user's judgement.
+
 ### D23Z - One-off CPU spikes on the emulation thread
 
-**Status: Todo (backlog, found in D23W 2026-11-13). Dependencies: D23W.** On
+**Status: Needs playtest (2026-11-13, [note 465](../documentation/465-d23z-emulation-thread-spikes.md); backlog, found in D23W 2026-11-13). Dependencies: D23W.** On
 the field laptop the remaining short slowdowns at 60 (one or two seconds of
 45-57 game frames in a 30 s walk, each followed by a 5 s overclock pause)
 lined up with one-off events on the emulation thread: the level-start lamp
@@ -2127,6 +2331,33 @@ over frames, and decide whether the overclock pause should wait for a second
 behind second on weak CPUs. Acceptance: no "behind" second in 30 s walks of UI
 slots 2, 8 and 9 on the laptop with the user's settings, pictures and
 behaviour unchanged.
+
+Work log, 2026-11-13 (Needs playtest), [note 465](../documentation/465-d23z-emulation-thread-spikes.md).
+Autonomous session on the field laptop (user: "work on D23Z, D23Y4 and D23Y2
+autonomously and completely"). Lab `recomp/analysis/d23z/` (local): 30 s
+walks of UI slots 2, 8 and 9 at the user's 3x Relit settings on the real
+display, interleaved A/B runs, slow seconds counted from the game's own
+seconds. New developer tools: `DNTTK_SPIKE_TRACE=MS` (slow updates with their
+hooks) and `PSX_PROF_FRAMES=1` (profiler stacks tagged by field). Measured:
+the neon-sign snapshot took 13.3-15.2 ms on the game thread (a synchronous
+GPU readback at 3x); the frame pacer's last-2 ms spin was 7.7% of the
+emulation thread's samples; sleeping-enemy handovers and Relit room changes
+were not spikes; the remaining slow second in UI slots 2 and 9 is the heaviest
+view of the walk just after the load (14.5-16.6 ms of CPU a field for about
+1.5 s: host world emission, GPU command processing, in UI slot 9 the sleeping
+copies), not an event. Built: the snapshot reads VRAM back asynchronously
+(pixel-pack buffer and fence, `gpu_vram_copy_async`; 3.7-5.1 ms; developer
+`PSX_GL_ASYNC_SNAPSHOT=0`); the pacer sleeps to 0.3 ms before its deadline on
+Linux (developer `PSX_PACER_SPIN=1`). Decided: the overclock pause stays at
+the first slow second (option `DNTTK_OC_PAUSE_AFTER`, measured: waiting for a
+second made UI slot 8 slow in every run and UI slot 9's worst second 39
+frames instead of 52-53). After, 6 runs each: slow seconds per run UI slot 2
+2/1/1/1/0/0 (before 1/1/1), UI slot 8 0/1/0/0/0/0 (before 0/1/1), UI slot 9
+one every run (worst 52.4; before 52.8); emulation thread 71% -> 66% (UI
+slot 8), all threads -1 to -5 points; game frames median 60, lowest tenth
+59.2-59.7. Pictures: the old paths against the new, still views: 0
+differing pixels (the pacer alone: 66, the LEVEL STATS clock). Remaining:
+the heavy views are D23Y5's (work log there); the user's play.
 
 ### D23R - Parity benchmark and acceptance
 

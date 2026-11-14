@@ -136,7 +136,7 @@ graphics chip most in one go. Everything else stays as you set it.
 
 | GRAPHICS | Resolution | LIGHTING | LIVE SHADOWS | Draw distance | FRAME RATE |
 | --- | --- | --- | --- | --- | --- |
-| SIMPLE | 1x | ORIGINAL | SIMPLE | original | 60 |
+| SIMPLE | 2x | ORIGINAL | SIMPLE | original | 60 |
 | BALANCED | 2x | ENHANCED | SIMPLE | extended | AUTO |
 | PRETTY | 3x | RELIT | SHARP | extended | AUTO |
 | ULTRA | 4x | RELIT | SHARP | extended | AUTO |
@@ -215,17 +215,27 @@ for the next launch):
 - `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
   It follows the window if you move it to another monitor.
 - `30`: each new game image is shown exactly once.
-- `120`, `144`, `165`, `180`, `240`: a fixed target rate.
+- `120`, `144`, `165`, `180`, `240`: a fixed target rate. A rate above your
+  display's refresh is shown at the display's rate (D23Y6): on a 60 Hz screen
+  `120` presents 60 evenly spaced pictures a second, because pictures between
+  two refreshes never reach the screen and drawing them only took processor
+  time the game needed. On a 120 Hz or faster display you get the full 120.
+  Your setting is not changed.
 - `unlimited`: the fastest paced redraw rate the scene can sustain; useful
   for stress testing, with no promise of one new image per monitor refresh.
 
 If the extra pictures above 60 slow the game itself down on your computer
-(it cannot keep up even when showing a picture at only every third refresh),
+(it cannot keep up even when showing a picture at only every third refresh,
+or on a 60 Hz display every second refresh: 30 even pictures a second, never
+an uneven 40),
 the game drops to the original 60 presentation for a while instead, so Duke
 and the enemies keep their speed, and tries the faster rate again after two
 minutes of play (then four, then eight if it still cannot). Your FRAME RATE
-setting is not changed (D23Y1). On a 2-core laptop such as an i7-5600U this
-happens within about ten seconds at a fixed 120.
+setting is not changed (D23Y1). On a 2-core laptop with a 60 Hz screen (an
+i7-5600U with HD Graphics 5500, measured in D23Y6) FRAME RATE 120 holds 60
+even pictures a second at GRAPHICS SIMPLE and BALANCED; PRETTY and ULTRA ask
+more of the graphics chip than it has for that, so it shows 30 even pictures
+a second or the original presentation, at full game speed.
 
 **VSYNC** (OPTIONS > DISPLAY, Modernized; `--vsync`; D23X) applies to the
 original 60 presentation: `on` (the default) waits for the display's refresh,

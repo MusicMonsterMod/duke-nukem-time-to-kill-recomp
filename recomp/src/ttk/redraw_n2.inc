@@ -15,6 +15,14 @@
 //      frame (same call order) and the later job's own start state: its
 //      memory after the job's camera and pose patches, and its transform
 //      substitutions (the same object and call index).
+//   8  actor joints, first person (D23N2B piece 4a, D23Y7 session): Duke's
+//      joint loop (0x800348d8, the transform call with ra 0x80034c6c) passes
+//      a stack copy of the joint's table entry scaled by ScaleMatrix
+//      0x800b4b5c (scale the half at 0x800c0bf4). The copy as the transform
+//      entry finds it before our callbacks, against a host port of
+//      ScaleMatrix applied to the table entry and scale as at the job's start;
+//      then what our own callbacks did to it before the routine reads it
+//      (left alone, changed in place, or another matrix passed).
 //   4  rooms and visibility (pieces 2 and 3): the game's portal walk
 //      0x8006276c run at the later job's start on a scratch CPU (its writes
 //      undone afterwards) with the predicted camera, and the room selection
@@ -306,6 +314,94 @@ void report() {
 }
 }  // namespace in
 
+namespace jt {
+// ScaleMatrix 0x800b4b5c(m a0, v a1), CONFIRMED by its disassembly: every
+// element m[i][j] (row-major halves) becomes the low word of m * v[j] (MULT,
+// mflo) shifted right 12 (arithmetic); words 0-3 hold two halves each, word 4
+// is the last element's full 32-bit result (its pad half takes the sign).
+void scale(const uint16_t m[10],const int32_t v[3],uint16_t out[10]) {
+    int32_t r[9];
+    for(int i=0;i<9;++i) r[i]=(int32_t)((uint32_t)(int32_t)(int16_t)m[i]*(uint32_t)v[i%3])>>12;
+    for(int i=0;i<9;++i) out[i]=(uint16_t)r[i];
+    out[9]=(uint16_t)((uint32_t)r[8]>>16);
+}
+struct Stats {uint64_t calls=0,direct=0,direct_start=0,copies=0,game_exact=0,game_exact_start=0,scale_start=0,
+    kept=0,changed_in_place=0,changed_t=0,changed_rot=0,other_matrix=0,other_in_mod=0,other_same_rot=0,other_same_t=0;} st;
+std::unordered_map<uint32_t,uint64_t> other_where;
+uint32_t pre_mat=0,pre_ra=0; uint16_t pre_m[10]; int32_t pre_t[3]; bool pre_valid=false;
+// Phase 0: the transform entry before our callbacks.
+void entry(CPUState* cpu) {
+    pre_valid=false;
+    if(cpu->gpr[31]!=0x80034c6cu) return;
+    ++st.calls;
+    const uint32_t tab=psx_mod_read_word(cpu->gpr[20]+0x3c)+cpu->gpr[22];
+    const uint32_t mat=cpu->gpr[5];
+    pre_mat=mat;pre_ra=cpu->gpr[31];
+    for(int k=0;k<10;++k) pre_m[k]=psx_mod_read_half(mat+2*k);
+    for(int k=0;k<3;++k) pre_t[k]=(int32_t)psx_mod_read_word(mat+0x14+4*k);
+    pre_valid=true;
+    if(mat==tab) {
+        ++st.direct;
+        bool same=in::in_ram(tab,0x20);
+        for(int k=0;k<8 && same;++k) same=in::start_word(tab+4*k)==psx_mod_read_word(tab+4*k);
+        st.direct_start+=same;
+        return;
+    }
+    ++st.copies;
+    if(!in::in_ram(tab,0x20)) return;
+    // The scale vector the loop built (sp+0x58: the half at 0x800c0bf4, three times).
+    const uint32_t sp=cpu->gpr[29];
+    int32_t v[3];for(int k=0;k<3;++k) v[k]=(int32_t)psx_mod_read_word(sp+0x58+4*k);
+    const int16_t sc=(int16_t)psx_mod_read_half(0x800c0bf4u),sc0=(int16_t)in::start_half(0x800c0bf4u);
+    bool vs=true;for(int k=0;k<3;++k) vs&=v[k]==(int32_t)sc0;
+    st.scale_start+=vs;
+    uint16_t m_live[10],m_start[10],o[10];
+    for(int k=0;k<10;++k) {m_live[k]=psx_mod_read_half(tab+2*k);m_start[k]=in::start_half(tab+2*k);}
+    scale(m_live,v,o);
+    bool ok=!std::memcmp(o,pre_m,sizeof o);
+    for(int k=0;k<3;++k) ok&=(int32_t)psx_mod_read_word(tab+0x14+4*k)==pre_t[k];
+    st.game_exact+=ok;
+    const int32_t v0[3]={sc0,sc0,sc0};
+    scale(m_start,v0,o);
+    bool ok0=!std::memcmp(o,pre_m,sizeof o);
+    for(int k=0;k<3;++k) ok0&=(int32_t)in::start_word(tab+0x14+4*k)==pre_t[k];
+    st.game_exact_start+=ok0;
+    (void)sc;
+}
+// Phase 1: after our callbacks, as the routine reads it.
+void entry_done(CPUState* cpu) {
+    if(!pre_valid || cpu->gpr[31]!=pre_ra) return;
+    pre_valid=false;
+    const uint32_t mat=cpu->gpr[5];
+    if(mat!=pre_mat) {
+        ++st.other_matrix;st.other_in_mod+=(mat&0xff000000u)==0x9f000000u;
+        ++other_where[(mat&0xff000000u)==0x9f000000u ? 0x9f000000u : (mat>=cpu->gpr[29]-0x400 && mat<cpu->gpr[29]+0x400) ? 0x5ac0000u : mat];
+        // The replacement against the entry: rotation / translation kept?
+        uint16_t m[10];int32_t t[3];
+        for(int k=0;k<10;++k) m[k]=psx_mod_read_half(mat+2*k);
+        for(int k=0;k<3;++k) t[k]=(int32_t)psx_mod_read_word(mat+0x14+4*k);
+        st.other_same_rot+=!std::memcmp(m,pre_m,18);st.other_same_t+=!std::memcmp(t,pre_t,sizeof t);
+        return;
+    }
+    uint16_t m[10];int32_t t[3];
+    for(int k=0;k<10;++k) m[k]=psx_mod_read_half(mat+2*k);
+    for(int k=0;k<3;++k) t[k]=(int32_t)psx_mod_read_word(mat+0x14+4*k);
+    const bool rot=!std::memcmp(m,pre_m,sizeof m),tr=!std::memcmp(t,pre_t,sizeof t);
+    if(rot && tr) ++st.kept; else {++st.changed_in_place;st.changed_t+=!tr;st.changed_rot+=!rot;}
+}
+void report() {
+    std::fprintf(stderr,"[n2 check %ld] joints (piece 4a): calls=%llu direct=%llu scaled copies=%llu | ScaleMatrix port exact from the live entry %llu, from the entry and scale as at the job start %llu (scale vector as at the start %llu) | our callbacks: copy kept %llu, changed in place %llu (translation %llu, rotation %llu), another matrix passed %llu (in mod memory %llu)\n",
+        (long)getpid(),(unsigned long long)st.calls,(unsigned long long)st.direct,(unsigned long long)st.copies,
+        (unsigned long long)st.game_exact,(unsigned long long)st.game_exact_start,(unsigned long long)st.scale_start,
+        (unsigned long long)st.kept,(unsigned long long)st.changed_in_place,(unsigned long long)st.changed_t,(unsigned long long)st.changed_rot,
+        (unsigned long long)st.other_matrix,(unsigned long long)st.other_in_mod);
+    std::fprintf(stderr,"[n2 check %ld]   joints: direct entries as at the job start %llu of %llu; replacements with the entry's rotation %llu, translation %llu; where:",(long)getpid(),
+        (unsigned long long)st.direct_start,(unsigned long long)st.direct,(unsigned long long)st.other_same_rot,(unsigned long long)st.other_same_t);
+    for(auto& [k,v]:other_where) std::fprintf(stderr," %08x:%llu",k,(unsigned long long)v);
+    std::fprintf(stderr,"\n");
+}
+}  // namespace jt
+
 namespace vis {
 // Writes of the scratch run, undone in reverse order.
 struct Undo {uint32_t addr,old,size;};
@@ -418,6 +514,7 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
         else if(addr==0x800292a0u) xf::on_entry_done(cpu);
     }
     if((n2_mask()&2) && phase==1 && addr==0x800292a0u) in::on_entry_done(cpu);
+    if((n2_mask()&8) && addr==0x800292a0u) {if(phase==0) jt::entry(cpu); else jt::entry_done(cpu);}
     if(n2_mask()&4) {
         if(phase==1 && addr==0x8006276cu && cpu->gpr[31]==0x8002e650u) vis::portal_entry(cpu);
         if(phase==0 && addr==0x80062b48u && cpu->gpr[31]==0x8002e688u) vis::walk_entry(cpu);
@@ -425,7 +522,7 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
 }
 uint64_t n2_serial=0; float n2_alpha=0;
 void n2_begin(const CPUState& job) {
-    if(n2_mask()&6) in::begin(job);
+    if(n2_mask()&14) in::begin(job);
     if(n2_mask()&4) vis::begin(job,n2_serial,n2_alpha);
 }
 void n2_at_flip(uint64_t serial,float alpha) {
@@ -444,4 +541,5 @@ void n2_at_flip(uint64_t serial,float alpha) {
         vis::at_flip(serial,alpha);
         if(jobs%64==0) vis::report();
     }
+    if((n2_mask()&8) && jobs%64==0) jt::report();
 }

@@ -769,6 +769,32 @@ from several angles and distances, first and third person. Acceptance: in a
 matched before/after pair from the same spot, each flame sits on its candle;
 no cost at 180 Hz; Vanilla and Classic unchanged.
 
+### D41R - Live shadows off
+
+**Status: Todo (user request 2026-11-14). Dependencies: D41F1, D41O.**
+User, 2026-11-14: "a really, really quick win for improving frame rate on
+these low end systems too which id like you to add in, is the ability to
+turn shadows off in polymorph". Today OPTIONS > DISPLAY > LIVE SHADOWS has
+SHARP and SIMPLE only; turning shadows off exists only as the session
+console command `light shadows off`. Steady lamps are baked (D41M) and keep
+their wall shadows either way, so OFF only removes the shadow maps of live
+lights (blasts, flickering, pulsing and breakable lamps) and the live
+shadow work for models (see D41P).
+
+Work:
+1. Measure before building (no code): on the field laptop, D23Y6 lab, the
+   player's settings at FRAME RATE 120, DUKE HILL from the UI slot 5 card
+   copy and UI slots 2, 8 and 9, interleaved A/B of `light shadows off`
+   against SIMPLE (game median and lowest tenth, presents, screen fresh,
+   CPU clock, GPU busy). Note 469 section 2 has the baseline: lowest tenth
+   51-54 at a steady 60 there, 57.1 with LIGHTING ORIGINAL.
+2. If it helps: add OFF to LIVE SHADOWS (saved, `--shadow-edges off`,
+   terminal settings), the console and menu kept in step; decide with the
+   user whether the SIMPLE graphics grade uses it. Manual entry.
+3. Acceptance: OFF draws no live shadow map; matched pictures show only
+   the live-light shadows gone (baked lamp shadows unchanged); SHARP and
+   SIMPLE unchanged; Classic, ORIGINAL and Vanilla unchanged.
+
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

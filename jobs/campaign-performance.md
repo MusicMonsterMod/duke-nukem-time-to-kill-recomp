@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: Todo (split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-14, piece 4a, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1551,6 +1551,25 @@ Acceptance: host packets of rebuilt later jobs identical word for word in UI
 slots 2, 8 and 9 at 180 Hz over thousands of jobs, the game's own packet
 differences listed for D23N3, the rebuild's CPU time measured against the
 job's; Vanilla unchanged.
+
+Work log, 2026-11-14 (In progress, piece 4a), [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5.
+Autonomous session on the field laptop (third of D23Y7, D23Y5, D23N2B). The
+matrices built in a later job, by caller (`DNTTK_N2_CHECK=2`, offscreen 180
+Hz): Duke's joint loop (transform call returning to `0x80034c6c`) is most of
+them (UI slot 2 20,247 of 25,080; UI slot 8 12,636 of 18,829; UI slot 9
+26,238 of 28,063). New developer check, bit 8 (`redraw_n2.inc`, namespace
+`jt`): at that transform entry before and after our callbacks. In UI slots
+2, 8 and 9 every joint passes its table entry directly, every entry is as at
+the job start (36,992, 29,952, 48,384 calls), and our own callbacks replace
+every matrix the routine reads (in mod memory 32,640 / 24,960 / 37,383; the
+camera block for joints kept out of the view 4,352 / 4,992 / 11,001). So a
+rebuilt later job gets them by running our D36 joint code from the job-start
+inputs. A host port of `ScaleMatrix` `0x800b4b5c` (from its disassembly) is in
+the check; the game's scaled path is not taken in these views. Next: the
+inputs our joint callbacks read, checked as at the job start or predicted;
+then the callbacks run from the later job's start and compared word for
+word; then the other callers (`0x80033584`, `0x8003133c`, the weapon/HUD
+`0x80038c68`/`0x80038d7c`/`0x80038e18`), and the rest of note 456 section 6.
 
 ### D23N3 - The game's camera-dependent packets
 
@@ -2173,7 +2192,7 @@ reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
 
 ### D23Y5 - A lighter emulation thread
 
-**Status: Todo (D23Y plan). Dependencies: D23Y; coordinate D23Z.** The
+**Status: Blocked (2026-11-14, measured, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4; the structural step is D23Y8). Dependencies: D23Y; coordinate D23Z.** The
 original 60 presentation's emulation thread takes 55-70% of a core at
 3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
 and cut its largest shares (memory access, dispatch lookups, SPU reverb,
@@ -2200,6 +2219,23 @@ its own driver thread), `psx_write_word_raw` 3.7%, `psx_game_find_entry`
 overclock costs CPU in heavy views: without its pause UI slot 9's heavy
 second fell to 39 game frames. Tools: `PSX_PROF_FRAMES=1` and the lab's
 `stackdiff.py` profile a window of fields.
+
+Work log, 2026-11-14 (Blocked, measured), [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4.
+The original 60, UI slot 2, offscreen at a steady 3.1 GHz: the emulation
+thread 57.4-58.6% (median, 4 runs; spread about 0.5-1.5 points). Inclusive
+shares from call stacks: the emulated GPU's command processing 13.7% (GP0 into
+GL batches), host world and model emission about 11%, presentation 6.4%, SPU
+3.3%, dispatch lookups 2.1%; exclusive guest memory access about 11%. In
+redraw mode it also presents redraws (10.6%), publishes the worker image
+(4.7%) and captures the render threads' snapshot (2.0%). Tried, all exact:
+the per-store debug-tool write hooks bypassed (57.4% against 56.4%, no gain),
+the redraw fence before the swap and an overlay image cache (62.3% against
+62.3%; 49.4% against 49.9%): taken out again. The spread shares leave no
+single exact change large enough to reach 50%; the structural step, the
+emulated GPU's commands and presentation on their own thread, is D23Y8. The
+model pass's emission in redraw-only frames (8.5% inclusive in DUKE HILL)
+is another candidate, but skipping it changes what the DMA walker reads and
+needs its own proof.
 
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
@@ -2304,7 +2340,7 @@ less GPU per picture; the emulation thread's share (D23Y5).
 
 ### D23Y7 - The remaining dips at 120 (Duke Hill)
 
-**Status: Todo (found in the D23Y6 playtest 2026-11-14). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4.**
+**Status: Blocked (2026-11-14, measured, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3; found in the D23Y6 playtest 2026-11-14). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
 After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
 second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
 to 30 a second and falls back to the original presentation for minutes
@@ -2316,6 +2352,45 @@ redraws, D23N2B-N4 captured redraws). Acceptance: DUKE HILL at 120 with the
 user's settings, 60 game frames with the lowest tenth 57 or more and 60 even
 pictures in normal play; pictures and behaviour unchanged; Vanilla unchanged;
 the user's judgement.
+
+Work log, 2026-11-14 (Blocked, measured), [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md).
+Autonomous session (user: "work on D23Y7, D23Y5 and D23N2B autonomously and
+completely on this field laptop ... without changing pictures or
+behaviour"). Host quiet (no backups or updates, no thermal throttling). Lab
+`recomp/analysis/d23y6/` extended: DUKE HILL savestates in the private card
+copy (private slot 10 a fresh `level 1` start, KILLS 0/50; private slot 4
+the copy of UI slot 5), per-thread CPU with the worker, worker statistics.
+At the player's settings (2x, LIGHTING on, SIMPLE edges, extended, 120): the
+start holds 60 even pictures (game 60.0 / lowest tenth 58.8, presents 60/59,
+0 rate changes, 5 runs); the open town from UI slot 5 steps to 30 (game
+59.9-60.1 / 56.3-58.4, presents median 31-39, 4.3-5 changes, 7 runs). At a
+steady 60 there the CPU clock falls to 2.0 GHz, all threads 223%, the
+emulation thread 91-93%, the worker about one core, render thread 30%, GPU
+busy 79%; game lowest tenth 51-54. FRAME RATE 60 there: 67% and 3.1 GHz.
+Diagnostics: lights off 57.1 (2.3 GHz), 1x 59.1 (3.1 GHz): the GPU's share of
+the 15 W package pulls the CPU down. Tried: the D23U depth prepass (worse,
+55.7 against 57.7); the snapshot capture's copies (bound +2 to +4.5 points;
+an exact incremental capture copied about half and gained nothing
+measurable: 53.5 against 53.5); a fence before the swap and an overlay cache
+(no change). All taken out; framework unchanged. D23Y6's cap, placement and
+one worker against `PSX_PLACEMENT=0` and two workers: the defaults keep the
+most 60-picture time (screen fresh 72.5% against 56.0% and 63.4%), kept.
+Blocked until a redraw or the emulation thread costs less (D23N2B-N4,
+D23Y8), or a lighter picture chosen by the player.
+
+### D23Y8 - Emulated GPU commands on their own thread
+
+**Status: Todo (proposed 2026-11-14 from D23Y5, [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4). Dependencies: D23Y5; coordinate D23Y7, D23N4.**
+At the original 60 the emulation thread spends 13.7% of its samples in the
+emulated GPU's command processing (DMA linked lists, GP0 into the GL
+renderer's batches) and 6.4% presenting, in UI slot 2 on the field laptop.
+Move that work to a GPU thread fed by a command queue (as other emulators'
+threaded renderers do), with the emulation thread waiting only where the
+game reads back (VRAM reads, GPUSTAT that depends on drawing), savestates,
+redraw snapshots and the render threads synchronised. Acceptance: the
+emulation thread under 50% of a core at 3.1 GHz in UI slots 2, 8 and 9 at
+the original 60; pictures identical (frame checks), behaviour unchanged
+(guest timing as before), Vanilla unchanged.
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

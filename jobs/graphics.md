@@ -2852,3 +2852,56 @@ camera view, draw that camera's view at low resolution into the monitor's
 screen face until Duke walks out of range, then back to the D53 idle
 screen. Needs a second scene pass to an offscreen target in Polymorph.
 Duke 3D toggle value only. Acceptance: user playtest in slot 9.
+
+### D17BH - Translucent horizontal bands over the bottom of the screen
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: two or more translucent horizontal bands across roughly
+the bottom quarter of the display, now and then. They disappeared on their
+own, then returned after restarting the game and loading a save. Related in
+look only: D17P (distant black bands, Done).
+
+Work: catch it first (ask the user for a screenshot or savestate if it
+cannot be reproduced; capture the presented frame and the redraw state when
+it shows). Suspects to rule in or out: redraw-only frames presenting stale
+or partly written images, snapshot tiles, the output pass, HUD or overlay
+quads. Compare with redraw-only off (`[TTK redraw-only] off` in the log).
+Acceptance: no bands in the user's normal play or after loads.
+
+### D17BI - OBEY OR DIE magazines on a desk flicker
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: two magazines on a desk at the far end of an apartment
+room in OBEY OR DIE flicker excessively. Suspected: depth fighting between
+the magazines and the desk top (coplanar). Work: find the objects, check
+their depth against the desk in Polymorph's host-depth path, fix the class
+(coplanar decals on props) rather than this desk. Acceptance: both magazines
+steady from every angle, not floating; Vanilla unchanged.
+
+### D17BJ - GOLD AND GUNS cabin ceiling should show the sky (UI slot 9)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D17AO1.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14, UI slot 9 (their correction from slot 10; the 13:09 save,
+GOLD AND GUNS): a cabin's ceiling area is bright or open and should look
+like the sky already given to the start of GOLD AND GUNS. Work: find what
+the ceiling draws, reuse the existing sky (D17AO1, D17O) where it fits; no
+seams or black gaps; ask before treating an authored gap differently.
+Acceptance: the user's UI slot 9 shows the sky there at high FOV.
+
+### D53B - No impatient idle lines while watching a security camera
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: while watching a security-camera feed Duke sometimes
+says his impatient waiting lines, which does not fit: the player is busy.
+Work: find what starts the idle timer's lines and hold it while a camera
+view is active; normal idle lines return after leaving the camera. Check
+both Modernized and Vanilla (Vanilla keeps the original unless the user
+decides otherwise). Acceptance: no idle lines during a long camera view.

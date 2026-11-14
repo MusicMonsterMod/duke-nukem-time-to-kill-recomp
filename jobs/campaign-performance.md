@@ -2772,3 +2772,113 @@ Vanilla: 25 rounds clean. Remaining: the user's playtest of F6/F9 and SAVE
 GAME / LOAD GAME at 180 Hz.
 
 User playtest, 2026-11-12: "the game no longer crashes at that point ... testing is solid". Accepted; closeout authorized.
+
+### D50E - Exploding barrels crash the game (Resistance Is Feudal)
+
+**Status: Done (2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the game crashed when Duke blew up barrels (biohazard and
+radiation symbols) in a room of RESISTANCE IS FEUDAL.
+
+Evidence (read 2026-11-14 from the user's session, nothing changed):
+`recomp/build-local/logs/session-20261114-134841.log` stops at 14:28 with no
+shutdown lines (level 7 loaded at its line 792, a slot 0 save just before).
+systemd-coredump kept a core (`coredumpctl`, PID 31710, SIGSEGV, the build of
+2026-11-14 12:52). gdb on that core:
+
+- the faulting thread is a Polymorph redraw render thread:
+  `render_thread.c:464 thread_main` -> `render_replay.c:528
+  rc2_render_replay_rt_session` -> `gpu.c:4553
+  gp0_exec_shaded_textured_quad` -> `gpu_gl_renderer.c:3929
+  gpu_textured_triangle` -> `sh_classify_tri`, `gpu_gl_renderer.c:4699`
+  (the D41F2 / D23O part 2 shadow classifier);
+- the triangle's light mask was `0xc0000001` (lights 0, 30 and 31 of the
+  32-entry table, `GL_MAX_LIGHTS`);
+- the loop is `for (int i = 0; m >> i; i++)`. With bit 31 set, `i` reaches
+  32, where the shift count is out of range (undefined in C; x86 uses the
+  count mod 32, so `m >> 32` is `m` again and never zero). The loop never
+  ends and reads `s_light_data[i * 8]` past the table: `i` was 29,109,918
+  (`r13 = 0x1bc2e9e`) when it left mapped memory.
+
+Why the barrels: their explosions add dynamic lights, so the frame's light
+table filled to its last slot and a lit wall's list held light 31. Any scene
+that fills slot 31 on a classified (shadowed) wall can crash the same way;
+the barrels are only the likely way to get there.
+
+Same class, found in the D41T sweep: `lz_ensure` (`gpu_gl_renderer.c`
+about 7197-7209) shifts by the tile column, which reaches 32 or more on a
+surface wider than 1024 px (unlikely; fix it with this one). Lighting
+follow-up: D41T (chains share one light, no blast shadows).
+
+Work: bound the loop to the table (iterate set bits, `i < 32`), check the
+other light-mask loops for the same pattern (only this one matched
+`m >> i` in `runtime/src`), export the framework patch. Acceptance: a lab run
+with 32 lights in view (spawned barrels or the console) is clean, the user's
+barrel room can be blown up repeatedly, including after a load; pictures
+unchanged (`PSX_RT_VALIDATE`).
+
+Work log:
+
+- 2026-11-14 ([note 472](../documentation/472-d50e-d41t-barrel-chains.md) section 1). `sh_classify_tri` walks the set bits of the mask (same order as before for every mask without bit 31, so no picture can change); `lz_ensure` rows are 64-bit masks and wide surfaces over 2048 px load whole, so no shift reaches the mask width. No other `m >> i` loop in `runtime/src`. Framework patch exported; a pristine pinned checkout plus the patch matched all 90 framework files. Lab (own empty card dir, new game, `level 7`, `light bake off`, 24 test lights round Duke): with only the old loop restored the game crashed when the table filled, same stack as the user's core (`i` 29,109,864 against 29,109,918); the fix ran 2 minutes at 31-32 lights, through a load and a refill, and quit cleanly. `PSX_RT_VALIDATE` (classes on) 12 of 377 differing against 11 of 379 on the old loop, the class cache's usual noise; 384 of 384 with classes and reuse off. Remaining: the user's barrel room, repeatedly and after a load. Needs playtest.
+- 2026-11-14: accepted and closed. User: "lock it in and close it out! it 100% works".
+
+### D50F - Saving or loading sometimes slows the game and the save notice is unclear
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D50D.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: a save or load sometimes gives a noticeable slowdown, and
+they do not always get a clear confirmation that the save worked.
+
+Evidence so far (logs of 2026-11-14 12:53, 13:06, 13:48): every save
+succeeded (42 writes to UI slots 1, 9 and 10, each `outcome=success`
+followed by `GAME SAVED`); capture 2.8-9.1 ms on the emulation thread,
+write 93-108 ms on the writer, done about 135-140 ms after the request;
+loads about 23 ms. So these sessions show no failed save; the slowdown is
+not reproduced yet. Lead: the 13:06 session's redraw workers report one job
+of 10.4 s (`job_us_max` 10431530) and a level 5 start with the audio ring at
+17 ms (`audio 17->264`), worth placing against the user's saves and loads.
+
+Work: reproduce with the user's real pattern (F6 / F9, menu saves, loads in
+a row) at 180 Hz; measure the game thread and presentation around save
+admission, capture, write and load; make the notice unambiguous (shown after
+the write succeeds, a clear failure notice otherwise); check whether
+repeated save/load contributes to D17BH. Acceptance: no visible slowdown on
+save or load in the user's playtest, success and failure each clearly shown.
+
+### D23AA - FAMILY JEWELS start stutters until the drawbridge is lowered
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: noticeable stuttering right at the start of FAMILY
+JEWELS; after lowering the moat drawbridge it largely disappears.
+
+Work: per the AGENTS.md performance rule, first check the host's state for
+the session (backups, updates, CPU, disk, memory). Then profile the start
+before and after the drawbridge (headless lab, 180 Hz, spawn or start
+position): room visibility, redraw workers, lamp bake, sleeping enemies,
+shadow maps. Decide whether the change is the level's state (bridge up
+changes what is visible or animated) or warm-up (caches filled by then).
+Acceptance: the start plays smoothly before and after the bridge in the
+user's playtest, pictures unchanged.
+
+### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
+
+**Status: Todo (backlog, research; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14, UI slot 10 (the 13:42 save, GOLD AND GUNS): the mission
+items list shows a skeleton key for this level, but where it is and what it
+does is unclear. There is also a room at the far end of the long lava hall
+with a switch visible inside and no way in found. Walkthroughs did not
+explain either.
+
+Research: the level's mission items and how the inventory maps them; whether
+the key really exists here, where it is obtained; the room, its switch and
+what triggers it; whether the DeLorean secret is linked; compare with the
+original on DuckStation (portable copy only) for a recomp regression.
+Do not invent a route or change progression. Acceptance: a written answer
+(how they work, or that they are unused or shown wrongly); a fix job only if
+a real bug is confirmed.

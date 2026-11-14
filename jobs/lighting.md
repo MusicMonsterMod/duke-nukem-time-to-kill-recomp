@@ -1301,3 +1301,245 @@ images." Scope:
   Polymorph only; Vanilla and Classic unchanged.
 
 Acceptance (first step): the published artifact, reviewed by the user.
+
+### D55A - Traffic lights no longer light the street
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14; possible regression of D55). Dependencies: D55.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14, OBEY OR DIE: traffic lights used to flash and light the
+level geometry around them (D55); that seems gone. Bullet holes nearby
+still respond to the flashing light, so the light itself still exists.
+Suspects to check: changes since D55 (D41M baked lamps, D41O, D41P models
+lit from the bake, D41R LIVE SHADOWS OFF), the user's LIGHTING / LIVE
+SHADOWS / ULTRA settings, and whether D55's lights are now treated as fixed
+(baked) lamps. Work: compare on ULTRA and the user's settings; restore
+geometry light if it was lost; if it was turned off for performance,
+measure its cost and write down the trade-off. Acceptance: walls and props
+near a traffic light take its colour and flash again, matching the bullet
+holes.
+
+Lead (read 2026-11-14 in `lamp_bake.inc` and [note 446](../documentation/446-d41m-baked-lamps.md)
+section 2 point 4; not tested): since D41M, flashing and flickering lamps are
+baked too, as live channels. Their light shape and wall shadows are baked once
+and only their brightness changes each tick (`b.channel` for any lamp that is
+not steady; D55's traffic lights are `lamp_signal`, mean 0.5). A face holds at
+most four such channels. Any more are baked at their average brightness and
+stop flashing on that face: note 446 counts 314 such faces on level 0, "its
+traffic lights and neon". Check this first. The bullet holes still flash
+because they are lit live, not from the bake.
+
+Direction by profile (user, 2026-11-14: "something like the traffic lights
+should be like, respected by the live lighting etc in the more expensive
+profiles, but in the budget ones, just the plain view, anything to really
+tone it down you know to save resource in those budget views ... if there is
+anything we can do to even fake it in the cheaper views that they flash we
+should certainly do that"):
+
+- Expensive profiles (PRETTY, ULTRA): traffic lights and other animated lamps
+  are fully respected: flashing light on walls, props, models and sprites,
+  as D55 built it.
+- Budget profiles (SIMPLE, BALANCED, LIVE SHADOWS OFF, the field laptop): no
+  live light work for them. Fake the flash as cheaply as possible, in order
+  of preference: (1) the bake's channel (already a fake: a stored shape with
+  a live brightness, one multiply a texel) with the four-channel limit
+  handled so signals keep flashing; (2) if even that is too much, the
+  game's own flashing texture plus a cheap additive glow at the lamp (Hexen
+  II `gl_glows` style, see D41S), with no light on the walls.
+- Since D41P2 (merged 2026-11-14) the fixed lamps, traffic lights among
+  them, light only through the bake when it is shown, so the bake's
+  four-channel limit now decides whether they flash at all. The D41S glows
+  (additive halos at flames and rounds) are the framework for fallback (2).
+- The same rule applies to every animated lamp class (neon, candles,
+  strobes), not only traffic lights. Measure each step on the field laptop.
+
+### D56A - GOLD AND GUNS flying enemies' shots give light
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D56.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the flying enemies in GOLD AND GUNS fire projectiles
+that should light their surroundings the way D56 did for the Necro blasts.
+Work: identify the projectile type, give it a bolt light on the D56 framework
+(`dynamic_lights.inc`) in a colour that matches it; the light follows the
+shot and goes when it does. Acceptance: shots light the walls in flight, no
+light left behind; measured cost at 180 Hz.
+
+### D57A - Lava gives light (GOLD AND GUNS)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: lava in GOLD AND GUNS looks bright but contributes no
+light. Work: lava faces as warm emitters through the existing level-light
+path (D41D texture emitters, baked with D41M where fixed), cheap; maybe a slow
+throb. Acceptance: nearby walls and Duke take the lava's light, within the
+performance budget.
+
+### D57B - Light for the secret DeLorean (GOLD AND GUNS)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the secret DeLorean in GOLD AND GUNS is in an almost
+entirely dark area, which makes the discovery underwhelming. Work: a subtle
+added lamp (per-level light file) that shows the car and keeps the mood.
+Acceptance: the car reads clearly in the user's playtest, still atmospheric.
+
+### D57C - LA subway entrance globe lights give light
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the round globe lights outside the subway entrances
+should give light. Work: find every such fixture in the LA levels and make
+them consistent lamps (per-level light files or by texture), baked where
+fixed. Acceptance: each globe lights its surroundings; cost measured.
+
+### D57D - SOMEONE'S GONNA PAY strip club secret-room lamp gives light
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: in the strip club of SOMEONE'S GONNA PAY, the lamp inside
+the secret room should be a real light. Acceptance: the room and objects in
+it take the lamp's light.
+
+### D57E - LA apartment lamp gives light
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: a lamp in a Los Angeles apartment-building area should
+light its surroundings, following the same conventions as the other lamps.
+First step: confirm which level and room with the user (or their savestate).
+Acceptance: the lamp lights the room around it.
+
+### D57F - Time-portal machine crystal slots glow when filled (OBEY OR DIE)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57, D08A43.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: when the crystals are put into the final time-portal
+machine, the slots should glow, in the visual language of the original
+crystal holders. Work: a glow and light per filled slot, in the crystal's
+colour; correct after loads. Acceptance: an elegant glow per inserted
+crystal, nothing on empty slots.
+
+### D41T - Explosions light cheaply: one light per chain, no blast shadows
+
+**Status: Done (2026-11-14). Dependencies: D50E.**
+User, 2026-11-14, after the D50E barrel crash: "we can merge every barrel
+chain in the game ... there's a barrel section in miner 69er too so maybe we
+can do like a full optimization ... i think the cheapest option overall is
+gonna be the best one here ... i really hope we can make this effect simple
+and cheap to do. and maybe open our eyes to similar issues within the game".
+
+How it works today (read 2026-11-14 from `src/ttk/dynamic_lights.inc` and
+`light_shadows.inc`; nothing changed). Every explosion goes through
+`light_blast_at`: TNT barrels through the shake hook (`lights_shake`, ra
+`0x800973e0`); dynamite, pipe bombs and grenades, rounds and gibs through the
+blast sound hooks (`lights_sound`, `lights_sound_water`). The vest pig is
+probably lit as a gib blast (same routine as `0x8006413c`; not verified).
+Each blast:
+
+- adds its own light (`light_srcs[24]`; a barrel 9000 reach, 20 tics);
+- is a shadow caster, so it claims a new cube map (up to
+  `shadow_new_per_tick` = 8 a tick, 16 slots). Gib bursts claim one too;
+- calls `lights_publish()` at once, so the whole light view is rebuilt per
+  event: lamp search and sort, props, TVs, `shadows_assign`, the bake marks.
+  A 20-barrel chain rebuilds it 20 times in one tick.
+
+What goes wrong in a chain:
+
+- casters past the maps go black (`l.r=l.g=l.b=0`, lines 211 and 235) but
+  keep their slot and full reach. A faded caster in the top 16 can reach
+  colour 0 and still gets a map drawn. The D50E core showed about 20 barrel
+  lights in the room, most at colour 0;
+- the table fills first come: lamps up to 32 - 8, then up to 8 fire lights
+  (burning objects, flames) take the 8 slots kept for blasts and flashes, so
+  a chain that sets things burning can leave explosions with no light at all;
+- `light_add` replaces the oldest entry when full, so in a firefight the
+  long-lived blasts are pushed out first by muzzle flashes and sparks;
+- `lights_flight` takes the first 8 rounds in flight by pool index, not the
+  nearest.
+
+How other engines do it (looked at 2026-11-14):
+
+- EDuke32 Polymer (source on this machine): each EXPLOSION2 gets a point light
+  for about 2 tics (`lightcount = 2`). Point lights get no shadow maps (only
+  spotlights do, `polymer.cpp` 6213). Low-priority lights are skipped, and a
+  surface draws at most `pr_maxlightpasses` lights (5 by default).
+- Quake (the engine under Alkaline, id's released source): one dlight per
+  explosion (radius 350, gone in 0.5 s, decaying). No shadows. 32 slots; when
+  full, a new light overwrites an old one.
+- Hexen II: `gl_glows` / `gl_missile_glows`, cheap additive halos, no lights.
+
+Work, cheapest first (Modernized Polymorph only; Vanilla and Classic
+unchanged):
+
+1. One light per chain: a blast near a live, still-bright blast (a reach and
+   tic window, to be measured) feeds that light instead of adding one. It
+   moves toward the newer blast, brightens a little (capped) and lives a
+   little longer. Every explosive type shares it.
+2. Blasts cast no shadows: a short flash, as in Polymer and Quake. No cube
+   maps for blasts or gibs.
+3. A light that is dark this tick (colour 0, envelope near 0) is not published
+   and sets no mask bits.
+4. When over 32, keep lights by importance (the existing `shadows_assign`
+   score: brightness, reach, distance), not table order. Blasts and fire
+   share the reserved slots by score.
+5. Rebuild the light view once a tick, not on every event.
+
+Since D41P2 (field laptop, merged 2026-11-14): with a bake shown, the fixed
+lamps leave the live light list (light only through the bake), so the table
+has more room for blasts. A chain can still fill it, because blasts
+(`light_srcs[24]`), fire and rounds in flight add up to more than 32.
+Re-measure the table during a chain before step 4.
+
+Acceptance: before/after matched shots of one barrel and of a chain (the
+user's RESISTANCE IS FEUDAL room; MINER 69ER's barrel section); measured at
+180 Hz and on the field laptop during a chain (no frame spike, fewer
+lights); the user's playtest.
+
+Work log:
+
+- 2026-11-14 ([note 472](../documentation/472-d50e-d41t-barrel-chains.md) sections 2-4). Barrels spawn in the lab: types with flag bit `0x10000` go to the barrel blast (level 7 type 944, level 2 type 299). Measured before: 11 bunched barrels gave 11 lights, 11 casters, 10 maps and 11 rebuilds in one tick; the blast reserve was counted before D41P2 took the baked lamps out; casters past the maps stayed listed dark. Built: one light per chain for every explosive (within 4500 units and 12 tics; moves 65% toward the newer blast, +12% brightness per blast up to 1.6x, +5% reach up to 1.35x, life +2 tics up to 32); no blast shadows; dark lights leave the list; candidates staged in 64 entries and cut to the 32 most important (the D41F score); nearest 8 rounds in flight; the full source list replaces its dimmest; one rebuild a tick (dirty flag, rebuilt at the image's capture when needed). After: 1 chain light, 0 blast maps, 1-2 rebuilds a tick. 180 Hz offscreen, 12 bunched barrels, 3 interleaved runs (user watching YouTube meanwhile): GPU rise over the chain +1.7 to +3.4 points against +8.6 to +10.6, peak 62-77% against 88-93%, 0 misses either way. Look tuned on ULTRA (one fireball travelling with the chain instead of the corridor flattened white), checked on BALANCED; SIMPLE has no dynamic lights. Pictures: `research/before-after/D41T/` (local). Remaining: the user's playtest (RESISTANCE IS FEUDAL room, MINER 69ER) and the field laptop measurement. Needs playtest.
+- 2026-11-14: accepted and closed. User: "lock it in and close it out! it 100% works". The field laptop measurement was not made; the user accepted on play. Follow-up: D41U (explosion chain audio).
+
+### D41U - Explosion chains sound as one blast
+
+**Status: Todo (user 2026-11-14). Dependencies: D41T.**
+User, 2026-11-14, closing D41T: "make sure that we can consolidate the audio
+too. the same way we have consolidated the explosions there".
+
+How D41T works (so the audio can follow it): nothing is worked out ahead of
+time. The game decides which barrels chain while it runs (a blast damages what
+is near it, and a barrel that dies goes off a few tics later). D41T only
+watches: when a blast happens within 4500 units of a blast light still in its
+first 12 tics, it feeds that light instead of adding one. So a row of barrels
+that all go off becomes one light, and a barrel too far away to be set off
+simply never joins (its own light starts if it is shot later).
+
+Known (notes 370 and 396): the barrel blast routine `0x80097090` plays no
+blast sound of its own; dynamite, pipe bombs, grenades, rockets and gib bursts
+call the sound routine `0x8006b73c` (`0x8006b270` under water) with the
+blast's position. Where the barrel's bang comes from is not known yet.
+
+Work (Modernized only; Vanilla unchanged):
+
+1. Find every explosion's sound call, the barrel's included (a sound trace
+   while spawned barrels go off, `spawn 944` in level 7, `spawn 299` in
+   level 2), and count the voices a chain starts today and what they cost
+   (SPU voices taken, other sounds cut off).
+2. The same rule as the light: a blast sound within the chain's reach and
+   window while one is still loud is not started again; the playing voice
+   carries the chain (perhaps louder, capped), so the chain is one big bang
+   and a rumble, not a stack.
+3. Keep what makes a chain read: the first bang at once (no delay), and a
+   barrel far enough away to be its own blast keeps its own sound.
+
+Acceptance: a measured voice count before and after on a barrel chain (level
+7 and MINER 69ER), no other sound cut off during a chain, and the user's
+playtest.
+

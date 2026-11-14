@@ -4887,3 +4887,40 @@ input/state/motion evidence. Preserve collision, oxygen, surface/deep swimming,
 water-entry resistance, shallow-water jumps and weapon use; no unintended
 forward drift or excessive travel after release. Check both cameras, multiple
 entry heights and another water location. Vanilla remains unchanged.
+
+### D08Z11 - Holding Space jumps again as soon as Duke lands
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08Z10.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: running with Space held gives repeated jumps, but with
+a long pause between landing and the next jump. As in EDuke32, Duke should
+jump again almost at once after landing while Space stays held. Work:
+measure the delay with the user's real held input (MANUAL jump, the
+Modernized default), find the cool-down or grounded check that holds it,
+compare with EDuke32; no mid-air jumps, single taps unchanged. Acceptance:
+held Space gives smooth repeated jumps in the user's playtest.
+
+### D08J10 - Ladder grab climbs at full speed (Modern / Classic)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08J, D35E.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: Duke climbs unusually slowly at the start of a ladder,
+until his feet reach it. Proposed setting ADVANCED, LADDER CLIMBING:
+MODERN full climbing speed from the grab, CLASSIC the original start.
+Work: shorten or speed up the entry phase in Modern without position or
+animation errors; third-person timing and first person (D35E) consistent.
+Acceptance: Modern has no sluggish start, Classic and Vanilla unchanged.
+
+### D08O6 - Air refills at once on surfacing (option)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08M.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: a choice between Time to Kill's gradual air recovery and
+Duke 3D's instant refill. Proposed setting ADVANCED, UNDERWATER BREATHING:
+CLASSIC (air refills gradually after surfacing) and INSTANT (100% the moment
+Duke surfaces). Air use underwater unchanged in both. Acceptance: consistent
+behaviour when surfacing, including quick dips in and out; the air box
+(D20J) follows.

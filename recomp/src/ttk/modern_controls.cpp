@@ -2362,6 +2362,9 @@ bool late_pivot(double* xyz) {return pivot(xyz);}
 double late_fp_blend() {return fp_blend;}
 size_t render_state_size() {return sizeof(RenderState);}
 void render_state_save(void* out) {
+    // D41T: a blast, launch or spark since this tick's rebuild (lights_tick)
+    // reaches this image without a rebuild per event.
+    if(light_dirty && lights_enabled() && gameplay_context()) lights_publish();
     RenderState r{};
     r.eye_projection=eye_projection();
     r.hud_borderless=hud_borderless();

@@ -205,7 +205,7 @@ static int lamp_bake_d41p(uint8_t* cand,unsigned lamp0,unsigned lamp1) {
 }
 // Game tick, in lights_publish after the shadow slots: the image's lamp
 // colours and gain, and the lamps the bake holds marked for the renderer.
-static void lamp_bake_levels(LightView& v,unsigned lamp0,unsigned lamp1) {
+static void lamp_bake_levels(LightStage& v,unsigned lamp0,unsigned lamp1) {
     v.bake_n=0;v.bake_gain=1;
     if(!bake_state.active) return;
     float g=1,rr=1;light_relit_lamp_gain(g,rr);

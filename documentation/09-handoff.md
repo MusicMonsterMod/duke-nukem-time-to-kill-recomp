@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-11-14 - D50E and D41T closed
+
+User: "lock it in and close it out! it 100% works". D50E and D41T are Done ([note 472](472-d50e-d41t-barrel-chains.md)). D41U (explosion chain audio, the same consolidation for sound) added as Todo.
+
+Next: the user's choice; D41U was asked for next.
+
+## 2026-11-14 - D50E and D41T built (Needs playtest)
+
+[Note 472](472-d50e-d41t-barrel-chains.md). D50E: the barrel crash (shadow classifier loop past the 32-light table) fixed in the framework and exported; reproduced on the old loop and clean on the fix in a 32-light lab. D41T: one light per explosion chain game-wide, no blast shadows, dark lights leave the list, the 32 most important kept, one rebuild a tick; 180 Hz chain GPU rise +2.4 points against +9.8. Needs the user's playtest in the RESISTANCE IS FEUDAL barrel room (also after a load) and MINER 69ER; the field laptop measurement remains.
+
+Next: the user's playtest of D50E and D41T. The lab (`recomp/analysis/d50e/lab.py`, cases `newgame`, `fill32`, `chain2`, `chainperf`, `barreltypes`) has its own cards; `spawn 944` (level 7) and `spawn 299` (level 2) make barrels.
+
 ## 2026-11-14 - D41P2 and D41S closed
 
 User: "lock it in and close it out. amazing". D41P2 and D41S are Done (note 471 sections 1, 2 and 2a). D41S3 holds the pause menu frame and the real-display cost at 120. D23N2B stays In progress.

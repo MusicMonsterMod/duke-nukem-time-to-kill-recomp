@@ -479,7 +479,8 @@ With LIGHTING on ENHANCED or RELIT, blasts and Duke's muzzle flash put
 real light into the world: rockets, grenades, pipe bombs, dynamite, TNT
 barrels and characters blown apart light the walls, floors, props and
 characters around them in a warm flash that fades over about half a second,
-each shot Duke fires lights the ground and walls around his gun for a
+and a chain of explosions (a row of barrels going off) is one fireball of light
+that grows brighter and follows the chain through the room, each shot Duke fires lights the ground and walls around his gun for a
 moment, and rockets, freezer and energy rounds carry their own light as they fly. Each
 gun has its own flash at the point its round leaves: warm for the Desert
 Eagle, shotgun, Gatling, Buffalo Rifle and RPG (the shotgun, rifle and RPG
@@ -524,12 +525,13 @@ in every level (also one an enemy drops or you spawn), and it goes dark the
 moment Duke picks it up. `lamp pickups off` / `lamp pickups on` compares
 without and with the pickup glow for the session.
 
-**Shadows.** Walls stop the light: a lamp, a sign, a TV screen or a blast
+**Shadows.** Walls stop the light: a lamp, a sign or a TV screen
 lights only what it can see, so light no longer bleeds through a wall into
 the next room, and pillars and doorways throw shadows. The strongest of
 these lights near Duke (up to 16 at once) cast shadows. Lights that move -
 rounds and bolts in flight (a Necro's blast, a rocket, freezer and energy
-shots), flames in flight and burning enemies - glow without shadows, as
+shots), flames in flight and burning enemies - and the short flash of a blast
+glow without shadows, as
 muzzle flashes and wall sparks always have, the way Doom 3 and Duke Nukem 3D's
 Polymer treat their effect lights: a shadow for a moving light had to be
 drawn again every frame, and a Necro fight cost more than twice the GPU time
@@ -541,7 +543,7 @@ moving off` gives moving lights shadows again for a comparison (not saved),
 and `light shadows` shows their state.
 
 **OPTIONS > DISPLAY > LIVE SHADOWS** sets how the edges of live shadows are
-drawn: the shadows of blasts and of lamps that change while you play
+drawn: the shadows of lamps that change while you play
 (flickering, pulsing, traffic lights, lamps whose prop can break). The
 level's steady lamps are baked (see Baked lamps below) and keep their slightly
 soft edges whatever this says. It switches at once and is saved:
@@ -549,10 +551,10 @@ soft edges whatever this says. It switches at once and is saved:
 - **SHARP** (default): the edge follows the exact shape of the wall or pillar
   casting it, with straight lines, sharp corners and anti-aliasing, like the
   edges of the geometry itself.
-- **SIMPLE**: a cheaper hard edge with visible steps. Use it if blasts make
-  the game stutter on your computer.
-- **OFF**: no live shadows at all, the fastest on a weak computer. Blasts and
-  changing lamps then light through walls and pillars. The baked shadows of
+- **SIMPLE**: a cheaper hard edge with visible steps. Use it if the game
+  stutters on your computer.
+- **OFF**: no live shadows at all, the fastest on a weak computer. Changing lamps
+  then light through walls and pillars. The baked shadows of
   steady lamps on walls and floors stay as they are, and Duke, his weapon,
   enemies and props still take the steady lamps from the floor they stand on.
 

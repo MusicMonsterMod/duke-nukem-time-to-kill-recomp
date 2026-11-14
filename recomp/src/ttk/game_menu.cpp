@@ -420,7 +420,7 @@ std::vector<Screen> make_screens() {
         // D41O: since the D41M bake it only changes live lights (blasts, flickering
         // and breakable lamps); the stored values stay smooth/simple. D41R: OFF
         // ("off") draws no live shadow maps (light_shadows.inc shadows_on).
-        {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"BLASTS AND FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
+        {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
          {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""},{"OFF","off","\"off\""}},0},
         // D41S: Quake-style effects for LIVE SHADOWS OFF (near_clip.cpp model_shade, scene_glows).
         {"MODEL SHADOWS",Section::Controls,"model_shadows","DNTTK_MODEL_SHADOWS",true,"LIVE SHADOWS OFF: SHAPE OF EACH ENEMY, OR A ROUND SHADOW",

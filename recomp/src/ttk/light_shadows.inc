@@ -187,11 +187,11 @@ static void shadow_mesh_tick() {
     shadow_mesh_sig=sig;shadow_mesh_loads=loads;
     shadow_mesh_build();
 }
-static void shadows_assign(LightView& v,const uint8_t* cand) {
+static void shadows_assign(LightStage& v,const uint8_t* cand) {
     v.nsh=0;
     if(!shadows_on() || !shadow_mesh_tris) return;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
-    struct P {unsigned i;double score;};P picks[PSX_MOD_MAX_LIGHTS];unsigned np=0;
+    struct P {unsigned i;double score;};P picks[light_stage_max];unsigned np=0;
     for(unsigned i=0;i<v.n;++i) {
         const PSXModLight& l=v.l[i];
         if(!cand[i] || !(l.radius>256.0f)) continue;
@@ -213,7 +213,7 @@ static void shadows_assign(LightView& v,const uint8_t* cand) {
     }
     np=std::min<unsigned>(np,PSX_MOD_SHADOW_SLOTS);
     if(shadow_new_tick!=light_ticks) {shadow_new_tick=light_ticks;shadow_new_count=0;}
-    bool claimed[PSX_MOD_SHADOW_SLOTS]={};int slot_of[PSX_MOD_MAX_LIGHTS],stale_of[PSX_MOD_MAX_LIGHTS];
+    bool claimed[PSX_MOD_SHADOW_SLOTS]={};int slot_of[light_stage_max],stale_of[light_stage_max];
     for(unsigned j=0;j<np;++j) {
         const PSXModLight& l=v.l[picks[j].i];slot_of[j]=stale_of[j]=-1;
         for(unsigned s=0;s<PSX_MOD_SHADOW_SLOTS;++s) {

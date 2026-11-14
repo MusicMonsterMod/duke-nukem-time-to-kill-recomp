@@ -34,18 +34,24 @@
 // DNTTK_LIGHTS=off disables (LIGHTING ORIGINAL), relit dims the painted light
 // (D41E, relit.inc); DNTTK_LIGHT_AMBIENT=<percent> fixes the scale of the
 // original colours of lit surfaces.
-struct LightSrc {double p[3];float rgb[3];double radius;int age,life,kind;};
+// D41T: chain counts the blasts a blast light has taken in (1 for its own).
+struct LightSrc {double p[3];float rgb[3];double radius;int age,life,kind,chain=1;float k=1;double reach=0;};
 enum {light_kind_blast=1,light_kind_muzzle=2,light_kind_test=3,light_kind_spark=4};
 static LightSrc light_srcs[24];static unsigned light_src_count;
 // D41H: smooth tells near_clip.cpp to give model corners smoothed normals
 // (console "light smooth on|off", DNTTK_SMOOTH_LIGHT=0 developer default off).
 // D41F: nsh shadowed lights (light_shadows.inc); their lights' flags name the slot.
-struct LightView {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[PSX_MOD_MAX_LIGHTS];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];
+// D41T: LightViewN<64> stages a tick's candidates (every source fits); the
+// published LightView holds the 32 that matter (the draw-time state stays small).
+template<unsigned N> struct LightViewN {uint32_t n=0;float amb=1;bool smooth=true;PSXModLight l[N];uint32_t nsh=0;PSXModShadow sh[PSX_MOD_SHADOW_SLOTS];
     // D41M: baked lamps (lamp_bake.inc): the gain on their steady light and
     // each lamp's current colour (its channel light), bake_n 0 when no bake.
     uint32_t bake_n=0;float bake_gain=1;float bake_rgb[PSX_MOD_BAKE_LAMPS*3];
     // D41S: glow sources (rounds and bolts in flight, flames): x y z, reach, r g b, kind (0 round, 1 flame).
     uint32_t ng=0;float glow[16*8];};
+static constexpr unsigned light_stage_max=64;
+using LightView=LightViewN<PSX_MOD_MAX_LIGHTS>;
+using LightStage=LightViewN<light_stage_max>;
 static LightView light_view;                 // this image's lights (RenderState)
 static std::atomic<int> light_console{0};    // 1 add test light, 2 clear
 static std::atomic<int> light_smooth{-1};     // D41H session override (-1 default)
@@ -74,18 +80,32 @@ static float light_ambient() {
         const long n=t?std::atol(t):-1;return n>=0 && n<=200 ? n/100.0f : -1.0f;}();
     return v>=0?v:light_relit_amb;
 }
-static void light_add(const double p[3],float r,float g,float b,double radius,int life,int kind) {
+static double light_envelope(const LightSrc& s);
+static LightSrc* light_add(const double p[3],float r,float g,float b,double radius,int life,int kind) {
     unsigned at=light_src_count;
     if(at>=std::size(light_srcs)) {
-        // Replace the oldest blast or muzzle light (never a test light).
-        at=0;int oldest=-1;
-        for(unsigned i=0;i<light_src_count;++i)
-            if(light_srcs[i].kind!=light_kind_test && light_srcs[i].age>oldest) {oldest=light_srcs[i].age;at=i;}
+        // D41T: full, replace the dimmest source now (never a test light; with
+        // only test lights the new one is dropped). Was: the oldest, so the
+        // long blasts went first in a firefight.
+        int best=-1;double dim=1e30;
+        for(unsigned i=0;i<light_src_count;++i) {
+            const LightSrc& o=light_srcs[i];
+            if(o.kind==light_kind_test) continue;
+            const double k=light_envelope(o)*std::max({o.rgb[0],o.rgb[1],o.rgb[2]})*o.radius;
+            if(k<dim) {dim=k;best=(int)i;}
+        }
+        if(best<0) return nullptr;
+        at=(unsigned)best;
     } else ++light_src_count;
     LightSrc& s=light_srcs[at];
     for(int i=0;i<3;++i) s.p[i]=p[i];
-    s.rgb[0]=r;s.rgb[1]=g;s.rgb[2]=b;s.radius=radius;s.age=0;s.life=life;s.kind=kind;
+    s.rgb[0]=r;s.rgb[1]=g;s.rgb[2]=b;s.radius=radius;s.age=0;s.life=life;s.kind=kind;s.chain=1;s.k=1;s.reach=radius;
+    return &s;
 }
+// D41T: rebuild the light view once a tick (lights_tick), and at the image's
+// capture when an event since then changed the sources (render_state_save),
+// never once per event: a 20-barrel chain rebuilt it 20 times in one tick.
+static bool light_dirty;
 // Brightness over a light's life: blasts swell for a tic then fall away,
 // the muzzle flash is on for its tic and gone, a test light stays.
 static double light_envelope(const LightSrc& s) {
@@ -180,13 +200,28 @@ static const ShotLight& shot_light(unsigned type) {
     return shot_light_default;
 }
 static unsigned lights_flight(PSXModLight* out,unsigned room) {
+    // D41T: the nearest rounds to Duke when more than room fly (was the
+    // first in pool order).
+    struct F {uint32_t i;double d;} f2[96];unsigned nf=0;
+    {
+        const double dx0=(int32_t)psx_mod_read_word(player+4),dy0=(int32_t)psx_mod_read_word(player+8),dz0=(int32_t)psx_mod_read_word(player+12);
+        for(uint32_t i=0;i<96;++i) {
+            const uint32_t a=0x800da978u+i*0x60u;
+            const unsigned flag=psx_mod_read_half(a);
+            if(!flag) continue;
+            const ShotLight& f=shot_light(psx_mod_read_byte(a+0x30));
+            if(f.fr<=0 || (f.bolt?!(flag&1u):flag!=3)) continue;
+            const double dx=(int32_t)psx_mod_read_word(a+4)-dx0,dy=(int32_t)psx_mod_read_word(a+8)-dy0,dz=(int32_t)psx_mod_read_word(a+12)-dz0;
+            f2[nf++]={i,dx*dx+dy*dy+dz*dz};
+        }
+        if(nf>room) {std::partial_sort(f2,f2+room,f2+nf,[](const F& x,const F& y){return x.d<y.d;});nf=room;}
+        std::sort(f2,f2+nf,[](const F& x,const F& y){return x.i<y.i;});   // pool order among the kept
+    }
     unsigned n=0;
-    for(uint32_t i=0;i<96 && n<room;++i) {
+    for(unsigned j=0;j<nf;++j) {
+        const uint32_t i=f2[j].i;
         const uint32_t a=0x800da978u+i*0x60u;
-        const unsigned flag=psx_mod_read_half(a);
-        if(!flag) continue;
         const ShotLight& f=shot_light(psx_mod_read_byte(a+0x30));
-        if(f.fr<=0 || (f.bolt?!(flag&1u):flag!=3)) continue;
         // D56: bolts throb a little, as their sprite's ring.
         const float k=f.bolt?0.88f+0.24f*(float)(((light_ticks*2654435761u)^(i*40503u))>>24&255)/255.0f:1.0f;
         PSXModLight& l=out[n++];
@@ -292,8 +327,8 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room); // D41D (le
 static unsigned prop_lamps_publish(PSXModLight* out,unsigned room);  // D41L (level_lights.inc)
 // D41F (light_shadows.inc): which of the image's lights may cast shadows
 // (cand, one per light), then slots for the strongest of them near Duke.
-static void shadows_assign(LightView& v,const uint8_t* cand);
-static void lamp_bake_levels(LightView& v,unsigned lamp0,unsigned lamp1);   // D41M (lamp_bake.inc)
+static void shadows_assign(LightStage& v,const uint8_t* cand);
+static void lamp_bake_levels(LightStage& v,unsigned lamp0,unsigned lamp1);   // D41M (lamp_bake.inc)
 static int lamp_bake_d41p(uint8_t* cand,unsigned lamp0,unsigned lamp1);      // D41P developer (lamp_bake.inc)
 static float lamp_bake_published_reach(unsigned lamp);                      // D41M (lamp_bake.inc)
 static unsigned level_lamps_out_index[PSX_MOD_MAX_LIGHTS];   // D41M: level_lamps_publish's lights, by lamp
@@ -304,15 +339,25 @@ static bool shadow_moving_on();   // D41N (light_shadows.inc)
 static double shadow_probe_eye[3];
 static bool shadows_console(const char* arg,void (*say)(const char*));
 extern "C" void gl_shadow_counters(uint64_t out[4]);   // D41P2 developer count
+static uint32_t light_count_tick=~0u;   // D41T developer count: the tick last printed
+// D41T: a light's importance to this image: brightness times reach over
+// distance from Duke (the D41F shadow score).
+static double light_importance(const PSXModLight& l,const double duke[3]) {
+    const double dx=l.x-duke[0],dy=l.y-duke[1],dz=l.z-duke[2],r2=(double)l.radius*l.radius;
+    return std::max({l.r,l.g,l.b})*r2/(dx*dx+dy*dy+dz*dz+r2+1.0);
+}
+static uint64_t light_cut_dark,light_cut_rank;   // D41T developer counts
 static void lights_publish() {
-    LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
-    uint8_t cand[PSX_MOD_MAX_LIGHTS]={};
+    light_dirty=false;
+    LightStage v;v.amb=light_ambient();v.smooth=light_smooth_on();
+    uint8_t cand[light_stage_max]={};
     // Placed lamps, TV screens and prop lamps cast shadows; of the sources
-    // below, blasts and test lights do (not muzzle flashes at a gun next to a
-    // wall, or sparks on the wall they hit). Rounds in flight and fire: D41N.
+    // below, test lights do (not muzzle flashes at a gun next to a wall, or
+    // sparks on the wall they hit; D41T: nor blasts, a short flash as in
+    // Polymer and Quake). Rounds in flight and fire: D41N.
     v.n=lights_flight(v.l,8);
     const unsigned scene0=v.n;
-    v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps, 8 slots kept for blasts and flashes
+    v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps (8 slots kept as before; D41T stages the rest and cuts to 32 by importance)
     const unsigned lamps_end=v.n;
     if(security_tv_lights) v.n+=security_tv_lights(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D53: TV screens
     v.n+=prop_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41L: woodburners, chandeliers
@@ -326,7 +371,7 @@ static void lights_publish() {
             v.l[i].r*=g;v.l[i].g*=g;v.l[i].b*=g;v.l[i].radius*=fixed>0 ? fixed : rr;
         }
     const unsigned fire0=v.n;
-    for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
+    for(unsigned i=0;i<light_fire_count && v.n<light_stage_max;++i) {
         const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
         l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
         if(f.blue) {l.r=0.72f*f.k;l.g=0.34f*f.k;l.b=1.18f*f.k;}  // D41J: sampled 0.67 0.24 1.00
@@ -338,19 +383,19 @@ static void lights_publish() {
     // cube map every tick in every renderer (UI slot 6: eight Necro bolts,
     // 61% GPU against 22% without them); unshadowed, as the muzzle flashes
     // and sparks always were, it costs one more light in the shader. Lamps,
-    // screens, prop lamps, blasts and test lights keep their (cached) maps.
+    // screens, prop lamps and test lights keep their (cached) maps (D41T: not blasts).
     const bool moving_shadows=shadow_moving_on();
     for(unsigned i=0;i<v.n;++i) cand[i]=moving_shadows || (i>=scene0 && i<fire0);
-    for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
+    for(unsigned i=0;i<light_src_count && v.n<light_stage_max;++i) {
         const LightSrc& s=light_srcs[i];
         const double e=light_envelope(s);
-        if(e<=0.01) continue;
+        if(e*std::max({s.rgb[0],s.rgb[1],s.rgb[2]})<0.01) continue;   // D41T: dark, not listed
         PSXModLight& l=v.l[v.n++];
         l.x=(float)s.p[0];l.y=(float)s.p[1];l.z=(float)s.p[2];
         l.radius=(float)(s.radius*(s.kind==light_kind_blast?0.75+0.25*e:1.0));
         l.r=(float)(s.rgb[0]*e);l.g=(float)(s.rgb[1]*e);l.b=(float)(s.rgb[2]*e);
         l.flags=0;
-        cand[v.n-1]=s.kind==light_kind_blast || s.kind==light_kind_test;
+        cand[v.n-1]=s.kind==light_kind_test;
     }
     // D41S: the glows' sources, before the light list changes below.
     v.ng=0;
@@ -369,16 +414,51 @@ static void lights_publish() {
         for(unsigned i=lamps_end;i<v.n;++i) v.l[i-k]=v.l[i];
         v.n-=k;
     }
+    // D41T: a light dark this tick (a caster left without a map, a faded one)
+    // leaves the list and sets no mask bits; then, over 32, the most
+    // important stay (light_importance), in list order.
+    const unsigned staged=v.n;
+    {
+        unsigned k=0;
+        for(unsigned i=0;i<v.n;++i) if(std::max({v.l[i].r,v.l[i].g,v.l[i].b})>=0.01f) v.l[k++]=v.l[i];
+        light_cut_dark+=v.n-k;v.n=k;
+    }
+    if(v.n>PSX_MOD_MAX_LIGHTS) {
+        const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
+        struct R {unsigned i;double s;} rank[light_stage_max];
+        for(unsigned i=0;i<v.n;++i) rank[i]={i,light_importance(v.l[i],duke)};
+        std::stable_sort(rank,rank+v.n,[](const R& a,const R& b){return a.s>b.s;});
+        bool keep[light_stage_max]={};
+        for(unsigned j=0;j<PSX_MOD_MAX_LIGHTS;++j) keep[rank[j].i]=true;
+        unsigned k=0;
+        for(unsigned i=0;i<v.n;++i) if(keep[i]) v.l[k++]=v.l[i];
+        light_cut_rank+=v.n-k;v.n=k;
+    }
     // D41P2 developer (DNTTK_SHADOW_COUNT=1): every 300 ticks, the list (lamps,
     // the shadowed lights among them) and the maps this process drew since.
-    if(static const bool count=std::getenv("DNTTK_SHADOW_COUNT")!=nullptr;count && light_ticks%300==0) {
+    // D41T: DNTTK_SHADOW_COUNT=<ticks> sets the period (1 = every tick), and the line counts the rebuilds.
+    static uint64_t publishes;++publishes;
+    if(static const unsigned count=[]{const char* t=std::getenv("DNTTK_SHADOW_COUNT");return t?(std::atoi(t)>1?unsigned(std::atoi(t)):std::atoi(t)==1?1u:300u):0u;}();
+       count && light_ticks%count==0 && light_ticks!=light_count_tick) {
+        light_count_tick=light_ticks;static uint64_t last_pub;
         static uint64_t last[4];uint64_t g[4];gl_shadow_counters(g);
         unsigned lamp_maps=0;for(unsigned i=0;i<v.n;++i) if(v.l[i].flags>=127.5f && (((int)(v.l[i].flags+0.5f)&127)>>1)) ++lamp_maps;
-        std::fprintf(stderr,"[TTK shadow count] lights %u (fixed lamps %u, %s; with a map %u), shadowed %u, maps drawn %llu (%.1f ms)\n",v.n,lamps_end-scene0,
-            d41p==2?"left out":"listed",lamp_maps,v.nsh,(unsigned long long)(g[0]-last[0]),(g[2]-last[2])/1000.0);
+        // D41T: the list by source (in flight, lamps, screens and prop lamps, fire, sources by kind).
+        unsigned kinds[5]={};for(unsigned i=0;i<light_src_count;++i) if(light_srcs[i].kind>=1 && light_srcs[i].kind<=4) ++kinds[light_srcs[i].kind];
+        std::fprintf(stderr,"[TTK shadow count] lights %u (fixed lamps %u, %s; with a map %u), shadowed %u, maps drawn %llu (%.1f ms); flight %u, scene %u, fire %u, sources %u (blast %u muzzle %u test %u spark %u)\n",v.n,lamps_end-scene0,
+            d41p==2?"left out":"listed",lamp_maps,v.nsh,(unsigned long long)(g[0]-last[0]),(g[2]-last[2])/1000.0,
+            scene0,fire0-scene0,light_fire_count,light_src_count,kinds[1],kinds[2],kinds[3],kinds[4]);
+        unsigned dark=0;for(unsigned i=0;i<v.n;++i) if(std::max(v.l[i].r,std::max(v.l[i].g,v.l[i].b))<0.02f) ++dark;
+        std::fprintf(stderr,"[TTK shadow count] tick %u: %llu rebuilds since the last line, %u dark lights listed (staged %u; left out so far: dark %llu, by importance %llu)\n",light_ticks,(unsigned long long)(publishes-last_pub),dark,staged,(unsigned long long)light_cut_dark,(unsigned long long)light_cut_rank);last_pub=publishes;
         std::memcpy(last,g,sizeof g);
     }
-    light_view=v;
+    LightView out;
+    out.n=std::min<uint32_t>(v.n,PSX_MOD_MAX_LIGHTS);out.amb=v.amb;out.smooth=v.smooth;
+    std::copy(v.l,v.l+out.n,out.l);
+    out.nsh=v.nsh;std::copy(v.sh,v.sh+v.nsh,out.sh);
+    out.bake_n=v.bake_n;out.bake_gain=v.bake_gain;std::memcpy(out.bake_rgb,v.bake_rgb,sizeof out.bake_rgb);
+    out.ng=v.ng;std::memcpy(out.glow,v.glow,sizeof out.glow);
+    light_view=out;
 }
 
 // D41I probe (developer, DNTTK_LIGHT_PROBE=<hex addr>[,<hex addr>...]):
@@ -502,12 +582,49 @@ static void lights_tick() {
 // first value, a gib burst a short, smaller flash.
 struct BlastLight {double radius;int life;float k;};
 static constexpr BlastLight blast_barrel{9000,20,1.10f},blast_dynamite{8500,18,1.05f},blast_pipe{7600,16,1.0f},blast_round{7000,16,1.0f},blast_gib{3800,8,0.65f};
+// D41T: one light per explosion chain, every explosive (barrels, dynamite,
+// pipe bombs and grenades, rockets, gib bursts). A blast within chain_reach
+// of a blast light still in its first chain_window tics feeds that light
+// instead of adding one: the light rolls most of the way toward the newer
+// blast, grows brighter and a little wider with each (capped) and lives a
+// little longer, so a chain reads as one fireball moving through the room.
+static constexpr double chain_reach=4500;
+static constexpr int chain_window=12;
+static constexpr float chain_gain_step=0.12f,chain_gain_max=1.6f;
+static constexpr double chain_reach_step=0.05,chain_reach_max=1.35;
+static constexpr int chain_life_step=2,chain_life_max=32;
+static uint64_t light_chain_feeds;
+static void light_chain_rgb(LightSrc& s) {
+    const float g=std::min(1.0f+chain_gain_step*(float)(s.chain-1),chain_gain_max);
+    s.rgb[0]=1.30f*s.k*g;s.rgb[1]=0.78f*s.k*g;s.rgb[2]=0.36f*s.k*g;
+    s.radius=s.reach*std::min(1.0+chain_reach_step*(s.chain-1),chain_reach_max);
+}
+static void light_chain_blast(const double p[3],const BlastLight& b) {
+    LightSrc* best=nullptr;double bd=chain_reach*chain_reach;
+    for(unsigned i=0;i<light_src_count;++i) {
+        LightSrc& o=light_srcs[i];
+        if(o.kind!=light_kind_blast || o.age>chain_window) continue;
+        const double dx=o.p[0]-p[0],dy=o.p[1]-p[1],dz=o.p[2]-p[2],d2=dx*dx+dy*dy+dz*dz;
+        if(d2<bd) {bd=d2;best=&o;}
+    }
+    if(!best) {
+        if(LightSrc* s=light_add(p,1.30f*b.k,0.78f*b.k,0.36f*b.k,b.radius,b.life,light_kind_blast)) {s->k=b.k;s->reach=b.radius;}
+        return;
+    }
+    LightSrc& s=*best;
+    ++s.chain;++light_chain_feeds;
+    for(int i=0;i<3;++i) s.p[i]+=(p[i]-s.p[i])*0.65;
+    s.k=std::max(s.k,b.k);s.reach=std::max(s.reach,b.radius);
+    light_chain_rgb(s);
+    s.age=std::min(s.age,1);s.life=std::min(std::max(s.life,b.life)+chain_life_step,chain_life_max);
+}
 static void light_blast_at(uint32_t pos,const char* why,const BlastLight& b=blast_round) {
     if(!lights_enabled() || !gameplay_context() || pos<0x80000000u || pos>0x801ffff0u) return;
     const double p[3]={(double)(int32_t)psx_mod_read_word(pos),(double)(int32_t)psx_mod_read_word(pos+4)-400,(double)(int32_t)psx_mod_read_word(pos+8)};
-    light_add(p,1.30f*b.k,0.78f*b.k,0.36f*b.k,b.radius,b.life,light_kind_blast);++light_blasts;
-    lights_publish();
-    if(std::getenv("DNTTK_LIGHT_TRACE")) std::fprintf(stderr,"[TTK light] blast %s at %.0f %.0f %.0f\n",why,p[0],p[1],p[2]);
+    light_chain_blast(p,b);++light_blasts;
+    light_dirty=true;
+    // D41T: the object's type when a1 is an object's position (+4).
+    if(std::getenv("DNTTK_LIGHT_TRACE")) std::fprintf(stderr,"[TTK light] blast %s at %.0f %.0f %.0f (object type %u)\n",why,p[0],p[1],p[2],pos>=0x80000004u?psx_mod_read_half(pos-4+0x2c):0u);
 }
 // D41B: every round's launch (0x800718ac entry: a0 shooter, a1 origin, a3
 // type). One muzzle light per shooter and tic (a shotgun's pellets share it).
@@ -529,7 +646,7 @@ static void lights_launch(CPUState* cpu) {
     const double k=duke?1.0:0.8;
     light_add(p,s.mz[0],s.mz[1],s.mz[2],s.mr*k,s.ml,light_kind_muzzle);
     if(duke) ++light_muzzles;else ++light_enemy_muzzles;
-    lights_publish();
+    light_dirty=true;   // D41T: rebuilt once (lights_tick or the image's capture)
     if(std::getenv("DNTTK_LIGHT_TRACE")) std::fprintf(stderr,"[TTK light] launch %s %08x type %u weapon %u at %.0f %.0f %.0f\n",duke?"duke":"enemy",shooter,type,duke?psx_mod_read_byte(player+0x3b9):255u,p[0],p[1],p[2]);
 }
 // D41B: a round meets a wall (0x8006f1b8 entry: a0 the round, a1 the point;
@@ -553,7 +670,7 @@ static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint3
         if(dx*dx+dy*dy+dz*dz<600.0*600.0) return;
     }
     light_add(p,s.im[0],s.im[1],s.im[2],s.ir,s.il,light_kind_spark);++light_sparks;
-    lights_publish();
+    light_dirty=true;
     if(std::getenv("DNTTK_LIGHT_TRACE")) std::fprintf(stderr,"[TTK light] impact type %u owner %08x at %.0f %.0f %.0f\n",type,owner,p[0],p[1],p[2]);
 }
 // Entry of the sound routine 0x8006b73c: the blast calls (return addresses

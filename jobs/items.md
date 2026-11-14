@@ -2025,3 +2025,60 @@ card hashes unchanged): regular Gatling shows the belt (view -1), upgraded
 rests on frame 0, held fire cycled 1-7 over 9 shots and settled on 0; the red
 sits next to the HUD's red counters. Before/after on the artifact. Not
 checked: framed HUD and other scales separately (same draw path), 180 Hz.
+
+### D08A43 - Inserted crystal stays visible in the conveyor power slot (OBEY OR DIE)
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: after putting the green energy crystal into the
+conveyor-belt power slot in OBEY OR DIE, the crystal is not visibly there.
+The player has to come back and take it later, and nothing shows it is
+still installed. Work: show the crystal in the slot while it is installed,
+removed when taken; correct across loads; check the other crystal holders
+behave the same. Acceptance: the crystal visible in the slot until taken.
+
+### D08A44 - Duke 3D-style night vision look
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08A23.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: night vision should look like Duke Nukem 3D's,
+especially enemies in bright fluorescent green. Work: research how Duke 3D
+and EDuke32 do it (the night-vision palette and how sprites are shaded with
+it), then a palette or lookup-table step in Polymorph, not an expensive
+post-process. Acceptance: matched shots against EDuke32, cost measured as
+negligible at 180 Hz; the current look stays selectable if the user wants.
+
+### D08A45 - FAMILY JEWELS jewels in three colours
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the three jewels in FAMILY JEWELS are all pink. Give each
+a clearly different colour, same shape and style, consistent for the
+pickup, its inventory icon and wherever it is placed. Gameplay unchanged.
+Acceptance: the three jewels distinct in the world and in the inventory.
+
+### D08A46 - Duke 3D-style coloured keycards
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: levels with several key cards should use Duke 3D's
+colours (blue, red, yellow). Work: audit key cards per level, decide the
+colour for each, update pickup, inventory icon and in-world representations;
+door logic unchanged. Acceptance: different cards visibly distinct, every
+level still completes.
+
+### D08A47 - Holy Hand Grenade looks like its pickup
+
+**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
+
+User, 2026-11-14: the Holy Hand Grenade's held or thrown model does not
+look like its pickup. Work: see if the pickup's geometry and texture can be
+used or adapted for the active grenade; for new mesh work follow note 265
+(D08A28 revision 5) and for the first-person view note 257. Acceptance:
+pickup, held and thrown grenade read as the same object, correct scale,
+animation and light.

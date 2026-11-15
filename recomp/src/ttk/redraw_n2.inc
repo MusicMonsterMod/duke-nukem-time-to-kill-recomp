@@ -61,7 +61,11 @@
 //   65536 the ordering-table link-up 0x8001fba0/0x8001fc44 in host code;
 //   131072 Duke's shadow 0x80030fe8, 262144 the sprite queue 0x8009b750,
 //      524288 the muzzle flash 0x800341e4, 1048576 the line effect
-//      0x8008ffc4: each the game's routine run alone in the copy.
+//      0x8008ffc4: each the game's routine run alone in the copy;
+//   2097152 the weapon mesh 0x80033e40 run alone (desktop, note 481);
+//   4194304 Duke's joint sprites 0x800307c0 run alone, 8388608 the particles
+//      0x8009ce44 run alone, 16777216 the attach point 0x80032364 redone
+//      (desktop, note 481).
 // DNTTK_N2_DUMP=dir (with 1024): the first host-exact jobs whose game
 // packets differ, both tails, both records' stores and the hook list.
 // Results: "[n2 check]" lines on stderr.
@@ -723,7 +727,7 @@ std::vector<Face> queue;size_t qi=0;
 // Counters, in wj::Shared: models, faces queued, links rewritten, texpage
 // links, all links simulated, failures: transform out of range, queue
 // mismatch (an emitter hook without a face or of another shape), faces left.
-enum {c_models,c_faces,c_xy,c_e1,c_links,f_range,f_queue,f_left,c_wboxes,c_wroom,c_wtriples,c_wtiles,c_otlinks,f_wcull,c_rooms,c_portal,c_rec_found,c_rec_diff,c_rec_shown,c_em_gte_same,c_em_gte_diff,c_em_changed,c_model_ended,c_shadow,c_sprites,c_flash,c_lines,c_n};
+enum {c_models,c_faces,c_xy,c_e1,c_links,f_range,f_queue,f_left,c_wboxes,c_wroom,c_wtriples,c_wtiles,c_otlinks,f_wcull,c_rooms,c_portal,c_rec_found,c_rec_diff,c_rec_shown,c_em_gte_same,c_em_gte_diff,c_em_changed,c_model_ended,c_shadow,c_sprites,c_flash,c_lines,c_wmesh,c_jspr,f_jspr,c_parts,c_attach,c_n};
 uint32_t* cnt=nullptr;
 inline bool emitter_ra(uint32_t ra) {return ra>=0x8002bf8cu && ra<0x8002d508u;}
 inline bool link_pc(uint32_t pc) {return pc>=0x8002bd48u && pc<0x8002bdc8u;}
@@ -1078,6 +1082,59 @@ constexpr uint32_t shadow_fn=0x80030fe8u,shadow_end=0x80031588u;
 // (deeper stack) are not called, and of the source's stores up to the next
 // outer hook only Duke's draw's own are replayed.
 constexpr uint32_t flash_fn=0x800341e4u,flash_ret=0x80035348u,duke_draw=0x800348d8u,duke_draw_end=0x80035504u;
+// D23N2B (bit 2097152, with 1024; desktop): the weapon mesh run alone.
+// CONFIRMED by the disassembly: Duke's draw calls 0x80033e40 (hand matrix,
+// mesh, yaw, scale; camera at the caller's sp +0x10; return 0x8003531c;
+// hooked, first_person.inc substitutes our weapon matrix and scales the
+// scale). With yaw 0 and scale 0x1000 it draws under the hand's transform;
+// otherwise it builds its matrix on its stack from ours (a yaw rotation
+// 0x8002acc4 and MulMatrix 0x800b488c, or a copy, PCs 0x80033eb4-0x80033ee0),
+// scales it with ScaleMatrix 0x800b4b5c, loads the transform (0x800292a0,
+// return 0x80033f10) and draws through 0x80010000 (return 0x80033f44). The
+// source's stores of that stack matrix are the earlier fraction's copy of
+// our matrix, which follows the camera; run alone, it copies the copy's.
+constexpr uint32_t wmesh_fn=0x80033e40u,wmesh_ret=0x8003531cu;
+// D23N3 (bit 4194304, with 1024 and 1 for the stores; desktop): Duke's joint
+// sprites run alone. CONFIRMED by the disassembly: near its end Duke's draw
+// (object in s4), when the object's flags have 0x800, calls 0x800307c0
+// (position, 0xff, j) for each joint j below the byte at *(object +0x40),
+// position = the joint matrix table *(object +0x3c) + 32 j + 0x14 (return
+// 0x80035484): 0x8009ad60 picks the frame, 0x8009b7fc queues one sprite at
+// that position for the sprite queue. In first person Duke's joints follow
+// the camera, so the queued positions change with the fraction (MEASURED:
+// 1-25 units). No hook marks it; its first store (PC 0x800307d0, s0 at the
+// callee's sp +0x28) does: the caller's sp is its address + 8. In the copy
+// the loop runs there over the copy's joint table (the game's 0x800307c0 for
+// each joint), when the source made as many calls as the copy has joints;
+// the source's stores of it (0x800307c0-0x80030864, 0x8009b7fc-0x8009b89c)
+// are not replayed.
+// D23N3 (bit 8388608, with 1024 and 1 for the stores; desktop): the
+// particles run alone. CONFIRMED by the disassembly: the camera render
+// (camera in s2) calls 0x8006d08c, 0x8009ce44, 0x8008efd0, 0x8008ffc4 and
+// 0x8009b750 back to back (a0 the camera, a1 0x800d2210; 0x8002e7d8-
+// 0x8002e808, no stores of its own between them). 0x8009ce44 walks the
+// particle list (0x8009ca2c) and queues each particle at its position
+// (particle +0x1c) with 0x8009b7fc; moving particles' positions change with
+// the fraction (MEASURED: 1-7 units, UI 5). Its first store (PC 0x8009ce48,
+// s0 at sp +0x10 of its 32-byte frame) marks the call: the caller's sp is its
+// address + 16; the call ends at 0x8008efd0's first store (PC 0x8008efd4).
+// In the copy it runs there; the source's stores up to that end and its hooks
+// below that sp are not replayed or called.
+// D23N2B (bit 16777216, with 1024; desktop): an object's attach point redone.
+// CONFIRMED by the disassembly: Duke's draw (0x80034918) and the actor draw
+// (0x8003300c, after the joint table 0x80098204) call 0x80032364 (object,
+// joint table *(object +0x3c)), which writes the object's attach point
+// (+0xbc..+0xd4: a joint's translation plus its rotation applied to an
+// offset, ApplyMatrix 0x800b4aac; for Duke also 0x800756a4) and then call the
+// hooked 0x80032bd8 with the same arguments (return 0x8003492c, 0x80033020).
+// The particles read that point later (MEASURED: Duke's, UI 5, 1-8 units
+// between fractions); the copy replayed the earlier fraction's stores. In the
+// copy the game's 0x80032364 runs again just before that hook, on the copy's
+// joint table (after piece 6), and the hook gets the GTE it leaves.
+constexpr uint32_t attach_fn=0x80032364u,attach_next=0x80032bd8u;
+constexpr uint32_t parts_fn=0x8009ce44u,parts_mark=0x8009ce48u,parts_end=0x8008efd4u,parts_ret=0x8002e7ecu;
+constexpr uint32_t jspr_fn=0x800307c0u,jspr_mark=0x800307d0u,jspr_ret=0x80035484u;
+inline bool jspr_pc(uint32_t pc) {return (pc>=0x800307c0u && pc<0x80030864u) || (pc>=0x8009ad60u && pc<0x8009ae00u) || (pc>=0x8009b7fcu && pc<0x8009b89cu);}
 // D23N3 (bit 1048576, with 1024): the line effect run alone. CONFIRMED by
 // the disassembly: the camera render calls 0x8008ffc4 (camera, 0x800d2210;
 // 48-byte frame) at 0x8002e7fc; when *0x800c458c and *0x800c4584 are set it
@@ -1087,12 +1144,44 @@ constexpr uint32_t flash_fn=0x800341e4u,flash_ret=0x80035348u,duke_draw=0x800348
 // ends follow the camera. In the copy it runs from its transform hook (sp
 // +48, the camera in a0); its hooks are not called and of the source's
 // stores up to the next outer hook only the camera render's are replayed.
-constexpr uint32_t lines_fn=0x8008ffc4u,lines_ret=0x80090068u;
+constexpr uint32_t lines_fn=0x8008ffc4u,lines_ret=0x80090068u,lines_call_ret=0x8002e804u,lines_lo=0x8008f71cu,lines_hi=0x800900a0u;
 constexpr uint32_t sprite_wrap=0x8009b750u,sprite_mark=0x8009b768u,camera_render=0x8002e48cu,camera_render_end=0x8002e850u;
 inline bool sprite_pc(uint32_t pc) {
     return (pc>=0x8009b1c0u && pc<0x8009b7b8u) || (pc>=0x8002bd48u && pc<0x8002d604u) || (pc>=0x800b3000u && pc<0x800b6000u) || (pc>=0x8002883cu && pc<0x800289acu);
 }
 uint32_t shadows=0;
+// D23N2B (desktop, developer): the muzzle flash's inputs in the job and in
+// the copy, compared after a job whose first differing hook is the flash's
+// draw. Words: [0] what was captured (1 the flash entry, 2 its transform,
+// 4 its draw), [1-8] the hand matrix the flash reads (after our hook), [9-11]
+// the muzzle vector, [12] the rand seed 0x800e81b8 at the entry, [13] the
+// slot, [14-21] the matrix the transform at ra 0x8003437c reads, [22-29] the
+// GTE at the flash's draw (0x80010000, ra 0x80034448), [30-32] the camera eye
+// at the transform, [33] the hand matrix's address, [34] the seed at the
+// transform, [35] 0x800be568, [36] 0x800d2540; the line effect (8): [37]
+// the line count 0x800c4584, [38] its capacity 0x800c458c, [39] the list.
+constexpr unsigned fl_n=40;
+uint32_t fl_job[fl_n];
+void fl_capture(uint32_t* f,const CPUState* cpu,uint32_t addr,int phase) {
+    const uint32_t ra=cpu->gpr[31];
+    if(phase==1 && addr==flash_fn && ra==flash_ret && !(f[0]&1)) {
+        f[0]|=1;
+        for(int k=0;k<8;++k) f[1+k]=psx_mod_read_word(cpu->gpr[4]+4*k);
+        for(int k=0;k<3;++k) f[9+k]=(uint32_t)(int32_t)(int16_t)psx_mod_read_half(cpu->gpr[7]+2*k);
+        f[12]=psx_mod_read_word(0x800e81b8u);f[13]=cpu->gpr[5];f[33]=cpu->gpr[4];
+        f[35]=psx_mod_read_half(0x800be568u);f[36]=psx_mod_read_half(0x800d2540u);
+    } else if(phase==1 && addr==0x800292a0u && ra==0x8003437cu && !(f[0]&2)) {
+        f[0]|=2;
+        for(int k=0;k<8;++k) f[14+k]=psx_mod_read_word(cpu->gpr[5]+4*k);
+        for(int k=0;k<3;++k) f[30+k]=psx_mod_read_word(cpu->gpr[4]+0x14+4*k);
+        f[34]=psx_mod_read_word(0x800e81b8u);
+    } else if(phase==0 && addr==0x800292a0u && ra==lines_ret && !(f[0]&8)) {
+        f[0]|=8;f[37]=psx_mod_read_word(0x800c4584u);f[38]=psx_mod_read_word(0x800c458cu);f[39]=psx_mod_read_word(0x800c4580u);
+    } else if(phase==0 && addr==0x80010000u && ra==0x80034448u && !(f[0]&4)) {
+        f[0]|=4;
+        for(int k=0;k<8;++k) f[22+k]=cpu->gte_ctrl[k];
+    }
+}
 }  // namespace n3
 
 namespace wj {
@@ -1111,7 +1200,7 @@ namespace wj {
 // (the game's PGXP records left out, as D23N1 does), and the game items
 // between hooks likewise. Every 4th later job of a frame.
 constexpr uint32_t max_words=1u<<20,max_seg=12288;
-struct Shared {uint32_t done,ok,skip,n,flip,cflip,channel[3],seg[max_seg][2],nseg,why,smc[sm::c_n],hgte[max_seg][8];uint64_t vm[4];uint32_t ot[2][0x1040];uint32_t prod[max_seg],merge_to[max_seg];double run_ms[4];double ms;CPUState flip_cpu;uint32_t words[max_words];};
+struct Shared {uint32_t done,ok,skip,n,flip,cflip,channel[3],seg[max_seg][2],nseg,why,smc[sm::c_n],hgte[max_seg][8];uint64_t vm[4];uint32_t ot[2][0x1040];uint32_t prod[max_seg],merge_to[max_seg];double run_ms[4];double ms;uint32_t fl_copy[n3::fl_n];CPUState flip_cpu;uint32_t words[max_words];};
 std::vector<std::array<uint32_t,8>> earlier_gte;std::vector<std::pair<uint32_t,uint32_t>> earlier_list;std::vector<Store> earlier_stores;   // the copy's source, kept at the job start
 Shared* s=nullptr;pid_t child=-1;int go=-1;bool active=false,waiting=false;uint64_t t_job=0;double ms_job=0;uint64_t vm_job0[4],vm_job[4];
 int src_stores() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_WHOLE");return t?std::atoi(t):0;}();return v;}
@@ -1121,7 +1210,7 @@ jr::Pre pre_counts{};
 [[noreturn]] void run(int fd) {
     char c=0;
     if(read(fd,&c,1)!=1 || c!='g') _exit(0);
-    logging=false;g_psx_mod_hook_observer=nullptr;
+    logging=false;g_psx_mod_hook_observer=[](CPUState* c,uint32_t a,int ph){n3::fl_capture(s->fl_copy,c,a,ph);};
     const uint64_t t0=SDL_GetPerformanceCounter();
     uint64_t vm0[4];near_clip_viewmodel_counts(vm0);
     const int S=src_stores(),C=src_cpu();
@@ -1151,9 +1240,9 @@ jr::Pre pre_counts{};
     // 0x800296a8/0x800296dc y, 0x800296f0 z) is redone for this job's eye:
     // room = d + the source's eye (its eye stores, kept aside), then
     // xf::compute without a matrix, as w_room; the GTE the next hooks see.
-    const bool host_rooms=(n2_mask()&16384)!=0,host_portal=(n2_mask()&32768)!=0,host_linkup=(n2_mask()&65536)!=0,host_shadow=(n2_mask()&131072)!=0,host_sprites=(n2_mask()&262144)!=0,host_flash=(n2_mask()&524288)!=0,host_lines=(n2_mask()&1048576)!=0;
+    const bool host_rooms=(n2_mask()&16384)!=0,host_portal=(n2_mask()&32768)!=0,host_linkup=(n2_mask()&65536)!=0,host_shadow=(n2_mask()&131072)!=0,host_sprites=(n2_mask()&262144)!=0,host_flash=(n2_mask()&524288)!=0,host_lines=(n2_mask()&1048576)!=0,host_wmesh=(n2_mask()&2097152)!=0,host_jspr=(n2_mask()&4194304)!=0,host_parts=(n2_mask()&8388608)!=0,host_attach=(n2_mask()&16777216)!=0;
     uint32_t producer=~0u,cur_i=0;
-    uint32_t cam_s2=0,sprite_sp=0,sprite_end=0,flash_until=0,keep_lo=0,keep_hi=0;bool sprite_skip=false;const CPUState* last_cpu=nullptr;   // D23N3 diagnostics: the hook whose computation the next hooks' GTE is
+    uint32_t duke_s4=0,cam_s2=0,sprite_sp=0,sprite_end=0,flash_until=0,keep_lo=0,keep_hi=0;bool sprite_skip=false;const CPUState* last_cpu=nullptr;   // D23N3 diagnostics: the hook whose computation the next hooks' GTE is
     int32_t src_eye[3]={0,0,0},rt_d[3]={0,0,0};
     if(S==1) for(int k=0;k<3;++k) src_eye[k]=(int32_t)psx_mod_read_word(camera_base+0x14+4*k);
     auto apply=[&](uint32_t upto) {
@@ -1161,7 +1250,9 @@ jr::Pre pre_counts{};
             const Store& w=ST[si];
             const uint32_t pa=w.addr|0x80000000u;
             if(si<flash_until) {
-                if(!(w.pc>=keep_lo && w.pc<keep_hi) && !io(w.addr)) continue;
+                // The sprite queue's marker (a later call of the caller) is
+                // not the skipped routine's (desktop, note 481).
+                if(!(w.pc>=keep_lo && w.pc<keep_hi) && !io(w.addr) && !(host_sprites && w.pc==n3::sprite_mark)) continue;
             }
             if(host_sprites && S==1 && w.pc==n3::sprite_mark && cam_s2 && last_cpu) {
                 const uint32_t spc=pa+8;
@@ -1176,6 +1267,42 @@ jr::Pre pre_counts{};
                 sprite_sp=spc;sprite_end=e;sprite_skip=true;si=e;
                 if(si>=upto) break;
                 continue;
+            }
+            if(host_parts && S==1 && w.pc==n3::parts_mark && cam_s2 && last_cpu) {
+                const uint32_t spc=pa+16;
+                uint32_t e=si+1;while(e<nst && ST[e].pc!=n3::parts_end) ++e;
+                if(e<nst) {
+                    CPUState c=*last_cpu;c.pc=0;c.gpr[31]=n3::parts_ret;c.gpr[29]=spc;c.gpr[4]=cam_s2;c.gpr[5]=0x800d2210u;
+                    if(have_gte) for(int k=0;k<8;++k) c.gte_ctrl[k]=gte_out[k];
+                    sm::active=false;
+                    {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::parts_fn,n3::parts_ret);s->run_ms[2]+=ms_since(t);}
+                    if(c.pc!=0 || g_psx_call_bail) {sprite_skip=false;return;}
+                    for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
+                    have_gte=true;producer=0x80000000u|cur_i;++s->smc[sm::c_parts];
+                    sprite_sp=spc;sprite_end=e;sprite_skip=true;si=e;
+                    if(si>=upto) break;
+                    continue;
+                }
+            }
+            if(host_jspr && S==1 && w.pc==n3::jspr_mark && duke_s4 && last_cpu) {
+                const uint32_t spc=pa+8;
+                uint32_t e=si,calls=0;while(e<nst && n3::jspr_pc(ST[e].pc)) {calls+=ST[e].pc==n3::jspr_mark;++e;}
+                const uint32_t mats=psx_mod_read_word(duke_s4+0x3c),cnt=psx_mod_read_byte(psx_mod_read_word(duke_s4+0x40));
+                if(calls==cnt && (psx_mod_read_word(duke_s4)&0x800u)) {
+                    const uint64_t t=SDL_GetPerformanceCounter();
+                    for(uint32_t j=0;j<cnt;++j) {
+                        CPUState c=*last_cpu;c.pc=0;c.gpr[29]=spc;c.gpr[31]=n3::jspr_ret;
+                        c.gpr[4]=mats+32*j+0x14;c.gpr[5]=0xff;c.gpr[6]=j;
+                        if(have_gte) for(int k=0;k<8;++k) c.gte_ctrl[k]=gte_out[k];
+                        psx_dispatch_call(&c,n3::jspr_fn,n3::jspr_ret);
+                        if(c.pc!=0 || g_psx_call_bail) {s->run_ms[2]+=ms_since(t);return;}
+                    }
+                    s->run_ms[2]+=ms_since(t);
+                    ++s->smc[sm::c_jspr];si=e;
+                    if(si>=upto) break;
+                    continue;
+                }
+                ++s->smc[sm::f_jspr];
             }
             if(S==1 && eye_word(w.addr) && w.size==4) {const uint32_t o=(w.addr&0x1fffffffu)-(camera_base&0x1fffffffu);if(o>=0x14 && o<0x20) src_eye[(o-0x14)/4]=(int32_t)w.value;}
             if(host_rooms) {
@@ -1211,6 +1338,7 @@ jr::Pre pre_counts{};
         const Hook& h=H[i];cur_i=i;
         if(h.cpu.gpr[31]>=n3::camera_render && h.cpu.gpr[31]<n3::camera_render_end) cam_s2=h.cpu.gpr[18];
         last_cpu=&h.cpu;
+        if(h.cpu.gpr[31]>=n3::duke_draw && h.cpu.gpr[31]<n3::duke_draw_end) duke_s4=h.cpu.gpr[20];
         if(ST) apply(SH[i].stores);
         if(g_psx_call_bail) break;
         if(sprite_skip && SH[i].stores<=sprite_end && h.cpu.gpr[29]<sprite_sp) {
@@ -1225,6 +1353,14 @@ jr::Pre pre_counts{};
         CPUState cpu=h.cpu;
         jr::prestep(cpu,h.addr,p,n2_mask());
         if(C==1 && have_gte) for(int k=0;k<8;++k) cpu.gte_ctrl[k]=gte_out[k];
+        if(host_attach && S==1 && h.addr==n3::attach_next && (h.cpu.gpr[31]==0x8003492cu || h.cpu.gpr[31]==0x80033020u)) {
+            CPUState c=cpu;c.pc=0;c.gpr[31]=h.cpu.gpr[31]-12;   // the call's own return (0x80034920, 0x80033014)
+            psx_dispatch_call(&c,n3::attach_fn,c.gpr[31]);
+            if(c.pc!=0 || g_psx_call_bail) break;
+            std::memcpy(cpu.gte_ctrl,c.gte_ctrl,sizeof cpu.gte_ctrl);std::memcpy(cpu.gte_data,c.gte_data,sizeof cpu.gte_data);
+            for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
+            have_gte=true;producer=i;++s->smc[sm::c_attach];
+        }
         s->prod[i]=have_gte?producer:~0u;
         uint32_t gte_was[8];std::memcpy(gte_was,gte_out,32);const bool had_gte=have_gte;
         if(host_links) sm::before(cpu,h.addr,gte_out,have_gte);
@@ -1262,15 +1398,22 @@ jr::Pre pre_counts{};
         // a quarter of it. The source's stores up to the room walk hook are
         // not replayed, and the GTE the walk leaves (its room transforms) is
         // the next hooks'.
-        if(host_flash && S==1 && h.addr==n3::flash_fn && h.cpu.gpr[31]==n3::flash_ret) {
+        // Bit 2097152 (D23N2B, desktop): the weapon mesh 0x80033e40 run alone
+        // the same way (n3::wmesh_fn): its copy of our weapon matrix to its
+        // stack, ScaleMatrix and transform run on the copy's matrix.
+        const bool wm=host_wmesh && S==1 && h.addr==n3::wmesh_fn && h.cpu.gpr[31]==n3::wmesh_ret;
+        if(wm || (host_flash && S==1 && h.addr==n3::flash_fn && h.cpu.gpr[31]==n3::flash_ret)) {
             const uint32_t sp0=h.cpu.gpr[29];
             uint32_t j=i+1;while(j<sh->nhooks && H[j].cpu.gpr[29]<sp0) ++j;
-            CPUState c=cpu;c.pc=0;c.gpr[31]=sentinel;
+            // The call's own return address, not the sentinel: our D36 hooks
+            // on these entries act only for Duke's draw's calls (ra
+            // 0x80035348 / 0x8003531c), as in the job.
+            CPUState c=cpu;c.pc=0;
             sm::active=false;
-            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::flash_fn,sentinel);s->run_ms[3]+=ms_since(t);}
+            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,h.addr,h.cpu.gpr[31]);s->run_ms[3]+=ms_since(t);}
             if(c.pc!=0 || g_psx_call_bail) break;
             for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
-            have_gte=true;producer=i;++s->smc[sm::c_flash];
+            have_gte=true;producer=i;++s->smc[wm?sm::c_wmesh:sm::c_flash];
             flash_until=j<sh->nhooks?SH[j].stores:nst;keep_lo=n3::duke_draw;keep_hi=n3::duke_draw_end;
             uint32_t nw=0;render_replay_record_words(&nw);s->seg[i][1]=nw;s->merge_to[i]=j;
             for(uint32_t k=i+1;k<j;++k) {s->seg[k][0]=s->seg[k][1]=nw;std::memset(s->hgte[k],0xff,32);}
@@ -1279,10 +1422,13 @@ jr::Pre pre_counts{};
         }
         if(host_lines && S==1 && h.addr==0x800292a0u && h.cpu.gpr[31]==n3::lines_ret) {
             const uint32_t sp0=h.cpu.gpr[29]+48;
-            uint32_t j=i+1;while(j<sh->nhooks && H[j].cpu.gpr[29]<sp0) ++j;
-            CPUState c=cpu;c.pc=0;c.gpr[31]=sentinel;c.gpr[29]=sp0;c.gpr[5]=0x800d2210u;
+            // Only the routine's own hooks (its links, ra in 0x8008f71c-
+            // 0x800900a0): the camera render's next calls (the sprite queue,
+            // small models) also run below sp0 (desktop, note 481).
+            uint32_t j=i+1;while(j<sh->nhooks && H[j].cpu.gpr[29]<sp0 && H[j].cpu.gpr[31]>=n3::lines_lo && H[j].cpu.gpr[31]<n3::lines_hi) ++j;
+            CPUState c=cpu;c.pc=0;c.gpr[31]=n3::lines_call_ret;c.gpr[29]=sp0;c.gpr[5]=0x800d2210u;
             sm::active=false;
-            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::lines_fn,sentinel);s->run_ms[3]+=ms_since(t);}
+            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::lines_fn,n3::lines_call_ret);s->run_ms[3]+=ms_since(t);}
             if(c.pc!=0 || g_psx_call_bail) break;
             for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
             have_gte=true;producer=i;++s->smc[sm::c_lines];
@@ -1389,6 +1535,7 @@ void begin() {
         s=(Shared*)m;
     }
     s->done=s->ok=s->skip=s->n=s->nseg=s->why=0;std::memset(s->smc,0,sizeof s->smc);
+    std::memset(s->fl_copy,0,sizeof s->fl_copy);std::memset(n3::fl_job,0,sizeof n3::fl_job);
     int fds[2];
     if(pipe(fds)!=0) return;
     earlier_gte.resize(prev.hooks.size());
@@ -1489,6 +1636,12 @@ void finish(bool job_ok) {
                 if(q<24) ++by[q].differ;
                 static unsigned bd_shown=0;
                 static const uint32_t show_ra=[]{const char* t=std::getenv("DNTTK_N2_SHOWRA");return t?(uint32_t)std::strtoul(t,nullptr,16):0u;}();
+                static unsigned fl_shown=0;
+                if(was_root && ((h.addr==n3::flash_fn && h.cpu.gpr[31]==n3::flash_ret) || (h.addr==0x80010000u && h.cpu.gpr[31]==0x80034448u) || h.cpu.gpr[31]==n3::lines_ret) && fl_shown<12) {
+                    ++fl_shown;std::fprintf(stderr,"[n2 check %ld]   flash/line inputs at %08x (job/copy):",(long)getpid(),h.cpu.gpr[31]);
+                    for(unsigned q=0;q<n3::fl_n;++q) if(q==0 || n3::fl_job[q]!=s->fl_copy[q]) std::fprintf(stderr," [%u] %08x/%08x",q,n3::fl_job[q],s->fl_copy[q]);
+                    std::fprintf(stderr," (others equal)\n");
+                }
                 if(was_root && show_ra && h.cpu.gpr[31]==show_ra && bd_shown<12) {
                     ++bd_shown;size_t k=0;while(k<a.size() && k<b.size() && a[k]==b[k]) ++k;
                     std::fprintf(stderr,"[n2 check %ld]   root hook %u (ra %08x, root %d) words %zu/%zu first at %zu:",(long)getpid(),i,h.cpu.gpr[31],host_ok?1:0,a.size(),b.size(),k);
@@ -1501,6 +1654,9 @@ void finish(bool job_ok) {
                 if(shown<10) {
                     ++shown;size_t k=0;while(k<a.size() && k<b.size() && a[k]==b[k]) ++k;
                     std::fprintf(stderr,"[n2 check %ld]   whole job: hook %u %08x (ra %08x) differs: words %zu/%zu, first at %zu: job %08x rebuilt %08x\n",(long)getpid(),i,h.addr,h.cpu.gpr[31],a.size(),b.size(),k,k<a.size()?a[k]:0,k<b.size()?b[k]:0);
+                    if(me>i) {std::fprintf(stderr,"[n2 check %ld]     the job's hooks in that range:",(long)getpid());
+                        for(uint32_t q=i;q<=me && q<i+40;++q) std::fprintf(stderr," %08x/%08x sp %08x w%u",sh->hook[q].addr,sh->hook[q].cpu.gpr[31],sh->hook[q].cpu.gpr[29],sh->hook[q].after-sh->hook[q].before);
+                        std::fprintf(stderr,"\n");}
                 }
             }
         }
@@ -1636,7 +1792,7 @@ void report() {
     {std::string t;char b[64];
      for(unsigned q=0;q<ngte;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu(earlier's %llu)",gte_by[q].addr,gte_by[q].ra,(unsigned long long)gte_by[q].differ,(unsigned long long)gte_earlier[q]);t+=b;}
      std::fprintf(stderr,"[n2 check %ld] D23N3, hook GTE in host-exact jobs: as the job's %llu, differs %llu:%s\n",(long)getpid(),(unsigned long long)st.gte_hooks[0],(unsigned long long)st.gte_hooks[1],t.c_str());}
-    if(n2_mask()&4096) std::fprintf(stderr,"[n2 check %ld] D23N3, model records the copy projected against the job's: words %llu differ %llu | emitter links outside models: GTE as the job's %llu, differs %llu; packet changed by our hook %llu; models ended by other code's stores %llu; shadows %llu, sprite queues %llu, muzzle flashes %llu, line effects %llu\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rec_found],(unsigned long long)st.sm[sm::c_rec_diff],(unsigned long long)st.sm[sm::c_em_gte_same],(unsigned long long)st.sm[sm::c_em_gte_diff],(unsigned long long)st.sm[sm::c_em_changed],(unsigned long long)st.sm[sm::c_model_ended],(unsigned long long)st.sm[sm::c_shadow],(unsigned long long)st.sm[sm::c_sprites],(unsigned long long)st.sm[sm::c_flash],(unsigned long long)st.sm[sm::c_lines]);
+    if(n2_mask()&4096) std::fprintf(stderr,"[n2 check %ld] D23N3, model records the copy projected against the job's: words %llu differ %llu | emitter links outside models: GTE as the job's %llu, differs %llu; packet changed by our hook %llu; models ended by other code's stores %llu; shadows %llu, sprite queues %llu, muzzle flashes %llu, line effects %llu, weapon meshes %llu, Duke's joint sprites %llu (not run %llu), particle walks %llu, attach points %llu\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rec_found],(unsigned long long)st.sm[sm::c_rec_diff],(unsigned long long)st.sm[sm::c_em_gte_same],(unsigned long long)st.sm[sm::c_em_gte_diff],(unsigned long long)st.sm[sm::c_em_changed],(unsigned long long)st.sm[sm::c_model_ended],(unsigned long long)st.sm[sm::c_shadow],(unsigned long long)st.sm[sm::c_sprites],(unsigned long long)st.sm[sm::c_flash],(unsigned long long)st.sm[sm::c_lines],(unsigned long long)st.sm[sm::c_wmesh],(unsigned long long)st.sm[sm::c_jspr],(unsigned long long)st.sm[sm::f_jspr],(unsigned long long)st.sm[sm::c_parts],(unsigned long long)st.sm[sm::c_attach]);
     if(n2_mask()&16384) std::fprintf(stderr,"[n2 check %ld] piece 11, room transforms redone %llu | piece 13, portal walks run %llu\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rooms],(unsigned long long)st.sm[sm::c_portal]);
     std::string t;char b[64];
     for(unsigned q=0;q<nby;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu",by[q].addr,by[q].ra,(unsigned long long)by[q].differ);t+=b;}
@@ -1937,6 +2093,7 @@ void report() {
 // Called from the D23N1 observer for each top-level hook entry.
 void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
     if((n2_mask()&128) && phase==0 && addr==0x800292a0u) sk::entry(cpu);
+    if((n2_mask()&1024) && wj::active) n3::fl_capture(n3::fl_job,cpu,addr,phase);
     if(n2_mask()&1) {
         if(phase==0) xf::settle(cpu,addr);
         else if(addr==0x800292a0u) xf::on_entry_done(cpu);

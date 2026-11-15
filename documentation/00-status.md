@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23N2B weapon attachments and D23N3 sprites exact; D23N4 groundwork, not built
+
+Desktop, autonomous ([note 481](481-d23n2b-d23n3-d23n4-desktop.md)). The muzzle flash's rebuild had skipped our weapon-matrix hook (fixed); the scaled weapon mesh, Duke's joint sprites, the particle walk and the attach point now run in the rebuild; the line effect is confirmed exact. Every compared later job whole-exact, game packets included, in UI 2, 8, 9 and 5 at 180 (60 s each); a 120 s UI 5 run still has 4 of 265 jobs with the game's own object-renderer quads differing. D23N4: every hook-list divergence is a culling test the rebuild could evaluate for its own fraction, but the prop frustum test and GTE data registers need exact ports first, so it was not built or switched on. Developer code only; validator and Vanilla unchanged. The user accepted after three playtests and asked to close it out; committed (D23N2B Done, D23N3 In progress, D23N4 Todo).
+
 ## 2026-11-15 - D23N2B and D23N3: whole later jobs exact with their game packets; D23N4 not switched on
 
 Field laptop, autonomous ([note 480](480-d23n2b-d23n3-field-laptop.md)). The game's own packets of a rebuilt later job now match word for word: the frame's bucket link-up in host code, and Duke's shadow, the sprite queue and a line effect run alone in the rebuild. Whole later jobs exact in 93-99% of later jobs in UI 2, 8, 9 and 5 at 180 (2-6 jobs a view before). Left: the muzzle flash and a scaled weapon mesh (1-5%), a host port of the portal walk. D23N4 not switched on: 1-8% of later jobs cull differently from the earlier job, which a rebuild cannot tell yet. Developer code only; validator and Vanilla unchanged. The user asked to close it out; committed (D23N2B and D23N3 In progress, D23N4 Todo).

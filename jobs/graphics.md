@@ -2934,6 +2934,11 @@ the ceiling draws, reuse the existing sky (D17AO1, D17O) where it fits; no
 seams or black gaps; ask before treating an authored gap differently.
 Acceptance: the user's UI slot 9 shows the sky there at high FOV.
 
+Test save (2026-11-15): a private copy of UI slot 9 (runtime slot 8, the
+2026-11-14 13:09 save, GOLD AND GUNS) with the player's cards, in
+`recomp/analysis/d17bj/cards` (local, ignored; hash-checked identical when
+copied). Test on this copy; the player is free to save over their slot.
+
 ### D53B - No impatient idle lines while watching a security camera
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**

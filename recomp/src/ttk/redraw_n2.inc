@@ -35,6 +35,14 @@
 //      our mod memory, the camera block).
 //  64  with 16: every call of the transform, by caller (piece 4d): the
 //      matrix the call passes, from the job start, against the job's.
+// 256  with 16 and 64: the actor joint table rebuilt in the copy before the
+//      actor draw's 0x80032bd8 hook (D23N2B piece 6, rebuild_table below).
+// 512  with 16 and 64: the stack matrices of actors, props, 0x8003133c and the
+//      sky built in host code in the copy before each transform (piece 7).
+// 1024 a whole later job rebuilt from its start and compared hook by hook
+//      (piece 8, namespace wj; DNTTK_N2_WHOLE selects the stores and CPU state).
+// 2048 with 1024: the transform's scratchpad stores and GTE results from the
+//      host port (piece 1) after each transform hook.
 // 128  the sky's three camera-built matrices built in host code (D23N2B
 //      piece 5, namespace sk), checked at each transform call's entry.
 //  32  with 16: the hooks' CPU state taken from the earlier job of the same
@@ -421,17 +429,73 @@ void report() {
 }
 }  // namespace jt
 
+namespace sk {bool build_any(const CPUState* cpu,int16_t m[9],int32_t t[3]);}
 namespace jr {
+// What the pre-steps of a rebuilt job did (pieces 6 and 7).
+struct Pre {uint32_t t_built[2],t_failed,t_skipped,m_built[4];};
 // Piece 4b: the job's joint matrices, written by the job; the copy's results.
 struct Out {uint32_t hook,mat,ra,w[8],tab,tw[8],wpc,wn;};
 constexpr uint32_t max_out=8192;
-struct Shared {uint32_t n,done,overflow,eye_predicted,from_prev,order_differs;uint32_t ra_n,ra[8],ra_exact[8],ra_differ[8];uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;uint32_t o_tab_differ,o_tab_same_mat_differ,o_tab_same_mat_same,o_stack,o_nfirst,o_first[4][20],o_pc_n,o_pc[8],o_pc_c[8],o_written,o_unwritten;Out real[max_out];};
+struct Shared {uint32_t n,done,overflow,eye_predicted,from_prev,order_differs;uint32_t ra_n,ra[8],ra_exact[8],ra_differ[8];uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;uint32_t o_tab_differ,o_tab_same_mat_differ,o_tab_same_mat_same,o_stack,o_nfirst,o_first[4][20],o_pc_n,o_pc[8],o_pc_c[8],o_written,o_unwritten;Pre pre;uint32_t m_pad_only;Out real[max_out];};
 Shared* s=nullptr; pid_t child=-1; int go=-1; bool active=false;
 struct RaStat {uint32_t ra=0;uint64_t exact=0,differ=0;};
 RaStat ra_st[16];unsigned ra_st_n=0;
 uint32_t o_pc[8],o_pc_n=0;uint64_t o_pc_c[8];
-struct Stats {uint64_t o_written=0,o_unwritten=0,o_tab_differ=0,o_ts_md=0,o_ts_ms=0,o_stack=0;uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0,from_prev=0,no_prev=0,order_differs=0;} st;
+struct Stats {uint64_t m_built[4]={},m_pad_only=0;uint64_t t_built[2]={},t_failed=0,t_skipped=0;uint64_t o_written=0,o_unwritten=0,o_tab_differ=0,o_ts_md=0,o_ts_ms=0,o_stack=0;uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0,from_prev=0,no_prev=0,order_differs=0;} st;
 unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0xff000000u)==0x9f000000u ? 1u : mat==tab ? 0u : 1u;}
+// Piece 6 (bit 256): the actor draw 0x80032e78 (a1 = s3 the actor) builds the
+// actor's joint table at 0x80032ff8 just before it enters 0x80032bd8 (actor,
+// table; ra 0x80033020, a top-level hook): 0x80098204 (actor, table), or the
+// plain build 0x800987cc when the actor type's word has 0x20000, the actor's
+// +0x60 is 0xdc or its flags have 2 (CONFIRMED by the disassembly). A later job
+// rebuilt from the job start runs the same build there, after its own pose
+// patches, on a private stack; a nonzero return from 0x80098204 means the game
+// left the draw (counted, the hook is then not expected).
+uint32_t t_stack=0,duke=0;bool sky_advanced=false;
+void rebuild_table(const CPUState& at,Pre& p) {
+    if(!t_stack) t_stack=psx_mod_alloc_guest_memory(0x1000,16);
+    if(!t_stack) {++p.t_failed;return;}
+    const uint32_t actor=at.gpr[4],table=at.gpr[5];
+    // The draw gives an actor without a table the shared one (0x80032f9c).
+    if(!psx_mod_read_word(actor+0x3c) && table==0x800d6a30u) orig_ww(actor+0x3c,table);
+    if(!table || psx_mod_read_word(actor+0x3c)!=table) {++p.t_skipped;return;}
+    const uint32_t type=psx_mod_read_word(0x800d2660u)+28u*psx_mod_read_half(actor+0x2c);
+    const bool plain=(psx_mod_read_word(type)&0x20000u) || (int16_t)psx_mod_read_half(actor+0x60)==0xdc || (psx_mod_read_word(actor)&2u);
+    CPUState c=at;
+    c.pc=0;c.gpr[31]=sentinel;c.gpr[29]=t_stack+0xff0;c.gpr[4]=actor;c.gpr[5]=table;
+    psx_dispatch_call(&c,plain?0x800987ccu:0x80098204u,sentinel);
+    if(c.pc!=0 || g_psx_call_bail) {g_psx_call_bail=0;++p.t_failed;return;}
+    ++p.t_built[plain?1:0];
+}
+// Before a hook of a job rebuilt from its start: piece 6's joint table and
+// piece 7's stack matrices (mask bits 256 and 512), as a rebuild would do them.
+void prestep(CPUState& cpu,uint32_t addr,Pre& p,int mask) {
+    if((mask&256) && addr==0x80032bd8u && cpu.gpr[31]==0x80033020u) rebuild_table(cpu,p);
+    if(addr==0x80032bd8u && cpu.gpr[31]==0x8003492cu) duke=cpu.gpr[4];   // Duke's draw 0x800348d8 (s5 the actor)
+    // Bit 512 (D23N2B piece 7): the matrices the job builds on its stack
+    // before the transform (actors, props, 0x8003133c, the sky), built
+    // here in host code from the job-start memory, as a rebuild would.
+    if((mask&512) && addr==0x800292a0u) {
+        int16_t m[9];int32_t t[3];
+        const uint32_t ra=cpu.gpr[31];
+        const int kq=ra==0x80032f48u?0:ra==0x80031decu?1:ra==0x8003133cu?2:3;
+        // 0x8003133c's height a2 is *(s5 +0x204) of its caller, Duke's
+        // draw (0x80035408): in the job it is on the stack.
+        // The sky routine 0x800388e4 first advances its timer 0x800c0c64 by
+        // *0x800d21fc unless 0x800be568 or 0x800d2540 is set (CONFIRMED by
+        // its disassembly): once a job, before its three matrices.
+        if(kq==3 && !sky_advanced && (ra==0x80038c68u || ra==0x80038d7cu || ra==0x80038e18u)) {
+            sky_advanced=true;
+            if(!psx_mod_read_half(0x800be568u) && !psx_mod_read_half(0x800d2540u)) psx_mod_write_word(0x800c0c64u,psx_mod_read_word(0x800c0c64u)+psx_mod_read_word(0x800d21fcu));
+        }
+        if(sk::build_any(&cpu,m,t) && (kq!=2 || duke)) {
+            if(kq==2) t[1]=(int32_t)psx_mod_read_word(duke+0x204);
+            for(int q=0;q<9;++q) psx_mod_write_half(cpu.gpr[5]+2*q,(uint16_t)m[q]);
+            for(int q=0;q<3;++q) psx_mod_write_word(cpu.gpr[5]+0x14+4*q,(uint32_t)t[q]);
+            ++p.m_built[kq];
+        }
+    }
+}
 [[noreturn]] void run(int fd) {
     char c=0;
     if(read(fd,&c,1)!=1 || c!='g') _exit(0);
@@ -460,6 +524,7 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
         // Bit 64 (piece 4d): every caller of the transform, not only the joint loop.
         const bool joint=h.addr==0x800292a0u && (cpu.gpr[31]==0x80034c6cu || (n2_mask()&64));
         const uint32_t tab=joint ? psx_mod_read_word(cpu.gpr[20]+0x3c)+cpu.gpr[22] : 0;
+        prestep(cpu,h.addr,s->pre,n2_mask());
         const uint32_t tab2=joint ? psx_mod_read_word(cpu.gpr[19]+0x3c)+cpu.gpr[18] : 0;   // piece 6, before the hook runs
         psx_mod_function_entry(&cpu,h.addr);
         if(!joint) continue;
@@ -469,6 +534,12 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
         const unsigned kd=kind(r.mat,tab);
         bool same=cpu.gpr[5]==r.mat;
         uint32_t w[8];for(int j=0;j<8;++j) w[j]=psx_mod_read_word(cpu.gpr[5]+4*j);
+        if(same && std::memcmp(w,r.w,sizeof w) && (n2_mask()&512)) {
+            // The matrix's pad half (+0x12) is the caller's stack, never read
+            // by the transform (its transpose keeps it, MulMatrix0 ignores it).
+            uint32_t a[8],b[8];std::memcpy(a,w,sizeof a);std::memcpy(b,r.w,sizeof b);a[4]&=0xffffu;b[4]&=0xffffu;
+            if(!std::memcmp(a,b,sizeof a)) {++s->m_pad_only;std::memcpy(w,r.w,sizeof w);}
+        }
         same=same && !std::memcmp(w,r.w,sizeof w);
         if(r.ra!=0x80034c6cu) {   // piece 4d: by caller
             uint32_t j=0;while(j<s->ra_n && s->ra[j]!=r.ra) ++j;
@@ -557,6 +628,8 @@ void at_flip() {
         if(q==ra_st_n && q<16) ra_st[ra_st_n++].ra=s->ra[j];
         if(q<16) {ra_st[q].exact+=s->ra_exact[j];ra_st[q].differ+=s->ra_differ[j];}
     }
+    for(int q=0;q<4;++q) st.m_built[q]+=s->pre.m_built[q];st.m_pad_only+=s->m_pad_only;
+    for(int q=0;q<2;++q) st.t_built[q]+=s->pre.t_built[q];st.t_failed+=s->pre.t_failed;st.t_skipped+=s->pre.t_skipped;
     st.o_written+=s->o_written;st.o_unwritten+=s->o_unwritten;
     for(uint32_t q=0;q<s->o_pc_n;++q) {unsigned k=0;while(k<o_pc_n && o_pc[k]!=s->o_pc[q]) ++k;if(k==o_pc_n && k<8) o_pc[o_pc_n++]=s->o_pc[q];if(k<8) o_pc_c[k]+=s->o_pc_c[q];}
     st.o_tab_differ+=s->o_tab_differ;st.o_ts_md+=s->o_tab_same_mat_differ;st.o_ts_ms+=s->o_tab_same_mat_same;st.o_stack+=s->o_stack;
@@ -580,6 +653,10 @@ void report() {
         std::fprintf(stderr,"[n2 check %ld] piece 4d, other transform callers:%s\n",(long)getpid(),t.c_str());
         std::fprintf(stderr,"[n2 check %ld] piece 6, actor joints 80033584: table entry differs %llu | entry same, matrix differs %llu | both same %llu | a scaled or other copy passed %llu\n",(long)getpid(),
             (unsigned long long)st.o_tab_differ,(unsigned long long)st.o_ts_md,(unsigned long long)st.o_ts_ms,(unsigned long long)st.o_stack);
+        if(n2_mask()&512) std::fprintf(stderr,"[n2 check %ld] piece 7, stack matrices built on the host in the copy: actors 80032f48 %llu, props 80031dec %llu, 8003133c %llu, sky %llu; equal but for the pad half %llu\n",(long)getpid(),
+            (unsigned long long)st.m_built[0],(unsigned long long)st.m_built[1],(unsigned long long)st.m_built[2],(unsigned long long)st.m_built[3],(unsigned long long)st.m_pad_only);
+        if(n2_mask()&256) std::fprintf(stderr,"[n2 check %ld] piece 6, joint tables rebuilt in the copy: 0x80098204 %llu, plain 0x800987cc %llu, failed %llu, skipped %llu\n",(long)getpid(),
+            (unsigned long long)st.t_built[0],(unsigned long long)st.t_built[1],(unsigned long long)st.t_failed,(unsigned long long)st.t_skipped);
         {std::string t;char b[64];for(unsigned k=0;k<o_pc_n;++k) {std::snprintf(b,sizeof b," %08x x%llu",o_pc[k],(unsigned long long)o_pc_c[k]);t+=b;}
         std::fprintf(stderr,"[n2 check %ld] piece 6: entries the job wrote before the call %llu, not written %llu; differing calls by the PC of the job's last store into the entry:%s\n",(long)getpid(),(unsigned long long)st.o_written,(unsigned long long)st.o_unwritten,t.c_str());}
     }
@@ -587,6 +664,253 @@ void report() {
         (long)getpid(),(unsigned long long)st.from_prev,(unsigned long long)st.no_prev,(unsigned long long)st.order_differs);
 }
 }  // namespace jr
+
+namespace wj {
+// D23N2B piece 8 (bit 1024): a whole later job rebuilt from its start. A copy
+// of the worker forked at a later job's start (its memory after the job's
+// camera and pose patches) rebuilds the job's stream up to the flip: the
+// stores of a chosen source applied in order, each top-level hook called with
+// a chosen CPU state after the pre-steps of pieces 6 and 7 (bits 256 and 512),
+// the game's own stream items between hooks spliced from that source's
+// stream. DNTTK_N2_WHOLE="S C": stores S 0 none, 1 the earlier job's of the
+// same frame (another fraction; the eye words of the camera block left out,
+// the predicted eye written instead), 2 the job's own (the D23N1 rebuild, a
+// sanity check); CPU state C 0 the job's own hooks, 1 the earlier job's
+// (needs the same hook list, call for call). Then, for each hook, the packets
+// it produced against the same hook's in the job's real stream, word for word
+// (the game's PGXP records left out, as D23N1 does), and the game items
+// between hooks likewise. Every 4th later job of a frame.
+constexpr uint32_t max_words=1u<<20,max_seg=12288;
+struct Shared {uint32_t done,ok,skip,n,flip,cflip,channel[3],seg[max_seg][2],nseg;double ms;CPUState flip_cpu;uint32_t words[max_words];};
+Shared* s=nullptr;pid_t child=-1;int go=-1;bool active=false,waiting=false;uint64_t t_job=0;double ms_job=0;
+int src_stores() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_WHOLE");return t?std::atoi(t):0;}();return v;}
+int src_cpu() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_WHOLE");const char* sp=t?std::strchr(t,' '):nullptr;return sp?std::atoi(sp+1):0;}();return v;}
+bool eye_word(uint32_t a) {a&=0x1fffffffu;const uint32_t c=camera_base&0x1fffffffu;return (a>=c+0x14 && a<c+0x20) || (a>=c+0x34 && a<c+0x40);}
+jr::Pre pre_counts{};
+[[noreturn]] void run(int fd) {
+    char c=0;
+    if(read(fd,&c,1)!=1 || c!='g') _exit(0);
+    logging=false;g_psx_mod_hook_observer=nullptr;
+    const uint64_t t0=SDL_GetPerformanceCounter();
+    const int S=src_stores(),C=src_cpu();
+    const bool earlier_ok=prev.serial==n2_serial && prev.alpha!=n2_alpha && prev.hooks.size()==sh->nhooks && !prev.words.empty();
+    bool same_list=earlier_ok;
+    for(uint32_t i=0;same_list && i<sh->nhooks;++i) same_list=prev.hooks[i].addr==sh->hook[i].addr && prev.hooks[i].cpu.gpr[31]==sh->hook[i].cpu.gpr[31];
+    if((S==1 || C==1) && !same_list) {s->skip=earlier_ok?2u:1u;__atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);_exit(0);}
+    const Hook* H=C==1 ? prev.hooks.data() : sh->hook;
+    const uint32_t* src=C==1 ? prev.words.data() : parent_stream;
+    const uint32_t src_flip=C==1 ? (uint32_t)prev.words.size() : s->flip;   // record-only jobs leave sh->flip_at unset
+    const Store* ST=S==1 ? prev.stores.data() : S==2 ? sh->store : nullptr;
+    const uint32_t nst=S==1 ? (uint32_t)prev.stores.size() : S==2 ? sh->nstores : 0;
+    // The hooks' stores positions are in their own record.
+    if(S!=2 && in::pred_ok) for(int k=0;k<3;++k) {orig_ww(camera_base+0x14+4*k,(uint32_t)in::pred_eye[k]);orig_ww(camera_base+0x34+4*k,(uint32_t)in::pred_eye[k]);}
+    render_replay_record_begin(s->words,max_words);
+    render_replay_record_splice(parent_stream,sh->prefix);
+    uint32_t si=0,last=sh->prefix;
+    const Hook* SH=S==1 ? prev.hooks.data() : sh->hook;   // store positions by hook
+    auto apply=[&](uint32_t upto) {
+        for(;si<upto && si<nst;++si) {
+            const Store& w=ST[si];
+            if(io(w.addr) || (S==1 && eye_word(w.addr))) continue;
+            if(w.size==4) orig_ww(w.addr,w.value); else if(w.size==2) orig_wh(w.addr,(uint16_t)w.value); else orig_wb(w.addr,(uint8_t)w.value);
+        }
+    };
+    jr::Pre p{};uint32_t gte_out[8]={};bool have_gte=false;
+    for(uint32_t i=0;i<sh->nhooks && !g_psx_call_bail;++i) {
+        const Hook& h=H[i];
+        if(ST) apply(SH[i].stores);
+        render_replay_record_splice(src+last,h.before-last);
+        uint32_t n=0;render_replay_record_words(&n);s->seg[i][0]=n;
+        CPUState cpu=h.cpu;
+        jr::prestep(cpu,h.addr,p,n2_mask());
+        if(C==1 && have_gte) for(int k=0;k<8;++k) cpu.gte_ctrl[k]=gte_out[k];
+        psx_mod_function_entry(&cpu,h.addr);
+        // Bit 2048: the transform's own effects (its scratchpad stores and the
+        // GTE rotation and translation it leaves), from piece 1's exact host
+        // port on the matrix the routine reads after our callbacks.
+        if((n2_mask()&2048) && h.addr==0x800292a0u) {
+            const xf::Result r=xf::from_memory(cpu.gpr[4],cpu.gpr[5]);
+            for(int k=0;k<3;++k) {orig_ww(xf::a_d+4*k,r.d[k]);orig_ww(xf::a_lv+4*k,r.lv[k]);}
+            for(int k=0;k<5;++k) orig_ww(xf::a_tr+4*k,r.tr[k]);
+            for(int k=0;k<8;++k) {orig_ww(xf::a_out+4*k,r.out[k]);gte_out[k]=r.out[k];}
+            gte_out[4]=(uint32_t)(int32_t)(int16_t)r.out[4];have_gte=true;
+        }
+        render_replay_record_words(&n);s->seg[i][1]=n;
+        last=h.after;
+    }
+    if(ST) apply(nst);
+    render_replay_record_splice(src+last,src_flip-last);
+    {uint32_t n=0;render_replay_record_words(&n);s->cflip=n;}
+    s->ms=ms_since(t0);
+    // The game's own packets: the chain close and the submit from the flip, as
+    // D23N1's rebuild runs them (D23N3 lists what differs here).
+    render_replay_channel_set(s->channel);
+    bool ok=!g_psx_call_bail;
+    for(uint32_t fn:{chain_close,submit}) {
+        if(!ok) break;
+        CPUState tail=s->flip_cpu;tail.pc=0;tail.gpr[31]=sentinel;
+        psx_dispatch_call(&tail,fn,sentinel);
+        ok=tail.pc==0 && !g_psx_call_bail;
+    }
+    int overflow=0;s->n=render_replay_record_end(&overflow);
+    s->nseg=sh->nhooks;s->ok=ok && !overflow;
+    __atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);
+    _exit(0);
+}
+void begin() {
+    if(child>0) {kill(child,SIGKILL);waitpid(child,nullptr,0);child=-1;if(go>=0) {close(go);go=-1;}}
+    active=waiting=false;
+    if(!(prev.serial==n2_serial && prev.alpha!=n2_alpha)) return;   // later jobs only
+    static unsigned count=0;
+    if(++count%4) return;
+    if(!s) {
+        void* m=mmap(nullptr,sizeof(Shared),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
+        if(m==MAP_FAILED) return;
+        s=(Shared*)m;
+    }
+    s->done=s->ok=s->skip=s->n=s->nseg=0;
+    int fds[2];
+    if(pipe(fds)!=0) return;
+    t_job=SDL_GetPerformanceCounter();
+    const pid_t pid=fork();
+    if(pid==0) {close(fds[1]);run(fds[0]);}
+    close(fds[0]);
+    if(pid<0) {close(fds[1]);return;}
+    child=pid;go=fds[1];active=true;
+}
+// One stream range's items, without the game packets' PGXP records.
+void items(const uint32_t* w,uint32_t a,uint32_t b,std::vector<uint32_t>& out) {
+    out.clear();
+    for(uint32_t i=a;i<b;) {
+        const uint32_t kind=w[i]>>24,count=w[i]&0xffffffu;
+        if(i+1+count>b) {out.push_back(0xdeadbeefu);break;}
+        if(!(kind==4 && count>=1 && (w[i+1]&0xffffffu)<0x200000u)) out.insert(out.end(),w+i,w+i+1+count);
+        i+=1+count;
+    }
+}
+struct Stats {uint64_t host_exact_tail_differs=0,tail_items=0,tail_exact=0,tail_exact_jobs=0;uint64_t jobs=0,skipped_no_earlier=0,skipped_list=0,failed=0,timeouts=0,exact_jobs=0,host_exact_jobs=0,hooks=0,hooks_exact=0,hooks_empty=0,gaps=0,gaps_exact=0;double ms_job=0,ms_rebuild=0;} st;
+struct ByAddr {uint32_t addr=0,ra=0;uint64_t differ=0;};
+ByAddr by[24],first[24],tail_by[24];unsigned nby=0,nfirst=0,ntail=0,shown=0,tail_shown=0;
+void at_flip() {
+    if(!active) return;
+    active=false;
+    const char g=sh->overflow || !n2_flip_cpu ?'x':'g';
+    ms_job=ms_since(t_job);
+    {uint32_t n=0;render_replay_record_words(&n);s->flip=n;}
+    if(n2_flip_cpu) s->flip_cpu=*n2_flip_cpu;
+    render_replay_channel_get(s->channel);
+    if(write(go,&g,1)!=1) {}
+    close(go);go=-1;
+    waiting=g=='g';
+    if(!waiting) {kill(child,SIGKILL);waitpid(child,nullptr,0);child=-1;}
+}
+// After the job's submit: wait for the copy, compare.
+void finish(bool job_ok) {
+    if(!waiting) return;
+    waiting=false;
+    bool done=false,died=false;
+    for(int i=0;i<8000 && !(done=__atomic_load_n(&s->done,__ATOMIC_ACQUIRE));++i) {int stt=0;if(waitpid(child,&stt,WNOHANG)==child) {died=true;break;}usleep(500);}
+    done=__atomic_load_n(&s->done,__ATOMIC_ACQUIRE)!=0;
+    if(!died) {if(!done) kill(child,SIGKILL);waitpid(child,nullptr,0);}
+    child=-1;
+    if(!job_ok) return;
+    if(!done) {++(died?st.failed:st.timeouts);return;}
+    if(s->skip) {++(s->skip==2?st.skipped_list:st.skipped_no_earlier);return;}
+    if(!s->ok) {++st.failed;return;}
+    ++st.jobs;st.ms_job+=ms_job;st.ms_rebuild+=s->ms;
+    uint32_t pn=0;const uint32_t* ps=render_replay_record_words(&pn);
+    std::vector<uint32_t> a,b;
+    bool host_ok=true,all_ok=true;
+    uint32_t lastr=sh->prefix,lastc=sh->prefix;
+    for(uint32_t i=0;i<sh->nhooks && i<s->nseg;++i) {
+        const Hook& h=sh->hook[i];
+        // The game's items before this hook.
+        items(ps,lastr,h.before,a);items(s->words,lastc,s->seg[i][0],b);
+        if(!a.empty() || !b.empty()) {++st.gaps;if(a==b) ++st.gaps_exact; else all_ok=false;}
+        items(ps,h.before,h.after,a);items(s->words,s->seg[i][0],s->seg[i][1],b);
+        if(a.empty() && b.empty()) ++st.hooks_empty;
+        else {
+            ++st.hooks;
+            if(a==b) ++st.hooks_exact;
+            else {
+                if(host_ok) {   // the job's first differing hook: a root, not a cascade
+                    unsigned q=0;while(q<nfirst && !(first[q].addr==h.addr && first[q].ra==h.cpu.gpr[31])) ++q;
+                    if(q==nfirst && q<24) {first[q].addr=h.addr;first[q].ra=h.cpu.gpr[31];++nfirst;}
+                    if(q<24) ++first[q].differ;
+                }
+                host_ok=all_ok=false;
+                unsigned q=0;while(q<nby && !(by[q].addr==h.addr && by[q].ra==h.cpu.gpr[31])) ++q;
+                if(q==nby && q<24) {by[q].addr=h.addr;by[q].ra=h.cpu.gpr[31];++nby;}
+                if(q<24) ++by[q].differ;
+                if(shown<10) {
+                    ++shown;size_t k=0;while(k<a.size() && k<b.size() && a[k]==b[k]) ++k;
+                    std::fprintf(stderr,"[n2 check %ld]   whole job: hook %u %08x (ra %08x) differs: words %zu/%zu, first at %zu: job %08x rebuilt %08x\n",(long)getpid(),i,h.addr,h.cpu.gpr[31],a.size(),b.size(),k,k<a.size()?a[k]:0,k<b.size()?b[k]:0);
+                }
+            }
+        }
+        lastr=h.after;lastc=s->seg[i][1];
+    }
+    items(ps,lastr,s->flip,a);items(s->words,lastc,s->cflip,b);
+    if(!a.empty() || !b.empty()) {++st.gaps;if(a==b) ++st.gaps_exact; else all_ok=false;}
+    // After the flip: the game's own packets (chain close and submit), item by
+    // item; a differing GP0 packet is counted by its command byte (D23N3).
+    {
+        std::vector<std::pair<uint32_t,uint32_t>> ia,ib;
+        auto list=[](const uint32_t* w,uint32_t x,uint32_t y,std::vector<std::pair<uint32_t,uint32_t>>& out) {
+            out.clear();
+            for(uint32_t i=x;i<y;) {const uint32_t kind=w[i]>>24,count=w[i]&0xffffffu;if(i+1+count>y) break;
+                if(!(kind==4 && count>=1 && (w[i+1]&0xffffffu)<0x200000u)) out.push_back({i,1+count});i+=1+count;}
+        };
+        list(ps,s->flip,pn,ia);list(s->words,s->cflip,s->n,ib);
+        st.tail_items+=ia.size();
+        bool tail_ok=ia.size()==ib.size();
+        for(size_t k=0;k<ia.size() && k<ib.size();++k) {
+            const bool eq=ia[k].second==ib[k].second && !std::memcmp(ps+ia[k].first,s->words+ib[k].first,4u*ia[k].second);
+            if(eq) {++st.tail_exact;continue;}
+            tail_ok=false;
+            if(!host_ok) continue;   // after a host difference the chain's addresses cascade
+            const uint32_t* w=ps+ia[k].first;const uint32_t kind=w[0]>>24;
+            if(tail_shown<12) {
+                ++tail_shown;const uint32_t* v=s->words+ib[k].first;
+                std::fprintf(stderr,"[n2 check %ld]   game packet differs, item %zu kind %u words %u/%u: job",(long)getpid(),k,kind,ia[k].second,ib[k].second);
+                for(uint32_t j=1;j<ia[k].second && j<14;++j) std::fprintf(stderr," %08x",w[j]);
+                std::fprintf(stderr," | rebuilt");
+                for(uint32_t j=1;j<ib[k].second && j<14;++j) std::fprintf(stderr," %08x",v[j]);
+                std::fprintf(stderr,"\n");
+            }
+            // GP0 runs (kind 0): the first differing word's packet command.
+            uint32_t key=kind<<8;
+            if(kind==0 && ia[k].second==ib[k].second) {
+                uint32_t j=1;while(j<ia[k].second && w[j]==s->words[ib[k].first+j]) ++j;
+                key|=j<ia[k].second ? (w[j]>>24) : 0xff;
+            }
+            unsigned q=0;while(q<ntail && tail_by[q].addr!=key) ++q;
+            if(q==ntail && q<24) {tail_by[q].addr=key;++ntail;}
+            if(q<24) ++tail_by[q].differ;
+        }
+        st.tail_exact_jobs+=tail_ok;st.host_exact_tail_differs+=host_ok && !tail_ok;
+        all_ok=all_ok && tail_ok;
+    }
+    st.host_exact_jobs+=host_ok;st.exact_jobs+=all_ok;
+}
+void report() {
+    std::fprintf(stderr,"[n2 check %ld] piece 8, whole later jobs (stores %d, cpu %d): jobs=%llu host-exact=%llu all-exact=%llu | hooks with packets %llu exact %llu (empty %llu) | game items between hooks %llu exact %llu | skipped: no earlier job %llu, hook list differs %llu | failed %llu timeouts %llu | ms job %.2f rebuild %.2f\n",
+        (long)getpid(),src_stores(),src_cpu(),(unsigned long long)st.jobs,(unsigned long long)st.host_exact_jobs,(unsigned long long)st.exact_jobs,
+        (unsigned long long)st.hooks,(unsigned long long)st.hooks_exact,(unsigned long long)st.hooks_empty,(unsigned long long)st.gaps,(unsigned long long)st.gaps_exact,
+        (unsigned long long)st.skipped_no_earlier,(unsigned long long)st.skipped_list,(unsigned long long)st.failed,(unsigned long long)st.timeouts,
+        st.jobs?st.ms_job/st.jobs:0.0,st.jobs?st.ms_rebuild/st.jobs:0.0);
+    std::string t;char b[64];
+    for(unsigned q=0;q<nby;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu",by[q].addr,by[q].ra,(unsigned long long)by[q].differ);t+=b;}
+    std::fprintf(stderr,"[n2 check %ld] piece 8, differing hooks by address/ra:%s\n",(long)getpid(),t.c_str());
+    t.clear();
+    for(unsigned q=0;q<nfirst;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu",first[q].addr,first[q].ra,(unsigned long long)first[q].differ);t+=b;}
+    std::fprintf(stderr,"[n2 check %ld] piece 8, differing first, a job's first differing hook:%s\n",(long)getpid(),t.c_str());
+    t.clear();
+    for(unsigned q=0;q<ntail;++q) {std::snprintf(b,sizeof b," %04x x%llu",tail_by[q].addr,(unsigned long long)tail_by[q].differ);t+=b;}
+    std::fprintf(stderr,"[n2 check %ld] piece 8, game packets after the flip: jobs exact %llu (host-exact jobs whose game packets differ %llu), items %llu exact %llu; differing in host-exact jobs, by stream kind and GP0 command:%s\n",(long)getpid(),
+        (unsigned long long)st.tail_exact_jobs,(unsigned long long)st.host_exact_tail_differs,(unsigned long long)st.tail_items,(unsigned long long)st.tail_exact,t.c_str());
+}
+}  // namespace wj
 
 namespace vis {
 // Writes of the scratch run, undone in reverse order.
@@ -816,6 +1140,32 @@ bool build_obj(const CPUState* cpu,int16_t m[9],int32_t t[3]) {
     t[0]=(int32_t)psx_mod_read_word(r+0x14);t[1]=(int32_t)psx_mod_read_word(cpu->gpr[29]+0x2c);t[2]=(int32_t)psx_mod_read_word(r+0x1c);
     return true;
 }
+// D23N2B piece 7: an object's own matrix, built on the caller's stack before
+// the transform, CONFIRMED by the disassembly: 0x8002afe4 (the angles at
+// obj +0x1c) with t = (obj +4, +8, +0xc); the actor draw 0x80032e78 (ra
+// 0x80032f48, the actor s3) as it is; the prop draw (ra 0x80031dec, the object
+// s2) scaled by ScaleMatrix (0x1000, half obj +0x22, 0x1000) unless that half
+// is 0x1000.
+bool build_pose(uint32_t obj,bool scaled,int16_t m[9],int32_t t[3]) {
+    int16_t ang[3];for(int k=0;k<3;++k) ang[k]=(int16_t)psx_mod_read_half(obj+0x1c+2*k);
+    rot(ang,m);
+    for(int k=0;k<3;++k) t[k]=(int32_t)psx_mod_read_word(obj+4+4*k);
+    const int32_t sy=(int16_t)psx_mod_read_half(obj+0x22);
+    if(scaled && sy!=0x1000) {
+        uint16_t in[10],out[10];for(int k=0;k<9;++k) in[k]=(uint16_t)m[k];in[9]=0;
+        const int32_t v[3]={0x1000,sy,0x1000};jt::scale(in,v,out);
+        for(int k=0;k<9;++k) m[k]=(int16_t)out[k];
+    }
+    return true;
+}
+bool build_any(const CPUState* cpu,int16_t m[9],int32_t t[3]) {
+    const uint32_t ra=cpu->gpr[31];
+    if(ra==0x80032f48u) return build_pose(cpu->gpr[19],false,m,t);
+    if(ra==0x80031decu) return build_pose(cpu->gpr[18],true,m,t);
+    if(ra==0x8003133cu) return build_obj(cpu,m,t);
+    if(ra==0x80038c68u || ra==0x80038d7cu || ra==0x80038e18u) return build(ra,cpu->gpr[4],m,t);
+    return false;
+}
 struct RaStat {uint32_t ra=0;uint64_t exact=0,differ=0,failed=0;};
 RaStat st[4];unsigned shown=0;
 void entry(const CPUState* cpu) {
@@ -860,10 +1210,12 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
         if(phase==0 && addr==0x80062b48u && cpu->gpr[31]==0x8002e688u) vis::walk_entry(cpu);
     }
 }
+void n2_finish(bool ok) {if(n2_mask()&1024) wj::finish(ok);}
 void n2_begin(const CPUState& job) {
     if(n2_mask()&14) in::begin(job);
     if(n2_mask()&4) vis::begin(job,n2_serial,n2_alpha);
     if(n2_mask()&16) jr::begin();
+    if(n2_mask()&1024) wj::begin();
 }
 void n2_at_flip(uint64_t serial,float alpha) {
     static unsigned jobs=0;
@@ -883,5 +1235,6 @@ void n2_at_flip(uint64_t serial,float alpha) {
     }
     if((n2_mask()&8) && jobs%64==0) jt::report();
     if(n2_mask()&16) {jr::at_flip();if(jobs%64==0) jr::report();}
+    if(n2_mask()&1024) {wj::at_flip();if(jobs%64==0) wj::report();}
     if((n2_mask()&128) && jobs%64==0) sk::report();
 }

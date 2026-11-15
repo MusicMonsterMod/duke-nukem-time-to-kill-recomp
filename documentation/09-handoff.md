@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-15 - D23N2B pieces 6-8 (In progress); D23N3 listed; D23N4 not switched on
+
+[Note 477](477-d23n2b-whole-later-job.md). Desktop session (user away). Developer code in `recomp/src/ttk/redraw_n2.inc` (`DNTTK_N2_CHECK` bits 256 table rebuild, 512 stack matrices, 1024 whole later job, 2048 transform effects; `DNTTK_N2_WHOLE="S C"`) and `redraw_check.inc` (the earlier job's stream kept, `n2_finish`, the flip CPU passed). No framework change. Next (resumable, in order of jobs blocked): host ports of the small-model projection `0x8002d848` with its face emitters and of the water grid `0x8002ef90`, then the room walk and sky backdrop differences, then D23N3's two packet kinds; D23N4 only after that. Lab (local): `recomp/analysis/d23n2b/` (`lab.py` case `cad`, `sum_n2.py`; `build-local/ab/d23n2b-before|now` for A/B).
+
 ## 2026-11-15 - D23V closed
 
 D23V closed after the user's playtest ("it feels very good to play"). Next: D23N2B piece 6 (run `0x80098204` after a later job's pose patches), then D23N3/D23N4; D23V2 is ready.

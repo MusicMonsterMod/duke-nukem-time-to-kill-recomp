@@ -1426,6 +1426,49 @@ crystal holders. Work: a glow and light per filled slot, in the crystal's
 colour; correct after loads. Acceptance: an elegant glow per inserted
 crystal, nothing on empty slots.
 
+### D57G - Iron-ring chandeliers give light (RESISTANCE IS FEUDAL)
+
+**Status: Todo (backlog; user 2026-11-15). Dependencies: D41L, D54.**
+User, 2026-11-15, from their UI slot 1 save (runtime slot 0, level 7,
+RESISTANCE IS FEUDAL): "make the 2 chandeliers emit light". Backlog only;
+no code yet.
+
+Investigation (CONFIRMED from the savestate's RAM, not yet seen in game):
+
+- A private copy of UI slot 1 was taken at the request (saved 2026-11-15
+  01:33 UTC), with the player's two cards, in `recomp/analysis/d57g/cards`
+  (local, ignored; hash-checked identical to the player's file). Duke stands
+  in room 3 at (336, 520, 13737).
+- The two chandeliers are static props of **type 372** (mesh `0x8013695c`
+  in this save; 51 vertices, 20 FT4 + 20 FT3; tpages 41 and 0), both in
+  room 3, hung high above the hall at (3081, -2619, 15821) and
+  (3081, -2619, 10767). Model: a pentagonal iron ring about 2070 across
+  (model y 570..950, y down) on five chains to an apex at y about -950, with
+  a candle flame at each of the five corners (the tpage-0 FT3 diamonds, model
+  y about 340..560, radius about 1000). The flames are part of the model, so
+  unlike D41L's chandelier no flame quads need drawing (and D41Q's offset
+  problem does not arise). Render: `recomp/analysis/d57g/m372.png`; prop
+  census of the level: `props.txt` (`props.py`, `mesh.py`).
+- Level 7 has **5** of them: rooms 1, 3 (two), 20 and 31. The fix is by
+  model, so all five light, and any other level using the mesh.
+- They are not lit today: D41L's `prop_lights.cpp` scan only knows the
+  saloon chandelier (type 263, 28 vertices, signature `0x000c002c`), and
+  `recomp/assets/lights/level07.lights` has no lamp at them. Room 3's only
+  lights are the wall torches (type 484, `candle` style, about 2500 units
+  away at x about 5500).
+
+Work: add the type-372 mesh to the prop-light scan by a vertex signature
+(as `chandelier_mesh`, not per-level data), with a warm candle light at the
+ring (five candle points or one light at the ring centre, whichever reads
+best for the cost) and a broad fill below, tuned with the user against the
+D41L chandelier; check whether these props turn or sway (place lights by
+yaw, follow movement if any) and that D54 puts the light out if one is shot
+down. Measure the GPU at 180 Hz in UI slot 1's hall (live prop lights, not
+baked). Acceptance: from UI slot 1, both chandeliers visibly light the hall
+below them and their own ring, in a matched before/after pair
+(`research/before-after/D57G/`); the other three level-7 copies light too;
+cost within the noise at 180 Hz; Vanilla and Classic unchanged.
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**

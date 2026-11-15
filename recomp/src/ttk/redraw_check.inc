@@ -84,6 +84,8 @@ void wb(uint32_t a,uint8_t v) {note(a,v,1);orig_wb(a,v);}
 void n2_observe(CPUState* cpu,uint32_t addr,int phase);
 void n2_at_flip(uint64_t,float);
 void n2_begin(const CPUState&);
+void n2_finish(bool);
+const CPUState* n2_flip_cpu=nullptr;
 void observe(CPUState* cpu,uint32_t addr,int phase) {
     if(!logging) return;
     n2_observe(cpu,addr,phase);
@@ -106,7 +108,12 @@ pid_t child=-1; int go_fd=-1;
 // and which of the game's top-level stores differ, by the hook they follow.
 int diff_mode() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_DIFF");return t && t[0]=='1' ? 1 : 0;}();return v;}
 // The previous job recorded by this worker (DNTTK_N2_DIFF, and the D23N2B piece 4c check).
-struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;} prev;
+// With DNTTK_N2_CHECK bit 1024 also its stream up to the flip (D23N2B piece 8).
+struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;std::vector<uint32_t> words;} prev;
+const uint32_t* parent_stream=nullptr;
+uint64_t t_begin=0;
+double ms_since(uint64_t t) {return (double)(SDL_GetPerformanceCounter()-t)*1000.0/(double)SDL_GetPerformanceFrequency();}
+bool io(uint32_t a) {a&=0x1fffffffu;return a>=0x1f801000u && a<0x1f803000u;}
 #include "redraw_n2.inc"
 bool recording() {return diff_mode() || n2_mask();}
 bool recording_only=false;
@@ -193,10 +200,6 @@ void trace_pair() {
     write_record(name,cur_alpha,cur_serial,rec_t0,rec_t1,sh->hook,sh->nhooks,sh->store,sh->nstores);
     ++written;
 }
-const uint32_t* parent_stream=nullptr;
-uint64_t t_begin=0;
-double ms_since(uint64_t t) {return (double)(SDL_GetPerformanceCounter()-t)*1000.0/(double)SDL_GetPerformanceFrequency();}
-bool io(uint32_t a) {a&=0x1fffffffu;return a>=0x1f801000u && a<0x1f803000u;}
 
 void compare_memory() {
     sh->ram_diffs=0;
@@ -308,8 +311,10 @@ void at_flip(const CPUState& cpu) {
     if(recording_only) {
         recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;rec_t1=__rdtsc();
         if(sh->overflow) {prev.serial=~0ull;return;}
+        n2_flip_cpu=&cpu;
         n2_at_flip(cur_serial,cur_alpha);
-        if(!diff_mode() && !(n2_mask()&32)) return;
+        n2_flip_cpu=nullptr;
+        if(!diff_mode() && !(n2_mask()&(32|1024))) return;
         if(diff_mode() && prev.serial==cur_serial && prev.alpha!=cur_alpha) {
             trace_pair();
             diff_records();
@@ -318,6 +323,7 @@ void at_flip(const CPUState& cpu) {
         prev.serial=cur_serial;prev.alpha=cur_alpha;prev.t0=rec_t0;prev.t1=rec_t1;
         prev.stores.assign(sh->store,sh->store+sh->nstores);
         prev.hooks.assign(sh->hook,sh->hook+sh->nhooks);
+        if(n2_mask()&1024) {uint32_t n=0;const uint32_t* w=render_replay_record_words(&n);prev.words.assign(w,w+n);}
         return;
     }
     if(child<0) return;
@@ -403,6 +409,7 @@ void report_difference(const uint32_t* ps,uint32_t pn,const std::vector<std::pai
 
 // The job finished (after its submit): wait for the copy, compare.
 void finish(bool job_ok) {
+    n2_finish(job_ok);
     if(child<0) return;
     post_log=-1;
     const pid_t pid=child;child=-1;

@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-15, piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-15, pieces 6-7 exact and piece 8 (a whole later job) built, [note 477](../documentation/477-d23n2b-whole-later-job.md); piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1633,6 +1633,37 @@ word (INFERRED: the per-fraction actor position). Next (resumable): run
 the entries word for word; then `0x80031dec` / `0x80032f48`'s 2-7%, piece
 4c's hook-list differences, note 456 section 6. D23N3 and D23N4 not reached.
 
+Work log, 2026-11-15 (pieces 6-8, desktop), [note 477](../documentation/477-d23n2b-whole-later-job.md). Autonomous session
+(user: "D23N2B piece 6 ... then the rest of D23N2B. 2. D23N3, then D23N4 as
+far as exact matches allow"). New desktop lab `recomp/analysis/d23n2b/`
+(local; card copies, `RATE=180` in the lab's profile copy, settings line
+checked, offscreen). Piece 6 (`DNTTK_N2_CHECK` bit 256): the actor draw
+`0x80032e78` builds the actor's joint table at `0x80032ff8` (`0x80098204`,
+or `0x800987cc` by the type and flags) just before its `0x80032bd8` hook;
+the copy runs the same build there after the job's pose patches: every
+`0x80033584` call exact (UI 8 13,058, UI 2 7,956; before 64% and 99.5%).
+Piece 7 (bit 512): the matrices built on the caller's stack, in host code:
+actors `0x80032f48` and props `0x80031dec` (`0x8002afe4` of `+0x1c`, the
+position, the props' ScaleMatrix by `+0x22`), `0x8003133c` (its height is
+Duke's `+0x204`), the sky (its timer advanced by `*0x800d21fc` once a job):
+every transform call from the job start exact in UI 8, 2 and 9 except four
+rare callers (about 0.1%, left to a fallback). Piece 8 (bits 1024 and
+2048, `DNTTK_N2_WHOLE`): a later job rebuilt from its start, hook by hook
+and then the game's packets after the flip, word for word; sanity with the
+job's own record 66 of 66 exact. With the earlier job's stores and
+registers (D23N4's setting): UI 9 121-122 later jobs host-exact (85-97%),
+113 with the game's packets (79-90%); UI 8, 2 and 5: none. The roots (each
+job's first differing hook): small models (`0x8002d848` and the face
+emitters project in game code; 14-71 jobs a view), water (`0x8002ef90`'s
+grid; 4-25), the room walk (one stretch late in its stream; 3-12), the sky
+backdrop object (840 words against 600; 1-15), rarely Duke's draw and the
+object pass. Rebuild 2.1-5.1 ms against 7.2-16.1 ms a job (with recording).
+Check off: interleaved A/B against the pre-session build, same game rate,
+presents and validator results; Vanilla boots. Next (resumable): host ports
+of the small-model projection and the water grid, then the room walk and
+backdrop differences, then the rare callers; D23N3's packets (note 477
+section 4).
+
 ### D23N3 - The game's camera-dependent packets
 
 **Status: Todo. Dependencies: D23N2B.** About 1 in 10 of the game's own
@@ -1645,6 +1676,15 @@ included.
 Work log, 2026-11-15: not reached (the user's order was D23N2B, then
 D23N3, then D23N4 "as far as exact matches allow"; D23N2B's whole-job
 rebuild is still open), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3.
+
+Work log, 2026-11-15 (listed, not built), [note 477](../documentation/477-d23n2b-whole-later-job.md) section 4. D23N2B's whole-job
+check now compares the game's packets after the flip too. In host-exact
+rebuilt later jobs of UI 9, 8 of 121 differ there: a semi-transparent raw
+textured quad (GP0 `0x2e`) whose corners move 2-6 units between fractions,
+and gouraud textured triangles and quads (`0x34`, `0x3c`) the later job
+draws and the earlier did not. Their guest routines are not identified yet
+(the record's store PCs for those packets would name them). Waits on
+D23N2B's roots in the other views.
 
 ### D23N4 - Later jobs skip the game's code
 
@@ -1662,6 +1702,14 @@ emulation thread and picture cadence at 120 were not compared against it.
 D23Y7 and D23AA (the DUKE HILL town and the FAMILY JEWELS start) now wait on
 it: in both the redraw worker rebuilding the game's geometry is the cost, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md)
 sections 4-5.
+
+Work log, 2026-11-15 (not switched on), [note 477](../documentation/477-d23n2b-whole-later-job.md) section 5. The rebuild of a later
+job from the earlier job's record is exact only in views without actors,
+small models and water (UI 9: 79-90% of later jobs); elsewhere it would
+change pictures, so D23N4 was not built and, as the user's condition said,
+the 120 Hz CPU clock, emulation thread and cadence and the DUKE HILL town
+and FAMILY JEWELS start were not re-measured. Needed first: D23N2B's small
+model and water ports, its room walk and backdrop differences, D23N3.
 
 ### D23O - Leaner render-thread submission
 
@@ -3119,6 +3167,11 @@ Research: the level's mission items and how the inventory maps them; whether
 the key really exists here, where it is obtained; the room, its switch and
 what triggers it; whether the DeLorean secret is linked; compare with the
 original on DuckStation (portable copy only) for a recomp regression.
+
+Test save (2026-11-15): a private copy of UI slot 10 (runtime slot 9, the
+2026-11-14 13:42 save, GOLD AND GUNS) with the player's cards, in
+`recomp/analysis/d22p/cards` (local, ignored; hash-checked identical when
+copied). Test on this copy; the player is free to save over their slot.
 Do not invent a route or change progression. Acceptance: a written answer
 (how they work, or that they are unused or shown wrongly); a fix job only if
 a real bug is confirmed.

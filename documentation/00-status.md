@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23N2B pieces 6-8 (In progress); D23N3 listed; D23N4 not switched on
+
+Desktop, autonomous ([note 477](477-d23n2b-whole-later-job.md)). Every transform call of a later job is now exact from its start (actor joint tables rebuilt, stack matrices in host code), but four rare callers. A whole later job rebuilt from the earlier job's record matches word for word in UI 9 (79-90% of later jobs) and in no job of UI 8, 2 or 5: small models and water are projected by the game's code, and the room walk and sky backdrop still differ. D23N3's packets listed; D23N4 not built. Developer code only; check off unchanged; Vanilla unchanged.
+
 ## 2026-11-15 - D23V closed
 
 D23V closed. The user playtested on the field laptop ("it feels very good to play") and asked to close it out; D23V is Done. D23N2B In progress; D23Y7 and D23AA Blocked on D23N4; D23V2 Todo.

@@ -2072,7 +2072,7 @@ Closed at the user's request ("lock it in and close it out").
 
 ### D23V2 - The rest of the snapshot capture
 
-**Status: Needs measurement on the field laptop (2026-11-15: built, exact, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 3; split from D23V 2026-11-15, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 7). Dependencies: D23V.**
+**Status: Done (2026-11-15, user: "it runs fine" ... "yep close it out", accepting a third instead of half; [note 479](../documentation/479-d23v2-field-laptop.md); built, exact, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 3; split from D23V 2026-11-15, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 7). Dependencies: D23V.**
 After D23V the per-frame snapshot capture still costs 1.65-1.70 ms of GPU a
 game frame on the field laptop, nearly all of it the 2x canonical surface
 (2048 x 1024 colour at 2x) and the raw mirror. Copy only what a redraw can
@@ -2103,6 +2103,45 @@ clock, CPU clock, cadence at 120 and 180).
 User check on the desktop (water, sky, fire, explosions, HUD, loads and
 menus at 180): "all 3 tests look fantastic"; locked in, the measurement
 next on the field laptop.
+
+Work log, 2026-11-15 (In progress), field laptop, [note 479](../documentation/479-d23v2-field-laptop.md).
+User: "work on D23V2 autonomously: measure the incremental snapshot capture
+against the whole copy ... Acceptance (note 478 section 3): capture GPU time
+at least halved again." Lab `recomp/analysis/d23y6/` (`d23v2.sh`,
+`d23v2x.sh`, `d23v2v.sh`, `v2sum.py`). Five interleaved rounds, 120 and 180,
+UI 2, 8 and 9, offscreen: capture 1.59-1.65 -> 1.04-1.08 ms of GPU a game
+frame (-33 to -35% in every cell; 245 of 512 tiles copied, the game's two
+frame bands every frame); whole-GPU work -6 to +3% (inside the spread), CPU
+clock unchanged, emulation thread 1-2 points lower, presents, game frames
+and swap cadence unchanged. **Acceptance not met.** INFERRED from the A/B: the
+raw mirror and the wide margins are about 0.55 ms that no tile selection
+removes; halving needs the canonical copy at about 115 tiles, so the bands
+must be left out where no redraw reads their old contents (or the mirror and
+margins cut). Fixed (framework, exported): 1 run in 18 never went
+incremental, because only `rr_rect_blit` set the checked flag for
+`glCopyImageSubData`; the capture now checks it itself with one live tile.
+12 of 12 incremental runs afterwards. Exact: readback check 1,250 captures,
+0 differing tiles; validator 963/963, 952/952 (whole copy), 962/962,
+938/938; Vanilla matched shots against the pre-D23V2 binary byte-identical.
+
+Closed 2026-11-15 on the user's acceptance after the field-laptop
+measurement (user: "it runs fine" ... "yep close it out"): a third off the
+capture instead of half; the rest is D23V3.
+
+### D23V3 - Leave the frame bands out of the capture
+
+**Status: Todo (split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
+After D23V2 the capture is 1.04-1.08 ms of GPU a game frame on the field
+laptop: 245 of 512 canonical tiles a capture, nearly all of them the game's
+two frame bands (rewritten every frame), and about 0.55 ms (INFERRED) of raw
+VRAM mirror and D23V's wide margins that no tile selection reaches. Leave a
+band's tiles out where no redraw reads their old contents (first check
+`rp_band_direct`, the band copy's sources and the validator's paths), or cut
+the mirror and margins. Low priority: D23V2's third showed no whole-GPU,
+CPU clock or cadence gain, so do it when the GPU is short elsewhere.
+Acceptance: capture GPU time at most half of D23V2's (about 0.53 ms),
+pictures exact (readback check, validator, matched shots), Vanilla
+unchanged; measure with `recomp/analysis/d23y6/d23v2.sh` and `v2sum.py`.
 
 ### D23W - Field laptop: measure on real weak hardware
 

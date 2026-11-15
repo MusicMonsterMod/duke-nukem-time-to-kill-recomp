@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23V2 closed
+
+Field laptop, autonomous ([note 479](479-d23v2-field-laptop.md)). The incremental snapshot capture against the whole copy, five interleaved rounds at 120 and 180 in UI 2, 8 and 9: capture 1.59-1.65 -> 1.04-1.08 ms of GPU a game frame (-33 to -35%), not the halving the job asks for; whole-GPU work, CPU clock, presents and cadence within the spread. Exact: readback check 0 differing tiles in 1,250 captures, validator all exact, Vanilla shots byte-identical. One run in 18 never went incremental (the copy check lived only in `rr_rect_blit`); fixed in the capture. The user: "it runs fine" ... "yep close it out": D23V2 Done on a third instead of half; the rest is D23V3 (Todo). Committed.
+
 ## 2026-11-15 - D23T re-checked; D23N2B pieces 9-13 (In progress); D23V2 built (Needs measurement on the field laptop)
 
 Desktop, autonomous ([note 478](478-d23t-d23n2b-d23v2-desktop.md)). D23T (already Done) re-checked: exact, 0.2-0.4 ms a job lighter in UI 2 and 8. D23N2B: small models, the water grid, room transforms, the sky and the portal walk now exact in a rebuilt later job; host packets exact in 93% (UI 2), 99% (UI 8), 100% (UI 9) and 99% (UI 5) of later jobs, against 0, 0, 99 and 0%; developer code only. D23V2: incremental snapshot capture (framework), exact (readback check, validator, Vanilla shots); its GPU measurement is the field laptop's. No player-facing change but D23V2's capture; the user's desktop check: "all 3 tests look fantastic". Committed.

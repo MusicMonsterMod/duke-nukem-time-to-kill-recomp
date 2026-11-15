@@ -3324,7 +3324,7 @@ index aaf69df7..2820224a 100644
 +#undef X
 +}
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..28cf2e4b 100644
+index d0ccc3d5..09431d1e 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,7 @@
@@ -10295,7 +10295,7 @@ index d0ccc3d5..28cf2e4b 100644
      }
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
-@@ -4390,6 +9194,404 @@ static const GpuRenderBackend GL_BACKEND = {
+@@ -4390,6 +9194,414 @@ static const GpuRenderBackend GL_BACKEND = {
      .wide_clear_margins = glb_wide_clear_margins,
      .render_wide_display = glb_render_wide_display,
      .wide_dump_full = glb_wide_dump_full,
@@ -10441,6 +10441,16 @@ index d0ccc3d5..28cf2e4b 100644
 +    static int cap_inc = -1;
 +    if (cap_inc < 0) { const char *e = getenv("PSX_REPLAY_CAPTURE_INC"); cap_inc = !(e && e[0] == '0'); }
 +    const int ds = (cap_bits & GL_DEPTH_BUFFER_BIT) != 0;
++    /* D23V2: the first glCopyImageSubData was checked only by
++     * rr_rect_blit, which a session whose redraws all run elsewhere never
++     * reaches, so its captures stayed whole (1 field-laptop run in 18).
++     * Check it here with one tile of the live surface into this slot: what
++     * follows rewrites or keeps that tile from the same live surface. */
++    if (cap_inc && rr_copy_image_on() && !s_rr_ci_checked && s_hr_tex && s->hr_tex) {
++        while (glGetError() != GL_NO_ERROR) {}
++        p_glCopyImageSubData(s_hr_tex, GL_TEXTURE_2D, 0, 0, 0, 0, s->hr_tex, GL_TEXTURE_2D, 0, 0, 0, 0, CAP_T * S, CAP_T * S, 1);
++        (void)rr_copy_image_checked();
++    }
 +    const int inc = cap_inc && s->cap_epoch && s->cap_scale == S && (!ds || s->cap_ds) &&
 +                    rr_copy_image_on() && s_rr_ci_checked && s_hr_tex && s_hr_rb && s->hr_tex && s->hr_rb;
 +    if (inc) {

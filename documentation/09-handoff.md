@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-15 - D23V2 closed; D23V3 listed
+
+[Note 479](479-d23v2-field-laptop.md). Field laptop. The incremental capture is exact and a third lighter (245 of 512 tiles; the frame bands are rewritten every frame); about 0.55 ms (INFERRED) is the raw mirror and D23V's wide margins. Next (D23V3, Todo, low priority): leave a band's tiles out of the capture where no redraw reads their old contents (check `rp_band_direct` and the band copy's sources first), or cut the mirror and margins; then the same A/B (`recomp/analysis/d23y6/d23v2.sh`, `v2sum.py`). Framework fix in `gl_rt_capture` (the `glCopyImageSubData` check) exported and verified against the pinned framework. User accepted; committed.
+
 ## 2026-11-15 - D23T re-checked; D23N2B pieces 9-13; D23V2 built (Needs measurement on the field laptop)
 
 [Note 478](478-d23t-d23n2b-d23v2-desktop.md). Desktop session. D23N2B: `DNTTK_N2_CHECK=65288 DNTTK_N2_WHOLE="1 1"` runs every piece; `DNTTK_N2_SHOWRA=<ra>` dumps a root hook. Next for D23N2B: the rare caller `0x8003437c` (random-yaw attachment on Duke's draw), a host port of the portal walk (piece 13 runs the game's), then D23N3 (the `0x2e` quad and `0x30`/`0x34` effect triangles) and D23N4. D23V2: on the field laptop, A/B `PSX_REPLAY_CAPTURE_INC=0` against the default at 120 and 180 (capture GPU time from `PSX_GPU_PHASES=2`, busy x clock, CPU clock, cadence); exactness `PSX_REPLAY_CAPTURE_CHECK=10`. Framework patch re-exported and verified against the pinned framework (90 files). User check passed; committed.

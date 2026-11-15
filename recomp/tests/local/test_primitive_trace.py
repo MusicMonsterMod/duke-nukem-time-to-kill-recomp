@@ -43,7 +43,8 @@ class PrimitiveTrace(unittest.TestCase):
                 if r['event'] == 'emit':
                     self.assertGreater(r['face'], 0)
                     self.assertGreater(r['packet'], 0)
-                    self.assertEqual(len(r['xy_depth']), 3)
+                    # Triangles, or one GT4 per unclipped quad (unified geometry, D17AM2).
+                    self.assertIn(len(r['xy_depth']), (3, 4))
                     self.assertTrue(0 <= r['slot'] < 2048)
 
     def test_bounded_output(self):

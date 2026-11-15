@@ -236,8 +236,14 @@ static void packet_contracts(const char* executable) {
         }
         // Prop faces keep their own native AVSZ3 slots (no shared key or
         // object bias); a translucent face carries no depth.
+        // s2 is the drawn object (its type at +0x2c, not a pickup); distinct
+        // objects let the primitive trace (test_primitive_trace.py) tell
+        // instances of the same mesh apart.
+        auto prop_object=[&](CPUState& c,uint32_t object) {
+            c.gpr[18]=object;word(0x800d2660,0x80190000);word(object+0x2c,3);word(0x80190000+28*3,0);
+        };
         for(bool semi:{false,true}) {
-            auto c=reset();c.gpr[31]=0x80032288;
+            auto c=reset();c.gpr[31]=0x80032288;prop_object(c,semi?0x80180060u:0x80180000u);
             psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
             for(int face=0;face<2;++face) {
                 const uint32_t v=verts+face*24;
@@ -257,7 +263,7 @@ static void packet_contracts(const char* executable) {
         // (0-1-2, 2-1-3), each with its own plane depth, as D17X requires;
         // as one packet its snapped corners took raw vertex depth.
         {
-            auto c=reset();c.gpr[31]=0x80032288;
+            auto c=reset();c.gpr[31]=0x80032288;prop_object(c,0x801800c0u);
             psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
             const int xyz[4][3]={{-100,-100,5000},{100,-100,5000},{-100,100,5000},{100,100,5050}};
             for(int i=0;i<4;++i) {

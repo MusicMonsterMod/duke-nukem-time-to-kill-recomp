@@ -2855,7 +2855,7 @@ Duke 3D toggle value only. Acceptance: user playtest in slot 9.
 
 ### D17BH - Translucent horizontal bands over the bottom of the screen
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-15, closeout authorized). Dependencies: -.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: two or more translucent horizontal bands across roughly
@@ -2869,6 +2869,46 @@ it shows). Suspects to rule in or out: redraw-only frames presenting stale
 or partly written images, snapshot tiles, the output pass, HUD or overlay
 quads. Compare with redraw-only off (`[TTK redraw-only] off` in the log).
 Acceptance: no bands in the user's normal play or after loads.
+
+Work log, 2026-11-15 (Needs playtest; [note 475](../documentation/475-d17bh-redraw-vsync.md)).
+User, 2026-11-15: still seen; slot 1 reproduces best; settings Modernized,
+Polymorph, AUTO (180 Hz), 4x, exclusive fullscreen; "you can use my real
+display".
+- D50G does not explain them (all reports predate it; its pre-fix A/B shows
+  wrong colours on world polygons that move with the camera; UI slot 1's
+  tunnel draws no stand-in).
+- Nothing in the presented image: offscreen at 180 Hz on private copies of
+  UI slot 1 (184 composed shots, turning, walking, three loads) no stripes;
+  `PSX_RT_VALIDATE` 1,356 of 1,357 redraws exact (the exception at a load,
+  whole-picture timing, no band); temporal blending is off.
+- Cause (code, CONFIRMED): `present_replay_vsync()` gave swap interval 0 to
+  every redraw present (vsync only with developer `PSX_REPLAY_VSYNC=1`), so
+  VSYNC ON did nothing above 60. Exclusive fullscreen under Cinnamon is not
+  composited: tear lines, held almost still by a pacer at the panel's rate.
+  Tearing is at scanout, so captures cannot show it.
+- Fix (framework patch): the player's VSYNC (on, off, adaptive) applies while
+  redraws present no faster than the panel; presents go to the middle of the
+  refresh after the last one (blank phase from swaps that waited); swap-interval
+  and once-a-minute `[present swap]` log lines; OPTIONS text, run.py help,
+  launcher line and GAME_MANUAL updated.
+- Real display, exclusive 180 Hz, UI slot 1 copy: before 179.8 presents/s
+  with swap interval 0; plain vsync fell to 96 (swaps waited, pacing went to
+  every 2nd refresh); final 178.0 presents/s, game 59.9-60, mean swap 0.19 ms,
+  about 1-2 % of presents one refresh late. Borderless 177.8; a composited
+  window 179.5 with no late seconds. VSYNC OFF still gives swap interval 0.
+  No `nvidia-modeset` timeouts.
+- Vanilla: route differences equal run-to-run noise. Local tests 259, 1
+  pre-existing failure (`test_primitive_trace`).
+- Remaining: the user's eyes: no stripes in normal play and after loads,
+  and whether the occasional repeated refresh shows in turns. One-launch A/B
+  of the old swap: `PSX_REPLAY_VSYNC=0 python3 recomp/tools/local/run.py`.
+
+User, 2026-11-15: "lock it in and close it out". Accepted; closeout
+authorized. In the same closeout the local test `test_primitive_trace` (failing
+since unified geometry became the default; CI skips it, it needs the owned EXE)
+was fixed: the unified fixture's prop draws now pass distinct object pointers
+(s2) so the trace sees several instances, and an `emit` may carry 4 corners
+(one GT4 per unclipped quad, D17AM2). Local tests 259, all pass.
 
 ### D17BI - OBEY OR DIE magazines on a desk flicker
 

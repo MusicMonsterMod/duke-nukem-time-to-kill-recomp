@@ -128,7 +128,9 @@ GLOWS_MODES = ('on', 'off')
 # 60, measured on the field laptop; a desktop compositor still keeps a window
 # tear-free, fullscreen can tear); adaptive is vsync that tears only when a
 # frame is late, where the driver offers it (otherwise on). The PSX_VSYNC swap
-# interval for each. Above 60 the redraws pace themselves (no driver vsync).
+# interval for each. D17BH: it also applies above 60 while the redraws present
+# no faster than the display refreshes (before, they never waited, and
+# exclusive fullscreen showed still tear lines as faint horizontal bands).
 VSYNC_MODES = ('on', 'off', 'adaptive')
 VSYNC_SWAP_INTERVAL = {'on': '1', 'off': '0', 'adaptive': '-1'}
 # D23P2 OPTIONS > DISPLAY (Modernized only): GRAPHICS, four gradings of the
@@ -671,7 +673,7 @@ def describe(settings):
         lines.append(f"Lighting: {controls['dynamic_lights']} (on: Enhanced, real lights from blasts, guns, lamps and signs on the original light; relit: Relit, the original light dimmed so those lights carry the scene; off: Original; Polymorph renderer only)")
         lines.append(f"Live shadows: {dict(smooth='sharp', simple='simple', off='off')[controls['shadow_edges']]} (shadows of flickering or breakable lamps, and lamp shadows on models; sharp: the exact shape of the geometry, anti-aliased; simple: faster, stepped edges; off: none, fastest; steady lamps' wall shadows are baked; Lighting Enhanced or Relit only)")
         lines.append(f"Model shadows: {controls['model_shadows']}; glows: {controls['glows']} (with LIVE SHADOWS OFF: on = shapes, round = discs under enemies; halos at flames and shots in flight)")
-        lines.append(f"Vsync: {controls['vsync']} (the 60 presentation; off: about 10 ms less input lag, a window stays tear-free under a desktop compositor, fullscreen can tear; adaptive: tears only when a frame is late)")
+        lines.append(f"Vsync: {controls['vsync']} (every frame rate up to the display refresh; off: about 10 ms less input lag, a window stays tear-free under a desktop compositor, fullscreen can tear; adaptive: tears only when a frame is late)")
         lines.append(f"Graphics: {controls['graphics']} (auto: a grade from the measured GPU; simple, balanced, pretty, ultra set resolution, lighting, live shadows, draw distance and frame rate; custom: your own rows)")
         lines.append(f"Security monitors: {controls['security_monitors']} (duke3d: larger lit TV screens and a camera frame with REC, Duke 3D style; ttk: the original monitors; Polymorph renderer only)")
         lines.append(f"Third-person kick: {controls['third_person_kick']} (quick: a fast legs-only kick with any weapon, on the move; original: the holstered Boot's full-body kicks)")

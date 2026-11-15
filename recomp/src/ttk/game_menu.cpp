@@ -406,8 +406,9 @@ std::vector<Screen> make_screens() {
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",
          {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
-        // D23X: the original presentation's swap interval (psx_mod_request_vsync).
-        {"VSYNC",Section::Controls,"vsync","DNTTK_VSYNC",true,"AT 60 FPS. ON: NO TEARING. OFF: LESS INPUT LAG",
+        // D23X: the swap interval (psx_mod_request_vsync). D17BH: also for the
+        // extra pictures above 60, up to the display's refresh.
+        {"VSYNC",Section::Controls,"vsync","DNTTK_VSYNC",true,"ON: NO TEARING. OFF: LESS INPUT LAG",
          {{"ON","on","\"on\""},{"OFF","off","\"off\""},{"ADAPTIVE","adaptive","\"adaptive\""}},0},
         // D17AR6: the world renderer (D17AM/D17AR switches). D40: live, from the next frame.
         {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",true,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",

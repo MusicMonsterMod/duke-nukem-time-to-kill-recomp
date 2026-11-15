@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D17BH closed; test_primitive_trace fixed
+
+User: "lock it in and close it out". D17BH is Done. The local-only `test_primitive_trace` failure is fixed (test fixture and an out-of-date quad assertion; no game code changed): 259 local tests pass.
+
+## 2026-11-15 - D17BH built (Needs playtest)
+
+The translucent stripes were tear lines: redraw presents above 60 always swapped immediately, whatever VSYNC said, and exclusive fullscreen is not composited; a pacer at the panel's rate held the lines almost still. VSYNC (on/off/adaptive) now applies up to the display rate, with presents placed mid-refresh (framework patch). Real display, exclusive 180 Hz: 178 presents/s, game 60, 1-2 % of presents one refresh late; plain vsync had fallen to 96. D50G ruled out. Vanilla unchanged. Needs the user's eyes: no stripes in play and after loads ([note 475](475-d17bh-redraw-vsync.md)).
+
 ## 2026-11-15 - D50G closed
 
 User: "looks to be working!! lock it in and close it out". D50G is Done.

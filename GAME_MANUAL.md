@@ -237,15 +237,18 @@ even pictures a second at GRAPHICS SIMPLE and BALANCED; PRETTY and ULTRA ask
 more of the graphics chip than it has for that, so it shows 30 even pictures
 a second or the original presentation, at full game speed.
 
-**VSYNC** (OPTIONS > DISPLAY, Modernized; `--vsync`; D23X) applies to the
-original 60 presentation: `on` (the default) waits for the display's refresh,
+**VSYNC** (OPTIONS > DISPLAY, Modernized; `--vsync`; D23X, D17BH) applies to
+every frame rate up to your display's refresh: `on` (the default) waits for the display's refresh,
 so the picture never tears; `off` shows each picture as soon as it is ready,
 about 10-15 ms less delay between a mouse move and the picture (in a window a
 Linux desktop compositor still keeps it tear-free; in fullscreen it can
 tear); `adaptive` waits like `on` but shows a late picture at once (where the
 graphics driver offers it, otherwise `on`). It applies as soon as you
-confirm. Above 60 the extra pictures pace themselves without the driver's
-vsync, as before.
+confirm. Since D17BH this includes the extra pictures above 60 (at 120 or
+180 on a display of that rate): before, they never waited for the refresh,
+and in exclusive fullscreen the tear lines stood almost still as faint
+horizontal bands over the lower part of the picture. A frame rate above the
+display's (240 on a 180 Hz display, UNLIMITED) still presents without waiting.
 
 Delay between your mouse and the picture: the original game updates 30 times
 a second and shows each update two updates after it reads the controls, so at

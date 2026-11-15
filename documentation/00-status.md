@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23T re-checked; D23N2B pieces 9-13 (In progress); D23V2 built (Needs measurement on the field laptop)
+
+Desktop, autonomous ([note 478](478-d23t-d23n2b-d23v2-desktop.md)). D23T (already Done) re-checked: exact, 0.2-0.4 ms a job lighter in UI 2 and 8. D23N2B: small models, the water grid, room transforms, the sky and the portal walk now exact in a rebuilt later job; host packets exact in 93% (UI 2), 99% (UI 8), 100% (UI 9) and 99% (UI 5) of later jobs, against 0, 0, 99 and 0%; developer code only. D23V2: incremental snapshot capture (framework), exact (readback check, validator, Vanilla shots); its GPU measurement is the field laptop's. No player-facing change but D23V2's capture; the user's desktop check: "all 3 tests look fantastic". Committed.
+
 ## 2026-11-15 - D23N2B pieces 6-8 (In progress); D23N3 listed; D23N4 not switched on
 
 Desktop, autonomous ([note 477](477-d23n2b-whole-later-job.md)). Every transform call of a later job is now exact from its start (actor joint tables rebuilt, stack matrices in host code), but four rare callers. A whole later job rebuilt from the earlier job's record matches word for word in UI 9 (79-90% of later jobs) and in no job of UI 8, 2 or 5: small models and water are projected by the game's code, and the room walk and sky backdrop still differ. D23N3's packets listed; D23N4 not built. Developer code only; check off unchanged; Vanilla unchanged.

@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-15, pieces 6-7 exact and piece 8 (a whole later job) built, [note 477](../documentation/477-d23n2b-whole-later-job.md); piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-15, pieces 9-13: small models, water, room transforms, sky and the portal walk exact in a rebuilt job, host packets exact in 93-100% of later jobs, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2; pieces 6-7 exact and piece 8 (a whole later job) built, [note 477](../documentation/477-d23n2b-whole-later-job.md); piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1664,9 +1664,34 @@ of the small-model projection and the water grid, then the room walk and
 backdrop differences, then the rare callers; D23N3's packets (note 477
 section 4).
 
+Work log, 2026-11-15 (In progress), [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2. Autonomous
+session on the desktop (user: "host ports of the small-model projection
+(0x8002d848 and its face emitters) and the water grid (0x8002ef90), each
+checked exact with the piece 8 whole-job check, then the room walk and sky
+backdrop differences, as far as exact matches allow"). Developer code only
+(`DNTTK_N2_CHECK` bits 4096-32768, `recomp/src/ttk/redraw_n2.inc`).
+Piece 9 (4096): the small-model draw in host code (GTE transform
+`0x8002df20`, vertex records `0x8002dce0`, the face walk `0x8002d848` with
+its culls and keys, each emitter's corner words, every `0x8002bd48` link).
+Piece 10 (8192): the water grid (room transform `0x80029660`, records and
+flags hook by hook, each tile's corners, depth-cued colour and key, every
+`0x8002bc18` link). Piece 11 (16384): every room transform `0x80029660`
+redone for the job's eye (the sky backdrop's about the eye: TR 0). The
+clouds' timer no longer advances twice when stores are replayed. Piece 13
+(32768): the room walk's difference was the portal walk's output; the copy
+runs the game's portal walk for the job's camera (game code, not yet a
+host port). 70 s a view, bits off against on: later jobs host-exact UI 2 0
+of 75 -> 84 of 90, UI 8 0 of 131 -> 147 of 148, UI 9 175 of 177 -> 169 of
+169, UI 5 0 of 157 -> 145 of 147; every model face hook (8,182) and water
+tile (9,290) before a job's first difference exact. Left: Duke's draw from
+the rare transform caller `0x8003437c` (a random-yaw attachment, 1-6 jobs a
+view), a host port of the portal walk, and D23N3's game packets (whole jobs
+exact UI 9 166 of 169, the other views 2-16). Check off: validator and game
+rate unchanged; Vanilla shots identical.
+
 ### D23N3 - The game's camera-dependent packets
 
-**Status: Todo. Dependencies: D23N2B.** About 1 in 10 of the game's own
+**Status: Todo (2026-11-15: with D23N2B pieces 9-13 most later jobs are host-exact, so these packets are now the main difference, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2). Dependencies: D23N2B.** About 1 in 10 of the game's own
 packets change between the jobs of a frame (one semi-transparent quad and
 about two textured quads a job, note 449 section 7). Identify their guest
 routines and give each a host equivalent (or run that routine alone).
@@ -1938,6 +1963,15 @@ with every store logged by the recorder. Vanilla never reaches this code
 
 Accepted 2026-11-12 after the user's playtest (UI slots 8 and 2 and 10 minutes in third person: "plays absolutely beautifully"); closeout authorized.
 
+
+Work log, 2026-11-15 (re-checked, still Done), [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 1. The user
+asked for D23T again in a desktop session; it was already built and
+accepted, so the current build was re-checked instead of rebuilding it:
+2,160 checked jobs exact in UI 2, 8 and 9 (`DNTTK_T_CHECK=3`); per-job
+worker time, interleaved, whole pass against the short pass: median UI 2
+12.01/12.04 -> 11.72/11.81 ms, UI 8 6.38/6.69 -> 6.04/6.30 ms, UI 9 within
+the spread (slowest tenth 15.6-15.8 / 8.5-8.9 / 3.0-3.1 ms, about the
+same).
 ### D23U - Opaque scene drawn front to back
 
 **Status: Done (user-accepted 2026-11-12, closeout authorized; off by default until D23W, [note 459](../documentation/459-d23u-opaque-depth-prepass.md)). Dependencies: D23M2.**
@@ -2038,7 +2072,7 @@ Closed at the user's request ("lock it in and close it out").
 
 ### D23V2 - The rest of the snapshot capture
 
-**Status: Todo (split from D23V 2026-11-15, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 7). Dependencies: D23V.**
+**Status: Needs measurement on the field laptop (2026-11-15: built, exact, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 3; split from D23V 2026-11-15, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 7). Dependencies: D23V.**
 After D23V the per-frame snapshot capture still costs 1.65-1.70 ms of GPU a
 game frame on the field laptop, nearly all of it the 2x canonical surface
 (2048 x 1024 colour at 2x) and the raw mirror. Copy only what a redraw can
@@ -2049,6 +2083,26 @@ capture alone with no game-frame gain, so measure GPU work (busy x clock),
 the CPU clock and present cadence at 120 and 180, not only game frames.
 Acceptance: capture GPU time at least halved again, pictures exact
 (validator and matched shots), Vanilla unchanged.
+
+Work log, 2026-11-15 (Needs measurement on the field laptop), [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 3.
+Built on the desktop (user: "build it and prove pictures exact here; leave
+the GPU measurement for the field laptop"). Framework (exported): every
+write to the canonical surface stamps its 32 x 32 tiles through
+`coh_invalidate`; a capture copies only the tiles stamped since its
+snapshot slot was last filled (`glCopyImageSubData`, depth-stencil too when
+copied), the whole surface for a new slot, another scale or missing
+depth-stencil. Developer `PSX_REPLAY_CAPTURE_INC=0`,
+`PSX_REPLAY_CAPTURE_CHECK=N`. Exact: 285 sampled captures read back, 0
+differing tiles (245 of 512 tiles copied a capture); validator 912/914,
+309/309, 309/309 against the old binary's 919/920, 304/305, 306/306 (the
+same two differing images in both, also with the whole copy); Vanilla
+matched shots identical. On the 1080 Ti the capture is too cheap to judge
+(0.12-0.17 -> 0.08-0.09 ms in one round, noise in the other). Not done:
+the acceptance measurement on the field laptop (capture GPU time, busy x
+clock, CPU clock, cadence at 120 and 180).
+User check on the desktop (water, sky, fire, explosions, HUD, loads and
+menus at 180): "all 3 tests look fantastic"; locked in, the measurement
+next on the field laptop.
 
 ### D23W - Field laptop: measure on real weak hardware
 

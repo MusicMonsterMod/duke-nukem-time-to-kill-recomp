@@ -2902,6 +2902,93 @@ the write succeeds, a clear failure notice otherwise); check whether
 repeated save/load contributes to D17BH. Acceptance: no visible slowdown on
 save or load in the user's playtest, success and failure each clearly shown.
 
+### D50G - A sleeping enemy on screen corrupts the frame; the GPU runs away
+
+**Status: Done (user-accepted 2026-11-15, closeout authorized). Dependencies: D17BF.**
+
+User, 2026-11-14 (RESISTANCE IS FEUDAL, level 7, first person): "a
+catastrophic game crash" just after Duke was killed: a frozen image, then on
+the repeat "it's gone absolutely crazy ... my computer itself actually made a
+physical sound". The user saved the spot as UI slot 6 (Duke dies almost at
+once after the load).
+
+Observed (session logs 22:07 and 22:26, live captures): the death prompt over
+garbage blocks; the GPU at 100 % and 240 W (the fans were the sound); a game
+field every 2-5 s; resident memory 646 MB to 2 GB; the debug port slow; the
+starvation watchdog silent (the thread is in host GPU work). Log lines
+`dma: GPU list link ... is outside the allocated mod packet memory` (the D50C
+check) and `[TTK redraw-only] off: workers behind`.
+
+Mechanism (core dump of the frozen game, gdb on lab runs; evidence labels as
+in note 472):
+
+- MEASURED: the main thread is in the DMA2 linked-list walker, sending
+  `glb_copy_rect` and draws from garbage, about 15,000 VRAM copies and 23,000
+  draws a game field. The list's chain links into the middle of 10-word GP0
+  0x2C packets in the game's packet ring (`0x800f382c`-`0x80124a0c`, cursor at
+  render context `0x800d67a8` +0); vertex words read as headers lead into game
+  code, then into a five-node loop (`0 -> 0xFF0000 -> 0xDEC -> 0x58000 -> 0x8`)
+  that the walker follows to its 0x40000-node cap every list. The D50C check
+  does not end it: the loop never leaves RAM or the allocated aperture.
+- MEASURED: `sleeping_draw` (`recomp/src/ttk/sleeping_enemies.inc`, D17BF)
+  saves the 0x88-byte render context, has the game's actor renderer
+  `0x80032e78` draw each stand-in, then writes the whole context back. When a
+  stand-in is on screen the renderer allocates its packets from the ring and
+  links them into the ordering table: the cursor moves (for example
+  `0x8011ec9c -> 0x8011f00c`, 600-3,000 bytes), and the restore rewinds it.
+  The rest of the frame reallocates that memory, so the stand-in's linked
+  packets are overwritten and links land mid-packet. The rewinds were seen
+  immediately before the first bad lists.
+- MEASURED (A/B, private copy of UI slot 6, offscreen, 180 Hz, gdb list
+  checker): sleeping enemies on, every run broke by list 1,755-1,836 (6 runs,
+  including `DNTTK_NEAR_CLIP=0`); `DNTTK_SLEEPING_ENEMIES=0`, no bad list in
+  8,400. Third person did not break at this spot (the stand-in is not in that
+  view); the cause is not first person or death themselves.
+- MEASURED: the stand-in draw changes context words +0x00 (the ring cursor)
+  and +0x50, +0x54, +0x5c, +0x60 (actor light and draw state).
+- INFERRED: any frame with a stand-in on screen can corrupt the list; most
+  overwrites happen to keep packet boundaries (at worst wrong polygons), and a
+  misaligned one makes the loop. D50C (level 3 pit death) may be the same
+  cause; not checked.
+
+Fix (specified, not implemented):
+
+1. `sleeping_draw`: restore the render context except word +0x00, so the ring
+   cursor keeps what the stand-ins allocated, as a live enemy's draw does.
+   Words +0x50-+0x60 and the rest are restored as now. A search of
+   `recomp/src` on 2026-11-14 found no other host call that saves and
+   restores `0x800d67a8`; new ones must keep the cursor too.
+2. Optional safety net, decided with the user: end a DMA2 list at a node
+   already visited (or bound the payload a list may send), so a broken list
+   costs one bad frame, never a runaway GPU. Vanilla must stay unchanged.
+
+Test: the lab in `recomp/analysis/d50g/` (local): `gdb/run_trace.sh` loads
+the private copy of UI slot 6, watches with no input and checks every list
+(`gdb/chain.py`); `gdb/rewind.py` shows the cursor at the restore. Acceptance:
+no bad list over several thousand lists with sleeping enemies on, the
+cursor no longer rewinds, the stand-ins still drawn in the right place
+(monitors and distant views, D17BF), Vanilla unchanged; then the user's
+playtest at the same spot.
+
+Work log, 2026-11-15 (Needs playtest). Fix 1 built: `sleeping_draw`
+(`recomp/src/ttk/sleeping_enemies.inc`) restores render-context words
++0x04..+0x84 and leaves +0x00, the packet ring cursor, where the stand-in
+draws left it. No other code saves the context. No framework change.
+Lab (private copy of UI slot 6, offscreen, 180 Hz, sleeping enemies on, gdb
+list checker): 0 bad lists in 11,400 (before: every run broke by list
+1,755-1,836); at each on-screen stand-in the cursor keeps its +448 to +1,952
+bytes and every other context word matches the saved value; the stand-in's
+packets reach the GPU intact (12-14 GP0 0x24/0x2C polygons in the frame's
+list, no bad list in 4,800). Before, those packets were overwritten in the
+same frame, so a stand-in on screen could draw wrong or not at all. Vanilla:
+the stand-ins exist only in Modernized with the extended draw distance, so
+its path is unchanged. Not done: the optional safety net (fix 2, left for the
+user to decide); D50C's pit not re-checked. Local tests: 259 run, 1 failure,
+`test_primitive_trace` (pre-existing since 2026-11-14, not touched);
+check_jobs and check_repo OK. Remaining: the user's playtest at the spot.
+
+User playtest, 2026-11-15, at UI slot 6: "looks to be working!! lock it in and close it out". Accepted; closeout authorized. The optional DMA loop guard (fix 2) was not taken up.
+
 ### D23AA - FAMILY JEWELS start stutters until the drawbridge is lowered
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**

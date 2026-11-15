@@ -29,7 +29,9 @@
 // - Drawn at the object pass entry 0x800374cc for each room on the pass's
 //   list (0x800d68b0, 12-byte entries, room +8), nearest to Duke first, at
 //   most 16 a frame, with that entry as the view rectangle, on a CPU copy
-//   with stack, scratchpad and render state restored. +0x5c is the frame
+//   with stack, scratchpad and render state restored, except the packet
+//   ring cursor (render context +0), which keeps the stand-ins' packets
+//   allocated (D50G). +0x5c is the frame
 //   counter, so the renderer's once-a-frame routines do not run for it.
 // Developer: DNTTK_SLEEPING_ENEMIES=0 turns it off; =dynamic uses the
 // look/aim joint builder instead of the static one.
@@ -314,7 +316,13 @@ static void sleeping_draw(CPUState* source) {
     }
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=stack[i]) psx_mod_write_word(base+4*i,stack[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
-    for(unsigned i=0;i<0x88/4;++i) psx_mod_write_word(0x800d67a8+4*i,state[i]);
+    // D50G: everything but word +0 (the packet ring cursor). A stand-in on
+    // screen allocates its packets from the ring and links them into the
+    // ordering table, as a live enemy does; rewinding the cursor let the rest
+    // of the frame overwrite them, so links landed mid-packet and the GPU
+    // walked garbage (a looping list at the 0x40000-node cap). The draw's own
+    // light and state words (+0x50, +0x54, +0x5c, +0x60) are still restored.
+    for(unsigned i=1;i<0x88/4;++i) psx_mod_write_word(0x800d67a8+4*i,state[i]);
     sleep_drawn+=sleep_last_drawn;
     if(!psx_mod_replay_active()) sleep_draw_us+=(uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-t0).count();
 }

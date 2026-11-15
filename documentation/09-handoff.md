@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-15 - D50G closed
+
+User: "looks to be working!! lock it in and close it out". D50G is Done.
+
+## 2026-11-15 - D50G built (Needs playtest)
+
+The RESISTANCE IS FEUDAL death freeze (GPU at 100 %, a field every few seconds): the D17BF sleeping-enemy draw restored the whole render context, rewinding the packet ring cursor over the stand-ins' linked packets; links landed mid-packet and the DMA walker looped to its node cap. Now the cursor is kept (`recomp/src/ttk/sleeping_enemies.inc`). Lab at the user's UI slot 6 spot: 0 bad lists in 11,400 (was broken by list ~1,800 every run); stand-ins drawn intact. Optional DMA loop guard left for the user. Job: D50G in `jobs/campaign-performance.md`.
+
 ## 2026-11-14 - D23Y9 cancelled, D23N2B piece 5 exact, D41V added
 
 [Note 474](474-d23y9-d23n2b-field-laptop.md). Autonomous session on the field laptop (user away; asked for D23Y9, then D23V, then D23N2B-N4), paused for the user's playtest and closed out at their request.

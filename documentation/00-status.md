@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23N2B and D23N3: whole later jobs exact with their game packets; D23N4 not switched on
+
+Field laptop, autonomous ([note 480](480-d23n2b-d23n3-field-laptop.md)). The game's own packets of a rebuilt later job now match word for word: the frame's bucket link-up in host code, and Duke's shadow, the sprite queue and a line effect run alone in the rebuild. Whole later jobs exact in 93-99% of later jobs in UI 2, 8, 9 and 5 at 180 (2-6 jobs a view before). Left: the muzzle flash and a scaled weapon mesh (1-5%), a host port of the portal walk. D23N4 not switched on: 1-8% of later jobs cull differently from the earlier job, which a rebuild cannot tell yet. Developer code only; validator and Vanilla unchanged. The user asked to close it out; committed (D23N2B and D23N3 In progress, D23N4 Todo).
+
 ## 2026-11-15 - D23V2 closed
 
 Field laptop, autonomous ([note 479](479-d23v2-field-laptop.md)). The incremental snapshot capture against the whole copy, five interleaved rounds at 120 and 180 in UI 2, 8 and 9: capture 1.59-1.65 -> 1.04-1.08 ms of GPU a game frame (-33 to -35%), not the halving the job asks for; whole-GPU work, CPU clock, presents and cadence within the spread. Exact: readback check 0 differing tiles in 1,250 captures, validator all exact, Vanilla shots byte-identical. One run in 18 never went incremental (the copy check lived only in `rr_rect_blit`); fixed in the capture. The user: "it runs fine" ... "yep close it out": D23V2 Done on a third instead of half; the rest is D23V3 (Todo). Committed.

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-15 - D23N2B and D23N3 on the field laptop; D23N4 not switched on
+
+[Note 480](480-d23n2b-d23n3-field-laptop.md). Field laptop. `DNTTK_N2_CHECK=2096904 DNTTK_N2_WHOLE="1 1"` runs every piece; `recomp/analysis/d23y6/n2base.sh` (four views at 180), `sum_n2.py`, `DNTTK_N2_DUMP=dir` with `n3align.py`/`n3pk.py` for packets that differ. Careful: `prev` is the job itself at comparison time (use `earlier_gte`/`earlier_list`). Next: (1) D23N4 needs a later job's culling before its rebuild: where lists diverge is in the `D23N4, routines run alone` line (water tiles, the portal walk's recursion, actor/prop draws, models against sprites); (2) the muzzle flash (`0x800341e4` runs alone but its mesh depth differs) and the scaled weapon mesh (ra `0x80033f44`): our weapon matrix is copied onto the game's stack; (3) watch for the UI 5 worker incident (six jobs, host arena packets against the game's) and a run that draws the line effect (bit 1048576 unverified). The lab scripts are local: copy them from the field laptop's `recomp/analysis/d23y6/` to the desktop lab by hand. Closed out at the user's request; committed.
+
 ## 2026-11-15 - D23V2 closed; D23V3 listed
 
 [Note 479](479-d23v2-field-laptop.md). Field laptop. The incremental capture is exact and a third lighter (245 of 512 tiles; the frame bands are rewritten every frame); about 0.55 ms (INFERRED) is the raw mirror and D23V's wide margins. Next (D23V3, Todo, low priority): leave a band's tiles out of the capture where no redraw reads their old contents (check `rp_band_direct` and the band copy's sources first), or cut the mirror and margins; then the same A/B (`recomp/analysis/d23y6/d23v2.sh`, `v2sum.py`). Framework fix in `gl_rt_capture` (the `glCopyImageSubData` check) exported and verified against the pinned framework. User accepted; committed.

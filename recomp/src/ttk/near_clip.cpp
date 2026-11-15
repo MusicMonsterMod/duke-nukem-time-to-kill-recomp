@@ -357,7 +357,7 @@ uint32_t region_address(uint32_t offset) {
 // on top of the weapon.
 constexpr uint32_t viewmodel_slot=1;
 
-uint64_t viewmodel_meshes,viewmodel_packets,viewmodel_discards;
+uint64_t viewmodel_meshes,viewmodel_packets,viewmodel_discards,cursor_restarts;
 uint64_t game_view_drops;   // D52: object faces left to the original in a game-owned view
 uint64_t security_tv_fallbacks;   // D53: TV meshes the host path left; the TTK monitor was drawn
 
@@ -2863,7 +2863,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         for(uint32_t i=0;i<0x100 && empty;i+=4) empty=!psx_mod_read_word(bitmap+i);
         // An empty guest OT can coexist with queued first-person packets.
         // Rotating here overwrites their arena before the later flush links them.
-        if(empty && held_packets.empty()) {region_after_load();frame_first_cursor=cursor;host_frame_reset();}
+        if(empty && held_packets.empty()) {region_after_load();frame_first_cursor=cursor;host_frame_reset();++cursor_restarts;}
         if(end>start && cursor>=start && cursor<end && frame_first_cursor>=start && frame_first_cursor<end) {
             arena_size=end-start;
             const uint32_t used=cursor>=frame_first_cursor?cursor-frame_first_cursor:arena_size-(frame_first_cursor-cursor);
@@ -2977,6 +2977,7 @@ void near_clip_light_frame(bool valid,const double m[9],bool smooth,const double
     light_inv[6]=(d*h-e*g)*k;light_inv[7]=(b*g-a*h)*k;light_inv[8]=(a*e-b*d)*k;
     light_frame=true;
 }
+void near_clip_viewmodel_counts(uint64_t out[4]) {out[0]=viewmodel_packets;out[1]=viewmodel_discards;out[2]=cursor_restarts;out[3]=held_packets.size();}
 NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region,region_chosen};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
     frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;

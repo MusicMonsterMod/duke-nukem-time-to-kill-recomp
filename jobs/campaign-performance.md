@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-15, pieces 9-13: small models, water, room transforms, sky and the portal walk exact in a rebuilt job, host packets exact in 93-100% of later jobs, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2; pieces 6-7 exact and piece 8 (a whole later job) built, [note 477](../documentation/477-d23n2b-whole-later-job.md); piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-15 night, field laptop: whole later jobs exact with their game packets in 93-99% of later jobs, the muzzle flash run alone, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md); 2026-11-15, pieces 9-13: small models, water, room transforms, sky and the portal walk exact in a rebuilt job, host packets exact in 93-100% of later jobs, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2; pieces 6-7 exact and piece 8 (a whole later job) built, [note 477](../documentation/477-d23n2b-whole-later-job.md); piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1689,9 +1689,28 @@ view), a host port of the portal walk, and D23N3's game packets (whole jobs
 exact UI 9 166 of 169, the other views 2-16). Check off: validator and game
 rate unchanged; Vanilla shots identical.
 
+Work log, 2026-11-15 night (In progress), field laptop, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md). Autonomous
+(user: "finish the rebuild of a later job ... port the rare transform caller
+at ra 0x8003437c ... then a host port of the portal walk"). Developer code
+only (`redraw_n2.inc`; `DNTTK_N2_CHECK=2096904`, `DNTTK_N2_WHOLE="1 1"`).
+Baseline here (note 478's setting): host-exact 94-100% as on the desktop,
+but whole jobs only 2-6 a view and 3-9 runaway rebuilds. Correction to note
+478: the earlier job's record is replaced by the job's own at its flip, so
+note 478's "earlier" GTE at ra `0x8003437c` was the job itself; the check
+now keeps the earlier record at the job's start. The flash: the copy runs
+`0x800341e4` from its hook (bit 524288); still not exact (the mesh's depth
+differs: our D36 weapon matrix follows the camera and the game's code
+copies it onto its stack; the weapon mesh's scaled copy at ra `0x80033f44`
+likewise), 1-5% of later jobs. The portal walk: not ported; running the
+game's costs 0.43-0.76 ms of a 4.7-9.0 ms rebuild. With D23N3's pieces:
+whole later jobs exact, game packets included, UI 2 299 of 320, UI 8 223 of
+227, UI 9 431 of 437, UI 5 249-284 of 258-288, 60 s each at 180; rebuild
+4.7-9.0 ms against 15.3-21.6 ms a job (both with the check's recording).
+Check off: validator 857 of 857 exact, Vanilla shots identical.
+
 ### D23N3 - The game's camera-dependent packets
 
-**Status: Todo (2026-11-15: with D23N2B pieces 9-13 most later jobs are host-exact, so these packets are now the main difference, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2). Dependencies: D23N2B.** About 1 in 10 of the game's own
+**Status: In progress (2026-11-15 night, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 3: every host-exact rebuilt later job identical with its game packets in UI 2, 8, 9 and 5 but one unexplained worker; the line effect's port not yet seen running; 2026-11-15: listed, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2). Dependencies: D23N2B.** About 1 in 10 of the game's own
 packets change between the jobs of a frame (one semi-transparent quad and
 about two textured quads a job, note 449 section 7). Identify their guest
 routines and give each a host equivalent (or run that routine alone).
@@ -1711,9 +1730,28 @@ draws and the earlier did not. Their guest routines are not identified yet
 (the record's store PCs for those packets would name them). Waits on
 D23N2B's roots in the other views.
 
+Work log, 2026-11-15 night (In progress), field laptop, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 3.
+Found with a new dump (`DNTTK_N2_DUMP`) and an offline alignment of the
+packets by their store PCs. (1) The frame's bucket link-up `0x8002bb80`
+(via `0x8001fba0` and `0x8001fc44`): the copy replayed the earlier job's,
+which links the earlier job's buckets; now host code on the copy's buckets
+(bit 65536): game-packet differences 75,000 -> 530 items in UI 9, 177,000
+-> 1,600 in UI 2, no runaways. (2) The semi-transparent quad `0x2e`: Duke's
+shadow `0x80030fe8` (bounds of Duke's joints, which follow the camera in
+first person); a projection-only port was not enough; the routine now runs
+alone in the copy (bit 131072). (3) The FT4 sprites: the sprite queue
+`0x8009b1c0` via `0x8009b750` (no entry hook; its wrapper's store of ra
+marks the call), run alone (bit 262144). (4) Mono lines `0x40` (UI 8, 2
+jobs): `0x8008ffc4`/`0x8008f71c`, run alone from its transform hook (bit
+1048576; not yet seen in a run). Result: in every host-exact job of UI 2,
+8, 9 and 5 the game's packets identical word for word (60 s each, 180 Hz),
+but six jobs of one worker in one UI 5 run (host arena packets where the
+rebuild had the game's; not in the repeat). The earlier `0x30`/`0x34`/`0x3c`
+"effect triangles" (note 477) were cascades of (1).
+
 ### D23N4 - Later jobs skip the game's code
 
-**Status: Todo. Dependencies: D23N3.** Switch the rebuild on: the first job
+**Status: Todo (2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
 of a frame captures (with a culling margin wide enough for the late
 camera's turn within the frame, or falls back), the capture is shared
 between worker processes, later jobs rebuild instead of running the game.
@@ -1735,6 +1773,20 @@ change pictures, so D23N4 was not built and, as the user's condition said,
 the 120 Hz CPU clock, emulation thread and cadence and the DUKE HILL town
 and FAMILY JEWELS start were not re-measured. Needed first: D23N2B's small
 model and water ports, its room walk and backdrop differences, D23N3.
+
+Work log, 2026-11-15 night (not switched on), [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5. With D23N3,
+every rebuilt later job whose hook list is the earlier job's is exact, but
+1-8% of later jobs a view (UI 8 the most) have another list: water tiles,
+the portal walk's recursion, actor and prop draws, small models against
+sprite faces, all camera-dependent culling. The check skips them by
+comparing with the job's own list; a switched-on rebuild would replay the
+earlier list and show the earlier fraction's culling. With the weapon
+attachments, 2-10% of later jobs would change, so it stays off (the user's
+rule), and its A/B at 120 and 180 and the D23Y7 and D23AA re-measurements
+were not made. Needed: a later job's culling known before its rebuild (the
+portal walk already runs for the job's camera; objects, faces and tiles
+would need the same), the weapon attachments, then a fallback to the full
+job for anything still uncovered.
 
 ### D23O - Leaner render-thread submission
 

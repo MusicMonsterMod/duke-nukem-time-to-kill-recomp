@@ -51,6 +51,9 @@ void near_clip_load_frame_state(const NearClipFrameState& s);
 // Diagnostic counters (world taken, world triangles, object taken, object
 // triangles, mesh fallbacks, budget hits, copy overflows, refused).
 void near_clip_counters(uint64_t out[8]);
+// D23N3 (developer): weapon packets linked, weapon packet sets discarded,
+// frame cursor restarts (an empty OT at a hook), packets held now.
+void near_clip_viewmodel_counts(uint64_t out[4]);
 // D17AR2 host visibility. True when a room-walk piece would be drawn here
 // whole (Modernized unified geometry with the near path live).
 bool near_clip_host_world_live();

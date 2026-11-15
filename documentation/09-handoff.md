@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-15 - D23V closed
+
+D23V closed after the user's playtest ("it feels very good to play"). Next: D23N2B piece 6 (run `0x80098204` after a later job's pose patches), then D23N3/D23N4; D23V2 is ready.
+
+## 2026-11-15 - D23V built (Needs playtest); D23N2B piece 6; D23Y7 and D23AA Blocked (measured)
+
+[Note 476](476-d23v-d23n2b-d23y7-d23aa-field-laptop.md). Field laptop session (user away). Built (framework, exported, verified against the pinned commit): `rp_band_direct` (a redraw's band: margins from the wide surface, centre from the canonical surface) and the margins-only wide capture in `gl_rt_capture`; developer `PSX_REPLAY_BAND_DIRECT=0`, `PSX_REPLAY_CAPTURE_MARGINS=0`, and `PSX_GL_DEV_SKIP` bits 128-1024 (capture copies, fills and wide clears in redraws, flats, the presents' quad). `redraw_n2.inc`: piece 6 counts in `DNTTK_N2_CHECK` bit 64. Needs the user's look: nothing should change in the picture at 120/180; on the laptop UI 8 and 9 should step to 30 less often. Next: D23N2B (run `0x80098204` after a later job's pose patches, note 476 section 3), D23V2; D23Y7 and D23AA wait on D23N4. Lab (local): `recomp/analysis/d23y6/` (`d23vb.sh`, `vsum.py`, cases `seq`, `polys`, `objs`; FAMILY JEWELS start in private slot 11 of the lab card copy).
+
 ## 2026-11-15 - D17BH closed; test_primitive_trace fixed
 
 User: "lock it in and close it out". D17BH is Done. The local-only `test_primitive_trace` failure is fixed (test fixture and an out-of-date quad assertion; no game code changed): 259 local tests pass.

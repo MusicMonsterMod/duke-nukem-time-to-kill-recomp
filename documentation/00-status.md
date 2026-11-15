@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-15 - D23V closed
+
+D23V closed. The user playtested on the field laptop ("it feels very good to play") and asked to close it out; D23V is Done. D23N2B In progress; D23Y7 and D23AA Blocked on D23N4; D23V2 Todo.
+
+## 2026-11-15 - D23V built (Needs playtest); D23Y7 and D23AA Blocked (measured)
+
+Field laptop, autonomous ([note 476](476-d23v-d23n2b-d23y7-d23aa-field-laptop.md)). D23V: the GPU floor past the textured scene is the per-frame snapshot capture; two exact cuts (margins-only wide capture, direct band) cut the capture 27% and each redraw's band copy 45%, pictures exact, whole-GPU work within the spread; the rest is D23V2 (new). D23N2B piece 6 measured (`0x80033584` comes from `0x80098204`'s per-job joint table). D23Y7: UI 8 and 9 hold 60 more of the time; DUKE HILL's town still steps to 30. D23AA: the FAMILY JEWELS start's long view is about 3x DUKE HILL's geometry and every redraw rebuilds it; not the drawbridge object; both wait on D23N4. Vanilla unchanged.
+
 ## 2026-11-15 - D17BH closed; test_primitive_trace fixed
 
 User: "lock it in and close it out". D17BH is Done. The local-only `test_primitive_trace` failure is fixed (test fixture and an out-of-date quad assertion; no game code changed): 259 local tests pass.

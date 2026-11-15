@@ -423,13 +423,14 @@ void report() {
 
 namespace jr {
 // Piece 4b: the job's joint matrices, written by the job; the copy's results.
-struct Out {uint32_t hook,mat,ra,w[8];};
+struct Out {uint32_t hook,mat,ra,w[8],tab,tw[8],wpc,wn;};
 constexpr uint32_t max_out=8192;
-struct Shared {uint32_t n,done,overflow,eye_predicted,from_prev,order_differs;uint32_t ra_n,ra[8],ra_exact[8],ra_differ[8];uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;Out real[max_out];};
+struct Shared {uint32_t n,done,overflow,eye_predicted,from_prev,order_differs;uint32_t ra_n,ra[8],ra_exact[8],ra_differ[8];uint32_t exact[3],differ[3],missing[3],failed;uint32_t first_differ[4][12];uint32_t nfirst;uint32_t o_tab_differ,o_tab_same_mat_differ,o_tab_same_mat_same,o_stack,o_nfirst,o_first[4][20],o_pc_n,o_pc[8],o_pc_c[8],o_written,o_unwritten;Out real[max_out];};
 Shared* s=nullptr; pid_t child=-1; int go=-1; bool active=false;
 struct RaStat {uint32_t ra=0;uint64_t exact=0,differ=0;};
 RaStat ra_st[16];unsigned ra_st_n=0;
-struct Stats {uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0,from_prev=0,no_prev=0,order_differs=0;} st;
+uint32_t o_pc[8],o_pc_n=0;uint64_t o_pc_c[8];
+struct Stats {uint64_t o_written=0,o_unwritten=0,o_tab_differ=0,o_ts_md=0,o_ts_ms=0,o_stack=0;uint64_t jobs=0,calls=0,exact[3]={},differ[3]={},missing[3]={},failed=0,timeouts=0,no_eye=0,from_prev=0,no_prev=0,order_differs=0;} st;
 unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0xff000000u)==0x9f000000u ? 1u : mat==tab ? 0u : 1u;}
 [[noreturn]] void run(int fd) {
     char c=0;
@@ -459,6 +460,7 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
         // Bit 64 (piece 4d): every caller of the transform, not only the joint loop.
         const bool joint=h.addr==0x800292a0u && (cpu.gpr[31]==0x80034c6cu || (n2_mask()&64));
         const uint32_t tab=joint ? psx_mod_read_word(cpu.gpr[20]+0x3c)+cpu.gpr[22] : 0;
+        const uint32_t tab2=joint ? psx_mod_read_word(cpu.gpr[19]+0x3c)+cpu.gpr[18] : 0;   // piece 6, before the hook runs
         psx_mod_function_entry(&cpu,h.addr);
         if(!joint) continue;
         while(k<s->n && s->real[k].hook<i) ++k;
@@ -472,6 +474,15 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
             uint32_t j=0;while(j<s->ra_n && s->ra[j]!=r.ra) ++j;
             if(j==s->ra_n && j<8) {s->ra[j]=r.ra;++s->ra_n;}
             if(j<8) ++(same?s->ra_exact[j]:s->ra_differ[j]);
+            if(r.ra==0x80033584u && r.tab) {
+                uint32_t tw[8];for(int q=0;q<8;++q) tw[q]=psx_mod_read_word(tab2+4*q);
+                const bool tsame=tab2==r.tab && !std::memcmp(tw,r.tw,sizeof tw);
+                if((r.mat&0xff000000u)!=0x80000000u || r.mat!=r.tab) ++s->o_stack;
+                if(!tsame) ++s->o_tab_differ; else ++(same?s->o_tab_same_mat_same:s->o_tab_same_mat_differ);
+                ++(r.wn?s->o_written:s->o_unwritten);
+                if(!same && r.wn) {uint32_t q=0;while(q<s->o_pc_n && s->o_pc[q]!=r.wpc) ++q;if(q==s->o_pc_n && q<8) {s->o_pc[q]=r.wpc;++s->o_pc_n;}if(q<8) ++s->o_pc_c[q];}
+                if(!same && s->o_nfirst<4) {uint32_t* f=s->o_first[s->o_nfirst++];f[0]=i;f[1]=r.mat;f[2]=cpu.gpr[5];f[3]=r.tab;f[4]=tab2;f[5]=psx_mod_read_word(cpu.gpr[19]+0x2c);for(int q=0;q<7;++q) {f[6+q]=r.w[q];f[13+q]=w[q];}}
+            }
             continue;
         }
         if(same) ++s->exact[kd]; else {
@@ -517,6 +528,11 @@ void entry_done(CPUState* cpu) {
     Out& o=s->real[s->n++];
     o.hook=sh->nhooks;o.mat=cpu->gpr[5];o.ra=cpu->gpr[31];
     for(int j=0;j<8;++j) o.w[j]=psx_mod_read_word(o.mat+4*j);
+    // Piece 6 (bit 64): the actor joint loop at 0x80033584 passes its table
+    // entry (*(s3 +0x3c) + s2) or a scaled stack copy of it; keep the entry.
+    o.tab=0;o.wpc=0;o.wn=0;if(o.ra==0x80033584u) {o.tab=psx_mod_read_word(cpu->gpr[19]+0x3c)+cpu->gpr[18];for(int j=0;j<8;++j) o.tw[j]=psx_mod_read_word(o.tab+4*j);
+        // The job's own stores into the entry before this call: the last one's PC and how many.
+        for(uint32_t q=sh->nstores;q-- > 0;) {const Store& x=sh->store[q];if(x.addr+x.size>o.tab && x.addr<o.tab+32) {if(!o.wn) o.wpc=x.pc;++o.wn;}}}
 }
 void at_flip() {
     if(!active) return;
@@ -541,6 +557,12 @@ void at_flip() {
         if(q==ra_st_n && q<16) ra_st[ra_st_n++].ra=s->ra[j];
         if(q<16) {ra_st[q].exact+=s->ra_exact[j];ra_st[q].differ+=s->ra_differ[j];}
     }
+    st.o_written+=s->o_written;st.o_unwritten+=s->o_unwritten;
+    for(uint32_t q=0;q<s->o_pc_n;++q) {unsigned k=0;while(k<o_pc_n && o_pc[k]!=s->o_pc[q]) ++k;if(k==o_pc_n && k<8) o_pc[o_pc_n++]=s->o_pc[q];if(k<8) o_pc_c[k]+=s->o_pc_c[q];}
+    st.o_tab_differ+=s->o_tab_differ;st.o_ts_md+=s->o_tab_same_mat_differ;st.o_ts_ms+=s->o_tab_same_mat_same;st.o_stack+=s->o_stack;
+    static unsigned oshown=0;
+    for(uint32_t j=0;j<s->o_nfirst && oshown<12;++j,++oshown) {const uint32_t* f=s->o_first[j];
+        std::fprintf(stderr,"[n2 check %ld]   actor joint 80033584 differs: hook %u passed %08x / start %08x, table %08x / %08x, actor word2c %08x | job %08x %08x %08x %08x %08x %08x %08x | start %08x %08x %08x %08x %08x %08x %08x\n",(long)getpid(),f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8],f[9],f[10],f[11],f[12],f[13],f[14],f[15],f[16],f[17],f[18],f[19]);}
     static unsigned shown=0;
     for(uint32_t j=0;j<s->nfirst && shown<8;++j,++shown) {const uint32_t* f=s->first_differ[j];
         std::fprintf(stderr,"[n2 check %ld]   joint differs: hook %u joint %u passed %08x, from the start %08x; t %d %d %d / %d %d %d\n",(long)getpid(),f[0],f[3],f[1],f[2],(int32_t)f[5],(int32_t)f[6],(int32_t)f[7],(int32_t)f[9],(int32_t)f[10],(int32_t)f[11]);}
@@ -556,6 +578,10 @@ void report() {
         std::string t;char b[64];
         for(unsigned q=0;q<ra_st_n;++q) {std::snprintf(b,sizeof b," %08x exact %llu differ %llu |",ra_st[q].ra,(unsigned long long)ra_st[q].exact,(unsigned long long)ra_st[q].differ);t+=b;}
         std::fprintf(stderr,"[n2 check %ld] piece 4d, other transform callers:%s\n",(long)getpid(),t.c_str());
+        std::fprintf(stderr,"[n2 check %ld] piece 6, actor joints 80033584: table entry differs %llu | entry same, matrix differs %llu | both same %llu | a scaled or other copy passed %llu\n",(long)getpid(),
+            (unsigned long long)st.o_tab_differ,(unsigned long long)st.o_ts_md,(unsigned long long)st.o_ts_ms,(unsigned long long)st.o_stack);
+        {std::string t;char b[64];for(unsigned k=0;k<o_pc_n;++k) {std::snprintf(b,sizeof b," %08x x%llu",o_pc[k],(unsigned long long)o_pc_c[k]);t+=b;}
+        std::fprintf(stderr,"[n2 check %ld] piece 6: entries the job wrote before the call %llu, not written %llu; differing calls by the PC of the job's last store into the entry:%s\n",(long)getpid(),(unsigned long long)st.o_written,(unsigned long long)st.o_unwritten,t.c_str());}
     }
     if(n2_mask()&32) std::fprintf(stderr,"[n2 check %ld] piece 4c: jobs run from the earlier job's record %llu, no earlier job of the frame %llu, hook lists differ %llu\n",
         (long)getpid(),(unsigned long long)st.from_prev,(unsigned long long)st.no_prev,(unsigned long long)st.order_differs);

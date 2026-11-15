@@ -1533,7 +1533,7 @@ and the whole-job rebuild are D23N2B. No framework change. [Note 456](../documen
 
 ### D23N2B - The rest of a later job's rebuild
 
-**Status: In progress (2026-11-14, pieces 4c exact and 4d measured, [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b exact, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
+**Status: In progress (2026-11-15, piece 6 measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3; piece 5 exact, [note 474](../documentation/474-d23y9-d23n2b-field-laptop.md) section 6; pieces 4c-4d [note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 3; piece 4b [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 6; piece 4a [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 5; split from D23N2 2026-11-12, [note 456](../documentation/456-d23n2-transform-camera-visibility.md) section 6). Dependencies: D23N2.**
 With the transform, camera and room visibility of a later job known at its
 start (D23N2), the rest of its inputs: matrices the game and our
 presentation code build during the job (first-person Duke and weapon
@@ -1618,6 +1618,21 @@ the start) and the 2-7% of `0x80031dec` / `0x80032f48`, the hook-list
 differences of piece 4c, then note 456 section 6. D23N3 and D23N4 not
 reached this session.
 
+Work log, 2026-11-15 (piece 6, measured), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3. `0x80033584` is
+a second actor joint loop (in `0x80033160`): it passes the joint's entry of
+the actor's matrix table (`*(s3 +0x3c) + s2`) or a ScaleMatrix stack copy.
+New counts in `DNTTK_N2_CHECK` bit 64: in UI 8 every one of 12,598 calls
+passes an entry the job itself rewrote before the call (UI 2 1,479 of
+1,479; no calls in UI 9's walk), 79% are still equal to the job start; the
+differing ones were last written at `0x8009876c` / `0x8009837c` inside
+`0x80098204`, which rebuilds the actor's joint table every job (rotation
+from the animation through `0x80010d60`, translation = joint offset + the
+actor's position `+4/+8/+0xc`); they differ by 1 unit in a translation
+word (INFERRED: the per-fraction actor position). Next (resumable): run
+`0x80098204` after a later job's pose patches in the forked copy and check
+the entries word for word; then `0x80031dec` / `0x80032f48`'s 2-7%, piece
+4c's hook-list differences, note 456 section 6. D23N3 and D23N4 not reached.
+
 ### D23N3 - The game's camera-dependent packets
 
 **Status: Todo. Dependencies: D23N2B.** About 1 in 10 of the game's own
@@ -1626,6 +1641,10 @@ about two textured quads a job, note 449 section 7). Identify their guest
 routines and give each a host equivalent (or run that routine alone).
 Acceptance: rebuilt later jobs identical word for word, game packets
 included.
+
+Work log, 2026-11-15: not reached (the user's order was D23N2B, then
+D23N3, then D23N4 "as far as exact matches allow"; D23N2B's whole-job
+rebuild is still open), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 3.
 
 ### D23N4 - Later jobs skip the game's code
 
@@ -1637,6 +1656,12 @@ Acceptance: pictures identical (`PSX_RT_VALIDATE`, the comparison mode kept
 as a developer check), worker CPU at 120/180/240 Hz measured against D23N's
 baseline (about 1.5 cores at 180 Hz in UI slot 2), fallback to the full job
 whenever the capture does not cover a job, Vanilla unchanged.
+
+Work log, 2026-11-15: not reached, so not switched on and the CPU clock,
+emulation thread and picture cadence at 120 were not compared against it.
+D23Y7 and D23AA (the DUKE HILL town and the FAMILY JEWELS start) now wait on
+it: in both the redraw worker rebuilding the game's geometry is the cost, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md)
+sections 4-5.
 
 ### D23O - Leaner render-thread submission
 
@@ -1922,7 +1947,7 @@ Accepted 2026-11-12. User, playing with `PSX_GL_ZPREPASS=1`: UI slot 8 "perfectl
 
 ### D23V - The GPU floor
 
-**Status: Todo (found in D23U 2026-11-12, [note 459](../documentation/459-d23u-opaque-depth-prepass.md) section 3). Dependencies: D23K.**
+**Status: Done (2026-11-15, user playtest; [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) sections 1-2; found in D23U 2026-11-12, [note 459](../documentation/459-d23u-opaque-depth-prepass.md) section 3). Dependencies: D23K.**
 With no textured scene drawn at all (developer `PSX_GL_DEV_SKIP=31`, wrong
 pictures) the whole GPU at 180 Hz is still 14.4% in UI slot 8 and 19.2% in
 UI slot 2 (normal 19.9% and 24.0%; one render thread, turning, offscreen),
@@ -1935,6 +1960,47 @@ captures and loads, lighting, shadow and bake setup, the emulation thread's
 own frames, flat batches, timestamps) and remove the large parts.
 Acceptance: a measured breakdown of the floor in UI slots 2 and 8 at 180 Hz,
 jobs for its parts, pictures exact, Vanilla unchanged.
+
+Work log, 2026-11-15 (Needs playtest), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) sections 1-2. Autonomous
+session on the field laptop (user: "1. D23V GPU floor (run
+recomp/analysis/d23y6/d23v.sh, then find and remove the waste; before/after
+at 120 and 180)"). Host quiet; the idle desktop alone keeps the HD 5500 out
+of RC6 7.5-8.2% at 300 MHz. On this GPU busy hardly moves (75-82%), the
+clock does, so the measure is busy x clock. Developer bounds 128-1024 added
+to `PSX_GL_DEV_SKIP` (capture copies, fills and wide clears in redraws, flat
+batches, the presents' quad). At 180 in UI 2 / UI 8: no textured runs -30%
+/ -42%, no capture copies -14% / -25% (CPU clock +270 / +530 MHz), band
+copies, clears and fills, flats and presents each within the spread. So the
+floor past the scene is the per-frame snapshot capture (2.2-2.5 ms of GPU a
+game frame). Built, exact (framework): the direct band (a redraw's margins
+from the wide surface, its centre straight from the canonical surface; one
+large copy fewer) and the margins-only wide capture (no redraw reads a wide
+surface's centre). Developer `PSX_REPLAY_BAND_DIRECT=0`,
+`PSX_REPLAY_CAPTURE_MARGINS=0`. Validator exact (UI 2 174/174, UI 8
+107/107, UI 9 295/295); matched shots new against old 0.00-0.11% (two runs
+of one build 0.00-0.95%). Before/after offscreen at 180 and 120: capture
+2.26-2.33 -> 1.65-1.70 ms, band 0.64-0.66 -> 0.36-0.37 ms, emulation thread
+-1 to -5 points, whole-GPU work and CPU clock within the spread. Vanilla:
+no redraws, neither path runs (smoke launch). The rest of the capture (the
+canonical surface) is D23V2.
+
+Work log, 2026-11-15 (Done). User playtest on the field laptop: "i think it
+plays smooth, it feels very good to play"; no picture faults reported.
+Closed at the user's request ("lock it in and close it out").
+
+### D23V2 - The rest of the snapshot capture
+
+**Status: Todo (split from D23V 2026-11-15, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 7). Dependencies: D23V.**
+After D23V the per-frame snapshot capture still costs 1.65-1.70 ms of GPU a
+game frame on the field laptop, nearly all of it the 2x canonical surface
+(2048 x 1024 colour at 2x) and the raw mirror. Copy only what a redraw can
+read (its band, packs, VRAM copy sources and sampled pages), or only the
+32 x 32 tiles written since that snapshot slot was last filled, together
+with D23V's margins-only wide copy. Note 469 measured an exact incremental
+capture alone with no game-frame gain, so measure GPU work (busy x clock),
+the CPU clock and present cadence at 120 and 180, not only game frames.
+Acceptance: capture GPU time at least halved again, pictures exact
+(validator and matched shots), Vanilla unchanged.
 
 ### D23W - Field laptop: measure on real weak hardware
 
@@ -2394,7 +2460,7 @@ less GPU per picture; the emulation thread's share (D23Y5).
 
 ### D23Y7 - The remaining dips at 120 (Duke Hill)
 
-**Status: Blocked (2026-11-14, re-measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
+**Status: Blocked (2026-11-15, re-measured on top of D23V, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 4; [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
 After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
 second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
 to 30 a second and falls back to the original presentation for minutes
@@ -2443,6 +2509,17 @@ Held at a steady 60 there, OFF gains about 5 points of game lowest tenth
 (D41R). D23Y6's cap, placement and one worker kept; the late warp stays
 cancelled. User target 2026-11-14: 60 game frames and 120 pictures at 2x on
 this laptop, original lighting if need be.
+
+Work log, 2026-11-15 (Blocked, re-measured), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 4. The real
+display while the user was idle, the player's settings at 120 and 2x (each
+settings line checked), 3 interleaved runs each, D23V's build against the
+same build with its two cuts off. DUKE HILL town: presents median 31 /
+lowest tenth 30 both (screen fresh 66.4% new, 69.0% old; game lowest tenth
+57.4 / 56.4; 4.7 rate changes). UI 8: 60 / 33 against 60 / 30, fresh 91.5%
+against 85.4%, 1.3 against 2.0 changes. UI 9: 60 / 59 against 59 / 30,
+fresh 93.0% against 75.2%. Offscreen town profile at 120: worker 98% of a
+CPU, emulation thread 78% (old 88%), render thread 39%. The town still
+needs captured redraws (D23N4) or a lighter emulation thread (D23Y8).
 
 ### D23Y8 - Emulated GPU commands on their own thread
 
@@ -2991,7 +3068,7 @@ User playtest, 2026-11-15, at UI slot 6: "looks to be working!! lock it in and c
 
 ### D23AA - FAMILY JEWELS start stutters until the drawbridge is lowered
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Blocked (2026-11-15, measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 5; backlog from the user's playthrough commentary 2026-11-14). Dependencies: D23N4.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: noticeable stuttering right at the start of FAMILY
@@ -3005,6 +3082,27 @@ shadow maps. Decide whether the change is the level's state (bridge up
 changes what is visible or animated) or warm-up (caches filled by then).
 Acceptance: the start plays smoothly before and after the bridge in the
 user's playtest, pictures unchanged.
+
+Work log, 2026-11-15 (Blocked, measured), [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 5. Host state: the
+report came from the 2026-11-14 playthrough on the other machine (this
+laptop's cards are unchanged since 11-13 and its session logs of that day
+rotated out), so that session's host conditions cannot be checked here; the
+laptop was idle during these runs. A fresh FAMILY JEWELS start (private
+slot 11 of the lab's card copy). Real display, the player's settings at
+120, 3 interleaved runs against DUKE HILL's start: 225 / 117 / 60 late
+repeats a run (DUKE HILL 5 / 3 / 9), run medians 60 30 59 pictures, a
+redraw job 13.6-15.1 ms (9.0-9.5); the repeats fall in the first ~14 s,
+while Duke is at the start. Standing there facing the castle: 30.5-36.8 ms
+a job (21.9 with DRAW DISTANCE ORIGINAL), presents 40-46 a second. The view
+over the moat (66 water meshes), the castle walls and through the gate into
+rooms 18,000-28,000 units away, with enemies in view, is about three times
+DUKE HILL's geometry (1,279 object-path polygons and 129 KB of packets a
+frame against 377-638 and 36-56 KB), rebuilt by every redraw. The raised
+drawbridge object is not the cost (moved out of view in the private copy:
+1,269 polygons, the interior shows instead); INFERRED: the stutter fades
+once the bridge is down because Duke has left that view. Tried a
+cache-friendlier host-vertex table in the recorder: no gain, reverted. No
+exact cut found; the cure is captured redraws (D23N4).
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

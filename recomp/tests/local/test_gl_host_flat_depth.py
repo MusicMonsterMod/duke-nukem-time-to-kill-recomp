@@ -51,6 +51,7 @@ static void glDrawArrays(int mode,int first,int n){
 #define hr_begin(...) ((void)0)
 #define ph_push(...) ((void)0)
 #define ph_pop(...) ((void)0)
+static int dev_skip_bits(void){return 0;}
 #define hr_end(...) ((void)0)
 #define apply_psx_blend(...) ((void)0)
 #define mask_stencil(...) ((void)0)

@@ -2967,6 +2967,17 @@ A fix must give the render-thread copies the classification too (or
 publish it with the slot, like `slot_ws_margin`). Reverted; nothing left in
 the tree. Lab case `ring` (present ring dump) in the desktop d23ab lab.
 
+Work log, 2026-11-16 later (tried, reverted): stamping the detector inside
+the savestate restore itself (boot_state.c, when 0x800c27bc reads 1) left
+frame ~8 after the load 4:3 in all four tested saves (UI slots 2, 5, 8 and
+12), so the classification is not the cause. INFERRED: the first frames
+after a load present the restored canonical 4:3 picture from the save's
+VRAM; the wide margins come from a host surface that is empty until the
+game draws its first new frame (about 8-15 frames after the load). A fix
+decides what to show until then (hold the restored picture centred and
+fill the margins from the first new frame, or keep the last picture until
+it), not detection.
+
 ### D53B - No impatient idle lines while watching a security camera
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**

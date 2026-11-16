@@ -1627,3 +1627,11 @@ scan) at RELIT and ON on the field laptop, and cut or hide the gap (keep
 the previous level's lighting off until the new bake is ready, prefetch
 the cache, upload in parts). Acceptance: lights present from the first
 gameplay frame after a load, pictures unchanged afterwards.
+
+Work log, 2026-11-16 (measured, field laptop's real screen): after a
+savestate load with Duke idle, shots at frames 5-360 compared with the
+settled picture (frame 360), two runs each at 2x: DUKE HILL's town settles
+around frame 30 with LIGHTING RELIT (difference 10.4, 7.4, 5.5-7.9, then
+3.0 at frames 5, 10, 20, 30) and around frames 10-20 with ON (5.5, 3.2-5.0,
+3.0-4.1); UI slot 2 shows the same at both (its frame 5 is D17BK's 4:3
+picture). So RELIT's lights arrive about a quarter of a second later.

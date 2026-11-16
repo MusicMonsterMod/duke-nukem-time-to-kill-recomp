@@ -1933,6 +1933,25 @@ one step as the user prefers, never hidden by a meter. Test underwater with
 the oxygen meter, then with the others, at 60 and 180 Hz; LEVEL STATS off
 and Vanilla unchanged.
 
+### D20K - Greyed-out options flicker while navigating the menu
+
+**Status: Todo (2026-11-16, user report). Dependencies: none.**
+
+User, 2026-11-16: "when we grey out lighting, live shadows etc, the options
+kinda blink/flicker as we navigate the menu options". The rows a setting
+disables are drawn grey (game_menu.cpp, D19N: "a row with no effect now:
+dimmed (its label blue under the cursor)"); moving the cursor makes them
+blink.
+
+Work: reproduce in OPTIONS > DISPLAY with a setting that greys rows out
+(for example a GRAPHICS grade, or LIGHTING off greying LIVE SHADOWS), with
+matched shots across cursor moves; find whether the grey rows are redrawn
+in their normal colour for a frame (the dim decided after the draw, or per
+row only while the cursor is on it), drawn twice, or alternate between the
+original menu's palette and the host's grey CLUT. Acceptance: greyed rows
+stay steady while the cursor moves, the cursor row's highlight unchanged,
+at 60 and 120, Vanilla menus unchanged.
+
 ### D21 - Reworked SOUND menu and configurable C held crouch
 
 **Status: Done (user-accepted and closeout authorized 2026-10-27).**

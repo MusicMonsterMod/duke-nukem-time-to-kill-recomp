@@ -70,6 +70,35 @@ struct Shared {
 };
 Shared* sh=nullptr;
 bool logging=false;
+// D23N4b cost (developer, DNTTK_N4_COST=1, note 487): where a worker's time
+// goes, by job class (0 recorded first job, 1 rebuilt later job, 2 fallen
+// back later job, 3 not recorded) and, inside them, by part. Counted with
+// the TSC (calibrated against the SDL clock) at the outermost worker_draw.
+bool cost_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_N4_COST");return t && t[0]=='1';}();return v;}
+struct Cost {
+    uint64_t n[4]={},t[4]={};          // jobs and ticks by class
+    uint64_t save=0,saves=0;           // the fallback image save
+    uint64_t obs=0,obs_n2=0,obs_scr=0; // the hook observer: all, its decisions part, of which scratch runs (ns)
+    uint64_t flip=0;                   // the record's copies at the flip
+    uint64_t att_ok=0,att_fail=0;      // n4b_run, accepted / fallen back
+    uint64_t reload=0,full=0,full_n=0; // a fallback's image load and its full job
+    uint64_t stores=0,hooks=0,rec=0;   // per recorded job
+    uint64_t tsc0=0,sdl0=0;int depth=0;bool recorded=false;
+} cost;
+uint64_t n4_scratch_ns();
+inline uint64_t cnow() {return cost_on()?__rdtsc():0;}
+void cost_report() {
+    const uint64_t tn=__rdtsc(),sn=SDL_GetPerformanceCounter();
+    if(!cost.tsc0) {cost.tsc0=tn;cost.sdl0=sn;return;}
+    const double sms=(double)(sn-cost.sdl0)*1000.0/(double)SDL_GetPerformanceFrequency();
+    if(sms<=0) return;
+    const double tpm=(double)(tn-cost.tsc0)/sms;   // TSC ticks a millisecond
+    auto ms=[&](uint64_t t,uint64_t n){return n?(double)t/tpm/(double)n:0.0;};
+    std::fprintf(stderr,"[n4 cost %ld] jobs recorded %llu %.3f ms | rebuilt %llu %.3f ms | fell back %llu %.3f ms | plain %llu %.3f ms || a recorded job: hook observer %.3f ms (decisions %.3f, of it scratch runs %.3f), flip copies %.3f, stores %llu hooks %llu | image save %.3f ms (%llu) | attempt accepted %.3f, failed %.3f | fallback reload %.3f, full job %.3f ms (%llu)\n",
+        (long)getpid(),(unsigned long long)cost.n[0],ms(cost.t[0],cost.n[0]),(unsigned long long)cost.n[1],ms(cost.t[1],cost.n[1]),(unsigned long long)cost.n[2],ms(cost.t[2],cost.n[2]),(unsigned long long)cost.n[3],ms(cost.t[3],cost.n[3]),
+        ms(cost.obs,cost.rec),ms(cost.obs_n2,cost.rec),cost.rec?(double)cost.obs_scr/1e6/(double)cost.rec:0.0,ms(cost.flip,cost.rec),(unsigned long long)(cost.rec?cost.stores/cost.rec:0),(unsigned long long)(cost.rec?cost.hooks/cost.rec:0),
+        ms(cost.save,cost.saves),(unsigned long long)cost.saves,ms(cost.att_ok,cost.n[1]),ms(cost.att_fail,cost.n[2]),ms(cost.reload,cost.n[2]),ms(cost.full,cost.full_n),(unsigned long long)cost.full_n);
+}
 int post_log=-1;   // after the flip, every store: 0 the job's, 1 the rebuild's
 void (*orig_ww)(uint32_t,uint32_t)=nullptr;
 void (*orig_wh)(uint32_t,uint16_t)=nullptr;
@@ -142,8 +171,14 @@ void n4_rotate();
 const CPUState* n2_flip_cpu=nullptr;
 void observe(CPUState* cpu,uint32_t addr,int phase) {
     if(!logging) return;
+    const uint64_t c0=cnow();
     ct_push(cpu,addr,phase);
-    n2_observe(cpu,addr,phase);
+    if(c0) {
+        const uint64_t s0=n4_scratch_ns(),c1=__rdtsc();
+        n2_observe(cpu,addr,phase);
+        cost.obs_n2+=__rdtsc()-c1;cost.obs_scr+=n4_scratch_ns()-s0;
+    } else n2_observe(cpu,addr,phase);
+    struct ObsT {uint64_t c0;~ObsT(){if(c0) cost.obs+=__rdtsc()-c0;}} obs_t{c0};
     uint32_t n=0; render_replay_record_words(&n);
     if(phase==0) {
         if(sh->nhooks>=max_hooks) {sh->overflow|=2;return;}
@@ -366,6 +401,7 @@ void begin(CPUState& cpu,const Params& p) {
         return;
     }
     if(recording()) {
+        cost.recorded=true;
         cur_serial=p.serial;cur_alpha=p.alpha;recording_only=true;rec_t0=__rdtsc();xf::pending=false;n2_serial=p.serial;n2_alpha=p.alpha;n2_begin(cpu);
         g_psx_mod_hook_observer=observe;logging=true;
         return;
@@ -386,6 +422,7 @@ void at_flip(const CPUState& cpu) {
     if(n4b_ot_take) {n4b_ot_snap(0);n4b_ot_take=false;}
     if(recording_only) {
         recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;rec_t1=__rdtsc();
+        struct FlipT {uint64_t c0;~FlipT(){if(c0) {cost.flip+=__rdtsc()-c0;++cost.rec;cost.stores+=sh->nstores;cost.hooks+=sh->nhooks;}}} flip_t{cnow()};
         if(sh->overflow) {prev.serial=~0ull;return;}
         n2_flip_cpu=&cpu;
         n2_at_flip(cur_serial,cur_alpha);

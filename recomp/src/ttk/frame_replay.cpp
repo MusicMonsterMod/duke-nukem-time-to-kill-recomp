@@ -1680,6 +1680,11 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if(len<sizeof(Params)) return 0;
     Params p;
     std::memcpy(&p,params,sizeof p);
+    // D23N4b cost (developer, DNTTK_N4_COST=1, note 487): this job's class
+    // and time at the outermost call (redraw_check.inc).
+    struct JobT {uint64_t c0;int cls=-1;bool outer;JobT():c0(n1::cnow()),outer(n1::cost.depth++==0){if(outer) n1::cost.recorded=false;}
+        ~JobT(){--n1::cost.depth;if(!c0 || !outer) return;const int k=cls>=0?cls:(n1::cost.recorded?0:3);++n1::cost.n[k];n1::cost.t[k]+=__rdtsc()-c0;
+            const uint64_t all=n1::cost.n[0]+n1::cost.n[1]+n1::cost.n[2]+n1::cost.n[3];if(all==1 || all%256==0) n1::cost_report();}} job_t;
     // D23N4b (developer, DNTTK_N4_REBUILD=1, off by default): a later job of a
     // frame may rebuild in place (redraw_n2.inc); its image is saved first so
     // a rebuild that is flagged falls back to the full job.
@@ -1689,7 +1694,9 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     auto self_cmp=[]{static const bool v=[]{const char* t=std::getenv("DNTTK_N4_SELF");return t && t[0]=='1';}();return v;};
     if(n4b_self_restore) {n4b_self_restore=false;n1::n4b_allowed=true;}
     if(n1::n4b_on() && n1::n4b_allowed && !(p.flags&4) && n1::prev.serial==p.serial && n1::prev.alpha!=p.alpha) {
+        const uint64_t c0=n1::cnow();
         n4b_image.resize(render_replay_image_bytes());render_replay_image_save(n4b_image.data());n4b_saved=true;
+        if(c0) {n1::cost.save+=__rdtsc()-c0;++n1::cost.saves;}
     }
     // D23N4b developer comparison, reference first (DNTTK_N4_VERIFY_FIRST=N):
     // every Nth candidate job is first run in full from its image, not
@@ -1821,7 +1828,9 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     bool n4b_rebuilt=false;
     if(n1::n4b_job) {
         n1::n4b_job=false;
+        const uint64_t ca=n1::cnow();
         n4b_rebuilt=n1::n4b_run(cpu);
+        if(ca) {(n4b_rebuilt?n1::cost.att_ok:n1::cost.att_fail)+=__rdtsc()-ca;job_t.cls=n4b_rebuilt?1:2;}
         if(!n4b_rebuilt) {
             {static unsigned fs=0;const double fms=(double)(SDL_GetPerformanceCounter()-n4b_t0)*1000.0/(double)SDL_GetPerformanceFrequency();if(fms>50.0 && fs++<20) std::fprintf(stderr,"[n4b slow] fallback starts %.1f ms into the job\n",fms);}
             // Fall back: the job's image as it came, the stream from the
@@ -1830,12 +1839,15 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             if(!n4b_saved) return 0;
             uint32_t nw=0;uint32_t* base=const_cast<uint32_t*>(render_replay_record_words(&nw));
             sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={}; quake_cam={};
+            const uint64_t cl=n1::cnow();
             render_replay_image_load(n4b_image.data());
             render_replay_reset_channel();
             render_replay_record_begin(base,1u<<20);   // render_worker.c RW_OUT_WORDS
+            const uint64_t cf=n1::cnow();if(cl) n1::cost.reload+=cf-cl;
             n1::n4b_allowed=false;
             const int r=worker_draw(source,params,len);
             n1::n4b_allowed=true;
+            if(cf) {n1::cost.full+=__rdtsc()-cf;++n1::cost.full_n;}
             return r;
         }
     } else psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);

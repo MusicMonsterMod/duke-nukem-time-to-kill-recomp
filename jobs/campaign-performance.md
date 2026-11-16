@@ -1805,7 +1805,7 @@ detectors (falls back). One FAMILY JEWELS host difference remains unexplained.
 
 ### D23N4 - Later jobs skip the game's code
 
-**Status: In progress (2026-11-16, desktop, [note 483](../documentation/483-d23n4b-exactness-desktop.md): N4b nearly exact, not cheaper, off; earlier 2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
+**Status: Blocked (2026-11-16 overnight, desktop, [note 487](../documentation/487-d23n4-cost-decision.md): N4b cannot pay at any number of workers; earlier 2026-11-16, [note 483](../documentation/483-d23n4b-exactness-desktop.md): N4b nearly exact, not cheaper, off; earlier 2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
 of a frame captures (with a culling margin wide enough for the late
 camera's turn within the frame, or falls back), the capture is shared
 between worker processes, later jobs rebuild instead of running the game.
@@ -1906,6 +1906,24 @@ repeatable), FAMILY JEWELS start 688/688; fork proof: wrong jobs unflagged
 UI 2 2, UI 5 1, the rest 0. CPU (one worker, interleaved, two each): N4b
 6-16% more than plain (UI 2 113.5 -> 122.0%, UI 5 111.3 -> 119.3%, FAMILY
 JEWELS start 120.4 -> 138.7%). Not exact, not cheaper: off; part 2 not run.
+
+Work log, 2026-11-16 overnight (desktop, [note 487](../documentation/487-d23n4-cost-decision.md)):
+new developer timers `DNTTK_N4_COST=1` split a worker's time by job class
+and part. The capture is small (0.4-0.9 ms a recorded job: observer 0.17-0.32
+ms, of it decisions 0.13-0.23 and scratch runs 0.05-0.16, flip copies
+0.11-0.19, the store log the rest); what makes N4b dear is that a rebuild
+still runs every host hook (UI 2: 8.1 ms against a 10.2 ms plain job) and
+that 25-59% of later jobs fall back, each paying the attempt, a 0.5 ms
+reload and a full job. Exact cut: a flagged in-place rebuild stops at its
+first flag (flags are only added; developer `DNTTK_N4_EARLY=0` runs it to
+the end): failed attempts 7.2 -> 3.9 ms (UI 2), 5.2 -> 2.8 (UI 5), 6.1 ->
+3.3 (FAMILY JEWELS start). After it, one worker, interleaved, two runs each:
+mean worker job +15-16% (UI 2), +4-5% (UI 5), +7-18% (FAMILY JEWELS start)
+against plain; whole-game CPU 112.4 -> 119.2%, 110.9 -> 114.6%, 124.9 ->
+131.2%. A perfect N4b (no fallback cost, no image save) would be -6% to +9%.
+Decision: N4b cannot pay at any number of workers (more workers record more
+first jobs); Blocked, off by default. The open detector classes and a shared
+capture (this session's D2) were not started: the gap is not under 5%.
 
 ### D23O - Leaner render-thread submission
 

@@ -1912,7 +1912,13 @@ bool body(bool in_place) {
             if(w.size==4) orig_ww(w.addr,w.value); else if(w.size==2) orig_wh(w.addr,(uint16_t)w.value); else orig_wb(w.addr,(uint8_t)w.value);
         }
     };
+    // D23N4b (note 487): a flagged in-place rebuild is never accepted (flags
+    // are only added), so it stops at its first flag instead of running the
+    // rest of the job first. Developer DNTTK_N4_EARLY=0 runs it to the end
+    // (every class of flag counted).
+    static const bool early=[]{const char* t=std::getenv("DNTTK_N4_EARLY");return !(t && t[0]=='0');}();
     for(uint32_t i=0;i<NH && !g_psx_call_bail;++i) {
+        if(in_place && early && F) {g_psx_mod_hook_observer=nullptr;sm::n4_capture_sz=nullptr;s->ms=ms_since(t0);s->nseg=NH;return false;}
         const Hook& h=H[i];cur_i=i;
         if(detect && host_water) flag(n4::wrow_at_hook(&h));
         if(h.cpu.gpr[31]>=n3::camera_render && h.cpu.gpr[31]<n3::camera_render_end) cam_s2=h.cpu.gpr[18];
@@ -2827,6 +2833,7 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
     }
 }
 void n2_finish(bool ok) {if(n2_mask()&1024) wj::finish(ok);}
+uint64_t n4_scratch_ns() {return n4::scratch_ns;}
 void n2_begin(const CPUState& job) {
     if(n2_mask()&14) in::begin(job);
     if(n2_mask()&4) vis::begin(job,n2_serial,n2_alpha);

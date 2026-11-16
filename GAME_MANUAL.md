@@ -3053,6 +3053,15 @@ Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
 unchanged; the original L1/R1 sidesteps that comma/period used to send are
 unbound in Modernized (A/D strafe everywhere) and can be rebound.
 
+**Coloured key cards (D08A46).** In Modernized with the Polymorph world
+renderer, key cards use Duke 3D's colours so the two cards of a level never
+look alike: the first card of a level (Subway Security Key, Warehouse Key,
+Gantry Key, Lab Key) stays blue, the second (Transport Room ID, Valve Key,
+Valve Room Key) is red, on the floor, in Duke's hand and in the mission
+inventory. A third card slot, used by no level of the campaign, would be
+yellow. Doors and readers work exactly as before. The Classic renderer and
+Vanilla keep every card blue.
+
 **Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
 will use always has its own box in the bottom right corner, just above
 the ammo box, in the status bar's own style: the gadget's icon (a medkit case

@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (late night) - D08A46: Duke 3D-style coloured key cards (Done)
+
+Key cards follow Duke 3D's colours by mission slot: the first card of a level stays blue, the second (TRANSPORT ROOM ID, VALVE KEY, VALVE ROOM KEY) is red, a third slot yellow; in the world, in Duke's hand and in the mission inventory ([note 500](500-d08a46-coloured-keycards.md)). The retail card art is kept and only its 16-colour palette is swapped, read from the second texture bank. No measurable GPU cost at 180 Hz. Modernized with Polymorph; Classic and Vanilla unchanged. User-accepted and closed out: "its solid! lock it in, close it out".
+
 ## 2026-11-16 (night) - D08A44: Duke 3D-style night vision look (Done)
 
 User-accepted and closed out: DUKE 3D is the default night-vision look, with a slight green overlay tint the user asked for. With the goggles on (Modernized, Polymorph) the world keeps its light and takes Duke 3D's green palette shift, and hostile creatures glow as a pale-lime negative, matched to an EDuke32 capture ([note 499](499-d08a44-duke3d-night-vision.md)). No measurable GPU cost at 180 Hz. NIGHT VISION LOOK DUKE 3D (default) / ORIGINAL in OPTIONS > ADVANCED > ITEMS; launcher schema 77. Done.

@@ -2094,7 +2094,7 @@ Acceptance: the three jewels distinct in the world and in the inventory.
 
 ### D08A46 - Duke 3D-style coloured keycards
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done, user-accepted 2026-11-16 ("its solid! lock it in, close it out"). Dependencies: -.** [Note 500](../documentation/500-d08a46-coloured-keycards.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: levels with several key cards should use Duke 3D's
@@ -2102,6 +2102,35 @@ colours (blue, red, yellow). Work: audit key cards per level, decide the
 colour for each, update pickup, inventory icon and in-world representations;
 door logic unchanged. Acceptance: different cards visibly distinct, every
 level still completes.
+
+Work log, 2026-11-16 (implemented, Needs playtest):
+- Audit: every key-slot key is one object (types 153-157, model 420, a flat
+  quad with a 16-colour blue ramp texture). Two-card levels: 0 (SUBWAY
+  SECURITY KEY / TRANSPORT ROOM ID), 7 (GANTRY KEY / VALVE KEY), 9 (LAB KEY /
+  VALVE ROOM KEY); level 5 has one card; no level names an item-8 card.
+- Rule by mission slot (no per-level data): type 153 / item 6 blue (retail,
+  unchanged), 154 / item 7 red, 155 / item 8 yellow; 156-157 stay blue.
+- Look (Modernized, Polymorph): the card keeps its retail texels; red and
+  yellow palettes (ours, as bright as the blue ramp index for index) sit in
+  the second texture bank and a red or yellow card's faces read only their
+  palette from there, in the world and in Duke's hand (equipment 1 or pose
+  266, item `+0x3b9`), first and third person. Mission inventory: red icon
+  for the item-7 cards (hue-shifted copy of the blue card icon).
+- Framework: `PSX_MOD_HOST_CLUT_BANK` (host vertex mode bit 16; the mode mask
+  widened), palette-only bank reads in the textured programs, render-copy
+  names regenerated. Developer `DNTTK_KEYCARD_COLOURS=original`.
+- Evidence: spawned 153/154/155 blue, red, yellow; pickup of 154 sets item 7
+  and shows the red icon; archived level-0 reader route: blue card held and
+  inserted, reader green; held item forced to 7 (test only): red card in hand,
+  first and third person; `original` all blue; Vanilla unchanged. GPU at 180
+  Hz: no measurable cost (programs 15 instructions larger, no `lmem`).
+  `ttk-near-test` (new group), inventory, input and flash tests, Python 260
+  OK, CI runtime tests, patch on clean `08ec704a`.
+- Not established: a real item-7 reader in play, and every level's completion
+  (door logic untouched). Before/after: `research/before-after/D08A46/`
+  (local).
+- 2026-11-16, user: "its solid! lock it in, close it out, update the main
+  build". Done.
 
 ### D08A47 - Holy Hand Grenade looks like its pickup
 

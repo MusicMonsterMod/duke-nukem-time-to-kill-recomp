@@ -68,12 +68,25 @@ extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t a,uint32_t w,int32_t x,i
 // D08A44: the explicit mode call (night-vision creatures).
 static bool test_glow=false;
 static int observed_remap=0,observed_mode_other=0;
+// D08A46: key card faces carry PSX_MOD_HOST_CLUT_BANK (16) and the bank
+// palette in their packet (the corner after the vertex word holds CLUT/UV).
+static int observed_clut_bank=0;
+static std::set<uint32_t> observed_bank_cluts;
 extern "C" int psx_mod_gpu_host_vertex_mode(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage,uint32_t mode){
     if(mode&8u) ++observed_remap;
-    if(mode&~8u) ++observed_mode_other;
+    if(mode&16u) {++observed_clut_bank;observed_bank_cluts.insert(psx_mod_read_word(a+4)>>16);}
+    if(mode&~24u) ++observed_mode_other;
     return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);
 }
 namespace ttk {bool night_vision_glow_object(){return test_glow;}}
+static bool test_keycard=false;
+namespace ttk {
+struct KeycardRecolour {uint16_t clut=0,page=0,bank_clut=0;uint8_t rect[4]={0,0,0,0};};
+bool keycard_frame(bool,KeycardRecolour& out) {
+    out={};if(!test_keycard) return false;
+    out.clut=0x1234;out.page=0;out.rect[2]=255;out.rect[3]=255;out.bank_clut=0x7810;return true;
+}
+}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;
@@ -290,6 +303,30 @@ static void packet_contracts(const char* executable) {
             assert(observed_remap-remap0==(glow?6:0));
         }
         std::puts("PASS: D08A44 night-vision creatures carry the remap mode with their depth mode, other objects never");
+        // D08A46: the same faces as a red key card. Faces sampling the card's
+        // CLUT and page take the bank palette with the clut-bank bit; a face
+        // with another CLUT, or any face when the object is not a card, never.
+        for(int pass=0;pass<3;++pass) {
+            const int bank0=observed_clut_bank,other0=observed_mode_other;observed_bank_cluts.clear();
+            auto c=reset();c.gpr[31]=0x80032288;prop_object(c,0x80180000u);
+            psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int face=0;face<2;++face) {
+                const uint32_t v=verts+face*24;
+                word(v,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(v+4,5000+face*200);
+                word(v+8,100|uint32_t(uint16_t(-100))<<16);word(v+12,5000+face*200);
+                word(v+16,100u<<16);word(v+20,5000+face*200);
+                const uint32_t record=list+4+face*16;
+                word(record,face?0x00050403:0x00020100);
+                word(record+4,(pass==1 && face?0x4321u:0x1234u)<<16);
+                word(record+8,0x02000000|0x1f);word(record+12,0x1f00);
+            }
+            word(list,0x00020024);word(list+36,0xff);
+            test_keycard=pass<2;observed_hook(&c,0x80010000);test_keycard=false;
+            assert(host_vertices==6 && observed_mode_other==other0);
+            assert(observed_clut_bank-bank0==(pass==0?6:pass==1?3:0));
+            assert(pass==2 ? observed_bank_cluts.empty() : observed_bank_cluts.count(0x7810)==1 && !observed_bank_cluts.count(0x1234));
+        }
+        std::puts("PASS: D08A46 red and yellow key card faces read their palette from the second bank, other faces never");
         // D17AP: a warped prop quad is drawn as its two native halves
         // (0-1-2, 2-1-3), each with its own plane depth, as D17X requires;
         // as one packet its snapped corners took raw vertex depth.

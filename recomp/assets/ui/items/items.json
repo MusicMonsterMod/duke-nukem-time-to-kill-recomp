@@ -1,13 +1,13 @@
 {
-  "note": "Original 16x16 RGBA icons by MusicMonsterMod (D24A). One drawing can serve several items: every key-slot item is the same keycard object in the game (types 153/154, named per level).",
+  "note": "Original 16x16 RGBA icons by MusicMonsterMod (D24A). One drawing can serve several items: every key-slot item is the same keycard object in the game (types 153/154, named per level). D08A46: Duke 3D colours by mission slot, type 153 (item 6) blue, 154 (item 7) red, 155 (item 8) yellow; item-keycard-red.png is a hue-shifted copy of the blue card drawing (no level names an item-8 card, so no yellow icon).",
   "items": [
     {"name": "SUBWAY SECURITY KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [0]},
-    {"name": "TRANSPORT ROOM ID", "file": "item-subway-security-key.png", "types": [154], "levels": [0]},
+    {"name": "TRANSPORT ROOM ID", "file": "item-keycard-red.png", "types": [154], "levels": [0]},
     {"name": "WAREHOUSE KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [5]},
     {"name": "GANTRY KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [7]},
-    {"name": "VALVE KEY", "file": "item-subway-security-key.png", "types": [154], "levels": [7]},
+    {"name": "VALVE KEY", "file": "item-keycard-red.png", "types": [154], "levels": [7]},
     {"name": "LAB KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [9]},
-    {"name": "VALVE ROOM KEY", "file": "item-subway-security-key.png", "types": [154], "levels": [9]},
+    {"name": "VALVE ROOM KEY", "file": "item-keycard-red.png", "types": [154], "levels": [9]},
     {"name": "RED ENERGY CRYSTAL", "file": "item-red-energy-crystal.png", "types": [], "levels": [0, 5, 9]},
     {"name": "BLUE ENERGY CRYSTAL", "file": "item-blue-energy-crystal.png", "types": [], "levels": [0, 5, 9]},
     {"name": "GREEN ENERGY CRYSTAL", "file": "item-green-energy-crystal.png", "types": [761], "levels": [0, 5, 9]},

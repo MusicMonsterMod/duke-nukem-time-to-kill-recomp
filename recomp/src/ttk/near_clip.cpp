@@ -431,6 +431,7 @@ struct Poly {
     bool glow=false; // D41K: a neon sign face (glow_faces): gives light, never lit
     uint32_t surface=0; // D41M: its baked lamp surface (lamp_bake_map; 0 none)
     bool foreign=false; // D41L: textured from the second bank (prop flames and glows)
+    bool clut_bank=false; // D08A46: texels from VRAM, palette (clut) from the second bank
     bool shade=false;   // D41S: a planar model shadow: translucent, yet depth-tested and written
     bool actor;
     // Shared source depth for world polygons and coplanar prop groups.
@@ -821,9 +822,11 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
-            if(f.nv_glow) {
-                // D08A44: the same modes as below, plus the night-vision remap.
-                const uint32_t mode=(poly.depth_only?2u:poly.depth_test_only?1u:(f.borrowed || poly.foreign)?PSX_MOD_HOST_BANK:0u)|PSX_MOD_HOST_REMAP;
+            if(f.nv_glow || poly.clut_bank) {
+                // D08A44: the same modes as below, plus the night-vision remap;
+                // D08A46: plus a key card's palette from the second bank.
+                const uint32_t mode=(poly.depth_only?2u:poly.depth_test_only?1u:(f.borrowed || poly.foreign)?PSX_MOD_HOST_BANK:0u)|
+                    (f.nv_glow?PSX_MOD_HOST_REMAP:0u)|(poly.clut_bank?PSX_MOD_HOST_CLUT_BANK:0u);
                 psx_mod_gpu_host_vertex_mode(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth),(float)f.coverage,mode);
             } else
             (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
@@ -2500,6 +2503,9 @@ void object(CPUState* cpu) {
     if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed && !tv && !glow_copy)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     f.nv_glow=night_vision_glow_object();
+    // D08A46: a red or yellow key card (in the world or in Duke's hand).
+    KeycardRecolour keycard;
+    const bool keycard_on=keycard_frame(viewmodel || first_person_duke_drawing() || third_person_duke_drawing(),keycard);
     const bool game_view=game_camera_view();   // D52
     light_probe_cur=mesh;
     f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
@@ -2694,6 +2700,16 @@ void object(CPUState* cpu) {
             t2|=tpage_bits;
             p.clut=t1>>16;p.tpage=t2>>16;
             p.uv[0]=t1&0xffff;p.uv[1]=t2&0xffff;p.uv[2]=t3&0xffff;p.uv[3]=t3>>16;
+            // Page position and colour depth only: the context adds its
+            // blend bits (0x60) to the model's page.
+            if(keycard_on && p.clut==keycard.clut && (p.tpage&0x19f)==(keycard.page&0x19f)) {
+                bool inside=true;
+                for(unsigned j=0;j<p.count;++j) {
+                    const unsigned u=p.uv[j]&0xff,v=(p.uv[j]>>8)&0xff;
+                    inside&=u>=keycard.rect[0] && u<=keycard.rect[2] && v>=keycard.rect[1] && v<=keycard.rect[3];
+                }
+                if(inside) {p.clut=keycard.bank_clut;p.clut_bank=true;}
+            }
         }
         const uint32_t color_bytes=type==0x34 || type==0x3c ? 16 : 8;
         for(unsigned j=0;j<p.count;++j) {

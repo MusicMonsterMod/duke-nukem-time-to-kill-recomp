@@ -28,6 +28,7 @@
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
+#include "modern_controls.h"
 #if defined(PSX_SDL3)
 #include <SDL3/SDL.h>
 #else
@@ -196,7 +197,9 @@ void hook(CPUState* cpu,uint32_t address) {
 // Second texture bank for the OpenGL renderer (near_clip marks the borrowed
 // meshes' polygons with psx_mod_gpu_host_vertex_foreign).
 // The second bank: Duke Hill at x 512..1023 when the sky pack is there, and
-// D53's security TV atlas at x 0..255 (security_monitor.cpp). Built once, on
+// D53's security TV atlas at x 0..255 (security_monitor.cpp), D41L's prop
+// lights at x 256 (rows 0-31) and D08A46's key card palettes at x 256-287,
+// y 480. Built once, on
 // the renderer's first upload.
 extern "C" const uint16_t* ttk_foreign_vram(void) {
     static std::vector<uint16_t> bank;
@@ -206,6 +209,7 @@ extern "C" const uint16_t* ttk_foreign_vram(void) {
         bank=sky?pack.vram:std::vector<uint16_t>(1024*512,0);
         if(security_tv_paint_bank) security_tv_paint_bank(bank.data());
         if(prop_light_paint_bank) prop_light_paint_bank(bank.data());   // D41L: flames, halos, embers at x 256
+        keycard_paint_bank(bank.data());   // D08A46: red and yellow key card palettes at x 256-287, y 480
         bool any=sky;for(size_t i=0;!any && i<bank.size();++i) any=bank[i]!=0;
         if(!any) bank.clear();
     });

@@ -209,7 +209,13 @@ bool load_mission(){
     mission_art=std::move(art);
     return true;
 }
+// D08A46: the key cards of mission slot 7 are red in the Duke 3D colours; with
+// them off they show the blue card's icon, as in the world.
+std::atomic<bool> keycard_colours{true};
 const MissionArt* art_for(const char* name){
+    if(!keycard_colours.load(std::memory_order_relaxed))
+        for(const char* red:{"TRANSPORT ROOM ID","VALVE KEY","VALVE ROOM KEY"})
+            if(!std::strcmp(name,red)) {name="SUBWAY SECURITY KEY";break;}
     for(const auto& a:mission_art)if(a.name==name && a.icon.w && a.missing.w)return &a;
     return nullptr;
 }
@@ -323,6 +329,7 @@ void inventory_update(unsigned item,const uint16_t* f,const int16_t* a,const uin
     unsigned count=0;for(unsigned i:order)count+=available(i);
     if(announce && count && input.active){expires=SDL_GetTicks()+2000;mission_expires=0;}
 }
+void mission_keycard_colours(bool on) {keycard_colours.store(on,std::memory_order_relaxed);}
 void mission_update(unsigned level,const uint16_t* mission) {
     if(level!=mission_level){browse=0;mission_expires=0;}
     mission_level=level;

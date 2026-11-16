@@ -9,6 +9,9 @@ void inventory_update(unsigned selected,const uint16_t* flags,const int16_t* amo
 // Comma (-1) / Period (+1) presses from any thread; open state and closing
 // (Enter / U close it instead of using a gadget).
 void mission_update(unsigned level,const uint16_t* flags);
+// D08A46: Duke 3D key card colours are on (red and yellow card icons); off,
+// every key card shows the blue icon as the cards in the world do.
+void mission_keycard_colours(bool on);
 void mission_browse_press(int direction);
 bool mission_visible();
 void mission_close();

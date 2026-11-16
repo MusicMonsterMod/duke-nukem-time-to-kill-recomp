@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-16 (late night) - D08A46 coloured key cards closed out (Done)
+
+[Note 500](500-d08a46-coloured-keycards.md). Framework (in the exported patch, verified on a clean `08ec704a`): `PSX_MOD_HOST_CLUT_BANK` (16) for `psx_mod_gpu_host_vertex_mode` (the entry point's mode mask is now 5 bits), palette-only second-bank reads (`clut_at`, `v_depth + 8`) in both textured programs, `render_copy` names regenerated. Title: `keycard_colours.inc` (palettes at bank x 256-287, y 480; held card from `player+0x3b8` / `+0x3b9` / pose 266), hook in `near_clip.cpp`, `mission_keycard_colours()` in the inventory HUD; developer `DNTTK_KEYCARD_COLOURS=original`. Built and tested in a worktree, merged to `main` and the player build rebuilt. Test spots: level-0 reader route = slot 10 of `recomp/analysis/d08a28-missing/cards` (walk forward 54 frames, E). Spawned key cards land inside walls when Duke faces a building; turn down the street first.
+
 ## 2026-11-16 (night) - D08A44 closed out (Done)
 
 Duke 3D-style night vision look, [note 499](499-d08a44-duke3d-night-vision.md). Framework (in the exported patch, verified on a clean `08ec704a`): `psx_mod_gpu_host_vertex_mode` with `PSX_MOD_HOST_REMAP`, four textured programs (the remap variants bound only for batches holding a remap triangle), `psx_mod_set_present_lut`; developer `PSX_NV_RAMP` ("hi,k" or "off"), `PSX_GL_PROGRAM_DUMP=<dir>` (driver binaries: grep the NVIDIA assembly for `lmem`). Title: `night_vision_look.inc`, developer `DNTTK_NV_TRACE=1`. Lab `recomp/analysis/d08a44/` (local; EDuke32 capture in `eduke32/`). Accepted with the overlay tint (DNTTK_NV_TINT, default 0.93,0.90); DUKE 3D is the default look. Pre-existing, not this job: `ttk-controls-test` stops at `hud_intact()`, `ttk-aim-test` lacks a `psx_mod_replay_active` stub, `ttk-live-env-test` cannot find `SDL.h`.

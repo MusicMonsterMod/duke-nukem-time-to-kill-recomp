@@ -238,6 +238,15 @@ bool night_vision_glow_object();        // the object being drawn is a creature 
 void night_vision_draw_end();
 const uint8_t* night_vision_lut();      // 32 x 32 x 32 RGB8, red fastest
 void night_vision_look_stats(uint64_t out[2]);
+// D08A46: Duke 3D-style coloured key cards (keycard_colours.inc).
+struct KeycardRecolour {uint16_t clut=0,page=0,bank_clut=0;uint8_t rect[4]={0,0,0,0};};
+bool keycard_colours_on();
+// The object frame being drawn is a red or yellow key card (or Duke holding
+// one when duke_frame): its texture's CLUT, page, UV rectangle and the bank
+// palette replacing that CLUT.
+bool keycard_frame(bool duke_frame,KeycardRecolour& out);
+void keycard_paint_bank(uint16_t* bank);   // the palettes, into the second bank
+void keycard_colour_stats(uint64_t out[2]);
 bool first_person_interaction_drawing();
 // D12: true while Duke's hand joint, its weapon, muzzle flash or held item is
 // drawn with the first-person weapon transform.

@@ -2955,6 +2955,18 @@ load (and a level load) when the state before it was 3D gameplay, or
 classify the restored frame at once; Vanilla and menus unchanged.
 Acceptance: no 4:3 frame after a load in matched shots, at 60 and 120.
 
+Work log, 2026-11-16 (tried, reverted): TTK classifies with the GTE
+detector (`gte_game_mode`, 45-frame hysteresis; `s_frame_count` is the debug
+server's counter, not in a savestate). A title call after a savestate load
+that stamped the detector when 0x800c27bc read 1 (single-view gameplay) made
+frame ~14 wide in UI slots 5 and 12 but not UI slot 2, and frame ~8 stayed
+4:3 everywhere: after a load the presents come from the redraw path, which
+the render threads classify with their own gpu.c copies (render_copy/rc_*,
+own detector state), and the present ring only records main-path presents.
+A fix must give the render-thread copies the classification too (or
+publish it with the slot, like `slot_ws_margin`). Reverted; nothing left in
+the tree. Lab case `ring` (present ring dump) in the desktop d23ab lab.
+
 ### D53B - No impatient idle lines while watching a security camera
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**

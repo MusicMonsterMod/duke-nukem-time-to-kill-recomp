@@ -445,6 +445,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | [D19Z1](jobs/menus-ui.md#d19z1---design-and-implement-the-top-left-menu-back-control) | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
 | [D19Z2](jobs/menus-ui.md#d19z2---design-a-time-to-kill-mouse-cursor) | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
 | [D19Z3](jobs/menus-ui.md#d19z3---implement-the-approved-custom-menu-cursor) | Implement the approved custom menu cursor | Todo (backlog only) | D19Z2, D19Z core pointer support |
+| [D19Z4](jobs/menus-ui.md#d19z4---a-light-square-behind-the-mouse-cursor-citadel-wayland) | A lighter square behind the mouse cursor whenever it is shown, the pointer at the square's top-left (citadel, the TV PC; possibly Wayland) | Todo (2026-11-16, user report) | - |
 | [D19U](jobs/menus-ui.md#d19u---live-minusplus-status-bar-controls) | Live minus/plus status-bar controls | Done (user-accepted) | D04, D19N |
 | [D19U1](jobs/menus-ui.md#d19u1---borderless-status-bars-and-three-level-hud-selection) | Borderless status bars and three-level HUD selection | Done (user-accepted) | D19U |
 | [D19U2](jobs/menus-ui.md#d19u2---borderless-hud-no-black-squares-behind-icons) | Borderless HUD: no black squares behind icons | Done (user-accepted) | D19U1 |

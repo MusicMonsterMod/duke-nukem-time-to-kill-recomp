@@ -1458,6 +1458,26 @@ and scaling checks, correct focus/resume behavior, no duplicate cursor or leaked
 clicks, and Vanilla unchanged. Validate with D19Z1's Back target and D19Z's
 sliders/lists; record platform coverage and any unverified cases.
 
+### D19Z4 - A light square behind the mouse cursor (citadel, Wayland?)
+
+**Status: Todo (2026-11-16, user report). Dependencies: none.**
+
+User, 2026-11-16, after playing TIME TO KILL (level 0) on citadel, the TV
+PC (Ryzen 3 3200GE, Vega 8, CachyOS with a KDE session, possibly Wayland):
+"whenever the mouse cursor is displayed on the screen, there is an unusual
+lighter colored square that sits behind it with the mouse cursor in the
+top left of this square". Not seen on the desktop or the field laptop (X11
+sessions).
+
+Work: confirm citadel's session type (Wayland or X11, SDL's video driver,
+XWayland or native), then find who draws the square: the system cursor
+image (an SDL cursor surface whose transparent area shows, a cursor theme or
+scale mismatch under the compositor) or a game-drawn pointer or OSD image
+(a host cursor with an opaque background). Compare with
+`SDL_VIDEODRIVER=x11` on the same machine. Acceptance: the pointer shows
+without a box on citadel in menus and paused gameplay, unchanged on the
+desktop and the field laptop, Vanilla unchanged.
+
 ### D19AC - Crash on opening OPTIONS from the pause menu
 
 **Status: Done (user-confirmed 2026-10-30, [note 328](documentation/328-d19ac-options-crash.md)). Related: D19AB.**

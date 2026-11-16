@@ -2744,6 +2744,18 @@ redraw tick 12.0%, presentation 11.1%, image publishing 7.2%, the
 render-thread snapshot 2.7%; at 60 the GPU command path 14.7%. Still
 Blocked.
 
+Work log, 2026-11-16 overnight (laptop lane, [note 490](../documentation/490-d23y5-publish-changed-pages.md)):
+the published image is 3.5-5.0 MB (main RAM, scratchpad, the mod memory and
+GPU apertures in use). Main RAM is also written outside the CPU's store
+path (DMA, the overlay loader, savestate loads), so dirty-page tracking is
+not exact by construction and was not built. Built instead behind
+developer `PSX_REPLAY_PUBLISH_DIFF=1`: each page compared with the slot's
+copy and written only when it differs (byte for byte the save's): 7-10% of
+the pages copied, but the publish took 4% less time on the desktop and
+15-25% more on the field laptop (UI 2 at 120: 951-953 -> 1,163-1,188 us;
+profile 3.3-3.4% -> 4.5-4.6% of the emulation thread). Reverted. Still
+Blocked; the next lever is not copying the image at all.
+
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
 **Status: Done (user-accepted 2026-11-14, closeout authorized; [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md)). Dependencies: D23Y; coordinate D23Y5, D23N2B-N4, D23P2.**

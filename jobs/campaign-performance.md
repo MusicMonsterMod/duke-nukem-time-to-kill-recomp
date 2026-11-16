@@ -1951,6 +1951,55 @@ accepted rebuilds exact (before 3,122/3,248). The ordinary redraw path does
 not nest and is unchanged (Vanilla shots 6/6, validator 914/915 with the
 level-load frame).
 
+### D23N5 - One host pass per game frame for a frame's redraws
+
+**Status: In progress (2026-11-16, desktop, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): D1 done, D2 built off by default and exact; field laptop and citadel next). Dependencies: D23N4 (note 487).**
+
+Note 487 found that a redraw worker job is mostly our own host work (the
+Polymorph draws, the near clip, the D36 joint callbacks, the world pass,
+model lighting), which D23N4b's rebuild could not skip. Work: profile a
+worker job by host hook in UI 2, 5, 9 and the FAMILY JEWELS start (ms a job,
+calls, what depends on the in-between camera or pose and what is the same
+for every job of a game frame); then build the largest exact cut: compute
+once per game frame what every in-between job of that frame shares, keyed by
+its inputs and reused by the later jobs, verified word for word by a
+developer check, behind a developer switch. Acceptance: verify-first stream
+comparison 0 differences, `PSX_RT_VALIDATE` exact, Vanilla shots
+byte-identical; worker CPU measured at 1 and 2 workers on the desktop, then
+on the field laptop and citadel.
+
+Work log, 2026-11-16 (desktop lane, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md)):
+D1: worker profiles by host hook (`PSX_PROF_WORKERS` with stacks, one
+worker, 180, offscreen, UI 2, 5, 9 and the FAMILY JEWELS start, two runs
+each): the world pass 12-27% of a job (most of it our `draw`/`emit`), the
+object path 3-20%, water 0-15%, the D36/aim hooks about 2%, the game's own
+code 29-37%, dispatch bookkeeping 13-19%. Mapped (with a code-reading
+pass) what depends on the in-between camera and poses: every projection,
+cull, clip and emit, the D36 callbacks and the normals; the same for every
+job of an image: the decode (2-3% of a job, with state that blocks reuse)
+and the image itself. A developer statistic (`PSX_RW_IMAGE_STATS=1`):
+a load copies 3.5-5.5 MB, a job changes 21-57 pages, half the jobs at one
+worker (17-26% at two) draw the image their worker already holds. D2: the
+same-image restore (`PSX_RW_RESTORE=1`, off by default): the worker tracks
+its writes with the kernel's asynchronous userfaultfd write protection and
+`PAGEMAP_SCAN` and copies back only the written pages, the text guard's
+bitmap redone only for them; a first `mprotect`/SIGSEGV version was exact
+but its signals cost what it saved, replaced. Developer check
+`PSX_RW_RESTORE_VERIFY=N` (restored image byte for byte, text bitmap,
+then the job again from a whole load on the same draw clock, streams word
+for word): 3,240 jobs at 1 and 2 workers, 0 images or bitmaps differing, 3
+streams differing, all at a level's lightmap upload, which the same check
+shows with the restore off (its baseline). Validator 910 of 912 (the two
+in UI 9's level load, as with the restore off: 914 of 916), Vanilla shots
+6 of 6 byte-identical. Worker CPU, interleaved, two runs: within the
+spread at 1 and 2 workers on the desktop (a restore 74 us against a 647 us
+load, the whole loads 150 us dearer). Found on the way: this desktop's
+framework tree lacked last night's laptop-lane framework commits (D23V3's
+capture, the D23Y5 OSD cache; only in the tracked patch); merged three
+ways onto HEAD's framework, the exported patch verified against a clean
+pinned checkout. Next: the field laptop (one worker, slower memory) and
+citadel. Limitations: offscreen only; the restore needs Linux 6.7+.
+
 ### D23O - Leaner render-thread submission
 
 **Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; [note 447](../documentation/447-d23o-render-threads.md)). Dependencies: D23K, D23N.**
@@ -3017,6 +3066,16 @@ row, flag, console command and manual entry gone); the profile schema stays
 76 and drops the retired key. The measurement stands: the town's cure is
 less CPU and package power per redraw (D23N2B-N4, D23V).
 
+### D23Y10 - Publish the worker image without a copy
+
+**Status: Todo (2026-11-16, D23Y5 follow-up). Dependencies: D23Y5.**
+
+D23Y5 (notes 490, 492): the emulation thread copies its image for the redraw
+workers every published frame. Replace the copy with a copy-on-write fork or
+a double-buffered image the emulation thread writes in place, exact by
+construction. Acceptance: exact (validator, Vanilla shots), the emulation
+thread measured on the field laptop at 120 against today's publish.
+
 ### D23Z - One-off CPU spikes on the emulation thread
 
 **Status: Needs playtest (2026-11-13, [note 465](../documentation/465-d23z-emulation-thread-spikes.md); backlog, found in D23W 2026-11-13). Dependencies: D23W.** On
@@ -3537,6 +3596,20 @@ drawbridge object is not the cost (moved out of view in the private copy:
 once the bridge is down because Duke has left that view. Tried a
 cache-friendlier host-vertex table in the recorder: no gain, reverted. No
 exact cut found; the cure is captured redraws (D23N4).
+
+### D23AB - Three-machine baseline (desktop, field laptop, citadel)
+
+**Status: In progress (2026-11-16). Dependencies: D23Y6.**
+
+A third test machine, citadel (a TV media PC: 4-core Ryzen 3 PRO 3200GE,
+Radeon Vega 8 integrated GPU), joins the desktop and the field laptop.
+Work: set it up like the field laptop (checkout, owned disc kept private,
+build, a lab with private card copies), record its AUTO choices (cores,
+GPU probe, GRAPHICS grade), then measure FRAME RATE 60/120/180 at GRAPHICS
+AUTO and ULTRA in UI 2, 8, 9, DUKE HILL's town and the FAMILY JEWELS start
+(game and present rates, emulation thread and worker CPU, GPU busy and
+clock, CPU clock), the same on the field laptop at the player's settings,
+and write what bounds each machine (CPU or GPU) at 120.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

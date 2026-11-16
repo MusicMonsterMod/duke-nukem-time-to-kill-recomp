@@ -1736,6 +1736,8 @@ void result(bool same) {
     std::fprintf(stderr,"\n");
 }
 }  // namespace sd
+// D23N5 (render_worker.c): a developer re-run of a job holds the first run's clock.
+extern "C" uint32_t g_psx_rw_clock_last,g_psx_rw_clock_repeat;
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // D23N1: one clock for everything this job draws from the time (live_env.h).
     // The lamp bake table is held the same way (lamp_bake_map.h).
@@ -1745,7 +1747,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // took another clock and its release left the rest of the outer job on
     // the live clock (note 483 section 5's non-repeatable jobs).
     static int clock_depth=0;
-    struct ClockHold {ClockHold(){if(clock_depth++) return;const uint32_t t=(uint32_t)SDL_GetTicks();ttk_draw_clock_hold(t?t:1u);lamp_bake_pin(true);} ~ClockHold(){if(--clock_depth) return;ttk_draw_clock_hold(0);lamp_bake_pin(false);}} clock_hold;
+    struct ClockHold {ClockHold(){if(clock_depth++) return;const uint32_t t=g_psx_rw_clock_repeat?g_psx_rw_clock_repeat:(uint32_t)SDL_GetTicks();g_psx_rw_clock_last=t;ttk_draw_clock_hold(t?t:1u);lamp_bake_pin(true);} ~ClockHold(){if(--clock_depth) return;ttk_draw_clock_hold(0);lamp_bake_pin(false);}} clock_hold;
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
     const uint64_t hits0=substituted,miss0=sub_misses;

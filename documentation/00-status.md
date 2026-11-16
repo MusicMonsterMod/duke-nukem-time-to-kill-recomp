@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 - D23N5: a frame's redraw jobs share little; the same-image restore built off
+
+Desktop ([note 493](493-d23n5-shared-frame-work-desktop.md)): a redraw worker job's host hooks are almost all per job; the image is the largest shared cost. Built off by default (`PSX_RW_RESTORE=1`): exact, desktop worker CPU within the spread; field laptop and citadel next. The desktop's framework working tree now matches HEAD's patch plus this work.
+
 ## 2026-11-16 (overnight) - closed out: FRAME RATE 120 at ULTRA plays well on the field laptop
 
 User, after playing on the field laptop: "the game plays undeniably, phenomenally well, and it is in fact pleasing to play on ultra at 120 on the field laptop. yes, it doesnt achieve 120 100% of the time, but the drops are so elegantly handled, and i dont feel like there's any latency on the mouse and keyboard to make it feel unplayable. There is far more at 120 than there has ever been on the field laptop. lock it in and close it out". Accepted in the player build: the OSD upload cache ([note 492](492-d23y5-osd-upload-cache.md)). Decided: D23N4b cannot pay ([note 487](487-d23n4-cost-decision.md)); D23M3B not exact ([note 491](491-d23m3b-shifted-viewport-not-exact.md)). Built off by default, waiting for the user's look: D23V3 ([note 488](488-d23v3-needed-tiles-capture.md)).

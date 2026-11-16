@@ -16258,7 +16258,7 @@ index fe317583..fa78d0d6 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..6fac6c0f 100644
+index 9d55ad16..72d7c621 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -16276,14 +16276,22 @@ index 9d55ad16..6fac6c0f 100644
  #include "mdec.h"
  #include "mod_memory.h"
  #include "sio.h"
-@@ -41,8 +43,67 @@ static uint8_t scratchpad[SCRATCHPAD_SIZE];
+@@ -36,13 +38,73 @@
+ #define MOD_MEMORY_BASE 0x1F000000u
+ #define MOD_MEMORY_SIZE (1u * 1024u * 1024u)
+ 
+-static uint8_t ram[RAM_SIZE];
++/* D23N5: page-aligned so a redraw worker can track its writes per page. */
++static uint8_t ram[RAM_SIZE] __attribute__((aligned(4096)));
+ static uint8_t scratchpad[SCRATCHPAD_SIZE];
  static uint8_t bios_rom[BIOS_ROM_SIZE];
- static uint8_t mod_memory[MOD_MEMORY_SIZE];
+-static uint8_t mod_memory[MOD_MEMORY_SIZE];
++static uint8_t mod_memory[MOD_MEMORY_SIZE] __attribute__((aligned(4096)));
  static uint32_t mod_memory_used;
 -static uint8_t mod_gpu_dma_memory[PSX_MOD_GPU_DMA_APERTURE_SIZE];
 +/* The two GPU DMA apertures as one window: the extra aperture first (lower
 + * addresses), then the saved one. Guest accesses index the window. */
-+static uint8_t mod_gpu_dma_window[PSX_MOD_GPU_DMA_WINDOW_SIZE];
++static uint8_t mod_gpu_dma_window[PSX_MOD_GPU_DMA_WINDOW_SIZE] __attribute__((aligned(4096)));
 +#define mod_gpu_dma_memory (mod_gpu_dma_window + PSX_MOD_GPU_DMA_EXTRA_SIZE)
  static uint32_t mod_gpu_dma_memory_used;
 +static uint32_t mod_gpu_dma_extra_used;
@@ -16345,7 +16353,7 @@ index 9d55ad16..6fac6c0f 100644
  
  /*
   * Trusted mods may opt into host-backed guest memory in Expansion 1. Before
-@@ -57,9 +118,57 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -57,9 +119,263 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
      if (start > MOD_MEMORY_SIZE || size > MOD_MEMORY_SIZE - start) return 0u;
      memset(mod_memory + start, 0, size);
      mod_memory_used = start + size;
@@ -16371,6 +16379,15 @@ index 9d55ad16..6fac6c0f 100644
 +    memcpy(dst, mod_gpu_dma_memory, mod_gpu_dma_memory_used); dst += PSX_MOD_GPU_DMA_APERTURE_SIZE;
 +    memcpy(dst, mod_gpu_dma_window, mod_gpu_dma_extra_hwm);
 +}
++/* After an image's bytes are in place (a whole load or D23N5's restore). */
++static void image_load_tail(void) {
++    /* RAM replacement bypasses every CPU/DMA code-write observer. A frozen
++     * job must validate native code against its own image, not the preceding
++     * job or the machine from which this process was forked. */
++    extern uint32_t g_dirty_ram_code_gen;
++    ++g_dirty_ram_code_gen;
++    overlay_watch_invalidate_after_ram_restore();
++}
 +void render_replay_image_load(const uint8_t *src) {
 +    uint32_t hdr[4];
 +    memcpy(hdr, src, sizeof hdr); src += sizeof hdr;
@@ -16392,18 +16409,215 @@ index 9d55ad16..6fac6c0f 100644
 +        memcpy(mod_gpu_dma_window, src, hdr[2]);
 +        if (hdr[2] > mod_gpu_dma_extra_hwm) mod_gpu_dma_extra_hwm = hdr[2];
 +    }
-+    /* RAM replacement bypasses every CPU/DMA code-write observer. A frozen
-+     * job must validate native code against its own image, not the preceding
-+     * job or the machine from which this process was forked. */
-+    extern uint32_t g_dirty_ram_code_gen;
-+    ++g_dirty_ram_code_gen;
-+    overlay_watch_invalidate_after_ram_restore();
++    image_load_tail();
 +}
++
++/* D23N5 (developer, PSX_RW_IMAGE_STATS=1, render_worker.c): the 4 KB pages
++ * of each image region that differ from the image src (out[0] RAM, out[1]
++ * scratchpad, out[2] mod memory, out[3] DMA aperture, out[4] extra aperture,
++ * each over the extent a load of src copies) and out[5] the bytes that load
++ * copies. Read-only. */
++static uint32_t pages_differ(const uint8_t *a, const uint8_t *b, uint32_t n) {
++    uint32_t d = 0;
++    for (uint32_t o = 0; o < n; o += 4096u) {
++        const uint32_t k = n - o < 4096u ? n - o : 4096u;
++        d += memcmp(a + o, b + o, k) != 0;
++    }
++    return d;
++}
++void render_replay_image_diff(const uint8_t *src, uint32_t out[6]) {
++    uint32_t hdr[4];
++    memcpy(hdr, src, sizeof hdr); src += sizeof hdr;
++    out[0] = pages_differ(ram, src, RAM_SIZE); src += RAM_SIZE;
++    out[1] = pages_differ(scratchpad, src, SCRATCHPAD_SIZE); src += SCRATCHPAD_SIZE;
++    out[2] = hdr[0] <= MOD_MEMORY_SIZE ? pages_differ(mod_memory, src, hdr[0]) : 0; src += MOD_MEMORY_SIZE;
++    out[3] = hdr[1] <= PSX_MOD_GPU_DMA_APERTURE_SIZE ? pages_differ(mod_gpu_dma_memory, src, hdr[1]) : 0;
++    src += PSX_MOD_GPU_DMA_APERTURE_SIZE;
++    out[4] = hdr[2] <= mod_gpu_dma_extra_used ? pages_differ(mod_gpu_dma_window, src, hdr[2]) : 0;
++    out[5] = RAM_SIZE + SCRATCHPAD_SIZE + (hdr[0] <= MOD_MEMORY_SIZE ? hdr[0] : 0) +
++             (hdr[1] <= PSX_MOD_GPU_DMA_APERTURE_SIZE ? hdr[1] : 0) + (hdr[2] <= mod_gpu_dma_extra_used ? hdr[2] : 0);
++}
++
++/* D23N5 (developer, PSX_RW_RESTORE=1, render_worker.c): a redraw worker's
++ * jobs of one published image all load the same bytes, and a job changes
++ * only about 20-70 of the 900-1400 pages a load copies. The worker tracks
++ * writes to RAM, mod memory and the DMA window with the kernel's write
++ * protection (every write path is seen: game stores, host hooks, memcpy, a
++ * developer reload). When the next job draws the same image, only the pages
++ * written since its load are copied back, clipped to the extents a whole
++ * load copies, so every byte equals what render_replay_image_load would
++ * leave: an unwritten page still holds the image's bytes, and bytes past an
++ * extent are left as a whole load leaves them. The scratchpad is copied
++ * whole and the load's bookkeeping runs as before (the text-guard bitmap
++ * kept from the whole load, with only the written pages compared again).
++ * Linux only; the parent never tracks. */
++/* 0: a whole resync; 1: a whole resync whose text bitmap is kept for this
++ * image; 2: a restore: the kept bitmap with only the written pages redone
++ * (dirty_ram_text_guard_resync_after_restore). */
++static int s_trk_resync = 0;
++static int trk_ram_page_marked(uint32_t page);
++#if defined(__linux__)
++#include <fcntl.h>
++#include <linux/fs.h>
++#include <linux/userfaultfd.h>
++#include <sys/ioctl.h>
++#include <sys/syscall.h>
++#include <unistd.h>
++/* Tracking uses the kernel's asynchronous userfaultfd write protection: a
++ * write to a protected page is resolved inside the kernel (no signal) and
++ * leaves the page "written"; PAGEMAP_SCAN lists the written pages and can
++ * protect them again. Needs Linux 6.7+; unprivileged through
++ * UFFD_USER_MODE_ONLY. If any step fails, tracking stays off and every job
++ * loads its image whole. */
++#define TRK_PAGES ((RAM_SIZE + MOD_MEMORY_SIZE + PSX_MOD_GPU_DMA_WINDOW_SIZE) / 4096u)
++static uint32_t s_trk_bits[(TRK_PAGES + 31u) / 32u];
++static int s_trk_armed = 0;   /* pages protected since a load of the tracked image */
++static int s_trk_state = 0;   /* 0 not tried, 1 ready, -1 unavailable */
++static int s_trk_uffd = -1, s_trk_pagemap = -1;
++uint64_t g_trk_faults = 0, g_trk_restores = 0, g_trk_loads = 0, g_trk_pages_copied = 0;
++static uint8_t *trk_base(int r) { return r == 0 ? ram : r == 1 ? mod_memory : mod_gpu_dma_window; }
++static uint32_t trk_size(int r) { return r == 0 ? RAM_SIZE : r == 1 ? MOD_MEMORY_SIZE : PSX_MOD_GPU_DMA_WINDOW_SIZE; }
++static uint32_t trk_first(int r) { return r == 0 ? 0u : r == 1 ? RAM_SIZE / 4096u : (RAM_SIZE + MOD_MEMORY_SIZE) / 4096u; }
++static inline int trk_marked(uint32_t g) { return (s_trk_bits[g >> 5] >> (g & 31u)) & 1u; }
++static int trk_ram_page_marked(uint32_t page) { return trk_marked(page); }
++static int trk_wp(int r, int on) {
++    struct uffdio_writeprotect wp;
++    memset(&wp, 0, sizeof wp);
++    wp.range.start = (uintptr_t)trk_base(r); wp.range.len = trk_size(r);
++    wp.mode = on ? UFFDIO_WRITEPROTECT_MODE_WP : 0;
++    return ioctl(s_trk_uffd, UFFDIO_WRITEPROTECT, &wp);
++}
++static int trk_init(void) {
++    if (s_trk_state) return s_trk_state > 0;
++    s_trk_state = -1;
++    s_trk_uffd = (int)syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
++    if (s_trk_uffd < 0) { fprintf(stderr, "[rw restore] userfaultfd unavailable; whole loads\n"); return 0; }
++    struct uffdio_api api;
++    memset(&api, 0, sizeof api);
++    api.api = UFFD_API; api.features = UFFD_FEATURE_WP_ASYNC | UFFD_FEATURE_WP_UNPOPULATED;
++    if (ioctl(s_trk_uffd, UFFDIO_API, &api) != 0) { fprintf(stderr, "[rw restore] async write protection unavailable; whole loads\n"); return 0; }
++    for (int r = 0; r < 3; ++r) {
++        struct uffdio_register reg;
++        memset(&reg, 0, sizeof reg);
++        reg.range.start = (uintptr_t)trk_base(r); reg.range.len = trk_size(r);
++        reg.mode = UFFDIO_REGISTER_MODE_WP;
++        if (ioctl(s_trk_uffd, UFFDIO_REGISTER, &reg) != 0) { fprintf(stderr, "[rw restore] register failed; whole loads\n"); return 0; }
++    }
++    s_trk_pagemap = open("/proc/self/pagemap", O_RDONLY | O_CLOEXEC);
++    if (s_trk_pagemap < 0) return 0;
++    s_trk_state = 1;
++    return 1;
++}
++/* The written pages of region r into s_trk_bits; with reprotect, protect
++ * them again. Returns 0 on failure (the caller then loads whole). */
++static int trk_scan(int r, int reprotect) {
++    struct page_region vec[256];
++    uint64_t at = (uintptr_t)trk_base(r);
++    const uint64_t end = at + trk_size(r);
++    while (at < end) {
++        struct pm_scan_arg a;
++        memset(&a, 0, sizeof a);
++        a.size = sizeof a;
++        a.flags = PM_SCAN_CHECK_WPASYNC | (reprotect ? PM_SCAN_WP_MATCHING : 0);
++        a.start = at; a.end = end;
++        a.vec = (uintptr_t)vec; a.vec_len = 256;
++        a.category_mask = PAGE_IS_WRITTEN; a.return_mask = PAGE_IS_WRITTEN;
++        const long n = ioctl(s_trk_pagemap, PAGEMAP_SCAN, &a);
++        if (n < 0) return 0;
++        for (long i = 0; i < n; ++i)
++            for (uint64_t p = vec[i].start; p < vec[i].end; p += 4096u) {
++                const uint32_t g = trk_first(r) + (uint32_t)((p - (uintptr_t)trk_base(r)) >> 12);
++                if (!trk_marked(g)) ++g_trk_faults;
++                s_trk_bits[g >> 5] |= 1u << (g & 31u);
++            }
++        if (a.walk_end <= at) return 0;
++        at = a.walk_end;
++    }
++    return 1;
++}
++static void trk_copy_page(uint8_t *dst, const uint8_t *img, uint32_t o, uint32_t extent) {
++    if (o >= extent) return;
++    memcpy(dst + o, img + o, extent - o < 4096u ? extent - o : 4096u);
++    ++g_trk_pages_copied;
++}
++/* same: src is the image this process last loaded through here, unchanged
++ * since (same slot, no publish in between). arm: keep tracking writes.
++ * Returns 1 when only the written pages were copied. */
++int render_replay_image_load_tracked(const uint8_t *src, int same, int arm) {
++    (void)arm;   /* the kernel's tracking costs little: every job tracks */
++    if (!trk_init()) { render_replay_image_load(src); return 0; }
++    memset(s_trk_bits, 0, sizeof s_trk_bits);
++    int partial = 0;
++    if (same && s_trk_armed && trk_scan(0, 0) && trk_scan(1, 0) && trk_scan(2, 0)) {
++        uint32_t hdr[4];
++        memcpy(hdr, src, sizeof hdr);
++        const uint8_t *img = src + sizeof hdr;
++        const uint8_t *mod = img + RAM_SIZE + SCRATCHPAD_SIZE;
++        const uint8_t *dma = mod + MOD_MEMORY_SIZE, *extra = dma + PSX_MOD_GPU_DMA_APERTURE_SIZE;
++        for (uint32_t p = 0; p < RAM_SIZE / 4096u; ++p)
++            if (trk_marked(trk_first(0) + p)) trk_copy_page(ram, img, p * 4096u, RAM_SIZE);
++        memcpy(scratchpad, img + RAM_SIZE, SCRATCHPAD_SIZE);
++        if (hdr[0] <= MOD_MEMORY_SIZE) {
++            for (uint32_t p = 0; p < MOD_MEMORY_SIZE / 4096u; ++p)
++                if (trk_marked(trk_first(1) + p)) trk_copy_page(mod_memory, mod, p * 4096u, hdr[0]);
++            mod_memory_used = hdr[0];
++            mod_alloc_trim(&mod_allocs, mod_memory_used);
++        }
++        /* The window holds the extra aperture, then the saved one; each part
++         * is restored to its own extent, as a whole load copies them. */
++        for (uint32_t p = 0; p < PSX_MOD_GPU_DMA_WINDOW_SIZE / 4096u; ++p) {
++            if (!trk_marked(trk_first(2) + p)) continue;
++            const uint32_t o = p * 4096u;
++            if (o < PSX_MOD_GPU_DMA_EXTRA_SIZE) {
++                if (hdr[2] <= mod_gpu_dma_extra_used) trk_copy_page(mod_gpu_dma_window, extra, o, hdr[2]);
++            } else if (hdr[1] <= PSX_MOD_GPU_DMA_APERTURE_SIZE) {
++                trk_copy_page(mod_gpu_dma_memory, dma, o - PSX_MOD_GPU_DMA_EXTRA_SIZE, hdr[1]);
++            }
++        }
++        if (hdr[1] <= PSX_MOD_GPU_DMA_APERTURE_SIZE) {
++            mod_gpu_dma_memory_used = hdr[1];
++            mod_alloc_trim(&mod_gpu_dma_allocs, mod_gpu_dma_memory_used);
++        }
++        if (hdr[2] <= mod_gpu_dma_extra_used && hdr[2] > mod_gpu_dma_extra_hwm) mod_gpu_dma_extra_hwm = hdr[2];
++        s_trk_resync = 2;
++        image_load_tail();
++        s_trk_resync = 0;
++        /* Protect the written (and copied) pages again. */
++        uint32_t keep[(TRK_PAGES + 31u) / 32u];
++        memcpy(keep, s_trk_bits, sizeof keep);
++        const int ok = trk_scan(0, 1) && trk_scan(1, 1) && trk_scan(2, 1);
++        memcpy(s_trk_bits, keep, sizeof keep);
++        partial = 1;
++        ++g_trk_restores;
++        s_trk_armed = ok;
++    } else {
++        int ok = 1;
++        for (int r = 0; r < 3; ++r) ok &= trk_wp(r, 0) == 0;
++        s_trk_resync = 1;
++        render_replay_image_load(src);
++        s_trk_resync = 0;
++        ++g_trk_loads;
++        for (int r = 0; r < 3; ++r) ok &= trk_wp(r, 1) == 0;
++        s_trk_armed = ok;
++    }
++    return partial;
++}
++/* Leave tracking for the next load: it loads whole. */
++void render_replay_image_untrack(void) {
++    if (s_trk_state > 0) for (int r = 0; r < 3; ++r) trk_wp(r, 0);
++    s_trk_armed = 0;
++    memset(s_trk_bits, 0, sizeof s_trk_bits);
++}
++#else
++static int trk_ram_page_marked(uint32_t page) { (void)page; return 1; }
++int render_replay_image_load_tracked(const uint8_t *src, int same, int arm) { (void)same; (void)arm; render_replay_image_load(src); return 0; }
++void render_replay_image_untrack(void) {}
++#endif
 +
  static int mod_memory_offset(uint32_t phys, uint32_t width, uint32_t *offset) {
      uint32_t off;
      if (phys < MOD_MEMORY_BASE) return 0;
-@@ -80,16 +189,223 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -80,16 +396,223 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
          return 0u;
      memset(mod_gpu_dma_memory + start, 0, size);
      mod_gpu_dma_memory_used = start + size;
@@ -16629,7 +16843,16 @@ index 9d55ad16..6fac6c0f 100644
      return psx_mod_gpu_dma_resolve_address_for(
          address, mod_gpu_dma_memory_used);
  }
-@@ -410,12 +726,17 @@ static uint32_t g_text_exact_last_range_len = 0;
+@@ -400,6 +923,8 @@ void dirty_ram_clear_image_baseline(void) {
+  * code — see dirty_ram_text_native_ok / dirty_ram_text_bless. */
+ static uint8_t *text_ref_image = NULL;
+ static uint32_t text_ref_lo = 0, text_ref_hi = 0;
++/* D23N5: moves on whenever the reference image's bytes or extent change. */
++static uint32_t s_text_ref_epoch = 0;
+ static uint32_t text_modified_bitmap[DIRTY_RAM_BITMAP_WORDS];
+ static uint32_t text_diverged_bitmap[DIRTY_RAM_BITMAP_WORDS];
+ static uint64_t g_text_native_blocked = 0;
+@@ -410,12 +935,18 @@ static uint32_t g_text_exact_last_range_len = 0;
  static uint32_t g_text_exact_last_mismatch = 0;
  static uint32_t g_text_exact_last_live = 0;
  static uint32_t g_text_exact_last_ref = 0;
@@ -16643,11 +16866,12 @@ index 9d55ad16..6fac6c0f 100644
      if (!bytes || len == 0 || phys_lo >= RAM_SIZE) return;
      if (len > RAM_SIZE - phys_lo) len = RAM_SIZE - phys_lo;
      text_ref_image = (uint8_t *)bytes;  /* runtime-owned mutable heap buffer */
++    s_text_ref_epoch++;
 +    s_text_native_gen++;
      text_ref_lo = phys_lo;
      text_ref_hi = phys_lo + len;
      memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
-@@ -440,7 +761,9 @@ static inline void text_guard_note_write(uint32_t phys, uint32_t val, int size)
+@@ -440,7 +971,9 @@ static inline void text_guard_note_write(uint32_t phys, uint32_t val, int size)
                         (uint8_t)(val >> 16), (uint8_t)(val >> 24) };
      if (memcmp(ref, buf, (size_t)size) != 0) {
          uint32_t page = phys >> DIRTY_RAM_PAGE_SHIFT;
@@ -16658,7 +16882,7 @@ index 9d55ad16..6fac6c0f 100644
      }
  }
  
-@@ -529,9 +852,96 @@ static int aot_blocked(uint32_t phys) {
+@@ -529,9 +1062,96 @@ static int aot_blocked(uint32_t phys) {
   * Every emitted range is validated in full. A continuation can follow a
   * backward edge and fetch instructions before exec_pc, so clipping at the
   * resume address can admit stale static code. */
@@ -16755,7 +16979,7 @@ index 9d55ad16..6fac6c0f 100644
      if (!text_ref_image || !lo_len_pairs || count == 0) return 0;
      uint32_t at = exec_pc & 0x1FFFFFFFu;
      if (aot_blocked(at ? at : (lo_len_pairs[0] & 0x1FFFFFFFu))) {
-@@ -575,6 +985,7 @@ int dirty_ram_text_native_ok_ranges_from(const uint32_t *lo_len_pairs,
+@@ -575,6 +1195,7 @@ int dirty_ram_text_native_ok_ranges_from(const uint32_t *lo_len_pairs,
              }
              if (clean) continue;
          }
@@ -16763,15 +16987,16 @@ index 9d55ad16..6fac6c0f 100644
          if (memcmp(ram + phys, text_ref_image + (phys - text_ref_lo), len) != 0) {
              uint32_t off = 0;
              const uint8_t *live = ram + phys;
-@@ -637,6 +1048,7 @@ void dirty_ram_text_bless(uint32_t phys, const uint8_t *bytes, uint32_t len) {
+@@ -637,6 +1258,8 @@ void dirty_ram_text_bless(uint32_t phys, const uint8_t *bytes, uint32_t len) {
      const uint8_t *src = bytes + (lo - phys);
      if (memcmp(ref, src, hi - lo) == 0) return;                     /* already in sync */
      memcpy(ref, src, hi - lo);
 +    s_text_native_gen++;
++    s_text_ref_epoch++;
      /* Re-open the affected pages: clear the sticky diverged bit so the next
       * dispatch re-runs the compare against the now-updated reference. */
      uint32_t first_page = lo >> DIRTY_RAM_PAGE_SHIFT;
-@@ -761,6 +1173,7 @@ void dirty_ram_reset_for_boot(void) {
+@@ -761,6 +1384,7 @@ void dirty_ram_reset_for_boot(void) {
      memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
      memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
      g_text_diverged_pages = 0;
@@ -16779,9 +17004,17 @@ index 9d55ad16..6fac6c0f 100644
      memset(overlay_watch_bitmap, 0, sizeof(overlay_watch_bitmap));
      memset(overlay_page_gen, 0, sizeof(overlay_page_gen));
      memset(g_dirty_ram_exec_page_bitmap, 0, sizeof(g_dirty_ram_exec_page_bitmap));
-@@ -809,18 +1222,23 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -808,19 +1432,71 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+  * bumps overlay_page_gen. Without this, ENTRY_VALID overlays keep the gen-gated
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
++uint64_t g_trk_resync_checked = 0, g_trk_resync_bad = 0;
++/* D23N5: the modified bitmap a whole resync built for the image a redraw
++ * worker restores from, and what it was built against. */
++static uint32_t s_trk_text_snap[DIRTY_RAM_BITMAP_WORDS];
++static int s_trk_snap_valid = 0;
++static uint32_t s_trk_snap_epoch, s_trk_snap_lo, s_trk_snap_hi;
++static const uint8_t *s_trk_snap_ref;
  void dirty_ram_text_guard_resync_after_restore(void) {
 -    /* text_diverged_bitmap is sticky: once a page's entry bytes fail the
 -     * reference compare, native stays blocked forever. That is correct for
@@ -16799,7 +17032,42 @@ index 9d55ad16..6fac6c0f 100644
      memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
      g_text_diverged_pages = 0;
 +    s_text_native_gen++;
-+    if (!text_ref_image || text_ref_hi <= text_ref_lo) return;
++    if (!text_ref_image || text_ref_hi <= text_ref_lo) { s_trk_snap_valid = 0; return; }
++    /* D23N5 restore: a page nothing wrote since the whole load holds the
++     * bytes that load's resync compared, against the same reference, so its
++     * bit is the kept one; only the written pages are compared again. */
++    if (s_trk_resync == 2 && s_trk_snap_valid && s_trk_snap_epoch == s_text_ref_epoch &&
++        s_trk_snap_ref == text_ref_image && s_trk_snap_lo == text_ref_lo && s_trk_snap_hi == text_ref_hi) {
++        memcpy(text_modified_bitmap, s_trk_text_snap, sizeof(text_modified_bitmap));
++        for (uint32_t page=text_ref_lo >> DIRTY_RAM_PAGE_SHIFT;
++             page <= (text_ref_hi-1u) >> DIRTY_RAM_PAGE_SHIFT; ++page) {
++            if (!trk_ram_page_marked(page)) continue;
++            uint32_t lo=page << DIRTY_RAM_PAGE_SHIFT;
++            uint32_t hi=lo+(1u << DIRTY_RAM_PAGE_SHIFT);
++            if(lo<text_ref_lo) lo=text_ref_lo;
++            if(hi>text_ref_hi) hi=text_ref_hi;
++            text_modified_bitmap[page>>5] &= ~(1u << (page&31u));
++            if(memcmp(ram+lo,text_ref_image+(lo-text_ref_lo),hi-lo)!=0)
++                text_modified_bitmap[page>>5] |= 1u << (page&31u);
++        }
++        /* Developer check (PSX_RW_RESTORE_VERIFY): the whole compare agrees. */
++        static int check = -1;
++        if (check < 0) check = getenv("PSX_RW_RESTORE_VERIFY") != NULL;
++        if (check) {
++            static uint32_t full[DIRTY_RAM_BITMAP_WORDS];
++            memset(full, 0, sizeof full);
++            for (uint32_t page=text_ref_lo >> DIRTY_RAM_PAGE_SHIFT;
++                 page <= (text_ref_hi-1u) >> DIRTY_RAM_PAGE_SHIFT; ++page) {
++                uint32_t lo=page << DIRTY_RAM_PAGE_SHIFT, hi=lo+(1u << DIRTY_RAM_PAGE_SHIFT);
++                if(lo<text_ref_lo) lo=text_ref_lo;
++                if(hi>text_ref_hi) hi=text_ref_hi;
++                if(memcmp(ram+lo,text_ref_image+(lo-text_ref_lo),hi-lo)!=0) full[page>>5] |= 1u << (page&31u);
++            }
++            ++g_trk_resync_checked;
++            if (memcmp(full, text_modified_bitmap, sizeof full) != 0) ++g_trk_resync_bad;
++        }
++        return;
++    }
 +    for (uint32_t page=text_ref_lo >> DIRTY_RAM_PAGE_SHIFT;
 +         page <= (text_ref_hi-1u) >> DIRTY_RAM_PAGE_SHIFT; ++page) {
 +        uint32_t lo=page << DIRTY_RAM_PAGE_SHIFT;
@@ -16809,10 +17077,15 @@ index 9d55ad16..6fac6c0f 100644
 +        if(memcmp(ram+lo,text_ref_image+(lo-text_ref_lo),hi-lo)!=0)
 +            text_modified_bitmap[page>>5] |= 1u << (page&31u);
 +    }
++    if (s_trk_resync == 1) {
++        memcpy(s_trk_text_snap, text_modified_bitmap, sizeof(s_trk_text_snap));
++        s_trk_snap_valid = 1; s_trk_snap_epoch = s_text_ref_epoch;
++        s_trk_snap_ref = text_ref_image; s_trk_snap_lo = text_ref_lo; s_trk_snap_hi = text_ref_hi;
++    } else if (s_trk_resync == 0) s_trk_snap_valid = 0;
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -912,6 +1330,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -912,6 +1588,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -16822,7 +17095,7 @@ index 9d55ad16..6fac6c0f 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1596,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +1854,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -16830,7 +17103,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1604,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +1862,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -16838,7 +17111,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1715,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +1973,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -16846,7 +17119,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1723,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +1981,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -16854,7 +17127,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +1836,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +2094,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -16862,7 +17135,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +1844,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +2102,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -16870,7 +17143,7 @@ index 9d55ad16..6fac6c0f 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1562,7 +1989,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
+@@ -1562,7 +2247,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
              uint32_t v;
@@ -16879,7 +17152,7 @@ index 9d55ad16..6fac6c0f 100644
              return v;
          }
      }
-@@ -1649,7 +2076,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +2334,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
@@ -16889,7 +17162,7 @@ index 9d55ad16..6fac6c0f 100644
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1749,7 +2178,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
+@@ -1749,7 +2436,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
@@ -16899,7 +17172,7 @@ index 9d55ad16..6fac6c0f 100644
              return;
          }
      }
-@@ -1810,8 +2240,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
+@@ -1810,8 +2498,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off))
@@ -16910,7 +17183,7 @@ index 9d55ad16..6fac6c0f 100644
      }
      {
          uint32_t off;
-@@ -1851,7 +2281,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2539,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -16920,7 +17193,7 @@ index 9d55ad16..6fac6c0f 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -1875,8 +2307,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
+@@ -1875,8 +2565,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off)) {
@@ -16932,7 +17205,7 @@ index 9d55ad16..6fac6c0f 100644
              return;
          }
      }
-@@ -1929,7 +2362,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
+@@ -1929,7 +2620,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off))
@@ -16941,7 +17214,7 @@ index 9d55ad16..6fac6c0f 100644
      }
      {
          uint32_t off;
-@@ -2186,7 +2619,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +2877,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
@@ -16951,7 +17224,7 @@ index 9d55ad16..6fac6c0f 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2209,7 +2644,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
+@@ -2209,7 +2902,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off)) {
@@ -20291,10 +20564,10 @@ index 00000000..016906fb
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..fb04c10e
+index 00000000..5a110c82
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,651 @@
+@@ -0,0 +1,741 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -20323,6 +20596,10 @@ index 00000000..fb04c10e
 +#include <stdio.h>
 +#include <string.h>
 +#include <stdlib.h>
++
++/* D23N5: the draw clock a job held (set by the title) and, when nonzero, the
++ * clock a developer re-run must hold instead (render_worker.c only). */
++uint32_t g_psx_rw_clock_last = 0, g_psx_rw_clock_repeat = 0;
 +
 +#if defined(__linux__) || defined(__APPLE__)
 +#define RW_POSIX 1
@@ -20376,6 +20653,7 @@ index 00000000..fb04c10e
 +    CPUState slot_cpu[RW_SLOTS];
 +    int32_t  slot_ws_margin[RW_SLOTS];   /* widescreen reveal at publish time */
 +    _Atomic uint32_t slot_ready[RW_SLOTS];
++    _Atomic uint32_t slot_gen[RW_SLOTS];   /* D23N5: publishes into the slot */
 +} RwShared;
 +
 +static RwShared *s_sh = NULL;
@@ -20463,6 +20741,27 @@ index 00000000..fb04c10e
 +    uint32_t *reference=validate_timing ? malloc(RW_OUT_WORDS*sizeof(uint32_t)) : NULL;
 +    uint8_t *verify_image=reference ? malloc(s_image_bytes) : NULL;
 +    unsigned validated=0;
++    const int image_stats=getenv("PSX_RW_IMAGE_STATS")!=NULL;
++    uint64_t st_sum[6]={0},st_jobs=0,st_same=0;uint32_t st_prev_slot=~0u,st_prev_gen=0;
++    /* D23N5 (developer, off by default): PSX_RW_RESTORE=1 restores a job's
++     * image from the previous job's written pages when both jobs draw the
++     * same published image (memory.c render_replay_image_load_tracked); it
++     * arms write tracking on the first job of an image (PSX_RW_RESTORE_ARM=all:
++     * on every job). PSX_RW_RESTORE_VERIFY=N: every Nth job that draws the
++     * same image as the previous one is checked: its restored image byte for
++     * byte against the slot image, then the job again from a whole load, on
++     * the first run's clock, its stream word for word (with the restore off
++     * this measures how repeatable a job is). "[rw restore]" lines. */
++    const char *rs=getenv("PSX_RW_RESTORE");
++    const int restore=rs && rs[0]=='1';
++    const char *ra=getenv("PSX_RW_RESTORE_ARM");
++    const int arm_all=ra && strcmp(ra,"all")==0;
++    const char *rv=getenv("PSX_RW_RESTORE_VERIFY");
++    const int restore_verify=rv ? atoi(rv) : 0;
++    uint32_t *rv_ref=restore_verify>0 ? malloc(RW_OUT_WORDS*sizeof(uint32_t)) : NULL;
++    uint32_t rs_prev_slot=~0u,rs_prev_gen=0;int rs_prev_valid=0;
++    uint64_t rs_jobs=0,rs_partial=0,rs_load_ns[2]={0},rs_n[2]={0},rv_same_jobs=0,rv_checked=0,rv_bytes_bad=0,rv_stream_bad=0,rv_stream_cmp=0;
++    extern uint64_t g_trk_faults,g_trk_pages_copied,g_trk_resync_checked,g_trk_resync_bad;
 +    const char *profile=getenv("PSX_PROF_WORKERS");
 +    unsigned profile_jobs=0;
 +    if(profile && *profile) {
@@ -20488,7 +20787,26 @@ index 00000000..fb04c10e
 +        RwJob *job = &s_sh->jobs[claimed];
 +        job->worker = index;
 +        job->start_ticks = ticks();
-+        render_replay_image_load(slot_image(job->slot));
++        const uint32_t job_gen=atomic_load(&s_sh->slot_gen[job->slot]);
++        const int same_image=rs_prev_valid && job->slot==rs_prev_slot && job_gen==rs_prev_gen;
++        rs_prev_slot=job->slot;rs_prev_gen=job_gen;rs_prev_valid=1;
++        const int rv_this=restore_verify>0 && same_image && rv_ref && ++rv_same_jobs%(uint64_t)restore_verify==0;
++        int partial=0;
++        {
++            struct timespec t0,t1;clock_gettime(CLOCK_MONOTONIC,&t0);
++            if(restore) {
++                extern int render_replay_image_load_tracked(const uint8_t*,int,int);
++                partial=render_replay_image_load_tracked(slot_image(job->slot),same_image,arm_all || !same_image);
++            } else render_replay_image_load(slot_image(job->slot));
++            clock_gettime(CLOCK_MONOTONIC,&t1);
++            rs_load_ns[partial]+=(uint64_t)(t1.tv_sec-t0.tv_sec)*1000000000ull+(uint64_t)(t1.tv_nsec-t0.tv_nsec);++rs_n[partial];
++            ++rs_jobs;rs_partial+=partial;
++        }
++        if(rv_this) {
++            extern void render_replay_image_diff(const uint8_t *src, uint32_t out[6]);
++            uint32_t d[6];render_replay_image_diff(slot_image(job->slot),d);
++            rv_bytes_bad+=(d[0]|d[1]|d[2]|d[3]|d[4])!=0;++rv_checked;
++        }
 +        CPUState cpu = s_sh->slot_cpu[job->slot];
 +        const CPUState original_cpu=cpu;
 +        if(verify_image) memcpy(verify_image,slot_image(job->slot),s_image_bytes);
@@ -20500,6 +20818,35 @@ index 00000000..fb04c10e
 +        int ok = s_draw ? s_draw(&cpu, job->params, job->params_len) : 0;
 +        int overflow = 0;
 +        uint32_t n = render_replay_record_end(&overflow);
++        if(rv_this && ok && !overflow) {
++            /* The same job from a whole load of its image, untracked, on the
++             * first run's clock: its stream must match word for word. */
++            extern void render_replay_image_untrack(void);
++            extern uint32_t g_psx_rw_clock_last,g_psx_rw_clock_repeat;
++            render_replay_image_untrack();
++            render_replay_image_load(slot_image(job->slot));
++            rs_prev_valid=0;   /* untracked from here: the next job loads whole */
++            CPUState again=original_cpu;
++            psx_cycle_count=cycle_before;
++            render_replay_reset_channel();
++            render_replay_record_begin(rv_ref,RW_OUT_WORDS);
++            g_psx_rw_clock_repeat=g_psx_rw_clock_last;
++            const int ok2=s_draw(&again,job->params,job->params_len);
++            g_psx_rw_clock_repeat=0;
++            int of2=0;const uint32_t n2=render_replay_record_end(&of2);
++            ++rv_stream_cmp;
++            if(!(ok2 && !of2 && n2==n && memcmp(rv_ref,job_out((uint32_t)claimed),n*sizeof(uint32_t))==0)) {
++                uint32_t at=0;while(at<n && at<n2 && rv_ref[at]==job_out((uint32_t)claimed)[at]) ++at;
++                ++rv_stream_bad;
++                fprintf(stderr,"[rw restore] stream differs: words %u/%u, first at %u, partial %d\n",n,n2,at,partial);
++            }
++        }
++        if((restore || restore_verify>0) && rs_jobs%256==0) {
++            fprintf(stderr,"[rw restore %ld] jobs %llu, restored from written pages %.1f%%; load us whole %.0f, restore %.0f; faults a job %.1f, pages copied a restore %.1f; checked %llu: images differing %llu, streams compared %llu, differing %llu; text bitmaps checked %llu, differing %llu\n",
++                    (long)getpid(),(unsigned long long)rs_jobs,100.0*rs_partial/rs_jobs,rs_n[0]?rs_load_ns[0]/1e3/rs_n[0]:0.0,rs_n[1]?rs_load_ns[1]/1e3/rs_n[1]:0.0,
++                    (double)g_trk_faults/rs_jobs,rs_partial?(double)g_trk_pages_copied/rs_partial:0.0,(unsigned long long)rv_checked,(unsigned long long)rv_bytes_bad,
++                    (unsigned long long)rv_stream_cmp,(unsigned long long)rv_stream_bad,(unsigned long long)g_trk_resync_checked,(unsigned long long)g_trk_resync_bad);
++        }
 +        if(reference && verify_image && visual_timing && ok && !overflow) {
 +            extern int g_psx_load_delay, g_psx_icache_active;
 +            render_replay_image_load(verify_image);
@@ -20517,6 +20864,21 @@ index 00000000..fb04c10e
 +            }
 +            if(++validated%16==0) fprintf(stderr,"[replay timing] checked=%u last=%s\n",validated,equal?"exact":"FAIL");
 +            g_psx_render_untimed=1;g_psx_load_delay=0;g_psx_icache_active=0;
++        }
++        /* D23N5 (developer, PSX_RW_IMAGE_STATS=1): what this job changed in
++         * its image (pages by region), what a load copies, and how often the
++         * next job reloads the same slot with no publish in between. */
++        if(image_stats) {
++            extern void render_replay_image_diff(const uint8_t *src, uint32_t out[6]);
++            uint32_t d[6];render_replay_image_diff(slot_image(job->slot),d);
++            for(int k=0;k<6;++k) st_sum[k]+=d[k];
++            ++st_jobs;st_same+=(job->slot==st_prev_slot && job_gen==st_prev_gen);
++            st_prev_slot=job->slot;st_prev_gen=job_gen;
++            if(st_jobs%256==0) {
++                fprintf(stderr,"[rw image %ld] jobs %llu, same image as the worker's previous job %.1f%%; pages changed a job: RAM %.1f scratch %.2f mod %.1f dma %.1f extra %.1f; a load copies %.0f KB\n",
++                        (long)getpid(),(unsigned long long)st_jobs,100.0*st_same/st_jobs,(double)st_sum[0]/st_jobs,(double)st_sum[1]/st_jobs,
++                        (double)st_sum[2]/st_jobs,(double)st_sum[3]/st_jobs,(double)st_sum[4]/st_jobs,(double)st_sum[5]/st_jobs/1024.0);
++            }
 +        }
 +        job->out_words = n;
 +        job->ok = (ok && !overflow && n > 0) ? 1u : 0u;
@@ -20682,6 +21044,7 @@ index 00000000..fb04c10e
 +    }
 +    atomic_store(&s_sh->slot_ready[slot], 0u);
 +    render_replay_image_save(slot_image((uint32_t)slot));
++    atomic_fetch_add(&s_sh->slot_gen[slot], 1u);
 +    s_sh->slot_cpu[slot] = *cpu;
 +    /* The margin follows the presenter's frame classification, which a worker
 +     * never runs (it records GP0 instead of drawing): pin the parent's value. */

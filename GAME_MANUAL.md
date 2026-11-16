@@ -225,17 +225,19 @@ for the next launch):
   for stress testing, with no promise of one new image per monitor refresh.
 
 If the extra pictures above 60 slow the game itself down on your computer
-(it cannot keep up even when showing a picture at only every third refresh,
-or on a 60 Hz display every second refresh: 30 even pictures a second, never
-an uneven 40),
-the game drops to the original 60 presentation for a while instead, so Duke
-and the enemies keep their speed, and tries the faster rate again after two
-minutes of play (then four, then eight if it still cannot). Your FRAME RATE
-setting is not changed (D23Y1). On a 2-core laptop with a 60 Hz screen (an
-i7-5600U with HD Graphics 5500, measured in D23Y6) FRAME RATE 120 holds 60
-even pictures a second at GRAPHICS SIMPLE and BALANCED; PRETTY and ULTRA ask
-more of the graphics chip than it has for that, so it shows 30 even pictures
-a second or the original presentation, at full game speed.
+(on a 120 Hz or faster display it first shows a picture at every second,
+then every third refresh), the game drops to the original 60 presentation
+for a while instead, so Duke and the enemies keep their speed, and tries the
+faster rate again after two minutes of play (then four, then eight if it
+still cannot). On a 60 Hz display (a laptop panel, most TVs) there is no
+in-between step: 30 pictures a second looked rougher than the original 60,
+so it goes straight to the original presentation (D23AD). A load or the
+title screen no longer counts as the game falling behind. Your FRAME RATE
+setting is not changed (D23Y1). With this, FRAME RATE 120 showed 60
+pictures a second in every measured scene on a 2-core laptop with a 60 Hz
+screen (an i7-5600U with HD Graphics 5500, at 2x with LIGHTING ON or RELIT)
+and on a 4-core TV PC (a Ryzen 3 3200GE with Vega graphics, at ULTRA), at
+full game speed (D23AD).
 
 **VSYNC** (OPTIONS > DISPLAY, Modernized; `--vsync`; D23X, D17BH) applies to
 every frame rate up to your display's refresh: `on` (the default) waits for the display's refresh,

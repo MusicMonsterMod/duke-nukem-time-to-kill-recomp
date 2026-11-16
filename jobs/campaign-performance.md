@@ -3713,6 +3713,32 @@ Acceptance: AUTO's count at least as good as any fixed count on each
 machine, pictures unchanged, measured offscreen and confirmed on the real
 display.
 
+### D23AD - 60 Hz screens keep 60 pictures
+
+**Status: Needs playtest (2026-11-16, on by default, [note 498](../documentation/498-d23ad-60hz-pacing.md)). Dependencies: D23Y6.**
+
+User, 2026-11-16: the field laptop played worse than in the morning; "we
+have GOT to get this working on lower end hardware comfortable". At FRAME
+RATE 120 on a 60 Hz screen the governor stepped the redraws to every 2nd
+refresh (30 pictures a second) and stayed there under backoff, and a stall
+at startup or before a load counted as the game falling behind. Acceptance:
+60 pictures a second on 60 Hz screens wherever the game holds 60, the
+original presentation where it cannot, game speed unchanged, faster
+displays unchanged; the user's playtest on the field laptop and citadel.
+
+Work log, 2026-11-16 ([note 498](../documentation/498-d23ad-60hz-pacing.md)): host and build ruled out first (a
+real-display A/B of this morning's build against today's: no consistent
+difference); the morning's settings were LIGHTING ON and LIVE SHADOWS
+SIMPLE at 2x, the profile had since moved to RELIT and SMOOTH (60 against
+41-55 pictures on the real screen). Then: a second under 20 game frames is
+a stall, not judged (`overclock_lease`); on a timeline under 75 Hz the
+redraws' last step is every refresh, a scene that cannot hold it goes to
+the original presentation (`last_div`; developer `DNTTK_REPLAY_SKIP30=0`
+restores the step). Real screens, interleaved, two runs a cell: citadel at
+ULTRA 120 58.5-59.6 pictures a second in all five scenes (before 36.5-59.5);
+the field laptop at 2x with RELIT or ON 59.8-60 in all three (before
+44-60). GAME_MANUAL updated. Needs the user's playtest.
+
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 
 **Status: Todo (backlog, research; user playthrough commentary 2026-11-14). Dependencies: -.**

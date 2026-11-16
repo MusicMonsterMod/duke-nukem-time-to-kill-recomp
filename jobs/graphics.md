@@ -2939,6 +2939,22 @@ Test save (2026-11-15): a private copy of UI slot 9 (runtime slot 8, the
 `recomp/analysis/d17bj/cards` (local, ignored; hash-checked identical when
 copied). Test on this copy; the player is free to save over their slot.
 
+### D17BK - The picture pops from 4:3 to 16:9 after a load
+
+**Status: Todo (2026-11-16, user report). Dependencies: none.**
+
+User, 2026-11-16 (field laptop, also seen in the automated runs on its
+screen): "when the game loads ... you see the game pop from 4:3 to 16:9".
+Measured on the desktop (offscreen, UI slot 2's savestate, shots after the
+load): frames 8 and 14 after the load show 4:3 with black margins, frame 20
+on is 16:9. The framework widens the world cull at once
+(`psx_ws_x_margin`, gpu.c: it deliberately does not wait for game-mode
+detection) but the presentation waits for game-mode detection to see 3D
+frames again. Work: keep the widescreen presentation across a savestate
+load (and a level load) when the state before it was 3D gameplay, or
+classify the restored frame at once; Vanilla and menus unchanged.
+Acceptance: no 4:3 frame after a load in matched shots, at 60 and 120.
+
 ### D53B - No impatient idle lines while watching a security camera
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**

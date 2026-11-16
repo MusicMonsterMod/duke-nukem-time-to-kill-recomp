@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (afternoon) - D23AD: 60 Hz screens keep 60 pictures
+
+[Note 498](498-d23ad-60hz-pacing.md): at FRAME RATE 120 on a 60 Hz screen the redraws no longer drop to 30 pictures a second (the original presentation takes over where they cannot keep up) and a load or startup stall is no longer judged as a slow scene: 58.5-60 pictures a second on the field laptop's and citadel's real screens in every measured scene. The field laptop's "worse than this morning" was the settings (RELIT and SMOOTH instead of ON and SIMPLE), not the build. Needs playtest.
+
 ## 2026-11-16 - three-machine session: results
 
 D23N5 and D23Y10 built off by default, exact on all three machines, small gains (Needs playtest; default on is the user's decision; notes [493](493-d23n5-shared-frame-work-desktop.md), [495](495-d23y10-tracked-publish.md)). D23V3 measured on three machines: exact but worse on citadel, not proposed for default on, Blocked until D23AC ([note 497](497-d23v3-three-machines.md)). D23Y7 and D23AA re-measured: ULTRA's dips on the field laptop are the package limit ([note 494](494-d23y7-d23aa-field-laptop-today.md)). New: D23AC (AUTO's worker count on 4-core CPUs).

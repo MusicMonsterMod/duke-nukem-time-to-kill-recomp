@@ -1416,7 +1416,14 @@ static void overclock_lease() {
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
         hitch_second(rate,dt,now<settle_until || now<paused_until || dt>=3.0);
-        const int window=dt>=3.0 || now<paused_until || now<settle_until ? 2 : rate<57.0 ? 1 : 0;
+        // D23AD: a second under 20 game frames is a stall (startup, the title
+        // screen, a load before its counter moves, a cutscene), not a slow
+        // scene (the heaviest views run 40-55): not judged. Player logs,
+        // 2026-11-16: every session opened with a 2-22 frames/s second that
+        // shed the redraws to every 2nd refresh (30 pictures a second on a 60
+        // Hz panel) for the first half minute or more.
+        const bool stall=rate<20.0;
+        const int window=dt>=3.0 || now<paused_until || now<settle_until || stall ? 2 : rate<57.0 ? 1 : 0;
         const int verdict=replay_load_window(window);
         if(verdict>0) {
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);

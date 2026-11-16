@@ -2934,10 +2934,21 @@ static void display_cap_check() {
 // The governor's slowest step with redraws: the largest divisor that keeps 30
 // presents a second, at most every 3rd period (a 120 or 144 Hz timeline: 40
 // or 48, as before; a 60 Hz display: every 2nd, 30, never an uneven 20 or 40).
+// D23AD: on a timeline under 75 Hz (a 60 Hz panel or TV) the redraws' only
+// slower step was every 2nd refresh, 30 pictures a second: rougher than the
+// original presentation's 60, and once there the governor stayed for many
+// seconds (backoff). There the redraws' last step is every refresh, so a
+// scene that cannot hold it goes to the original presentation
+// (floor_fallback) instead. Measured on the real 60 Hz screens of the field
+// laptop and citadel at 120, 2026-11-16: 58.5-60 pictures a second in every
+// scene against 30-59 before, game rate unchanged. Faster displays keep the
+// 2nd/3rd-refresh steps. DNTTK_REPLAY_SKIP30=0 (developer) restores the step.
+static bool skip30() {static const bool v=[]{const char* t=std::getenv("DNTTK_REPLAY_SKIP30");return !(t && t[0]=='0');}();return v;}
 static int last_div() {
     if(target_hz==-1) return 16;
     const double rate=target_hz>0 ? (double)target_hz : psx_mod_display_refresh_hz();
     if(rate<=0.0) return 3;
+    if(skip30() && rate<75.0) return 1;
     return std::clamp((int)(rate/30.0+1e-6),1,3);
 }
 int replay_load_window(int window) {

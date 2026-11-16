@@ -1611,3 +1611,19 @@ effect; then remove the grey-out. Acceptance: at ORIGINAL, Enhanced and
 Relit draw as at EXTENDED within the original range (matched pictures),
 the original draw distance unchanged, Vanilla unchanged, the user's check.
 
+
+### D41W - Lights arrive late after a load
+
+**Status: Todo (2026-11-16, user report). Dependencies: none.**
+
+User, 2026-11-16 (field laptop): "when the game loads, not only do lights
+take a while to load in" and loading felt slower. At the time the player's
+LIGHTING was RELIT, whose bake atlas is about 60% larger (DUKE HILL level 3:
+4096x2746, 90 MB against 4096x1729, 56.7 MB with LIGHTING ON), loaded from
+the cache in 40-137 ms (slower when it was not already in memory), then
+uploaded and the lamp scan run off the game thread. Work: time each stage
+from a load to the first lit frame (cache read, upload, lamp snapshot and
+scan) at RELIT and ON on the field laptop, and cut or hide the gap (keep
+the previous level's lighting off until the new bake is ready, prefetch
+the cache, upload in parts). Acceptance: lights present from the first
+gameplay frame after a load, pictures unchanged afterwards.

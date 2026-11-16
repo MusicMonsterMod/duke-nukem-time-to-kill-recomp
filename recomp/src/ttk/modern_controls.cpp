@@ -50,6 +50,8 @@
 #include <string>
 
 extern "C" {extern int g_precise_mode,g_ls_mode,g_psx_call_bail;}
+extern "C" int g_ttk_hook_mute;
+int g_ttk_hook_mute=0;
 namespace ttk {
 static constexpr uint32_t player=0x800d7198, camera=0x800d6eb0;
 // D08AA: the one Modernized walk/run pace. These are the land baselines
@@ -1478,6 +1480,7 @@ static void spike_tick() {
     spike_hooks.clear();last_cpu=cpu;last_wall=wall;last_field=field;
 }
 static void hook(CPUState* cpu, uint32_t address) {
+    if(g_ttk_hook_mute && (uint32_t)g_ttk_hook_mute==address) {g_ttk_hook_mute=0;return;}   // D23N4b: the outer entry of a scratch run (redraw_n2.inc)
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
     if(update) spike_tick();
     if(update && input_modernized() && psx_mod_read_word(0x800c27bc)==1) {overclock_lease();ttk_fast_timing_renew();}

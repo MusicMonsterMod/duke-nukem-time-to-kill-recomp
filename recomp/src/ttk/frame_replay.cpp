@@ -1684,6 +1684,10 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // frame may rebuild in place (redraw_n2.inc); its image is saved first so
     // a rebuild that is flagged falls back to the full job.
     static std::vector<uint8_t> n4b_image;bool n4b_saved=false;
+    const uint64_t n4b_t0=SDL_GetPerformanceCounter();
+    static bool n4b_self_restore=false;
+    auto self_cmp=[]{static const bool v=[]{const char* t=std::getenv("DNTTK_N4_SELF");return t && t[0]=='1';}();return v;};
+    if(n4b_self_restore) {n4b_self_restore=false;n1::n4b_allowed=true;}
     if(n1::n4b_on() && n1::n4b_allowed && !(p.flags&4) && n1::prev.serial==p.serial && n1::prev.alpha!=p.alpha) {
         n4b_image.resize(render_replay_image_bytes());render_replay_image_save(n4b_image.data());n4b_saved=true;
     }
@@ -1698,8 +1702,15 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         std::vector<uint32_t> pre(base,base+nw0);
         n4b_ref.assign(1u<<20,0);render_replay_record_begin(n4b_ref.data(),1u<<20);
         n1::n4b_allowed=false;n1::n4b_norecord=true;n1::n4b_ot_take=true;
+        if(n1::ct_on()) g_psx_mod_hook_observer=n1::ct_observe;
         const int r=worker_draw(source,params,len);
+        if(n1::ct_on()) {g_psx_mod_hook_observer=nullptr;n1::ct_ref=n1::ct_cur;n1::ct_ram_ref=n1::ct_ram_cur;n1::ct_mod_ref=n1::ct_mod_cur;}
         n1::n4b_allowed=true;n1::n4b_norecord=false;
+        // DNTTK_N4_SELF=1 (developer, note 483): the job then runs in full
+        // again instead of rebuilding: is a full job repeatable after the
+        // reference run?
+        static const bool self=[]{const char* t=std::getenv("DNTTK_N4_SELF");return t && t[0]=='1';}();
+        if(self) {n1::n4b_allowed=false;n4b_self_restore=true;}
         int of=0;const uint32_t nr=render_replay_record_end(&of);n4b_ref.resize(nr);n4b_ref_ok=r && !of;
         render_replay_image_load(n4b_image.data());render_replay_reset_channel();
         render_replay_record_begin(base,1u<<20);if(nw0) render_replay_record_splice(pre.data(),nw0);
@@ -1812,6 +1823,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         n1::n4b_job=false;
         n4b_rebuilt=n1::n4b_run(cpu);
         if(!n4b_rebuilt) {
+            {static unsigned fs=0;const double fms=(double)(SDL_GetPerformanceCounter()-n4b_t0)*1000.0/(double)SDL_GetPerformanceFrequency();if(fms>50.0 && fs++<20) std::fprintf(stderr,"[n4b slow] fallback starts %.1f ms into the job\n",fms);}
             // Fall back: the job's image as it came, the stream from the
             // start, and the full job (no rebuild for this run).
             g_psx_call_bail=0;
@@ -1880,11 +1892,27 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         const bool same=ok && nw==n4b_ref.size() && !std::memcmp(w,n4b_ref.data(),4u*nw);ve[k]+=same;
         if(!same) {uint32_t q=0;while(q<nw && q<n4b_ref.size() && w[q]==n4b_ref[q]) ++q;
             std::fprintf(stderr,"[n2 check %ld]   D23N4b verify-first: %s job differs from the reference: words %u/%zu first at %u\n",(long)getpid(),k?"fallen-back":"rebuilt",nw,n4b_ref.size(),q);if(!k) n1::n4b_where(q);
+            if(n1::ct_on()) {if(!k) n1::ct_report(); else if(self_cmp()) {n1::ct_reb=n1::ct_src;n1::ct_ram_reb=n1::ct_ram_cur;n1::ct_mod_reb=n1::ct_mod_cur;n1::ct_report();}
+                static unsigned sw=0;if(sw++<12) {std::fprintf(stderr,"[n2 check %ld]     words rebuilt/reference from %u:",(long)getpid(),q>16?q-16:0);
+                    for(uint32_t z=q>16?q-16:0;z<q+12 && z<nw && z<n4b_ref.size();++z) std::fprintf(stderr," %08x/%08x",w[z],n4b_ref[z]);
+                    unsigned nd=0;for(uint32_t z=q;z<nw && z<n4b_ref.size();++z) nd+=w[z]!=n4b_ref[z];
+                    std::fprintf(stderr," (%u words differ)\n",nd);
+                    uint32_t fq=q;while(fq<nw && fq<n4b_ref.size() && w[fq]==n4b_ref[fq]) ++fq;
+                    if(fq<nw) {unsigned shown=0;std::fprintf(stderr,"[n2 check %ld]     source stores of %08x:",(long)getpid(),w[fq]);
+                        for(const auto& st:n1::prev.stores) if(st.value==w[fq] && shown++<6) std::fprintf(stderr," %08x@%08x pc %08x;",st.value,st.addr,st.pc);
+                        std::fprintf(stderr,"\n");
+                        if(fq+1<nw) for(uint32_t a=0x80000000u;a<0x80200000u-8;a+=4) if(psx_mod_read_word(a)==w[fq] && psx_mod_read_word(a+4)==w[fq+1]) {
+                            unsigned k2=0;std::fprintf(stderr,"[n2 check %ld]       in RAM at %08x; source stores there:",(long)getpid(),a);
+                            for(const auto& st:n1::prev.stores) if(((st.addr|0x80000000u)&~3u)==a && k2++<6) std::fprintf(stderr," %08x pc %08x;",st.value,st.pc);
+                            std::fprintf(stderr," hooks of the source: %zu\n",n1::prev.hooks.size());break;}
+                        if(fq+1<nw) for(uint32_t a=0x80f00000u;a<0x81000000u-8;a+=4) if(psx_mod_read_word(a)==w[fq] && psx_mod_read_word(a+4)==w[fq+1]) {
+                            std::fprintf(stderr,"[n2 check %ld]       in mod memory at %08x (word %u of the item)\n",(long)getpid(),a,fq);if(!n1::ct_watch) n1::ct_watch=a;break;}}}}
             if(!k) {unsigned nd=0;std::fprintf(stderr,"[n2 check %ld]     ordering table, rebuilt/reference:",(long)getpid());
                 for(uint32_t b=0;b<0x1040;++b) if(n1::n4b_ot[1][b]!=n1::n4b_ot[0][b] && nd++<6) std::fprintf(stderr," %s %u %08x/%08x",b>=0x1000?"bitmap":"bucket word",b>=0x1000?b-0x1000:b,n1::n4b_ot[1][b],n1::n4b_ot[0][b]);
                 std::fprintf(stderr," (%u words differ)\n",nd);}}
         if((vj[0]+vj[1])%16==0) std::fprintf(stderr,"[n2 check %ld] D23N4b verify-first: rebuilt jobs %llu exact %llu, fallen-back jobs %llu exact %llu\n",(long)getpid(),(unsigned long long)vj[0],(unsigned long long)ve[0],(unsigned long long)vj[1],(unsigned long long)ve[1]);
     }
+    {static unsigned js=0;const double jms=(double)(SDL_GetPerformanceCounter()-n4b_t0)*1000.0/(double)SDL_GetPerformanceFrequency();if(n1::n4b_on() && jms>120.0 && js++<20) std::fprintf(stderr,"[n4b slow] job %.1f ms rebuilt %d ok %d\n",jms,n4b_rebuilt?1:0,ok?1:0);}
     static const int n4b_verify=[]{const char* t=std::getenv("DNTTK_N4_VERIFY");return t?std::atoi(t):0;}();
     static unsigned n4b_vcount=0;static uint64_t n4b_vjobs=0,n4b_vexact=0;
     if(n4b_rebuilt && ok && n4b_verify>0 && n4b_saved && ++n4b_vcount%(unsigned)n4b_verify==0) {

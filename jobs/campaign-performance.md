@@ -1374,6 +1374,11 @@ lowered the floor, or for a Deck-class GPU where copies cost more.
 Acceptance: `PSX_RT_VALIDATE` exact in UI slots 2, 8 and 9, GPU a redraw and
 whole GPU measured on matched builds at 180 Hz, Vanilla unchanged.
 
+Work log, 2026-11-16 (field laptop, [note 486](../documentation/486-d23v3-d23m3b-d23r-measurements.md)):
+measured on the weak GPU: the copies the output-sized target removes (band
+copy 0.345 ms, margin mirror 0.092 ms, depth clear 0.066 ms) are about 0.5 ms
+of a 5.05 ms redraw in UI slot 2 at 120, ten times the desktop estimate.
+
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
 **Status: In progress (D23N1 done, D23N2 inventory done 2026-11-12, notes 454-455; N0 measured, note 449 section 7; design corrected before building, [note 449](../documentation/449-d23n-captured-redraws-research.md) section 6; research and design 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
@@ -1800,7 +1805,7 @@ detectors (falls back). One FAMILY JEWELS host difference remains unexplained.
 
 ### D23N4 - Later jobs skip the game's code
 
-**Status: Todo (2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
+**Status: In progress (2026-11-16, desktop, [note 483](../documentation/483-d23n4b-exactness-desktop.md): N4b nearly exact, not cheaper, off; earlier 2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
 of a frame captures (with a culling margin wide enough for the late
 camera's turn within the frame, or falls back), the capture is shared
 between worker processes, later jobs rebuild instead of running the game.
@@ -1877,6 +1882,30 @@ Vanilla shots 6/6 identical. Field laptop (same session): no saving beyond run o
 alone measures the same as N4b in the town; FAMILY JEWELS start: one later job
 rebuilt in 60 s), town 191/192 accepted rebuilds exact; default-on: no. D23Y8
 (part 3) not started (note 482 sections 8-9).
+
+Work log, 2026-11-16 (desktop, [note 483](../documentation/483-d23n4b-exactness-desktop.md); part 2 not run, [note 484](../documentation/484-d23n4b-field-laptop-not-run.md)):
+the arena cursor logged at every hook (`DNTTK_N4_CURSOR=1`) found note 482's
+one-packet difference: the job built one more water tile than its source.
+The detector had judged tiles on the flag words as stored; our water near
+path zeroes a near vertex's word before the game's tile loop reads it. The
+copy now walks the game's tile loop on its own records, one tile at a time,
+and the source's tile links must be exactly those. The actor hit test
+`0x80076330` (one site, the segment query `0x80077560`) is bounded: the
+game's routine run on a scratch CPU in the source and in the copy, its
+result and writes hashed and compared (UI 5: rebuilt later jobs 117 -> 777
+of 1,113). Duke's joint loop (`0x80034c6c`/`0x80034c8c`) got its own
+detector, with our D35E depth raise modelled. The worker was being killed at
+its 250 ms deadline in UI 5 and the FAMILY JEWELS start: the joint table
+build ran on a stack past the mod-memory watermark after an image load and
+halted; it now runs on the job's own stack (0 kills). Lean mask 201326344
+(only the ports' self-check dropped). Proof at 120 s: verify-first UI 2
+1,070/1,072, UI 8 1,088/1,088, UI 9 1,792/1,792, UI 5 3,122/3,248 (a full
+job there is not repeatable: the object pass's two host-dispatched
+renderers keep host state; with both off 1,411/1,424 and a full job 880/880
+repeatable), FAMILY JEWELS start 688/688; fork proof: wrong jobs unflagged
+UI 2 2, UI 5 1, the rest 0. CPU (one worker, interleaved, two each): N4b
+6-16% more than plain (UI 2 113.5 -> 122.0%, UI 5 111.3 -> 119.3%, FAMILY
+JEWELS start 120.4 -> 138.7%). Not exact, not cheaper: off; part 2 not run.
 
 ### D23O - Leaner render-thread submission
 
@@ -2285,6 +2314,13 @@ Acceptance: capture GPU time at most half of D23V2's (about 0.53 ms),
 pictures exact (readback check, validator, matched shots), Vanilla
 unchanged; measure with `recomp/analysis/d23y6/d23v2.sh` and `v2sum.py`.
 
+Work log, 2026-11-16 (field laptop, [note 486](../documentation/486-d23v3-d23m3b-d23r-measurements.md)):
+measured: the capture 1.03-1.07 ms (whole copy 1.59-1.63) at 120, 245 of 512
+tiles a capture; the render threads read only about 38 tiles a session from
+the snapshot, all in tile row 7 (VRAM rows 224-255). Capturing only what a
+redraw can read before writing it would reach the target; first list every
+snapshot reader.
+
 ### D23W - Field laptop: measure on real weak hardware
 
 **Status: Done (user-accepted 2026-11-13: "it plays well"; closeout authorized; [note 461](../documentation/461-d23w-field-laptop.md)). Dependencies: D23T, D23U.**
@@ -2640,6 +2676,13 @@ Unchanged. D23Y8 measured: at most about 9 points could move to a GPU
 thread. What remains: guest memory access and the title's host emission
 (note 469), and D23N2B-N4 for redraws.
 
+Work log, 2026-11-16 (field laptop, [note 485](../documentation/485-d23y5-d23y8-field-laptop.md)):
+fresh profile, UI slot 2: the emulation thread 62% at the player's settings
+(FRAME RATE 120, 2770 MHz) and 61% at the original 60 (3130 MHz). At 120 the
+redraw tick 12.0%, presentation 11.1%, image publishing 7.2%, the
+render-thread snapshot 2.7%; at 60 the GPU command path 14.7%. Still
+Blocked.
+
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
 **Status: Done (user-accepted 2026-11-14, closeout authorized; [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md)). Dependencies: D23Y; coordinate D23Y5, D23N2B-N4, D23P2.**
@@ -2833,6 +2876,14 @@ exact queue touches the renderer's three copies, render threads, redraw
 sessions and savestates). Resumable plan in the note: presentation on a
 shared-context thread first, then a `gr_*` / `gl_set_*` proxy queue.
 
+Work log, 2026-11-16 (field laptop, [note 485](../documentation/485-d23y5-d23y8-field-laptop.md)):
+step 1 sized, not built: at the player's 120 the present and its OSD are
+3.8% of the emulation thread (about 4 points movable), so UI slot 2 would
+go from 62% to about 58%. What building it takes (CODE): its own GL path or a
+third renderer copy (the state cache and VAOs are per context), the OSD
+turned into data on the emulation thread, `present_shot` moved with it, the
+other present paths drained first.
+
 ### D23Y9 - Resolution headroom at 120
 
 **Status: Cancelled (2026-11-14, user: "i dont want to degrade the game that way ... revert it first, and then scratch it off the board"). Dependencies: D23Y7; coordinate D23P2.**
@@ -2941,6 +2992,11 @@ is about 1.3-1.5 ms of GPU a presented frame (bar 0.4); EDuke32 windowed
 8.2-12.5%, fullscreen 3.7-6.2% (0.2-0.35 ms). CPU 2.4-2.6 cores (bar 1.5;
 the workers 1.4-1.5 of it, D23N). The compositor is equal for both games
 (D23L). Still Todo: D23N (CPU) and the GPU per redraw are the open gaps.
+
+Work log, 2026-11-16 ([note 486](../documentation/486-d23v3-d23m3b-d23r-measurements.md) section 4):
+of its dependencies only D23N4 is open (N4b off: not exact, not cheaper);
+the GPU per redraw needs D23M3B; it still needs the real display with the
+user for the EDuke32 and windowed figures, and one repeatable lab case.
 
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 

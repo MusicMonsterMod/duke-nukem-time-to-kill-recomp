@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (later) - D23N4b nearly exact, not cheaper, off; laptop measured
+
+Desktop and field laptop, autonomous (notes [483](483-d23n4b-exactness-desktop.md)-[486](486-d23v3-d23m3b-d23r-measurements.md)). N4b's water-tile detector, Duke's joint loop and an in-place worker halt fixed, the actor hit test bounded: verify-first at 120 s exact in UI 8, UI 9 and the FAMILY JEWELS start, 1,070/1,072 in UI 2, 1,411/1,424 in UI 5 (a full UI 5 job is not repeatable with its two object-pass host draws on); worker CPU 6-16% above plain: off, the laptop part not run. Field laptop: emulation thread 62% (UI 2, the player's 120) and 61% (60); D23Y8 step 1 sized at about 4 points, not built; D23V3: redraws read about 38 of 245 captured tiles; D23M3B's copies about 0.5 ms a laptop redraw. Nothing player-facing changed; Vanilla shots identical; not committed.
+
 ## 2026-11-16 - D23N3 residue fixed; D23N4a proven; D23N4b built, off
 
 Desktop, autonomous ([note 482](482-d23n3-d23n4a-d23n4b-desktop.md)). The object renderer's own body now runs in the rebuild copy; later jobs whole-exact in UI 2, 8, 9 and nearly all of UI 5; the FAMILY JEWELS start's remaining class (the renderer's face culls change the packet arena) is detected and falls back. The frustum test and the transform's GTE data registers are ported exact; the detectors flag every wrong rebuild in five views. D23N4b (later jobs rebuilt in place) is built behind a developer switch, off by default: not yet exact and not cheaper. Nothing changes for players.

@@ -484,8 +484,13 @@ unsigned kind(uint32_t mat,uint32_t tab) {return mat==camera_base ? 2u : (mat&0x
 // left the draw (counted, the hook is then not expected).
 uint32_t t_stack=0,duke=0;bool sky_advanced=false;
 void rebuild_table(const CPUState& at,Pre& p) {
-    if(!t_stack) t_stack=psx_mod_alloc_guest_memory(0x1000,16);
-    if(!t_stack) {++p.t_failed;return;}
+    // D23N4b (desktop, note 483): the build runs on the stack the job's own
+    // build used (the hook 0x80032bd8 is called from the same frame of the
+    // actor draw, so its sp is the build's). A private stack allocated once
+    // in mod memory lay past the allocator's watermark after the next image
+    // load in an in-place rebuild: the build read its return address as 0
+    // and halted in psx_unknown_dispatch until the worker deadline killed it.
+    (void)t_stack;
     const uint32_t actor=at.gpr[4],table=at.gpr[5];
     // The draw gives an actor without a table the shared one (0x80032f9c).
     if(!psx_mod_read_word(actor+0x3c) && table==0x800d6a30u) orig_ww(actor+0x3c,table);
@@ -493,7 +498,7 @@ void rebuild_table(const CPUState& at,Pre& p) {
     const uint32_t type=psx_mod_read_word(0x800d2660u)+28u*psx_mod_read_half(actor+0x2c);
     const bool plain=(psx_mod_read_word(type)&0x20000u) || (int16_t)psx_mod_read_half(actor+0x60)==0xdc || (psx_mod_read_word(actor)&2u);
     CPUState c=at;
-    c.pc=0;c.gpr[31]=sentinel;c.gpr[29]=t_stack+0xff0;c.gpr[4]=actor;c.gpr[5]=table;
+    c.pc=0;c.gpr[31]=sentinel;c.gpr[4]=actor;c.gpr[5]=table;
     psx_dispatch_call(&c,plain?0x800987ccu:0x80098204u,sentinel);
     if(c.pc!=0 || g_psx_call_bail) {g_psx_call_bail=0;++p.t_failed;return;}
     ++p.t_built[plain?1:0];
@@ -1308,6 +1313,42 @@ int scratch_call(const CPUState& base,uint32_t fn,uint32_t a0,uint32_t a1,uint32
     if(!ok) return -1;
     *v0=c.gpr[2];return 0;
 }
+// D23N4b (desktop, note 483): the actor hit test 0x80076330 bounded, not
+// ported. In the composition it runs from the segment query 0x80077560 (ra
+// 0x800775f0, called through a pointer; CONFIRMED by the disassembly): a0
+// the actor to ignore, a1 the from/to pair on the caller's stack, a2/a3 the
+// outputs at the object's +0x184/+0x194, stack arguments 5 and 6 zero; it
+// reads the job's own actor state, and its result decides the caller's next
+// code (0x80077468 on a hit). The game's routine is run on a scratch CPU from
+// the hook's entry state (the caller's stack pointer kept for the stack
+// arguments, our callbacks muted, every write undone); its result is v0 and
+// every address it wrote with the final value, hashed. The first job records
+// the hash at each such hook, the copy computes its own at the same hook:
+// equal, the source's body stores and the caller's branch are the job's.
+bool hit_hash(const CPUState& base,uint64_t& out) {
+    const uint64_t t0=SDL_GetPerformanceCounter();
+    CPUState c=base;c.pc=0;c.gpr[31]=sentinel;
+    c.write_word=sb_ww;c.write_half=sb_wh;c.write_byte=sb_wb;
+    auto obs=g_psx_mod_hook_observer;g_psx_mod_hook_observer=nullptr;
+    const bool lg=logging;logging=false;const int bail=g_psx_call_bail;const int mute=g_ttk_hook_mute;
+    g_ttk_hook_mute=(int)0x80076330u;undo.clear();
+    psx_dispatch_call(&c,0x80076330u,sentinel);
+    g_ttk_hook_mute=mute;
+    std::vector<std::pair<uint32_t,uint32_t>> w;w.reserve(undo.size());
+    for(const Undo& u:undo) w.push_back({u.a,u.size==4?psx_mod_read_word(u.a):u.size==2?(uint32_t)psx_mod_read_half(u.a)|0x10000000u:(uint32_t)psx_mod_read_byte(u.a)|0x20000000u});
+    for(size_t i=undo.size();i-->0;) {const Undo& u=undo[i];if(u.size==4) orig_ww(u.a,u.old); else if(u.size==2) orig_wh(u.a,(uint16_t)u.old); else orig_wb(u.a,(uint8_t)u.old);}
+    undo.clear();
+    const bool ok=c.pc==0 && !g_psx_call_bail;
+    g_psx_call_bail=bail;g_psx_mod_hook_observer=obs;logging=lg;
+    scratch_ns+=(uint64_t)(ms_since(t0)*1e6);
+    if(!ok) return false;
+    std::sort(w.begin(),w.end());w.erase(std::unique(w.begin(),w.end(),[](const auto& x,const auto& y){return x.first==y.first;}),w.end());
+    uint64_t h=1469598103934665603ull;auto mix=[&](uint32_t v){h^=v;h*=1099511628211ull;};
+    mix(c.gpr[2]);for(const auto& p:w) {mix(p.first);mix(p.second);}
+    out=h;return true;
+}
+std::vector<std::pair<uint32_t,uint64_t>> hit_cur,hit_prev;std::unordered_map<uint32_t,uint64_t> hit_sd;
+uint64_t hit_st[4]={};   // source records, source failed, copy same, copy differs
 int box(const CPUState& base,uint32_t a0,uint32_t rect) {
     uint32_t v=0;if(scratch_call(base,box_fn,a0,rect,0,rw32(ctxp+0x74),&v)) return -1;
     return v==0?0:v==1?1:2;
@@ -1315,14 +1356,17 @@ int box(const CPUState& base,uint32_t a0,uint32_t rect) {
 // A site's decision at its 0x800b4d2c hook (z its transform's): 0 near cull,
 // 1 frustum cull, 2 drawn, 3-5 the prop's box test when context +0x50 has
 // 0x400 (0 cull, 1, other), 6 unprovable.
+int why6=0;   // D23N4b diagnostics: 1 frustum, 2 first box test, 3 second box test, 4 the occluder test 0x8002ee50
+uint64_t unprov[8]={};   // csite, frustum, box, box 2, occluder, the source's, hit test, water box
 int near_decision(int k,CPUState& c,int32_t z) {
+    why6=0;
     const int32_t r=site_r(k,c),h=(int32_t)gte_read_ctrl(&c,26);
     if((k==1 ? (int32_t)((uint32_t)z+(uint32_t)r) : z)<h) return 0;
     const int f=frustum(fr_of(c,r,site_rect(k,c)));
-    if(f<0) return 6;
+    if(f<0) {why6=1;return 6;}
     if(f==0) return 1;
     int d=2;
-    if(k==1 && (rw32(ctxp+0x50)&0x400u)) {const int b=box(c,c.gpr[18]+0x4c,c.gpr[21]);if(b<0) return 6;if(b==0) return 3;d=3+b;}
+    if(k==1 && (rw32(ctxp+0x50)&0x400u)) {const int b=box(c,c.gpr[18]+0x4c,c.gpr[21]);if(b<0) {why6=2;return 6;}if(b==0) return 3;d=3+b;}
     // The prop's second stage (0x80031f80, CONFIRMED by the disassembly):
     // unless the object's flags have 0x400 (cleared there), z under the
     // camera's +0xa0 and the type's word without 0x100000 run the box test
@@ -1331,11 +1375,28 @@ int near_decision(int k,CPUState& c,int32_t z) {
     if(k==1 && !(rw32(c.gpr[18])&0x400u) && z<(int32_t)rw32(c.gpr[22]+0xa0) &&
        !(rw32(rw32(0x800d2660u)+28u*psx_mod_read_half(c.gpr[18]+0x2c))&0x100000u)) {
         const int b=box(c,c.gpr[18]+0x4c,c.gpr[21]);
-        if(b<0) return 6;
+        if(b<0) {why6=3;return 6;}
         if(b==0) return 10+d;   // culled by the second box test
-        return 6;
+        why6=4;return 6;
     }
     return d;
+}
+// D23N4b (desktop, note 483): Duke's joint loop in his draw 0x800348d8, a
+// seventh site (CONFIRMED by the disassembly): the transform (ra
+// 0x80034c6c, z in s0), far: culled when context s3 +0x74 < z; the hooked
+// 0x800b4d2c (ra 0x80034c8c), near: culled when z < H; no frustum test; then,
+// when s3 +0x50 has 0x400, the box test 0x800365e8 on the joint's model
+// (*(*(s4 +0x40) + fp +0x68) +8, rectangle *(sp +0xa0)): 0 culls. Decisions
+// as near_decision's: 0 near, 2 drawn, 3-5 the box test, 6 unprovable.
+constexpr uint32_t joint_xf_ra=0x80034c6cu,joint_near_ra=0x80034c8cu;
+int joint_far(const CPUState& c,int32_t z) {return (int32_t)rw32(c.gpr[19]+0x74)<z ? 0 : 1;}
+int joint_near(CPUState& c,int32_t z) {
+    const int32_t h=(int32_t)gte_read_ctrl(&c,26);
+    if(z<h) return 0;
+    if(!(rw32(c.gpr[19]+0x50)&0x400u)) return 2;
+    const uint32_t model=rw32(rw32(rw32(c.gpr[20]+0x40)+c.gpr[30]+0x68)+8);
+    uint32_t v=0;if(scratch_call(c,box_fn,model,rw32(c.gpr[29]+0xa0),0,rw32(c.gpr[19]+0x74),&v)) return 6;
+    return v==0?3:v==1?4:5;
 }
 int far_decision(int k,const CPUState& c,int32_t z) {
     const int32_t lim=(int32_t)rw32(ctxp+0x74),v=k==1 ? (int32_t)((uint32_t)z-(uint32_t)site_r(k,c)) : z;
@@ -1404,9 +1465,11 @@ void observe(CPUState* cpu,uint32_t addr,int phase) {
         pr=xf::from_memory(cpu->gpr[4],cpu->gpr[5]);pend_data=data_of(cpu->gpr[4],cpu->gpr[5]);pend=true;pend_ra=ra;++st.xf_checked;
         const int k=site_xf(ra);
         if(k>=0 && detect_on()) {cur.push_back({sh->nhooks,(int8_t)far_decision(k,*cpu,pr.z)});++st.decisions;}
+        if(ra==joint_xf_ra && detect_on()) {cur.push_back({sh->nhooks,(int8_t)joint_far(*cpu,pr.z)});++st.decisions;}
         return;
     }
     if(addr==0x800b4d2cu) {
+        if(ra==joint_near_ra && detect_on()) {cur.push_back({sh->nhooks,(int8_t)joint_near(*cpu,(int32_t)cpu->gpr[16])});++st.decisions;return;}
         const int k=site_near(ra);
         if(k<0) return;
         if(ports_on()) {
@@ -1429,14 +1492,19 @@ void observe(CPUState* cpu,uint32_t addr,int phase) {
         }
         return;
     }
+    if(addr==0x80076330u && detect_on()) {
+        uint64_t hv=0;
+        if(hit_hash(*cpu,hv)) {hit_cur.push_back({sh->nhooks,hv});++hit_st[0];} else ++hit_st[1];
+        return;
+    }
     if(addr==water_fn && detect_on()) {
         const int b=box(*cpu,cpu->gpr[4]+8,cpu->gpr[5]);
         ++st.box_runs;if(b<0) ++st.box_failed;
         cur.push_back({sh->nhooks,(int8_t)b});++st.decisions;
     }
 }
-void begin() {cur.clear();pend=false;}
-void rotate() {prev_dec.swap(cur);cur.clear();}
+void begin() {cur.clear();pend=false;hit_cur.clear();}
+void rotate() {prev_dec.swap(cur);cur.clear();hit_prev.swap(hit_cur);hit_cur.clear();}
 void report() {
     if(ports_on()) {
         std::fprintf(stderr,"[n2 check %ld] D23N4a ports: frustum calls %llu exact %llu differ %llu unprovable %llu failed %llu | by site",(long)getpid(),(unsigned long long)st.fr_calls,(unsigned long long)st.fr_exact,(unsigned long long)st.fr_differ,(unsigned long long)st.fr_unprov,(unsigned long long)st.fr_failed);
@@ -1538,13 +1606,96 @@ bool water_differs() {
     }
     return false;
 }
+}  // namespace n4
+void n4_wv_dump(const CT& e) {
+    std::fprintf(stderr,"[n2 check %ld]       the job's tile s1 %08x s2 %08x: flags %x %x %x %x SZ %d %d %d %d\n",(long)getpid(),e.s1,e.s2,e.f[0],e.f[1],e.f[2],e.f[3],(int)e.z[0],(int)e.z[1],(int)e.z[2],(int)e.z[3]);
+    const uint32_t r[4]={e.s1,e.s1+16,e.s2,e.s2+16};
+    for(int q=0;q<4;++q) {bool found=false;for(size_t k=0;k<n4::wv.size();++k) if(n4::wv[k].rec==r[q]) {found=true;
+        std::fprintf(stderr,"[n2 check %ld]         corner %d rec %08x: copy box %u pass %u flags %x SZ %d | source flags %x SZ %d\n",(long)getpid(),q,r[q],n4::wv[k].box,n4::wv[k].pass,n4::wv[k].f,(int)n4::wv[k].sz,k<n4::wsrc.size()?n4::wsrc[k]:0xdeadu,(int)n4::wv[k].ssz);}
+        if(!found) std::fprintf(stderr,"[n2 check %ld]         corner %d rec %08x: not in the copy's records (%zu)\n",(long)getpid(),q,r[q],n4::wv.size());}
+}
+namespace n4 {
+// D23N4b (desktop, note 483): a row's tiles as the game's tile loop
+// (0x8002f6b0-0x8002fbd0, CONFIRMED by the disassembly) builds them for this
+// job. The loop runs after the row's last vertex triple (pass 1: ra
+// 0x8002f508/f5b0/f65c; s4 the triple's first index, s5 the region, the
+// row's vertices ((region +8 - region) >> 10, +0x3ff when negative) + 1):
+// tile q (0 <= q < that >> 10) has corners prev +16q, prev +16q +16, cur +16q,
+// cur +16q +16 (prev *(sp +0x60), cur fp); it is skipped when the four flag
+// words share a bit, any has 0x10, or (the four SZ summed, +3 when negative)
+// >> 4 is 0x4001 or more; every other tile reaches the link 0x8002bc18 (ra
+// 0x8002fbb4) with s1, s2 its corners; no other hook fires in the loop.
+// The flags are the words as the loop reads them, not as the game stored
+// them: while the water near path is live our callbacks zero a near vertex's
+// word (water_clip.inc: 0x800b4d2c for the rows so far, then water_clip at a
+// tile's link for both rows). The stored flags (water_differs) do not decide
+// a tile: a near corner of the copy beside the source's plain corner made
+// both cull a tile the job built (note 483). So the copy walks the loop on
+// its own records (the job's at that point), one tile at a time: the next
+// tile is found from memory before the source's next hook (after the last
+// tile's callbacks ran, as the loop reads it), and the source's tile hooks
+// must be exactly those tiles.
+std::unordered_map<uint32_t,uint64_t> hit_ra;   // D23N4b diagnostics: hit-test hooks by return address
+struct WRow {bool on=false,need=false;uint32_t prev=0,cur=0;int n=0,q=0;bool have=false;uint32_t s1=0,s2=0;} wrow;
+struct WRowStats {uint64_t rows=0,tiles=0,differ=0;} wrow_st;
+void wrow_next() {   // the next tile the loop links from q, from memory
+    wrow.have=false;
+    for(;wrow.q<wrow.n;++wrow.q) {
+        uint32_t f[4],z[4];const uint32_t r[4]={wrow.prev+16u*(uint32_t)wrow.q,wrow.prev+16u*(uint32_t)wrow.q+16,wrow.cur+16u*(uint32_t)wrow.q,wrow.cur+16u*(uint32_t)wrow.q+16};
+        for(int k=0;k<4;++k) {f[k]=psx_mod_read_word(r[k]+8);z[k]=psx_mod_read_word(r[k]+4);}
+        if((f[0]&f[1]&f[2]&f[3]) || ((f[0]|f[1]|f[2]|f[3])&0x10u)) continue;
+        const int32_t sum=(int32_t)(z[0]+z[1]+z[2]+z[3]),s3=sum<0 ? (sum+3)>>4 : sum>>4;
+        if((uint32_t)s3>=0x4001u) continue;
+        wrow.have=true;wrow.s1=r[0];wrow.s2=r[2];++wrow.q;return;
+    }
+}
+// After the copy's w_after at a water vertex hook (the row's flags final when
+// it is the last triple's third vertex).
+void wrow_at_vertex(const CPUState& cpu,int k,int pass) {
+    if(k!=2 || pass!=1) return;
+    const uint32_t region=cpu.gpr[21];
+    int span=(int16_t)psx_mod_read_half(region+8)-(int16_t)psx_mod_read_half(region);
+    if(span<0) span+=0x3ff;
+    const int n=span>>10;
+    if((int)cpu.gpr[20]+3<n+1) return;
+    wrow=WRow{};wrow.on=true;wrow.need=true;wrow.prev=psx_mod_read_word(cpu.gpr[29]+0x60);wrow.cur=cpu.gpr[30];wrow.n=n;++wrow_st.rows;
+}
+// Before each later source hook is handled (h null: the end of the job).
+uint32_t wrow_at_hook(const Hook* h) {
+    if(!wrow.on) return 0;
+    if(wrow.need) {wrow_next();wrow.need=false;}
+    if(h && h->addr==0x8002bc18u && h->cpu.gpr[31]==0x8002fbb4u) {
+        if(wrow.have && wrow.s1==h->cpu.gpr[17] && wrow.s2==h->cpu.gpr[18]) {wrow.need=true;++wrow_st.tiles;return 0;}
+        wrow.on=false;++wrow_st.differ;return F_WFLAG;
+    }
+    wrow.on=false;
+    if(wrow.have) {++wrow_st.differ;return F_WFLAG;}
+    return 0;
+}
 void copy_begin(uint32_t nh) {
+    wrow=WRow{};
     sd.assign(nh,-1);for(const Dec& d:prev_dec) if(d.hook<nh) sd[d.hook]=d.d;
+    hit_sd.clear();for(const auto& p:hit_prev) hit_sd[p.first]=p.second;
     csite=-1;cz=0;cap=false;fired.clear();replaced.clear();wv.clear();wsrc.clear();wbox=0;wt_src.clear();wsz_src.clear();
 }
 // After the copy called hook i's callbacks (cpu: as the routine reads it).
 uint32_t copy_hook(uint32_t i,uint32_t addr,CPUState& cpu) {
     const uint32_t ra=cpu.gpr[31];
+    if(addr==0x800292a0u && ra==joint_xf_ra) {
+        const xf::Result r=xf::from_memory(cpu.gpr[4],cpu.gpr[5]);
+        csite=6;cz=r.z;
+        if(sd[i]<0) return F_NOSRC;
+        return joint_far(cpu,r.z)!=sd[i] ? F_FAR : 0;
+    }
+    if(addr==0x800b4d2cu && ra==joint_near_ra) {
+        if(csite!=6) {++unprov[0];return F_UNPROV;}
+        csite=-1;
+        if(sd[i]<0) return F_NOSRC;
+        const int d=joint_near(cpu,(int32_t)cpu.gpr[16]);   // the job's depth as the callbacks left it
+        if(d!=sd[i]) {static unsigned sj=0;if(sj++<16) std::fprintf(stderr,"[n2 check %ld]   D23N4a joint near: copy %d source %d z %d (source s0 %d) H %d ctx50 %08x\n",(long)getpid(),d,sd[i],cz,(int32_t)cpu.gpr[16],(int32_t)gte_read_ctrl(&cpu,26),rw32(cpu.gpr[19]+0x50));}
+        if(d==6) ++unprov[3]; else if(sd[i]==6) ++unprov[5];
+        return d==6 || sd[i]==6 ? F_UNPROV : d!=sd[i] ? F_NEAR : 0;
+    }
     if(addr==0x800292a0u) {
         const int k=site_xf(ra);
         if(k<0) return 0;
@@ -1556,19 +1707,28 @@ uint32_t copy_hook(uint32_t i,uint32_t addr,CPUState& cpu) {
     if(addr==0x800b4d2cu) {
         const int k=site_near(ra);
         if(k<0) return 0;
-        if(csite!=k) return F_UNPROV;
+        if(csite!=k) {++unprov[0];return F_UNPROV;}
         csite=-1;
         if(sd[i]<0) return F_NOSRC;
         const int d=near_decision(k,cpu,cz);
+        if(d==6) ++unprov[why6]; else if(sd[i]==6) ++unprov[5];
         return d==6 || sd[i]==6 ? F_UNPROV : d!=sd[i] ? F_NEAR : 0;
     }
     // The game's actor hit test 0x80076330 (projectile or line against the
     // actors, run in the composition on the job's own actor poses): its
     // decisions are not ported, so a rebuild whose source calls it falls back.
-    if(addr==0x80076330u) return F_UNPROV;
+    if(addr==0x80076330u) {
+        ++hit_ra[ra];
+        const auto it=hit_sd.find(i);
+        if(it==hit_sd.end()) {++unprov[6];return F_UNPROV;}
+        uint64_t hv=0;
+        if(!hit_hash(cpu,hv) || hv!=it->second) {++unprov[6];++hit_st[3];return F_UNPROV;}
+        ++hit_st[2];return 0;
+    }
     if(addr==water_fn) {
         if(sd[i]<0) return F_NOSRC;
         const int b=box(cpu,cpu.gpr[4]+8,cpu.gpr[5]);
+        if(b<0) ++unprov[7];
         return b<0 ? F_UNPROV : b!=sd[i] ? F_WBOX : 0;
     }
     return 0;
@@ -1610,7 +1770,7 @@ bool body(bool in_place);
     _exit(0);
 }
 bool body(bool in_place) {
-    logging=false;g_psx_mod_hook_observer=[](CPUState* c,uint32_t a,int ph){n3::fl_capture(s->fl_copy,c,a,ph);if(ph==0 && n4::cap) n4::fired.push_back({a,c->gpr[31]});if(ph==1 && a==n3::obj_fn) n4::obj_cur1=psx_mod_read_word(0x800d67a8u);};
+    logging=false;g_psx_mod_hook_observer=[](CPUState* c,uint32_t a,int ph){ct_push(c,a,ph);n3::fl_capture(s->fl_copy,c,a,ph);if(ph==0 && n4::cap) n4::fired.push_back({a,c->gpr[31]});if(ph==1 && a==n3::obj_fn) n4::obj_cur1=psx_mod_read_word(0x800d67a8u);};
     const uint64_t t0=SDL_GetPerformanceCounter();
     uint64_t vm0[4];near_clip_viewmodel_counts(vm0);
     const int S=src_stores(),C=src_cpu();
@@ -1754,6 +1914,7 @@ bool body(bool in_place) {
     };
     for(uint32_t i=0;i<NH && !g_psx_call_bail;++i) {
         const Hook& h=H[i];cur_i=i;
+        if(detect && host_water) flag(n4::wrow_at_hook(&h));
         if(h.cpu.gpr[31]>=n3::camera_render && h.cpu.gpr[31]<n3::camera_render_end) cam_s2=h.cpu.gpr[18];
         last_cpu=&h.cpu;
         if(h.cpu.gpr[31]>=n3::duke_draw && h.cpu.gpr[31]<n3::duke_draw_end) duke_s4=h.cpu.gpr[20];
@@ -1936,6 +2097,11 @@ bool body(bool in_place) {
             }
             obj_until=i+1<NH?SH[i+1].stores:nst;
         } else {
+            // D23N4b (note 483): at the joint loop's near hook s0 is the
+            // loop's saved joint depth, which our D35E callback may raise to
+            // H; the callbacks act on this job's depth (the copy's transform),
+            // and the decision reads s0 as they leave it.
+            if(detect && h.addr==0x800b4d2cu && h.cpu.gpr[31]==n4::joint_near_ra && n4::csite==6) cpu.gpr[16]=(uint32_t)n4::cz;
             psx_mod_function_entry(&cpu,h.addr);
             if(detect) {
                 flag(n4::copy_hook(i,h.addr,cpu));
@@ -1966,6 +2132,7 @@ bool body(bool in_place) {
         if(detect && host_water) {
             if(h.addr==n4::water_fn) ++n4::wbox;
             int wp=0;const int wk=h.addr==0x800b4d2cu && sm::w_active ? sm::w_vertex(cpu.gpr[31],wp) : -1;
+            if(wk>=0) n4::wrow_at_vertex(cpu,wk,wp);
             if(wk>=0) {const uint32_t rec=cpu.gpr[18]+16u*(uint32_t)wk;{const auto it=n4::wsz_src.find(rec);n4::wv.push_back({n4::wbox,rec,psx_mod_read_word(rec+8),psx_mod_read_word(rec+4),(uint32_t)wp,it!=n4::wsz_src.end()?it->second:~0u});}}
             if(h.addr==0x8002bc18u && h.cpu.gpr[31]==0x8002fbb4u) n4::wt_src.push_back({n4::wbox,h.cpu.gpr[17],h.cpu.gpr[18]});
         }
@@ -1984,6 +2151,7 @@ bool body(bool in_place) {
     }
     if(ST) apply(nst);
     if(detect) {
+        if(host_water) flag(n4::wrow_at_hook(nullptr));
         if(n4::fired!=n4::replaced) {flag(n4::F_RUNS);
             static unsigned shown=0;
             if(shown++<10) {size_t k=0;while(k<n4::fired.size() && k<n4::replaced.size() && n4::fired[k]==n4::replaced[k]) ++k;
@@ -1991,9 +2159,12 @@ bool body(bool in_place) {
                 for(size_t q=k;q<k+4;++q) std::fprintf(stderr," %08x/%08x vs %08x/%08x",q<n4::fired.size()?n4::fired[q].first:0,q<n4::fired.size()?n4::fired[q].second:0,q<n4::replaced.size()?n4::replaced[q].first:0,q<n4::replaced.size()?n4::replaced[q].second:0);
                 std::fprintf(stderr,"\n");}
         }
-        if(host_water && n4::water_differs()) flag(n4::F_WFLAG);
+        // The stored-flag tests of D23N4a (water_differs, f_wcull) are
+        // superseded by the row walk (note 483); DNTTK_N4_OLD_WATER=1 keeps them.
+        static const bool old_water=[]{const char* t=std::getenv("DNTTK_N4_OLD_WATER");return t && t[0]=='1';}();
+        if(old_water && host_water && n4::water_differs()) flag(n4::F_WFLAG);
         if(s->smc[sm::f_range] || s->smc[sm::f_queue] || s->smc[sm::f_left]) flag(n4::F_MODEL);
-        if(s->smc[sm::f_wcull]) flag(n4::F_WCULL);
+        if(old_water && s->smc[sm::f_wcull]) flag(n4::F_WCULL);
         if(s->smc[sm::f_jspr]) flag(n4::F_PIECE);
     }
     render_replay_record_splice(src+last,src_flip-last);
@@ -2684,7 +2855,10 @@ bool n4b_run(CPUState& cpu) {
     // ports' per-job state as before any rebuild (statics persist in place).
     sm::active=false;sm::ctx=sm::object=sm::records=sm::last_key=0;sm::queue.clear();sm::qi=0;sm::w_active=false;sm::w_box=sm::w_rect=0;
     const uint64_t t=SDL_GetPerformanceCounter();
+    ct_cur.clear();ct_ram_taken=false;
     bool ok=wj::body(true);
+    g_psx_mod_hook_observer=nullptr;sm::n4_capture_sz=nullptr;logging=false;   // every early return of body leaves them
+    if(ct_on()) {ct_reb=ct_cur;ct_ram_reb=ct_ram_cur;}
     n4b_ot_snap(1);
     // The packet arena at the end: a rebuild follows its source's decisions,
     // so its cursor must be where the source's was at its flip; otherwise
@@ -2693,6 +2867,7 @@ bool n4b_run(CPUState& cpu) {
     if(std::getenv("DNTTK_N4_VERIFY") || std::getenv("DNTTK_N4_VERIFY_FIRST")) {n4b_list.resize(prev.hooks.size());for(size_t q=0;q<prev.hooks.size();++q) n4b_list[q]={prev.hooks[q].addr,prev.hooks[q].cpu.gpr[31]};}
     const double ms=ms_since(t);
     ++n4b_st.jobs;
+    if(ms>50.0) {static unsigned sl=0;if(sl++<20) {std::fprintf(stderr,"[n2 check %ld] D23N4b slow rebuild %.1f ms ok %d hooks %zu stores %zu flags",(long)getpid(),ms,ok?1:0,prev.hooks.size(),prev.stores.size());for(int b=0;b<n4::F_N;++b) if(wj::s->n4_by[b]) std::fprintf(stderr," %s",n4::flag_name(b));std::fprintf(stderr," | scratch ms %.1f\n",n4::scratch_ns/1e6);}}
     if(ok) {
         ++n4b_st.rebuilt;n4b_st.ms_ok+=ms;
         const auto ww=cpu.write_word;const auto wh=cpu.write_half;const auto wb=cpu.write_byte;
@@ -2703,6 +2878,9 @@ bool n4b_run(CPUState& cpu) {
         std::fprintf(stderr,"[n2 check %ld] D23N4b rebuilds: later jobs %llu rebuilt %llu fell back %llu (arena cursor at the end %llu) | ms a rebuild %.2f, a fallen-back attempt %.2f | fallbacks by class:",(long)getpid(),
             (unsigned long long)n4b_st.jobs,(unsigned long long)n4b_st.rebuilt,(unsigned long long)n4b_st.fell,(unsigned long long)n4b_st.cursor,n4b_st.rebuilt?n4b_st.ms_ok/n4b_st.rebuilt:0.0,n4b_st.fell?n4b_st.ms_fell/n4b_st.fell:0.0);
         for(int b=0;b<n4::F_N;++b) std::fprintf(stderr," %s %llu;",n4::flag_name(b),(unsigned long long)n4b_st.by[b]);
+        std::fprintf(stderr," | water rows %llu tiles %llu source list differs %llu | hit tests by ra:",(unsigned long long)n4::wrow_st.rows,(unsigned long long)n4::wrow_st.tiles,(unsigned long long)n4::wrow_st.differ);
+        for(const auto& kv:n4::hit_ra) std::fprintf(stderr," %08x %llu",kv.first,(unsigned long long)kv.second);
+        std::fprintf(stderr," | unprovable decisions: site %llu frustum %llu box %llu box2 %llu occluder %llu source's %llu hit %llu water box %llu | hit tests: source %llu (failed %llu), copy same %llu differs %llu",(unsigned long long)n4::unprov[0],(unsigned long long)n4::unprov[1],(unsigned long long)n4::unprov[2],(unsigned long long)n4::unprov[3],(unsigned long long)n4::unprov[4],(unsigned long long)n4::unprov[5],(unsigned long long)n4::unprov[6],(unsigned long long)n4::unprov[7],(unsigned long long)n4::hit_st[0],(unsigned long long)n4::hit_st[1],(unsigned long long)n4::hit_st[2],(unsigned long long)n4::hit_st[3]);
         std::fprintf(stderr,"\n");
     }
     return ok;

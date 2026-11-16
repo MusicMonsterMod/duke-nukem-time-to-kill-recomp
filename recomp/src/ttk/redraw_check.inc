@@ -47,6 +47,7 @@
 }  // namespace
 }  // namespace ttk
 extern "C" uint32_t g_debug_last_store_pc;
+extern "C" int g_ttk_hook_mute;
 namespace ttk {
 namespace {
 namespace n1 {
@@ -81,6 +82,58 @@ inline void note(uint32_t a,uint32_t v,uint32_t size) {
 void ww(uint32_t a,uint32_t v) {note(a,v,4);orig_ww(a,v);}
 void wh(uint32_t a,uint16_t v) {note(a,v,2);orig_wh(a,v);}
 void wb(uint32_t a,uint8_t v) {note(a,v,1);orig_wb(a,v);}
+// D23N4b diagnostics (DNTTK_N4_CURSOR=1): the packet arena cursor
+// 0x800d67a8 at every top-level hook entry and exit of a job: the recorded
+// source's (ct_src), the verify-first reference's (ct_ref) and the in-place
+// rebuild's (ct_reb); the first entry where they part is printed.
+struct CT {uint32_t addr,ra,phase,cursor,s1,s2,f[4],z[4],wv;uint32_t st[36];uint32_t cw[98];};
+std::vector<uint8_t> ct_ram_cur,ct_ram_ref,ct_ram_reb,ct_mod_cur,ct_mod_ref,ct_mod_reb;bool ct_ram_taken=false;   // RAM + scratchpad at the first object pass entry
+uint32_t ct_watch=0;   // a packet word to follow (set by the first post-flip difference)
+void n4_wv_dump(const CT&);
+std::vector<CT> ct_cur,ct_src,ct_ref,ct_reb;
+bool ct_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_N4_CURSOR");return t && t[0]=='1';}();return v;}
+inline void ct_push(const CPUState* c,uint32_t a,int ph) {
+    if(!ct_on() || ct_cur.size()>=200000) return;
+    CT e{a,c->gpr[31],(uint32_t)ph,psx_mod_read_word(0x800d67a8u),0,0,{},{},ct_watch?psx_mod_read_word(ct_watch):0u};
+    if(a==0x8002bc18u && c->gpr[31]==0x8002fbb4u && ph==0) {e.s1=c->gpr[17];e.s2=c->gpr[18];const uint32_t r[4]={e.s1,e.s1+16,e.s2,e.s2+16};for(int q=0;q<4;++q) {e.f[q]=psx_mod_read_word(r[q]+8);e.z[q]=psx_mod_read_word(r[q]+4);}}
+    if(a==0x800374ccu && ph==0 && !ct_ram_taken) {ct_ram_taken=true;ct_ram_cur.resize(0x200400);std::memcpy(ct_ram_cur.data(),g_psx_ram,0x200000);for(int q=0;q<256;++q) {const uint32_t v=psx_mod_read_word(0x1f800000u+4*q);std::memcpy(ct_ram_cur.data()+0x200000+4*q,&v,4);}
+        ct_mod_cur.assign(psx_mod_memory_snapshot_bytes(),0);if(!ct_mod_cur.empty()) psx_mod_memory_snapshot_write(ct_mod_cur.data());}
+    if(a==0x800374ccu && ph==0) {for(int q=0;q<34;++q) e.st[q]=psx_mod_read_word(0x800d67a8u+4*q);e.st[34]=psx_mod_read_word(0x800bcba4u);e.st[35]=c->gpr[4];for(int q=0;q<32;++q) {e.cw[q]=c->gpr[q];e.cw[32+q]=c->gte_data[q];e.cw[64+q]=c->gte_ctrl[q];}e.cw[96]=c->hi;e.cw[97]=c->lo;}
+    ct_cur.push_back(e);
+}
+void ct_observe(CPUState* c,uint32_t a,int ph) {ct_push(c,a,ph);}
+void ct_report() {
+    static unsigned shown=0;if(shown++>=12) return;
+    auto first=[](const std::vector<CT>& a,const std::vector<CT>& b)->size_t{size_t i=0;while(i<a.size() && i<b.size() && a[i].addr==b[i].addr && a[i].ra==b[i].ra && a[i].phase==b[i].phase && a[i].cursor==b[i].cursor) ++i;return i;};
+    auto show=[](const char* what,const std::vector<CT>& a,const std::vector<CT>& b,size_t i){
+        std::fprintf(stderr,"[n2 check %ld]     cursor trace %s: %zu/%zu entries, first difference at %zu\n",(long)getpid(),what,a.size(),b.size(),i);
+        for(size_t q=i>3?i-3:0;q<i+3;++q) {
+            std::fprintf(stderr,"[n2 check %ld]       %zu:",(long)getpid(),q);
+            if(q<a.size()) std::fprintf(stderr," %08x/%08x %s %08x",a[q].addr,a[q].ra,a[q].phase?"out":"in ",a[q].cursor); else std::fprintf(stderr," -");
+            std::fprintf(stderr," |");
+            if(q<b.size()) std::fprintf(stderr," %08x/%08x %s %08x",b[q].addr,b[q].ra,b[q].phase?"out":"in ",b[q].cursor); else std::fprintf(stderr," -");
+            std::fprintf(stderr,"\n");
+        }};
+    const size_t fr=first(ct_ref,ct_src);show("reference/source",ct_ref,ct_src,fr);
+    for(size_t q=fr;q<fr+2 && q<ct_ref.size();++q) if(ct_ref[q].s1) n4_wv_dump(ct_ref[q]);
+    show("rebuild/source",ct_reb,ct_src,first(ct_reb,ct_src));
+    if(ct_watch) {size_t i=0;while(i<ct_reb.size() && i<ct_ref.size() && ct_reb[i].wv==ct_ref[i].wv) ++i;
+        std::fprintf(stderr,"[n2 check %ld]     watched word %08x, rebuild/reference: first differs at entry %zu of %zu/%zu",(long)getpid(),ct_watch,i,ct_reb.size(),ct_ref.size());
+        for(size_t q=i>2?i-2:0;q<i+2 && q<ct_reb.size() && q<ct_ref.size();++q) std::fprintf(stderr," | %zu %08x/%08x %s %08x/%08x",q,ct_reb[q].addr,ct_reb[q].ra,ct_reb[q].phase?"out":"in",ct_reb[q].wv,ct_ref[q].wv);
+        std::fprintf(stderr,"\n");
+        if(ct_ram_ref.size()==0x200400 && ct_ram_reb.size()==0x200400) {unsigned nd=0;std::fprintf(stderr,"[n2 check %ld]     RAM at the first object pass entry, rebuild/reference:",(long)getpid());
+            for(uint32_t o=0;o<0x200400;o+=4) {uint32_t x,y;std::memcpy(&x,ct_ram_reb.data()+o,4);std::memcpy(&y,ct_ram_ref.data()+o,4);if(x!=y && nd++<40) std::fprintf(stderr," %08x %08x/%08x",o<0x200000?0x80000000u+o:0x1f800000u+o-0x200000,x,y);}
+            std::fprintf(stderr," (%u words differ)\n",nd);}
+        if(!ct_mod_ref.empty() && ct_mod_ref.size()==ct_mod_reb.size()) {unsigned nd=0;std::fprintf(stderr,"[n2 check %ld]     mod memory snapshot (%zu bytes), rebuild/reference: offsets",(long)getpid(),ct_mod_ref.size());
+            for(size_t o=0;o+4<=ct_mod_ref.size();o+=4) {uint32_t x,y;std::memcpy(&x,ct_mod_reb.data()+o,4);std::memcpy(&y,ct_mod_ref.data()+o,4);if(x!=y && nd++<40) std::fprintf(stderr," %zx %08x/%08x",o,x,y);}
+            std::fprintf(stderr," (%u words differ)\n",nd);}
+        for(size_t q=0;q<ct_reb.size() && q<ct_ref.size();++q) if(ct_reb[q].addr==0x800374ccu && ct_reb[q].phase==0) {
+            std::fprintf(stderr,"[n2 check %ld]     object pass entry %zu, words rebuild/reference (0x800d67a8 +4k, 34 frame, 35 a0):",(long)getpid(),q);
+            for(int k=0;k<36;++k) if(ct_reb[q].st[k]!=ct_ref[q].st[k]) std::fprintf(stderr," %d %08x/%08x",k,ct_reb[q].st[k],ct_ref[q].st[k]);
+            std::fprintf(stderr," | CPU (r, d gte data, c gte control):");
+            for(int k=0;k<98;++k) if(ct_reb[q].cw[k]!=ct_ref[q].cw[k]) std::fprintf(stderr," %c%d %08x/%08x",k<32?'r':k<64?'d':k<96?'c':'h',k<96?k%32:k-96,ct_reb[q].cw[k],ct_ref[q].cw[k]);
+            std::fprintf(stderr,"\n");}}
+}
 void n2_observe(CPUState* cpu,uint32_t addr,int phase);
 void n2_at_flip(uint64_t,float);
 void n2_begin(const CPUState&);
@@ -89,6 +142,7 @@ void n4_rotate();
 const CPUState* n2_flip_cpu=nullptr;
 void observe(CPUState* cpu,uint32_t addr,int phase) {
     if(!logging) return;
+    ct_push(cpu,addr,phase);
     n2_observe(cpu,addr,phase);
     uint32_t n=0; render_replay_record_words(&n);
     if(phase==0) {
@@ -283,6 +337,7 @@ uint32_t n4b_ot[2][0x1040];bool n4b_ot_take=false;
 void n4b_ot_snap(int k) {for(uint32_t q=0;q<0x1000;++q) n4b_ot[k][q]=psx_mod_read_word(0x800d27a0u+4*q);for(uint32_t q=0;q<64;++q) n4b_ot[k][0x1000+q]=psx_mod_read_word(0x800d26a0u+4*q);}
 void begin(CPUState& cpu,const Params& p) {
     child=-1;recording_only=false;n4b_job=false;
+    ct_cur.clear();ct_ram_taken=false;
     if(n4b_norecord) return;
     if((!every() && !recording()) || (p.flags&4)) return;
     static unsigned count=0;
@@ -342,6 +397,7 @@ void at_flip(const CPUState& cpu) {
             if(dt.pairs%64==0) diff_report();
         }
         n4_rotate();   // D23N4a: this job's culling decisions become the earlier job's
+        if(ct_on()) ct_src.swap(ct_cur);
         prev_flip_cpu=cpu;prev_prefix=sh->prefix;prev_cursor=psx_mod_read_word(0x800d67a8u);render_replay_channel_get(prev_channel);
         prev.serial=cur_serial;prev.alpha=cur_alpha;prev.t0=rec_t0;prev.t1=rec_t1;
         prev.stores.assign(sh->store,sh->store+sh->nstores);

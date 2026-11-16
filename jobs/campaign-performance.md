@@ -2332,7 +2332,7 @@ capture instead of half; the rest is D23V3.
 
 ### D23V3 - Leave the frame bands out of the capture
 
-**Status: Todo (split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
+**Status: Needs playtest (2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
 After D23V2 the capture is 1.04-1.08 ms of GPU a game frame on the field
 laptop: 245 of 512 canonical tiles a capture, nearly all of them the game's
 two frame bands (rewritten every frame), and about 0.55 ms (INFERRED) of raw
@@ -2351,6 +2351,23 @@ tiles a capture; the render threads read only about 38 tiles a session from
 the snapshot, all in tile row 7 (VRAM rows 224-255). Capturing only what a
 redraw can read before writing it would reach the target; first list every
 snapshot reader.
+
+Work log, 2026-11-16 overnight (laptop lane, [note 488](../documentation/488-d23v3-needed-tiles-capture.md)):
+every redraw read of a canonical snapshot tile is a render thread's lazy
+load or a whole load (the validator redraws from the live surfaces; the
+band copy reads the thread's own surfaces after a lazy load). Built behind
+developer `PSX_REPLAY_CAPTURE_NEED=1`: render threads report the tiles they
+load per slot; after 120 learning captures a capture copies only stamped
+tiles in that sticky set (16 of 512 in UI 2, 8 and 9, all of tile row 7)
+and marks the rest stale in the slot; a load of a stale tile fails that
+session and the slot's later redraws are drawn on the emulation thread
+until it is captured again, so no picture comes from a stale tile. The
+validator now drops a validation whose redraw was replaced. Field laptop,
+two interleaved runs each: capture 1.05-1.09 -> 0.46-0.48 ms a game frame
+at 120 and 180 (target 0.53), 0 misses; whole-GPU work within the spread.
+Exact: readback check 0 differing tiles, validator 898/899 against 907/908
+without it (the one the level-load frame), Vanilla shots 6/6. Needs the
+user's real-display look and default-on decision.
 
 ### D23W - Field laptop: measure on real weak hardware
 

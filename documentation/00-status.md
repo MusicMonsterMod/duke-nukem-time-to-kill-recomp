@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 - D23AB: three machines measured; citadel joins the lab
+
+[Note 496](496-d23ab-three-machines.md): citadel (the TV PC) is set up and measured; at 120 the desktop has headroom, citadel at 2x is close to 120 and GPU-bound at 4x, the field laptop at 4x is power-bound and holds 120 at SIMPLE. Real-display checks queued (citadel's AUTO probe and 60 pacing).
+
 ## 2026-11-16 - D23Y10: a publish copies only what changed (built off)
 
 Desktop ([note 495](495-d23y10-tracked-publish.md)): `PSX_PUBLISH_TRACK=1` (off by default) copies only the pages written since a slot's last publish; exact; the emulation process 1-3 points of a core lower on the desktop; the field laptop measurement decides.

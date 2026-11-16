@@ -3638,7 +3638,7 @@ package limit again, not the drawbridge view's own code. Blocked as before.
 
 ### D23AB - Three-machine baseline (desktop, field laptop, citadel)
 
-**Status: In progress (2026-11-16). Dependencies: D23Y6.**
+**Status: Needs playtest (2026-11-16, [note 496](../documentation/496-d23ab-three-machines.md): measured offscreen; the real-display checks are queued for the user). Dependencies: D23Y6.**
 
 A third test machine, citadel (a TV media PC: 4-core Ryzen 3 PRO 3200GE,
 Radeon Vega 8 integrated GPU), joins the desktop and the field laptop.
@@ -3649,6 +3649,22 @@ AUTO and ULTRA in UI 2, 8, 9, DUKE HILL's town and the FAMILY JEWELS start
 (game and present rates, emulation thread and worker CPU, GPU busy and
 clock, CPU clock), the same on the field laptop at the player's settings,
 and write what bounds each machine (CPU or GPU) at 120.
+
+Work log, 2026-11-16 (three-machine session, [note 496](../documentation/496-d23ab-three-machines.md)): citadel cloned
+into `~/CODE` with submodules, a venv (cmake and ninja from pip, no system
+packages changed), the owned disc copied privately from the desktop
+(SHA-256 checked), built in about 50 minutes; its lab is the field
+laptop's with a `GRADE` switch and AMD clock sampling. AUTO there: 4 CPUs,
+3 redraw workers, GRAPHICS BALANCED as the fallback because the GPU probe
+fails offscreen. Offscreen, two interleaved runs a cell, host checked
+before each: citadel at AUTO holds 120 in UI 2, 8 and the town and 110-114
+in UI 9 and the FAMILY JEWELS start with neither side saturated (the
+Vega's clock stays at 264-432 MHz); 123-166 pictures at 180 (CPU-bound);
+63-104 at ULTRA 120 (GPU-bound); and 45 pictures at 60 offscreen. The
+field laptop at the player's 4x: 45-52 pictures at 120 (package-bound;
+note 494); SIMPLE holds 120 and 180. The desktop at 120: headroom
+everywhere. Needs the real display: citadel's AUTO probe on its TV and its
+60-rate pacing.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

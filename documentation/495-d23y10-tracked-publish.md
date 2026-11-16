@@ -87,10 +87,52 @@ Proof (`proofy.sh`, every tracked publish checked, 40 s a view):
   upstream) plus the patch reproduces all 90 patched files; the three
   compiled framework tests CI runs pass.
 
-## 5. Field laptop
+Desktop, D23N5's restore and the tracked publish both on, against both
+off, one worker, two interleaved runs (the emulation process, % of a
+core): UI 2 70.0, 70.0 / 67.0, 67.2; UI 5 63.6, 62.4 / 61.3, 60.9; UI 9
+36.0, 36.5 / 34.1, 33.6; the FAMILY JEWELS start 67.7, 68.1 / 66.6, 64.5.
+Both on, both checks, 120 s in five views: 17,880 tracked publishes, 0
+differing (note 493 section 6b).
 
-To be measured (the acceptance): the emulation thread at 120 with the
-tracked publish off and on.
+## 5. Field laptop (MEASURED)
+
+The build at `2e10fa8`, offscreen, host checked before every run, 30 s
+walks:
+
+- The check (every tracked publish), UI 2 and the town at SIMPLE 120:
+  2,032 of 2,032 identical to a whole save; a tracked publish 138-148 us
+  (90-93 pages copied, 64-68 written between publishes). At the player's
+  4x the redraws mostly stay off (note 494), so too few publishes ran to
+  report.
+- Off against on, two interleaved runs, the emulation thread (% of a
+  core, medians): SIMPLE 120: UI 2 59 / 58, the town 72 / 72, UI 8 72 / 71,
+  UI 9 50 / 49, the FAMILY JEWELS start 63 / 60; pictures 120 in every
+  second either way. At the player's 4x the runs follow the package limit
+  (note 494): the town's game rate 49.8 against 47.3, UI 9 presenting
+  more redraws with the publish on (57 pictures against 44) and so more
+  emulation-thread work; no conclusion there.
+
+So on the field laptop the tracked publish removes 0-3 points of the
+emulation thread at 2x and 120 (about what its 3.4% publish share of note
+490 allows), and nothing at 4x, where redraws do not run. The D23Y5 target
+(under 50% at the original 60) is not touched: at 60 nothing is published.
+It stays a developer switch, off by default; default on is the user's
+decision.
+
+## 5b. Citadel (MEASURED)
+
+The build at `2e10fa8`, AUTO's 3 workers, offscreen, host checked before
+every run:
+
+- The check (every tracked publish), UI 2 and the town at AUTO (2x) and
+  ULTRA (4x), 120: 3,040 tracked publishes, 0 differing; 146-240 us a
+  tracked publish (89-95 pages copied, 64-68 written between publishes).
+- Off against on, two interleaved runs, the emulation thread (% of a
+  core): AUTO 120: UI 2 62 / 60, the town 74 / 72, UI 8 75 / 74, UI 9
+  56 / 53, the FAMILY JEWELS start 62 / 60, pictures unchanged (UI 9 110
+  either way); ULTRA 120 (GPU-bound): 1-13 points lower, but the runs with
+  the publish on also presented fewer redraws in UI 2 and UI 9, so only
+  the town and UI 8 (71 / 74, 73 / 74) compare.
 
 ## 6. Reproduce
 

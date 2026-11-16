@@ -3090,7 +3090,7 @@ within the spread. Needs playtest: default on is the user's decision.
 
 ### D23Y10 - Publish the worker image without a copy
 
-**Status: In progress (2026-11-16, desktop, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact; field laptop next). Dependencies: D23Y5.**
+**Status: Needs playtest (2026-11-16, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact, measured on all three machines; default on is the user's decision). Dependencies: D23Y5.**
 
 D23Y5 (notes 490, 492): the emulation thread copies its image for the redraw
 workers every published frame. Replace the copy with a copy-on-write fork or
@@ -3114,6 +3114,17 @@ of the same moment. Desktop: a tracked publish 61-104 us (62-134 pages,
 process 1-3 points of a core lower in all four views, every run below its
 pair; 8,128 tracked publishes checked, 0 differing; validator 908 of 908;
 Vanilla shots 6 of 6. Next: the field laptop at 120 (the acceptance).
+
+Work log, 2026-11-16 later (three-machine session, [note 495](../documentation/495-d23y10-tracked-publish.md) sections 5-5b):
+field laptop at SIMPLE 120: 2,032 tracked publishes checked, 0 differing,
+138-148 us a publish; the emulation thread 0-3 points lower (UI 2 59 to 58,
+the FAMILY JEWELS start 63 to 60), pictures 120 either way; at the
+player's 4x the redraws mostly stay off, so little is published. Citadel at
+AUTO 120: 3,040 checked, 0 differing; the emulation thread 1-3 points
+lower in all five scenes. Desktop, both D23N5 and D23Y10 on: the emulation
+process 1.1-3.6 points lower in every pair; 17,880 more tracked publishes
+checked in 120 s runs, 0 differing. Needs playtest: default on is the
+user's decision.
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

@@ -93,6 +93,16 @@ Vanilla (`--vanilla`, case `vshots`, every switch off, UI 8 and UI 2,
 +60/+200/+400 frames): the lane's build against the committed `5226b66`
 build: byte-identical, 6 of 6.
 
+Matched shots with the switch on (added after the commit): field laptop, UI
+2, 8 and 9 at 120, case `vshot` (+60, +200, +400 frames after the load):
+two runs of today's capture already differ from each other in all nine
+shots (the presented redraw depends on the run's timing, also at the
+original 60 on the desktop), so whole-frame shots cannot judge a redraw
+change in the Modernized profile; the validator (each checked redraw
+against the emulation thread's drawing of the same job) and the readback
+check are the proof there, and Vanilla's shots (deterministic) the proof
+with the switch off.
+
 ## 5. Cost (MEASURED)
 
 Field laptop, offscreen, turning, `d23v3.sh` (case `perf2`,

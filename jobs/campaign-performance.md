@@ -2756,6 +2756,18 @@ the pages copied, but the publish took 4% less time on the desktop and
 profile 3.3-3.4% -> 4.5-4.6% of the emulation thread). Reverted. Still
 Blocked; the next lever is not copying the image at all.
 
+Work log, 2026-11-16 overnight, later (laptop lane, [note 492](../documentation/492-d23y5-osd-upload-cache.md)):
+every present uploaded and alpha-scanned each host OSD image (crosshair,
+level stats, inventory strip, messages) into one shared texture. Each OSD
+image source now keeps its own texture and a copy of its pixels; an image
+equal to the copy (byte for byte) is drawn without an upload. On by default
+(developer `PSX_OSD_UPLOAD_CACHE=0` off, `=2` reads every hit back):
+readback 0 differing in 6,144 hits on the field laptop and on the desktop;
+Vanilla shots 6/6 identical. Field laptop, UI 2 at 120, two interleaved
+profiles each: `gl_swap_with_osd` 3.4-3.5% -> 1.8-1.9% of the emulation
+thread (`gl_draw_osd_image` 1.8-1.9 -> 0.6%). Target still not met; the
+cut needs the user's look on the real display.
+
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
 **Status: Done (user-accepted 2026-11-14, closeout authorized; [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md)). Dependencies: D23Y; coordinate D23Y5, D23N2B-N4, D23P2.**
@@ -2957,6 +2969,13 @@ third renderer copy (the state cache and VAOs are per context), the OSD
 turned into data on the emulation thread, `present_shot` moved with it, the
 other present paths drained first.
 
+
+Work log, 2026-11-16 overnight (laptop lane, [note 492](../documentation/492-d23y5-osd-upload-cache.md)):
+step 1 not built. Most of what it would move (the present's OSD, 2.1% of
+the emulation thread at 120) was redundant uploads, now cut in place under
+D23Y5 (about 1.6 points, exact); about 2 points of present work are left
+for a presentation thread, whose pacing can only be judged on the real
+display. Still Blocked (measured).
 ### D23Y9 - Resolution headroom at 120
 
 **Status: Cancelled (2026-11-14, user: "i dont want to degrade the game that way ... revert it first, and then scratch it off the board"). Dependencies: D23Y7; coordinate D23P2.**

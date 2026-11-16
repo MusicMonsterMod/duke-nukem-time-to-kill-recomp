@@ -2765,8 +2765,11 @@ equal to the copy (byte for byte) is drawn without an upload. On by default
 readback 0 differing in 6,144 hits on the field laptop and on the desktop;
 Vanilla shots 6/6 identical. Field laptop, UI 2 at 120, two interleaved
 profiles each: `gl_swap_with_osd` 3.4-3.5% -> 1.8-1.9% of the emulation
-thread (`gl_draw_osd_image` 1.8-1.9 -> 0.6%). Target still not met; the
-cut needs the user's look on the real display.
+thread (`gl_draw_osd_image` 1.8-1.9 -> 0.6%). Target still not met.
+User, after playing the build at ULTRA 120 on the field laptop: "the game
+plays undeniably, phenomenally well ... There is far more at 120 than there
+has ever been on the field laptop. lock it in and close it out": the cut
+is accepted; D23Y5 stays Blocked on its own target.
 
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 

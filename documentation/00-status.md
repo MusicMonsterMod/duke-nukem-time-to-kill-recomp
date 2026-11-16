@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (overnight) - closed out: FRAME RATE 120 at ULTRA plays well on the field laptop
+
+User, after playing on the field laptop: "the game plays undeniably, phenomenally well, and it is in fact pleasing to play on ultra at 120 on the field laptop. yes, it doesnt achieve 120 100% of the time, but the drops are so elegantly handled, and i dont feel like there's any latency on the mouse and keyboard to make it feel unplayable. There is far more at 120 than there has ever been on the field laptop. lock it in and close it out". Accepted in the player build: the OSD upload cache ([note 492](492-d23y5-osd-upload-cache.md)). Decided: D23N4b cannot pay ([note 487](487-d23n4-cost-decision.md)); D23M3B not exact ([note 491](491-d23m3b-shifted-viewport-not-exact.md)). Built off by default, waiting for the user's look: D23V3 ([note 488](488-d23v3-needed-tiles-capture.md)).
+
 ## 2026-11-16 (later) - D23N4b nearly exact, not cheaper, off; laptop measured
 
 Desktop and field laptop, autonomous (notes [483](483-d23n4b-exactness-desktop.md)-[486](486-d23v3-d23m3b-d23r-measurements.md)). N4b's water-tile detector, Duke's joint loop and an in-place worker halt fixed, the actor hit test bounded: verify-first at 120 s exact in UI 8, UI 9 and the FAMILY JEWELS start, 1,070/1,072 in UI 2, 1,411/1,424 in UI 5 (a full UI 5 job is not repeatable with its two object-pass host draws on); worker CPU 6-16% above plain: off, the laptop part not run. Field laptop: emulation thread 62% (UI 2, the player's 120) and 61% (60); D23Y8 step 1 sized at about 4 points, not built; D23V3: redraws read about 38 of 245 captured tiles; D23M3B's copies about 0.5 ms a laptop redraw. Nothing player-facing changed; Vanilla shots identical; not committed.

@@ -101,26 +101,28 @@ the GPU 12-29% busy at 895-1974 MHz, the CPU 3,498 MHz.
 
 - Desktop: nothing at 120 (MEASURED headroom: emulation thread at most
   52%, GPU at most 29%).
-- Citadel at AUTO's 2x: close to 120 (UI 2, 8 and the town hold it; UI 9
-  and the FAMILY JEWELS start 110-114). Neither side is saturated: the
-  CPU has about one of its four cores left (emulation 56-77%, workers
-  80-125% over three, render thread 26-41%) and the GPU reports 67-73%
-  busy while its shader clock stays at 264-432 MHz of 1,200 (the driver's
-  automatic level does not raise it). INFERRED: the dropped pictures are
-  redraws finishing late on a GPU left at a low clock (late repeats 54-92
-  a run in UI 9 and FJ against 6-46 elsewhere); a fixed high GPU level
-  would test it (a system setting, not changed). At 180 the CPU binds (the
-  three workers and the emulation thread fill the four cores). At ULTRA
-  (4x) the GPU binds: 74-92% busy at about 1 GHz, 63-104 pictures.
+- Citadel at AUTO's 2x: close to 120 with AUTO's three workers (UI 2, 8
+  and the town hold it; UI 9 and the FAMILY JEWELS start 110-114), and 120
+  in all five scenes with one worker (MEASURED later the same day, the
+  D23N5 A/B's runs without the restore, note 493 section 6b: UI 9 and the
+  FAMILY JEWELS start 120 every second, the one worker at 70-86% of a
+  core). The GPU's shader clock is as low either way (264-432 MHz of
+  1,200, 67-74% busy), so the shortfall is not the GPU: three workers
+  share four cores with the emulation thread (56-77%) and the render
+  thread (26-41%) (INFERRED: contention; late repeats 54-92 a run in UI 9
+  and FJ with three workers, 11-37 with one). AUTO's worker count is too
+  high for a 4-core CPU without SMT at 120. At 180 the CPU binds (the
+  workers and the emulation thread fill the four cores). At ULTRA (4x) the
+  GPU binds: 74-92% busy at about 1 GHz, 63-104 pictures.
 - Field laptop at the player's 4x: the package binds. The GPU is 74-87%
   busy and takes the 15 W from the CPU, whose clock falls to 1.3-2.8 GHz;
   redraws mostly stay off and the town's game rate itself falls to 50
   (note 494). At SIMPLE (2x) it holds 120 and 180, with the single worker
   then the limit (85% of a core at 180).
 
-So at 120 the field laptop is power-bound (GPU-led), citadel is near the
-line at 2x (GPU clock-led, INFERRED) and GPU-bound at 4x, and the desktop
-has headroom. CPU-side cuts (D23N5's restore, D23Y10's tracked publish)
+So at 120 the field laptop is power-bound (GPU-led), citadel holds 120 at
+2x with one worker but not with AUTO's three (CPU contention, INFERRED)
+and is GPU-bound at 4x, and the desktop has headroom. CPU-side cuts (D23N5's restore, D23Y10's tracked publish)
 help where a CPU limit shows: the laptop at 2x and citadel at 180.
 
 ## 6. Real-display checks queued for the user
@@ -129,6 +131,12 @@ help where a CPU limit shows: the laptop at 2x and citadel at 180.
   and record the grade it picks; then FRAME RATE 60 and 120 at that grade
   in UI 2 (the offscreen 45 pictures at 60).
 - Field laptop: DUKE HILL's town at ULTRA and at PRETTY at 120 (note 494).
+
+## 6b. Follow-up
+
+AUTO's redraw worker count on a 4-core CPU without SMT: one worker held
+120 where three did not (offscreen, two runs a scene). A job to choose the
+count from the measured cores is proposed (not built).
 
 ## 7. Reproduce
 

@@ -200,14 +200,49 @@ pre-merge proof the same way: one difference, UI 5's level load).
   citadel); it differs from HEAD's patch only in memory.c and
   render_worker.c.
 
+## 6b. Longer, and on the field laptop and citadel (MEASURED)
+
+Desktop, both D23N5 and D23Y10 on with both checks, 120 s in each of UI
+2, 5, 8, 9 and the FAMILY JEWELS start, one worker (`longchk.sh`): 8,815
+restored jobs, 0 images, 0 streams and 0 text bitmaps (of 17,633)
+differing; no level-load difference fell in these runs.
+
+Field laptop (one worker on two cores), the build at `ea036b1` (this work,
+updated by copying the two framework files the patch changed and checking
+the complete patch installed), SIMPLE (2x), offscreen, host checked before
+every run:
+
+- The check, every 2nd same-image job, 30 s in UI 2, 8, 9, the town and
+  the FAMILY JEWELS start at 120: 2,814 jobs, 0 images, streams or text
+  bitmaps differing; a restore 310-348 us with the check's whole compare.
+- Off against on, two interleaved runs (the worker, % of a core): at 120
+  UI 2 80 / 77, the town 83 / 82, UI 8 84 / 84, UI 9 71 / 66, the FAMILY
+  JEWELS start 72 / 68; at 180 85 / 85 in every scene (the single worker
+  is saturated, so a cheaper job turns into nothing visible). Pictures
+  (120 or 180 every second), game rate and emulation thread unchanged.
+
+Citadel (4 cores, AUTO's 3 workers and 1 worker), the same build, AUTO's
+grade (2x), 120:
+
+- The check, every 2nd same-image job, five scenes, 3 workers: 672 jobs, 0
+  images, streams or text bitmaps differing.
+- Off against on, two interleaved runs (the workers, % of a core): 3
+  workers: the town 114 / 111, UI 8 126 / 123, UI 9 82 / 79, the FAMILY
+  JEWELS start 83 / 84 (UI 2 not comparable: one run without the restore
+  fell back to the original presentation for part of the walk, 62
+  pictures); 1 worker: UI 2 80 / 72, the town 85 / 83, UI 8 86 / 85, UI 9
+  70 / 62, the FAMILY JEWELS start 71 / 67. Pictures and game rate
+  unchanged.
+
 ## 7. Decision
 
 D1: the host hooks are almost all per job; the part every job of a frame
 shares is small: the decode (2-3% of a job, with state that blocks reuse)
-and the image (5-16% of the worker). D2 built the exact cut on the image
-and it does not pay on the desktop. It stays a developer switch, off by
-default, for the field laptop, where a 4.5 MB copy costs more against its
-memory bandwidth and one worker gives half the jobs a reusable image.
+and the image (5-16% of the worker). D2 built the exact cut on the image:
+within the spread on the desktop, up to 5 points of the worker on the
+field laptop at 120 where the worker has room (none at 180, where it is
+saturated). It stays a developer switch, off by default; turning it on is
+the user's decision.
 Larger worker savings need cheaper per-job host draws (`draw`/`emit` are
 23-33% of a job), not sharing between jobs.
 

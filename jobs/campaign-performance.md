@@ -1953,7 +1953,7 @@ level-load frame).
 
 ### D23N5 - One host pass per game frame for a frame's redraws
 
-**Status: In progress (2026-11-16, desktop, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): D1 done, D2 built off by default and exact; field laptop and citadel next). Dependencies: D23N4 (note 487).**
+**Status: Needs playtest (2026-11-16, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): built off by default, exact, measured on the desktop, the field laptop and citadel; default on is the user's decision). Dependencies: D23N4 (note 487).**
 
 Note 487 found that a redraw worker job is mostly our own host work (the
 Polymorph draws, the near clip, the D36 joint callbacks, the world pass,
@@ -3079,6 +3079,15 @@ row, flag, console command and manual entry gone); the profile schema stays
 76 and drops the retired key. The measurement stands: the town's cure is
 less CPU and package power per redraw (D23N2B-N4, D23V).
 
+Work log, 2026-11-16 later (three-machine session, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md) section 6b):
+desktop, both D23N5 and D23Y10 on with both checks, 120 s in five views:
+8,815 restored jobs, 0 differing. Field laptop (one worker), SIMPLE: the
+check 2,814 jobs, 0 differing; the worker at 120 up to 5 points lower (UI 9
+71 to 66, the FAMILY JEWELS start 72 to 68), unchanged at 180 where it is
+saturated. Citadel: the check 672 jobs (3 workers), 0 differing; with one
+worker 1-8 points lower (UI 9 70 to 62, UI 2 80 to 72), with AUTO's three
+within the spread. Needs playtest: default on is the user's decision.
+
 ### D23Y10 - Publish the worker image without a copy
 
 **Status: In progress (2026-11-16, desktop, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact; field laptop next). Dependencies: D23Y5.**
@@ -3665,6 +3674,21 @@ field laptop at the player's 4x: 45-52 pictures at 120 (package-bound;
 note 494); SIMPLE holds 120 and 180. The desktop at 120: headroom
 everywhere. Needs the real display: citadel's AUTO probe on its TV and its
 60-rate pacing.
+
+### D23AC - AUTO redraw workers on four-core CPUs
+
+**Status: Todo (2026-11-16, found in D23AB, [note 496](../documentation/496-d23ab-three-machines.md) section 5). Dependencies: D23AB.**
+
+On citadel (Ryzen 3 3200GE, 4 cores without SMT) AUTO starts three redraw
+workers; at FRAME RATE 120 and 2x, UI 9 and the FAMILY JEWELS start then
+show 110-114 pictures a second, while with one worker every scene holds
+120 (offscreen, two runs each; the GPU's clock the same either way). Work:
+measure one, two and three workers on citadel (and one against two on the
+field laptop) at 120 and 180 in the five D23AB scenes, then choose AUTO's
+count from the cores and what the emulation and render threads take.
+Acceptance: AUTO's count at least as good as any fixed count on each
+machine, pictures unchanged, measured offscreen and confirmed on the real
+display.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

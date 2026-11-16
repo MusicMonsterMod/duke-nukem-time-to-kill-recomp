@@ -2394,7 +2394,7 @@ capture instead of half; the rest is D23V3.
 
 ### D23V3 - Leave the frame bands out of the capture
 
-**Status: Needs playtest (2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
+**Status: Blocked (2026-11-16, [note 497](../documentation/497-d23v3-three-machines.md): exact, lighter on the GPU at 2x on the field laptop, worse on citadel at AUTO's three workers; revisit after D23AC); earlier 2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
 After D23V2 the capture is 1.04-1.08 ms of GPU a game frame on the field
 laptop: 245 of 512 canonical tiles a capture, nearly all of them the game's
 two frame bands (rewritten every frame), and about 0.55 ms (INFERRED) of raw
@@ -2430,6 +2430,18 @@ at 120 and 180 (target 0.53), 0 misses; whole-GPU work within the spread.
 Exact: readback check 0 differing tiles, validator 898/899 against 907/908
 without it (the one the level-load frame), Vanilla shots 6/6. Needs the
 user's real-display look and default-on decision.
+
+Work log, 2026-11-16 (three-machine session, [note 497](../documentation/497-d23v3-three-machines.md)): `inc` against
+`need`, interleaved, offscreen, host checked before every run. Exact on
+every machine: 0 stale tiles; 0-8 redraws a run drawn on the emulation
+thread. Field laptop: at SIMPLE the GPU's work -1 to -9% in 9 of 10 cells
+with pictures unchanged; at BALANCED no loss outside the unsteady FAMILY
+JEWELS start; at the player's 4x no conclusion (redraws mostly off).
+Desktop: pictures unchanged, work -10 to -12% in UI 2 and the town at 120,
+equal elsewhere. Citadel: work lower in 9 of 10 cells but UI 2 at 120 fell
+back to the original presentation ("workers behind") in 4 of 10 runs with
+`need` against 1 of about 20 without. Not "not worse anywhere": default on
+not proposed; Blocked until citadel's worker count (D23AC) is settled.
 
 ### D23W - Field laptop: measure on real weak hardware
 

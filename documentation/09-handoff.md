@@ -4,6 +4,8 @@
 
 User, after playing on the field laptop: "the game plays undeniably, phenomenally well, and it is in fact pleasing to play on ultra at 120 on the field laptop. yes, it doesnt achieve 120 100% of the time, but the drops are so elegantly handled, and i dont feel like there's any latency on the mouse and keyboard to make it feel unplayable. There is far more at 120 than there has ever been on the field laptop. lock it in and close it out".
 
+Three-machine session, 2026-11-16: notes [493](493-d23n5-shared-frame-work-desktop.md)-[497](497-d23v3-three-machines.md). Citadel (the TV PC) has a checkout in `~/CODE`, a private disc copy, a build and the lab `recomp/analysis/d23ab/` (each machine's lab is local). Real-display checks queued for the user: citadel's GRAPHICS AUTO on its TV (the probe fails offscreen) and its 45 pictures at 60 offscreen; DUKE HILL's town at ULTRA and PRETTY at 120 on the field laptop; D23N5 and D23Y10 default on (the user's decision). D23V3 is Blocked on D23AC.
+
 Note [495](495-d23y10-tracked-publish.md) (desktop lane, 2026-11-16): D23Y10 built off: `PSX_PUBLISH_TRACK=1` (tracked publish), `PSX_PUBLISH_TRACK_VERIFY=N` (check). Both D23N5 and D23Y10 use userfaultfd write protection with `PAGEMAP_SCAN` (Linux 6.7+); the parent and the workers each register their own.
 
 Note [493](493-d23n5-shared-frame-work-desktop.md) (desktop lane, 2026-11-16): D23N5 D1 and D2. The framework working tree on the desktop had fallen behind the tracked patch (laptop-lane commits); merged. `PSX_RW_RESTORE=1` (off) restores a worker's image from its written pages (userfaultfd write protection, Linux 6.7+); `PSX_RW_RESTORE_VERIFY=N` checks it; `PSX_RW_IMAGE_STATS=1` counts pages a job changes.

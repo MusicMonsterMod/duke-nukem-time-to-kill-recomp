@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 - three-machine session: results
+
+D23N5 and D23Y10 built off by default, exact on all three machines, small gains (Needs playtest; default on is the user's decision; notes [493](493-d23n5-shared-frame-work-desktop.md), [495](495-d23y10-tracked-publish.md)). D23V3 measured on three machines: exact but worse on citadel, not proposed for default on, Blocked until D23AC ([note 497](497-d23v3-three-machines.md)). D23Y7 and D23AA re-measured: ULTRA's dips on the field laptop are the package limit ([note 494](494-d23y7-d23aa-field-laptop-today.md)). New: D23AC (AUTO's worker count on 4-core CPUs).
+
 ## 2026-11-16 - D23AB: three machines measured; citadel joins the lab
 
 [Note 496](496-d23ab-three-machines.md): citadel (the TV PC) is set up and measured; at 120 the desktop has headroom, citadel at 2x is close to 120 and GPU-bound at 4x, the field laptop at 4x is power-bound and holds 120 at SIMPLE. Real-display checks queued (citadel's AUTO probe and 60 pacing).

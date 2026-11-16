@@ -2923,7 +2923,7 @@ less GPU per picture; the emulation thread's share (D23Y5).
 
 ### D23Y7 - The remaining dips at 120 (Duke Hill)
 
-**Status: Blocked (2026-11-15, re-measured on top of D23V, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 4; [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
+**Status: Blocked (2026-11-16, re-measured, field laptop, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md): SIMPLE holds 120 in the town; at ULTRA the dips follow the CPU clock (1.1-1.2 GHz with the 4x GPU 90% busy); earlier 2026-11-15, re-measured on top of D23V, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 4; [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
 After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
 second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
 to 30 a second and falls back to the original presentation for minutes
@@ -2983,6 +2983,19 @@ against 85.4%, 1.3 against 2.0 changes. UI 9: 60 / 59 against 59 / 30,
 fresh 93.0% against 75.2%. Offscreen town profile at 120: worker 98% of a
 CPU, emulation thread 78% (old 88%), render thread 39%. The town still
 needs captured redraws (D23N4) or a lighter emulation thread (D23Y8).
+
+Work log, 2026-11-16 (three-machine session, laptop lane, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md)):
+today's build, the field laptop, offscreen, three interleaved runs at 120
+with GRAPHICS SIMPLE and ULTRA applied by the lab as `run.py` applies them.
+The town at SIMPLE: game 59.9 / 58.8, 120 pictures a second in every run.
+At ULTRA: game 50.1 / 41.9, 45 pictures (the redraws mostly off), the
+emulation thread 93%, the GPU 90% busy, the CPU 1,224 MHz. Profiled the
+worst seconds (frame-tagged emulation-thread stacks): they run at
+1.1-1.2 GHz with the same CPU time a frame as the best seconds (16.8 against
+15.8 ms); three others are waits at full clock. The dominant cost is the
+clock the 15 W package leaves the CPU while the 4x GPU runs; Blocked: less
+emulation-thread work (D23Y5, D23Y8) or less GPU power a frame would help.
+Real-display look at ULTRA and PRETTY in the town queued for the user.
 
 ### D23Y8 - Emulated GPU commands on their own thread
 
@@ -3561,7 +3574,7 @@ User playtest, 2026-11-15, at UI slot 6: "looks to be working!! lock it in and c
 
 ### D23AA - FAMILY JEWELS start stutters until the drawbridge is lowered
 
-**Status: Blocked (2026-11-15, measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 5; backlog from the user's playthrough commentary 2026-11-14). Dependencies: D23N4.**
+**Status: Blocked (2026-11-16, re-measured, field laptop, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md): SIMPLE holds 120 at the start; at ULTRA the worst seconds run at 1.2-1.8 GHz, the package limit; earlier 2026-11-15, measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 5; backlog from the user's playthrough commentary 2026-11-14). Dependencies: D23N4.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: noticeable stuttering right at the start of FAMILY
@@ -3596,6 +3609,15 @@ drawbridge object is not the cost (moved out of view in the private copy:
 once the bridge is down because Duke has left that view. Tried a
 cache-friendlier host-vertex table in the recorder: no gain, reverted. No
 exact cut found; the cure is captured redraws (D23N4).
+
+Work log, 2026-11-16 (three-machine session, laptop lane, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md)):
+today's build, the field laptop, offscreen, three runs at 120. The FAMILY
+JEWELS start at SIMPLE: 59.9 / 58.8, 120 pictures a second. At ULTRA:
+58.6 / 51.0, 51 pictures. The worst seconds (frame-tagged profile) all run
+at 1.2-1.8 GHz with the emulation thread at 93-97%; a frame costs 16.9 ms
+there against 11.8 ms in the best seconds, spread over device service,
+timing edges, GP0 and our world pass in about the clock's proportion: the
+package limit again, not the drawbridge view's own code. Blocked as before.
 
 ### D23AB - Three-machine baseline (desktop, field laptop, citadel)
 

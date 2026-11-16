@@ -1361,7 +1361,7 @@ Closed 2026-11-12 with D23T and D23U ("close it out"); the build is D23M3B.
 
 ### D23M3B - Build the output-sized redraw target
 
-**Status: Todo (split from D23M3 2026-11-12, [note 460](../documentation/460-d23m3-output-sized-redraws.md)). Dependencies: D23M3, D23V.**
+**Status: Blocked (2026-11-16 overnight, [note 491](../documentation/491-d23m3b-shifted-viewport-not-exact.md): not exact on the desktop GPU, reverted; split from D23M3 2026-11-12, [note 460](../documentation/460-d23m3-output-sized-redraws.md)). Dependencies: D23M3, D23V.**
 Build the design of note 460 section 4: a render thread draws a redraw's
 centre into the cache image with the canonical projection and a viewport
 shifted by whole pixels, its margins with the mirror mapping, one
@@ -1379,6 +1379,19 @@ measured on the weak GPU: the copies the output-sized target removes (band
 copy 0.345 ms, margin mirror 0.092 ms, depth clear 0.066 ms) are about 0.5 ms
 of a 5.05 ms redraw in UI slot 2 at 120, ten times the desktop estimate.
 
+
+Work log, 2026-11-16 overnight (laptop lane, exactness on the desktop, [note 491](../documentation/491-d23m3b-shifted-viewport-not-exact.md)):
+built as designed behind developer `PSX_RT_OUTPUT_TARGET=1` (band from the
+first primitive, queued fills, viewport-shifted centre and margins into an
+FBO of the cache image, `u_fcoff` for the screen-door hash, copy-on-read
+tiles, a redo on the VRAM path for packs, copies, readbacks, uploads into
+the band, stencil rebuilds and another band). Every session in UI 2, 8 and
+9 qualified and none was redone, but the validator found about four in five
+images different: 3-140 pixels each, an edge or texel one pixel over, in
+the margins as well as the centre. The shifted viewport origin changes how
+the GPU rounds window coordinates (INFERRED), so a target drawn at another
+origin than the canonical surface cannot be exact this way. Reverted (the
+diff kept in the local lab); the laptop measurement was not run. Blocked.
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
 **Status: In progress (D23N1 done, D23N2 inventory done 2026-11-12, notes 454-455; N0 measured, note 449 section 7; design corrected before building, [note 449](../documentation/449-d23n-captured-redraws-research.md) section 6; research and design 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**

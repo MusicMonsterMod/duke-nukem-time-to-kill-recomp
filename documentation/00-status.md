@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (evening) - closed out: low-end machines hold 60 at AUTO
+
+User, after playing at pure AUTO on the field laptop: "ok now gameplay is looking significantly better!" D23AD (60 Hz screens keep 60 pictures) and D23AE (AUTO on 2-core laptops uses the redraws) accepted and Done ([note 498](498-d23ad-60hz-pacing.md)); D23AB Done. Off pending the user: D23N5, D23Y10. Next: performance work continues tomorrow.
+
 ## 2026-11-16 (evening) - D23AE: AUTO on 2-core laptops uses the redraws
 
 FRAME RATE AUTO on a 2-core CPU with SMT (the field laptop) now shows 60 fresh pictures a second with the newest camera on a 60 Hz screen, the game at 60 ([note 498](498-d23ad-60hz-pacing.md) section 7). Needs playtest.

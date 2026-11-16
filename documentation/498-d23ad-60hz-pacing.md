@@ -116,6 +116,17 @@ AUTO, the real screen, two runs a scene, the D23AD build: 59.9-60 pictures a
 second in all five scenes, game 60.0 / 59.3-59.6; ULTRA at 120 alternating
 with it: 58.3-59.7.
 
+## 4c. The user's session after the change (MEASURED, field laptop log)
+
+2026-11-16 19:40-19:47, GRAPHICS AUTO (BALANCED: 2x, LIGHTING ON, LIVE
+SHADOWS SIMPLE) and FRAME RATE AUTO: about 400 s of play, three savestate
+loads, level 3 and level 1; no 30-picture step; hitch seconds 36 of 407
+(9%), the game at 59.8 a second in their median; one audio underrun; one
+hand-over to the original presentation and the redraws back after it;
+presents a minute 58.8, 60.0, 15.6 (a pause or menu), 60.0, 50.3. User:
+"ok now gameplay is looking significantly better!" Accepted; D23AD and
+D23AE Done.
+
 ## 5. Also found
 
 - Citadel's GRAPHICS AUTO on its TV (the GPU probe now taken on the real

@@ -3678,7 +3678,7 @@ package limit again, not the drawbridge view's own code. Blocked as before.
 
 ### D23AB - Three-machine baseline (desktop, field laptop, citadel)
 
-**Status: Needs playtest (2026-11-16, [note 496](../documentation/496-d23ab-three-machines.md): measured offscreen; the real-display checks are queued for the user). Dependencies: D23Y6.**
+**Status: Done (2026-11-16, [note 496](../documentation/496-d23ab-three-machines.md); the real-display questions answered in note 498). Dependencies: D23Y6.**
 
 A third test machine, citadel (a TV media PC: 4-core Ryzen 3 PRO 3200GE,
 Radeon Vega 8 integrated GPU), joins the desktop and the field laptop.
@@ -3723,7 +3723,7 @@ display.
 
 ### D23AD - 60 Hz screens keep 60 pictures
 
-**Status: Needs playtest (2026-11-16, on by default, [note 498](../documentation/498-d23ad-60hz-pacing.md)). Dependencies: D23Y6.**
+**Status: Done (2026-11-16, accepted by the user on the field laptop, [note 498](../documentation/498-d23ad-60hz-pacing.md)). Dependencies: D23Y6.**
 
 User, 2026-11-16: the field laptop played worse than in the morning; "we
 have GOT to get this working on lower end hardware comfortable". At FRAME
@@ -3747,9 +3747,16 @@ ULTRA 120 58.5-59.6 pictures a second in all five scenes (before 36.5-59.5);
 the field laptop at 2x with RELIT or ON 59.8-60 in all three (before
 44-60). GAME_MANUAL updated. Needs the user's playtest.
 
+Closeout, 2026-11-16 evening: the user, after playing on the field laptop
+at pure AUTO: "ok now gameplay is looking significantly better! ... lock it in and close it out" Their session (19:40-19:47, BALANCED, FRAME RATE
+AUTO): no 30-picture step, hitch seconds 9% with the game at 59.8 a second
+in their median, one underrun, one hand-over to the original presentation
+and back; minutes of 58.8, 60.0, 60.0 and 50.3 presents a second (one
+minute of 15.6, a pause or menu). Done.
+
 ### D23AE - AUTO on 2-core CPUs with SMT uses the redraws
 
-**Status: Needs playtest (2026-11-16, on by default, [note 498](../documentation/498-d23ad-60hz-pacing.md) section 7). Dependencies: D23AD.**
+**Status: Done (2026-11-16, accepted with D23AD, [note 498](../documentation/498-d23ad-60hz-pacing.md) section 7). Dependencies: D23AD.**
 
 D23W capped FRAME RATE AUTO at the original 60 presentation on CPUs with 2
 or fewer physical cores (the field laptop then slowed to about half speed

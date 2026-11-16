@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (evening) - D23AE: AUTO on 2-core laptops uses the redraws
+
+FRAME RATE AUTO on a 2-core CPU with SMT (the field laptop) now shows 60 fresh pictures a second with the newest camera on a 60 Hz screen, the game at 60 ([note 498](498-d23ad-60hz-pacing.md) section 7). Needs playtest.
+
 ## 2026-11-16 (afternoon) - D23AD: 60 Hz screens keep 60 pictures
 
 [Note 498](498-d23ad-60hz-pacing.md): at FRAME RATE 120 on a 60 Hz screen the redraws no longer drop to 30 pictures a second (the original presentation takes over where they cannot keep up) and a load or startup stall is no longer judged as a slow scene: 58.5-60 pictures a second on the field laptop's and citadel's real screens in every measured scene. The field laptop's "worse than this morning" was the settings (RELIT and SMOOTH instead of ON and SIMPLE), not the build. Needs playtest.

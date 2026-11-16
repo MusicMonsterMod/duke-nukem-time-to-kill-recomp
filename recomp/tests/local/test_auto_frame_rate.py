@@ -29,10 +29,10 @@ double psx_replay_auto_cap(void) {return replay_auto_cap_for(psx_host_cpus(), ps
         code += function('gl_renderer_set_replay_target_hz') + '\n'
         code += r'''
 int main(void) {
-    /* D23P/D23W: the CPU cap; 2 physical cores (an SMT laptop's 4 CPUs) stay at 60. */
-    assert(replay_auto_cap_for(4,2)==60 && replay_auto_cap_for(2,2)==60 && replay_auto_cap_for(2,1)==60);
+    /* D23P/D23W/D23AE: the CPU cap; 2 physical cores with SMT (4 CPUs) take 120, 2 CPUs stay at 60. */
+    assert(replay_auto_cap_for(4,2)==120 && replay_auto_cap_for(2,2)==60 && replay_auto_cap_for(2,1)==60);
     assert(replay_auto_cap_for(3,3)==60 && replay_auto_cap_for(4,4)==120 && replay_auto_cap_for(6,3)==120);
-    assert(replay_auto_cap_for(8,4)==240 && replay_auto_cap_for(16,8)==240 && replay_auto_cap_for(8,2)==60);
+    assert(replay_auto_cap_for(8,4)==240 && replay_auto_cap_for(16,8)==240 && replay_auto_cap_for(8,2)==120);
     double modes[][2]={{24,24},{50,50},{59.94,59.94},{60,60},{75,75},
         {100,100},{119.88,119.88},{120,120},{144,144},{165,165},
         {180,180},{239.76,239.76},{240,240},{360,180},{480,240},{500,166.666666667}};

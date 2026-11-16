@@ -3739,6 +3739,29 @@ ULTRA 120 58.5-59.6 pictures a second in all five scenes (before 36.5-59.5);
 the field laptop at 2x with RELIT or ON 59.8-60 in all three (before
 44-60). GAME_MANUAL updated. Needs the user's playtest.
 
+### D23AE - AUTO on 2-core CPUs with SMT uses the redraws
+
+**Status: Needs playtest (2026-11-16, on by default, [note 498](../documentation/498-d23ad-60hz-pacing.md) section 7). Dependencies: D23AD.**
+
+D23W capped FRAME RATE AUTO at the original 60 presentation on CPUs with 2
+or fewer physical cores (the field laptop then slowed to about half speed
+with redraws). Since one worker on 2 SMT cores (D23Y4/D23Y6) and D23AD's
+fallback, the field laptop holds the redraws at its 60 Hz screen's rate.
+Change: 2 physical cores with 4 or more logical CPUs take AUTO's 120 cap
+(`replay_auto_cap_for`, replay_rate.h); 2 logical CPUs or fewer keep 60.
+Acceptance: pure AUTO on the field laptop shows 60 fresh pictures a second
+with the game at 60, the original presentation where a scene cannot; the
+user's playtest.
+
+Work log, 2026-11-16 ([note 498](../documentation/498-d23ad-60hz-pacing.md) section 7): real screen, GRAPHICS BALANCED: FRAME
+RATE AUTO (before: the original presentation) 60 pictures, game 60 / 59.3-
+59.6, emulation thread 52-63%; FRAME RATE 120 (the redraws at 60) 60
+pictures, game 59.9-60 / 55.7-59.1. After the change, pure AUTO (GRAPHICS
+and FRAME RATE AUTO): "at most 120 images a second (4 CPUs, 2 cores)", one
+worker, 60 pictures a second in all six scenes, game median 59.9-60, lowest
+tenth 58.1-59.1, the town handing over to the original presentation. Unit
+test updated; framework patch verified.
+
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 
 **Status: Todo (backlog, research; user playthrough commentary 2026-11-14). Dependencies: -.**

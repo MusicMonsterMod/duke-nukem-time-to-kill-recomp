@@ -203,12 +203,12 @@ for the next launch):
   they can redraw (D23P): with 4 to 7 logical CPUs at most 120 pictures a
   second (180 Hz -> 90, 120 or 240 Hz -> 120), with fewer than 4 the original
   60. Eight or more (most desktop processors) are not limited. A processor
-  with only 2 physical cores (a laptop with 4 threads, for example) also
-  gets the original 60 presentation (D23W): drawing extra pictures there
-  took so much processor time that the game itself slowed to about half
-  speed. A fixed choice below is never changed.
-  `display` follows the same limit: on such a processor it is the original
-  60 presentation too (D23W).
+  with only 2 physical cores counts by its threads: with 4 (a laptop with
+  hyper-threading) it takes up to 120 like a 4-core one, so on a 60 Hz
+  screen it shows 60 fresh pictures a second with the newest camera
+  (D23AE; where a scene cannot keep that, the original presentation takes
+  over, D23AD); with only 2 threads it keeps the original 60. A fixed
+  choice below is never changed. `display` follows the same limit.
   AUTO follows display changes and preserves fractional rates such as 59.94.
   Existing saved choices stay selected; choose AUTO explicitly to try it.
 - `60`: the original presentation.

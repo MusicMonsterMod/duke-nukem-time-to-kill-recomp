@@ -1077,10 +1077,10 @@ index 00000000..714d8d6d
 +#endif
 diff --git a/runtime/include/replay_rate.h b/runtime/include/replay_rate.h
 new file mode 100644
-index 00000000..f7874005
+index 00000000..5aa02c9a
 --- /dev/null
 +++ b/runtime/include/replay_rate.h
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,52 @@
 +#ifndef PSX_REPLAY_RATE_H
 +#define PSX_REPLAY_RATE_H
 +#include <math.h>
@@ -1103,7 +1103,14 @@ index 00000000..f7874005
 + * i7-5600U) ran the game itself at about 33 frames a second under AUTO 120
 + * and at a steady 60 with no redraws, so 2 or fewer physical cores cap AUTO at
 + * 60, which the game side takes as the original presentation (no replay).
-+ * PSX_AUTO_CPUS=N assumes N CPUs on N cores. */
++ * PSX_AUTO_CPUS=N assumes N CPUs on N cores.
++ * D23AE (Time to Kill): since one worker on 2 SMT cores (D23Y4/D23Y6) and
++ * the 60 Hz pacing fallback (D23AD) a 2-core CPU with SMT (4 logical CPUs)
++ * holds the redraws at a 60 Hz display's rate: on the field laptop's real
++ * screen at GRAPHICS BALANCED, 60 pictures a second and the game at 60 in
++ * six scenes, the original presentation taking over where it cannot. So 2
++ * cores with 4 logical CPUs take 120 like 4 cores; 2 logical CPUs or fewer
++ * keep 60 (no redraws). */
 +extern int psx_host_cpus(void);            /* render_thread.c */
 +extern int psx_host_physical_cores(void);  /* render_thread.c */
 +extern double psx_replay_auto_cap(void);   /* render_thread.c, cached */
@@ -1113,7 +1120,7 @@ index 00000000..f7874005
 +extern void psx_placement_pin_side(void);        /* the calling thread */
 +/* The cap for a CPU count and a physical core count (pure, tested). */
 +static inline double replay_auto_cap_for(int cpus, int cores) {
-+    return cores <= 2 ? 60.0 : cpus >= 8 ? 240.0 : cpus >= 4 ? 120.0 : 60.0;
++    return cores <= 2 ? (cores == 2 && cpus >= 4 ? 120.0 : 60.0) : cpus >= 8 ? 240.0 : cpus >= 4 ? 120.0 : 60.0;
 +}
 +static inline double replay_auto_cap(void) { return psx_replay_auto_cap(); }
 +static inline double replay_resolved_hz(double requested, double host) {

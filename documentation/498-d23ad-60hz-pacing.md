@@ -109,6 +109,13 @@ the CPU from 60 game frames (note 494). On this laptop 4x is beyond the
 machine; 2x now holds 60. (The host check waited three times in this set,
 for under 2 minutes in all.)
 
+## 4b. Citadel at pure AUTO (MEASURED)
+
+GRAPHICS AUTO (BALANCED from the probe taken on the TV, 2x) and FRAME RATE
+AUTO, the real screen, two runs a scene, the D23AD build: 59.9-60 pictures a
+second in all five scenes, game 60.0 / 59.3-59.6; ULTRA at 120 alternating
+with it: 58.3-59.7.
+
 ## 5. Also found
 
 - Citadel's GRAPHICS AUTO on its TV (the GPU probe now taken on the real
@@ -127,6 +134,24 @@ for under 2 minutes in all.)
 - D17BK (new): after a load the first ~15 game frames show 4:3, then 16:9
   (desktop shots at frames 8, 14, 20 after a load).
 - D41W (new): lights arrive late after a load (RELIT's larger atlas).
+
+## 7. D23AE: AUTO on 2-core CPUs with SMT (MEASURED, CODE)
+
+D23W capped AUTO at the original 60 presentation on CPUs with 2 or fewer
+physical cores. On the field laptop's real screen at GRAPHICS BALANCED,
+interleaved, two runs a scene: FRAME RATE AUTO (the original
+presentation) 60 pictures, game 60.0 / 59.3-59.6; 120 (the redraws at the
+display's 60) 60 pictures, game 59.9-60.0 / 55.7-59.1. The pictures differ
+in content: in busy views the game draws a new image every second field, so
+the original presentation shows each image twice, the redraws 60 fresh ones
+with the newest camera (what the user found "silky" on citadel). Change
+(`replay_auto_cap_for`, replay_rate.h): 2 physical cores with 4 or more
+logical CPUs take the 120 cap; 2 logical CPUs or fewer keep 60. Pure AUTO
+after it (GRAPHICS AUTO = BALANCED, FRAME RATE AUTO), the real screen: "at
+most 120 images a second (4 CPUs, 2 cores)", one worker, 60 pictures a
+second in the morning's level-3 save, UI 2, 8, 9, the town and the FAMILY
+JEWELS start, game median 59.9-60.0, lowest tenth 58.1-59.1; the town handed
+over to the original presentation for part of each walk.
 
 ## 6. Reproduce
 

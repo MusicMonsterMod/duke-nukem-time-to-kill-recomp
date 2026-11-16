@@ -1925,6 +1925,19 @@ Decision: N4b cannot pay at any number of workers (more workers record more
 first jobs); Blocked, off by default. The open detector classes and a shared
 capture (this session's D2) were not started: the gap is not under 5%.
 
+Work log, 2026-11-16 overnight, later (desktop, [note 489](../documentation/489-d23n4-repeatable-jobs.md)):
+note 483's non-repeatable UI 5 job was the checks' own clock. A new
+developer tool (`DNTTK_N4_STATEDIFF`, every static object compared between
+a job's start and its second run) pointed at the D41L prop glows, which
+follow the draw clock: `worker_draw` run inside a job (the verify-first
+reference, the self run, N4b's fallback) made its own clock hold and its
+release left the outer job on the live clock. The clock and the bake table
+are now held at the outermost call only. UI 5, both host draws on: self
+check 1,648/1,648 identical (before 941/1,184); verify-first 1,341/1,344
+accepted rebuilds exact (before 3,122/3,248). The ordinary redraw path does
+not nest and is unchanged (Vanilla shots 6/6, validator 914/915 with the
+level-load frame).
+
 ### D23O - Leaner render-thread submission
 
 **Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; [note 447](../documentation/447-d23o-render-threads.md)). Dependencies: D23K, D23N.**

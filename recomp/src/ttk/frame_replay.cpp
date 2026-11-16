@@ -1670,10 +1670,82 @@ void beams_animate(double t) {
 #include "bolt_barrel.inc"
 #include "redraw_check.inc"
 #include "redraw_t_check.inc"
+// D23N4 D3 (developer, note 487): which host state a full job leaves behind
+// that the next run of the same job reads. DNTTK_N4_STATEDIFF=file (from
+// "nm -S -C --defined-only" of this executable: data and bss objects) with
+// DNTTK_N4_SELF=1 and DNTTK_N4_VERIFY_FIRST=N: the process's static objects
+// are taken at a job's start and again before its second full run; each
+// object that differs is counted against whether the two runs' streams were
+// identical. Objects up to 1 MB are compared whole, larger ones by 4 KB page
+// hashes, only with DNTTK_N4_STATEDIFF_BIG=1 (trace rings left out).
+// "[n4 state]" lines on stderr.
+namespace sd {
+struct Sym {uintptr_t a;size_t n;std::string name;bool big;};
+std::vector<Sym> syms;std::vector<uint8_t> snap;std::vector<uint64_t> hashes;std::vector<uint32_t> changed;
+std::vector<uint64_t> in_diff,in_same;uint64_t jobs_diff=0,jobs_same=0;bool loaded=false;
+const char* path() {static const char* p=std::getenv("DNTTK_N4_STATEDIFF");return p;}
+uint64_t page_hash(const uint8_t* p,size_t n) {uint64_t h=1469598103934665603ull;for(size_t i=0;i+8<=n;i+=8) {uint64_t v;std::memcpy(&v,p+i,8);h=(h^v)*1099511628211ull;h^=h>>29;}return h;}
+bool load() {
+    if(loaded) return !syms.empty();
+    loaded=true;
+    FILE* f=std::fopen(path(),"r");if(!f) return false;
+    char line[1024];uintptr_t ram_nm=0;std::vector<Sym> all;
+    while(std::fgets(line,sizeof line,f)) {
+        unsigned long long a=0,n=0;char t=0;char name[900]={};
+        if(std::sscanf(line,"%llx %llx %c %899[^\n]",&a,&n,&t,name)!=4) continue;
+        if(!std::strcmp(name,"g_psx_ram")) ram_nm=(uintptr_t)a;
+        if(!n || !std::strchr("bBdD",t)) continue;
+        const std::string s(name);
+        if(s.find("trace")!=std::string::npos || s.find("ring")!=std::string::npos || s.find("_log")!=std::string::npos || s.find("taps")!=std::string::npos || s.find("sio_")!=std::string::npos || s.find("n4cost")!=std::string::npos || s.find("sd::")!=std::string::npos) continue;
+        static const bool big=[]{const char* t=std::getenv("DNTTK_N4_STATEDIFF_BIG");return t && t[0]=='1';}();
+        if(n>(1u<<20) && !big) continue;
+        all.push_back({(uintptr_t)a,(size_t)n,s,n>(1u<<20)});
+    }
+    std::fclose(f);
+    if(!ram_nm) return false;
+    const uintptr_t base=(uintptr_t)&g_psx_ram-ram_nm;
+    size_t small=0,big=0;
+    for(auto& s:all) {s.a+=base;(s.big?big:small)+=s.n;syms.push_back(s);}
+    std::fprintf(stderr,"[n4 state] %zu objects, %.1f MB compared whole, %.1f MB by page hashes\n",syms.size(),small/1e6,big/1e6);
+    in_diff.assign(syms.size(),0);in_same.assign(syms.size(),0);
+    return true;
+}
+// Take every object (A); with `cmp`, list those that differ from A instead.
+void take(bool cmp) {
+    size_t o=0,h=0;if(!cmp) {snap.clear();hashes.clear();} else changed.clear();
+    for(uint32_t i=0;i<syms.size();++i) {
+        const Sym& s=syms[i];const uint8_t* p=(const uint8_t*)s.a;
+        if(!s.big) {
+            if(!cmp) snap.insert(snap.end(),p,p+s.n); else if(std::memcmp(snap.data()+o,p,s.n)) changed.push_back(i);
+            o+=s.n;
+        } else {
+            bool any=false;
+            for(size_t q=0;q<s.n;q+=4096,++h) {const uint64_t v=page_hash(p+q,std::min<size_t>(4096,s.n-q));if(!cmp) hashes.push_back(v); else if(hashes[h]!=v) any=true;}
+            if(cmp && any) changed.push_back(i);
+        }
+    }
+}
+void result(bool same) {
+    ++(same?jobs_same:jobs_diff);
+    for(uint32_t i:changed) ++(same?in_same:in_diff)[i];
+    if((jobs_same+jobs_diff)%16) return;
+    std::vector<uint32_t> ord;for(uint32_t i=0;i<syms.size();++i) if(in_diff[i]) ord.push_back(i);
+    std::sort(ord.begin(),ord.end(),[](uint32_t a,uint32_t b){const double ra=(in_diff[a]+1.0)/(in_same[a]+1.0),rb=(in_diff[b]+1.0)/(in_same[b]+1.0);return ra!=rb?ra>rb:in_diff[a]>in_diff[b];});
+    std::fprintf(stderr,"[n4 state %ld] second runs identical %llu, differing %llu; objects changed by the first run (in differing / in identical jobs):",(long)getpid(),(unsigned long long)jobs_same,(unsigned long long)jobs_diff);
+    for(size_t k=0;k<ord.size() && k<40;++k) std::fprintf(stderr," %s %llu/%llu;",syms[ord[k]].name.c_str(),(unsigned long long)in_diff[ord[k]],(unsigned long long)in_same[ord[k]]);
+    std::fprintf(stderr,"\n");
+}
+}  // namespace sd
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // D23N1: one clock for everything this job draws from the time (live_env.h).
     // The lamp bake table is held the same way (lamp_bake_map.h).
-    struct ClockHold {ClockHold(){const uint32_t t=(uint32_t)SDL_GetTicks();ttk_draw_clock_hold(t?t:1u);lamp_bake_pin(true);} ~ClockHold(){ttk_draw_clock_hold(0);lamp_bake_pin(false);}} clock_hold;
+    // D23N4 (note 487): held at the outermost call only. A job run again
+    // inside a job (the developer checks' reference and self runs, N4b's
+    // fallback) keeps the outer job's clock and table; before, its own hold
+    // took another clock and its release left the rest of the outer job on
+    // the live clock (note 483 section 5's non-repeatable jobs).
+    static int clock_depth=0;
+    struct ClockHold {ClockHold(){if(clock_depth++) return;const uint32_t t=(uint32_t)SDL_GetTicks();ttk_draw_clock_hold(t?t:1u);lamp_bake_pin(true);} ~ClockHold(){if(--clock_depth) return;ttk_draw_clock_hold(0);lamp_bake_pin(false);}} clock_hold;
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
     const uint64_t hits0=substituted,miss0=sub_misses;
@@ -1710,6 +1782,8 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         n4b_ref.assign(1u<<20,0);render_replay_record_begin(n4b_ref.data(),1u<<20);
         n1::n4b_allowed=false;n1::n4b_norecord=true;n1::n4b_ot_take=true;
         if(n1::ct_on()) g_psx_mod_hook_observer=n1::ct_observe;
+        const bool sdo=sd::path() && self_cmp() && sd::load();
+        if(sdo) sd::take(false);   // D3: the host state at the job's start
         const int r=worker_draw(source,params,len);
         if(n1::ct_on()) {g_psx_mod_hook_observer=nullptr;n1::ct_ref=n1::ct_cur;n1::ct_ram_ref=n1::ct_ram_cur;n1::ct_mod_ref=n1::ct_mod_cur;}
         n1::n4b_allowed=true;n1::n4b_norecord=false;
@@ -1721,6 +1795,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         int of=0;const uint32_t nr=render_replay_record_end(&of);n4b_ref.resize(nr);n4b_ref_ok=r && !of;
         render_replay_image_load(n4b_image.data());render_replay_reset_channel();
         render_replay_record_begin(base,1u<<20);if(nw0) render_replay_record_splice(pre.data(),nw0);
+        if(sdo) sd::take(true);    // D3: what the first run left changed
     }
     bolt_barrel_job=(p.flags&64)!=0;   // D49E
     if(p.magic!=0x54544b32u || sizeof(Params)+(uint64_t)p.nmats*sizeof(MatPatch)>len) return 0;
@@ -1902,6 +1977,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         uint32_t nw=0;const uint32_t* w=render_replay_record_words(&nw);
         const int k=n4b_rebuilt?0:1;++vj[k];
         const bool same=ok && nw==n4b_ref.size() && !std::memcmp(w,n4b_ref.data(),4u*nw);ve[k]+=same;
+        if(sd::path() && self_cmp() && !sd::syms.empty()) sd::result(same);
         if(!same) {uint32_t q=0;while(q<nw && q<n4b_ref.size() && w[q]==n4b_ref[q]) ++q;
             std::fprintf(stderr,"[n2 check %ld]   D23N4b verify-first: %s job differs from the reference: words %u/%zu first at %u\n",(long)getpid(),k?"fallen-back":"rebuilt",nw,n4b_ref.size(),q);if(!k) n1::n4b_where(q);
             if(n1::ct_on()) {if(!k) n1::ct_report(); else if(self_cmp()) {n1::ct_reb=n1::ct_src;n1::ct_ram_reb=n1::ct_ram_cur;n1::ct_mod_reb=n1::ct_mod_cur;n1::ct_report();}

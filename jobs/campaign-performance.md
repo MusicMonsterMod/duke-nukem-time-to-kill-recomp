@@ -3081,13 +3081,30 @@ less CPU and package power per redraw (D23N2B-N4, D23V).
 
 ### D23Y10 - Publish the worker image without a copy
 
-**Status: Todo (2026-11-16, D23Y5 follow-up). Dependencies: D23Y5.**
+**Status: In progress (2026-11-16, desktop, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact; field laptop next). Dependencies: D23Y5.**
 
 D23Y5 (notes 490, 492): the emulation thread copies its image for the redraw
 workers every published frame. Replace the copy with a copy-on-write fork or
 a double-buffered image the emulation thread writes in place, exact by
 construction. Acceptance: exact (validator, Vanilla shots), the emulation
 thread measured on the field laptop at 120 against today's publish.
+
+Work log, 2026-11-16 (three-machine session, desktop lane, [note 495](../documentation/495-d23y10-tracked-publish.md)):
+of the three ways (a copy-on-write fork a publish, a double-buffered image
+written in place, or copying only what changed with the kernel saying what
+changed), the third: the smallest change and exact by construction. Built
+off by default, `PSX_PUBLISH_TRACK=1`: the emulation process registers its
+RAM, mod memory and DMA window for asynchronous userfaultfd write
+protection at its first publish; each publish scans the pages written since
+the previous one into every slot's pending set; the published slot gets
+only its pending pages and any range an extent grew over; a slot's first
+publish and any failure save whole. Developer check
+`PSX_PUBLISH_TRACK_VERIFY=N` compares a tracked publish with a whole save
+of the same moment. Desktop: a tracked publish 61-104 us (62-134 pages,
+49-85 written between publishes) against 656 us whole; the emulation
+process 1-3 points of a core lower in all four views, every run below its
+pair; 8,128 tracked publishes checked, 0 differing; validator 908 of 908;
+Vanilla shots 6 of 6. Next: the field laptop at 120 (the acceptance).
 
 ### D23Z - One-off CPU spikes on the emulation thread
 

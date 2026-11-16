@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 - D23Y10: a publish copies only what changed (built off)
+
+Desktop ([note 495](495-d23y10-tracked-publish.md)): `PSX_PUBLISH_TRACK=1` (off by default) copies only the pages written since a slot's last publish; exact; the emulation process 1-3 points of a core lower on the desktop; the field laptop measurement decides.
+
 ## 2026-11-16 - D23N5: a frame's redraw jobs share little; the same-image restore built off
 
 Desktop ([note 493](493-d23n5-shared-frame-work-desktop.md)): a redraw worker job's host hooks are almost all per job; the image is the largest shared cost. Built off by default (`PSX_RW_RESTORE=1`): exact, desktop worker CPU within the spread; field laptop and citadel next. The desktop's framework working tree now matches HEAD's patch plus this work.

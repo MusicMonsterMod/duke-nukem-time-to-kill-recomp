@@ -16258,7 +16258,7 @@ index fe317583..fa78d0d6 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..24f735fe 100644
+index 9d55ad16..2bc81e7c 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -16353,7 +16353,7 @@ index 9d55ad16..24f735fe 100644
  
  /*
   * Trusted mods may opt into host-backed guest memory in Expansion 1. Before
-@@ -57,9 +119,263 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -57,9 +119,399 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
      if (start > MOD_MEMORY_SIZE || size > MOD_MEMORY_SIZE - start) return 0u;
      memset(mod_memory + start, 0, size);
      mod_memory_used = start + size;
@@ -16614,10 +16614,146 @@ index 9d55ad16..24f735fe 100644
 +void render_replay_image_untrack(void) {}
 +#endif
 +
++/* D23Y10 (developer, PSX_PUBLISH_TRACK=1, render_worker.c): publishing a
++ * frame for the redraw workers copied the whole image (RAM, scratchpad and
++ * the used parts of mod memory and both DMA apertures, 3.5-5.5 MB) into its
++ * slot on the emulation thread. The emulation process tracks its writes to
++ * RAM, mod memory and the DMA window with the same kernel write protection
++ * the workers use; at each publish one scan lists the pages written since the
++ * previous publish (and protects them again) into every slot's pending set.
++ * A slot then receives only its pending pages, and any range an extent
++ * (mod memory used, DMA aperture used, extra-aperture high-water mark) grew
++ * over since that slot's last publish; the header and scratchpad whole.
++ * Exact by construction: a page nothing wrote since the slot's last publish
++ * already holds the bytes a whole save would copy, and bytes past an extent
++ * are left as a whole save leaves them. A slot's first publish, and any
++ * failure, saves whole. Linux 6.7+. */
++#if defined(__linux__)
++#define PUB_SLOTS 8u
++#define PUB_WORDS ((TRK_PAGES + 31u) / 32u)
++static int s_pub_state = 0;   /* 0 not tried, 1 ready, -1 unavailable */
++static int s_pub_uffd = -1, s_pub_pagemap = -1;
++static uint32_t s_pub_pend[PUB_SLOTS][PUB_WORDS];
++static uint32_t s_pub_ext[PUB_SLOTS][3];
++static uint8_t s_pub_valid[PUB_SLOTS];
++uint64_t g_pub_saves = 0, g_pub_whole = 0, g_pub_pages = 0, g_pub_written = 0;
++static int pub_init(void) {
++    if (s_pub_state) return s_pub_state > 0;
++    s_pub_state = -1;
++    s_pub_uffd = (int)syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
++    if (s_pub_uffd < 0) { fprintf(stderr, "[publish track] userfaultfd unavailable; whole saves\n"); return 0; }
++    struct uffdio_api api;
++    memset(&api, 0, sizeof api);
++    api.api = UFFD_API; api.features = UFFD_FEATURE_WP_ASYNC | UFFD_FEATURE_WP_UNPOPULATED;
++    if (ioctl(s_pub_uffd, UFFDIO_API, &api) != 0) { fprintf(stderr, "[publish track] async write protection unavailable; whole saves\n"); return 0; }
++    for (int r = 0; r < 3; ++r) {
++        struct uffdio_register reg;
++        memset(&reg, 0, sizeof reg);
++        reg.range.start = (uintptr_t)trk_base(r); reg.range.len = trk_size(r);
++        reg.mode = UFFDIO_REGISTER_MODE_WP;
++        if (ioctl(s_pub_uffd, UFFDIO_REGISTER, &reg) != 0) { fprintf(stderr, "[publish track] register failed; whole saves\n"); return 0; }
++        struct uffdio_writeprotect wp;
++        memset(&wp, 0, sizeof wp);
++        wp.range.start = (uintptr_t)trk_base(r); wp.range.len = trk_size(r);
++        wp.mode = UFFDIO_WRITEPROTECT_MODE_WP;
++        if (ioctl(s_pub_uffd, UFFDIO_WRITEPROTECT, &wp) != 0) return 0;
++    }
++    s_pub_pagemap = open("/proc/self/pagemap", O_RDONLY | O_CLOEXEC);
++    if (s_pub_pagemap < 0) return 0;
++    memset(s_pub_valid, 0, sizeof s_pub_valid);
++    s_pub_state = 1;
++    return 1;
++}
++/* Pages written since the last scan (protected again) into bits. */
++static int pub_scan(uint32_t *bits) {
++    struct page_region vec[256];
++    for (int r = 0; r < 3; ++r) {
++        uint64_t at = (uintptr_t)trk_base(r);
++        const uint64_t end = at + trk_size(r);
++        while (at < end) {
++            struct pm_scan_arg a;
++            memset(&a, 0, sizeof a);
++            a.size = sizeof a;
++            a.flags = PM_SCAN_CHECK_WPASYNC | PM_SCAN_WP_MATCHING;
++            a.start = at; a.end = end;
++            a.vec = (uintptr_t)vec; a.vec_len = 256;
++            a.category_mask = PAGE_IS_WRITTEN; a.return_mask = PAGE_IS_WRITTEN;
++            const long n = ioctl(s_pub_pagemap, PAGEMAP_SCAN, &a);
++            if (n < 0) return 0;
++            for (long i = 0; i < n; ++i)
++                for (uint64_t p = vec[i].start; p < vec[i].end; p += 4096u) {
++                    const uint32_t g = trk_first(r) + (uint32_t)((p - (uintptr_t)trk_base(r)) >> 12);
++                    bits[g >> 5] |= 1u << (g & 31u);
++                    ++g_pub_written;
++                }
++            if (a.walk_end <= at) return 0;
++            at = a.walk_end;
++        }
++    }
++    return 1;
++}
++static inline int pub_marked(const uint32_t *bits, uint32_t g) { return (bits[g >> 5] >> (g & 31u)) & 1u; }
++/* Copy region r's pending pages and the range [old, now) into dst, all
++ * clipped to [0, now). */
++static void pub_copy(uint8_t *dst, const uint8_t *src, int r, uint32_t first_page, const uint32_t *bits,
++                     uint32_t old, uint32_t now) {
++    const uint32_t pages = (now + 4095u) / 4096u;
++    for (uint32_t p = 0; p < pages; ++p) {
++        const uint32_t o = p * 4096u;
++        const uint32_t k = now - o < 4096u ? now - o : 4096u;
++        const int grown = o + k > old;
++        if (!grown && !pub_marked(bits, first_page + p)) continue;
++        memcpy(dst + o, src + o, k);
++        ++g_pub_pages;
++    }
++    (void)r;
++}
++/* render_replay_image_save into the slot image dst of slot; returns 1 when
++ * only pending pages were copied. */
++int render_replay_image_save_tracked(uint8_t *dst, int slot) {
++    if (slot < 0 || (unsigned)slot >= PUB_SLOTS || !pub_init()) { render_replay_image_save(dst); return 0; }
++    uint32_t written[PUB_WORDS];
++    memset(written, 0, sizeof written);
++    ++g_pub_saves;
++    if (!pub_scan(written)) {
++        /* Unknown writes: every slot must be saved whole once more. */
++        memset(s_pub_valid, 0, sizeof s_pub_valid);
++        render_replay_image_save(dst); ++g_pub_whole; return 0;
++    }
++    for (unsigned s = 0; s < PUB_SLOTS; ++s)
++        for (unsigned w = 0; w < PUB_WORDS; ++w) s_pub_pend[s][w] |= written[w];
++    const uint32_t now[3] = {mod_memory_used, mod_gpu_dma_memory_used, mod_gpu_dma_extra_hwm};
++    int partial = 0;
++    if (!s_pub_valid[slot]) {
++        render_replay_image_save(dst); ++g_pub_whole;
++    } else {
++        uint32_t hdr[4] = {mod_memory_used, mod_gpu_dma_memory_used, mod_gpu_dma_extra_hwm, 0u};
++        memcpy(dst, hdr, sizeof hdr);
++        uint8_t *img = dst + sizeof hdr;
++        const uint32_t *pend = s_pub_pend[slot];
++        pub_copy(img, ram, 0, trk_first(0), pend, RAM_SIZE, RAM_SIZE);
++        memcpy(img + RAM_SIZE, scratchpad, SCRATCHPAD_SIZE);
++        uint8_t *mod = img + RAM_SIZE + SCRATCHPAD_SIZE;
++        uint8_t *dma = mod + MOD_MEMORY_SIZE, *extra = dma + PSX_MOD_GPU_DMA_APERTURE_SIZE;
++        pub_copy(mod, mod_memory, 1, trk_first(1), pend, s_pub_ext[slot][0], now[0]);
++        pub_copy(dma, mod_gpu_dma_memory, 2, trk_first(2) + PSX_MOD_GPU_DMA_EXTRA_SIZE / 4096u, pend, s_pub_ext[slot][1], now[1]);
++        pub_copy(extra, mod_gpu_dma_window, 2, trk_first(2), pend, s_pub_ext[slot][2], now[2]);
++        partial = 1;
++    }
++    s_pub_valid[slot] = 1;
++    memcpy(s_pub_ext[slot], now, sizeof now);
++    memset(s_pub_pend[slot], 0, sizeof s_pub_pend[slot]);
++    return partial;
++}
++#else
++int render_replay_image_save_tracked(uint8_t *dst, int slot) { (void)slot; render_replay_image_save(dst); return 0; }
++#endif
++
++
  static int mod_memory_offset(uint32_t phys, uint32_t width, uint32_t *offset) {
      uint32_t off;
      if (phys < MOD_MEMORY_BASE) return 0;
-@@ -80,16 +396,223 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -80,16 +532,223 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
          return 0u;
      memset(mod_gpu_dma_memory + start, 0, size);
      mod_gpu_dma_memory_used = start + size;
@@ -16843,7 +16979,7 @@ index 9d55ad16..24f735fe 100644
      return psx_mod_gpu_dma_resolve_address_for(
          address, mod_gpu_dma_memory_used);
  }
-@@ -400,6 +923,8 @@ void dirty_ram_clear_image_baseline(void) {
+@@ -400,6 +1059,8 @@ void dirty_ram_clear_image_baseline(void) {
   * code — see dirty_ram_text_native_ok / dirty_ram_text_bless. */
  static uint8_t *text_ref_image = NULL;
  static uint32_t text_ref_lo = 0, text_ref_hi = 0;
@@ -16852,7 +16988,7 @@ index 9d55ad16..24f735fe 100644
  static uint32_t text_modified_bitmap[DIRTY_RAM_BITMAP_WORDS];
  static uint32_t text_diverged_bitmap[DIRTY_RAM_BITMAP_WORDS];
  static uint64_t g_text_native_blocked = 0;
-@@ -410,12 +935,18 @@ static uint32_t g_text_exact_last_range_len = 0;
+@@ -410,12 +1071,18 @@ static uint32_t g_text_exact_last_range_len = 0;
  static uint32_t g_text_exact_last_mismatch = 0;
  static uint32_t g_text_exact_last_live = 0;
  static uint32_t g_text_exact_last_ref = 0;
@@ -16871,7 +17007,7 @@ index 9d55ad16..24f735fe 100644
      text_ref_lo = phys_lo;
      text_ref_hi = phys_lo + len;
      memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
-@@ -440,7 +971,9 @@ static inline void text_guard_note_write(uint32_t phys, uint32_t val, int size)
+@@ -440,7 +1107,9 @@ static inline void text_guard_note_write(uint32_t phys, uint32_t val, int size)
                         (uint8_t)(val >> 16), (uint8_t)(val >> 24) };
      if (memcmp(ref, buf, (size_t)size) != 0) {
          uint32_t page = phys >> DIRTY_RAM_PAGE_SHIFT;
@@ -16882,7 +17018,7 @@ index 9d55ad16..24f735fe 100644
      }
  }
  
-@@ -529,9 +1062,96 @@ static int aot_blocked(uint32_t phys) {
+@@ -529,9 +1198,96 @@ static int aot_blocked(uint32_t phys) {
   * Every emitted range is validated in full. A continuation can follow a
   * backward edge and fetch instructions before exec_pc, so clipping at the
   * resume address can admit stale static code. */
@@ -16979,7 +17115,7 @@ index 9d55ad16..24f735fe 100644
      if (!text_ref_image || !lo_len_pairs || count == 0) return 0;
      uint32_t at = exec_pc & 0x1FFFFFFFu;
      if (aot_blocked(at ? at : (lo_len_pairs[0] & 0x1FFFFFFFu))) {
-@@ -575,6 +1195,7 @@ int dirty_ram_text_native_ok_ranges_from(const uint32_t *lo_len_pairs,
+@@ -575,6 +1331,7 @@ int dirty_ram_text_native_ok_ranges_from(const uint32_t *lo_len_pairs,
              }
              if (clean) continue;
          }
@@ -16987,7 +17123,7 @@ index 9d55ad16..24f735fe 100644
          if (memcmp(ram + phys, text_ref_image + (phys - text_ref_lo), len) != 0) {
              uint32_t off = 0;
              const uint8_t *live = ram + phys;
-@@ -637,6 +1258,8 @@ void dirty_ram_text_bless(uint32_t phys, const uint8_t *bytes, uint32_t len) {
+@@ -637,6 +1394,8 @@ void dirty_ram_text_bless(uint32_t phys, const uint8_t *bytes, uint32_t len) {
      const uint8_t *src = bytes + (lo - phys);
      if (memcmp(ref, src, hi - lo) == 0) return;                     /* already in sync */
      memcpy(ref, src, hi - lo);
@@ -16996,7 +17132,7 @@ index 9d55ad16..24f735fe 100644
      /* Re-open the affected pages: clear the sticky diverged bit so the next
       * dispatch re-runs the compare against the now-updated reference. */
      uint32_t first_page = lo >> DIRTY_RAM_PAGE_SHIFT;
-@@ -761,6 +1384,7 @@ void dirty_ram_reset_for_boot(void) {
+@@ -761,6 +1520,7 @@ void dirty_ram_reset_for_boot(void) {
      memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
      memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
      g_text_diverged_pages = 0;
@@ -17004,7 +17140,7 @@ index 9d55ad16..24f735fe 100644
      memset(overlay_watch_bitmap, 0, sizeof(overlay_watch_bitmap));
      memset(overlay_page_gen, 0, sizeof(overlay_page_gen));
      memset(g_dirty_ram_exec_page_bitmap, 0, sizeof(g_dirty_ram_exec_page_bitmap));
-@@ -808,19 +1432,85 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -808,19 +1568,85 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
   * bumps overlay_page_gen. Without this, ENTRY_VALID overlays keep the gen-gated
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
@@ -17099,7 +17235,7 @@ index 9d55ad16..24f735fe 100644
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -829,7 +1519,10 @@ void overlay_watch_invalidate_after_ram_restore(void) {
+@@ -829,7 +1655,10 @@ void overlay_watch_invalidate_after_ram_restore(void) {
      extern void overlay_loader_note_code_write(void);
      extern void overlay_loader_resync_validation_after_restore(void);
      overlay_loader_note_code_write();
@@ -17111,7 +17247,7 @@ index 9d55ad16..24f735fe 100644
      psx_kernel_bless_resync_after_restore();
      overlay_loader_resync_validation_after_restore();
  }
-@@ -912,6 +1605,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -912,6 +1741,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -17121,7 +17257,7 @@ index 9d55ad16..24f735fe 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1871,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +2007,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -17129,7 +17265,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1879,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +2015,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -17137,7 +17273,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1990,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +2126,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -17145,7 +17281,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1998,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +2134,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -17153,7 +17289,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +2111,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +2247,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -17161,7 +17297,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +2119,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +2255,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -17169,7 +17305,7 @@ index 9d55ad16..24f735fe 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1562,7 +2264,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
+@@ -1562,7 +2400,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
              uint32_t v;
@@ -17178,7 +17314,7 @@ index 9d55ad16..24f735fe 100644
              return v;
          }
      }
-@@ -1649,7 +2351,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +2487,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
@@ -17188,7 +17324,7 @@ index 9d55ad16..24f735fe 100644
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1749,7 +2453,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
+@@ -1749,7 +2589,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
@@ -17198,7 +17334,7 @@ index 9d55ad16..24f735fe 100644
              return;
          }
      }
-@@ -1810,8 +2515,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
+@@ -1810,8 +2651,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off))
@@ -17209,7 +17345,7 @@ index 9d55ad16..24f735fe 100644
      }
      {
          uint32_t off;
-@@ -1851,7 +2556,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2692,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -17219,7 +17355,7 @@ index 9d55ad16..24f735fe 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -1875,8 +2582,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
+@@ -1875,8 +2718,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off)) {
@@ -17231,7 +17367,7 @@ index 9d55ad16..24f735fe 100644
              return;
          }
      }
-@@ -1929,7 +2637,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
+@@ -1929,7 +2773,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off))
@@ -17240,7 +17376,7 @@ index 9d55ad16..24f735fe 100644
      }
      {
          uint32_t off;
-@@ -2186,7 +2894,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +3030,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
@@ -17250,7 +17386,7 @@ index 9d55ad16..24f735fe 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2209,7 +2919,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
+@@ -2209,7 +3055,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off)) {
@@ -20590,10 +20726,10 @@ index 00000000..016906fb
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..5a110c82
+index 00000000..705da3b9
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,741 @@
+@@ -0,0 +1,786 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -21069,7 +21205,52 @@ index 00000000..5a110c82
 +            return 0;   /* still being read */
 +    }
 +    atomic_store(&s_sh->slot_ready[slot], 0u);
-+    render_replay_image_save(slot_image((uint32_t)slot));
++    /* D23Y10 (developer, off by default): PSX_PUBLISH_TRACK=1 copies only the
++     * pages written since this slot's last publish (memory.c
++     * render_replay_image_save_tracked); PSX_PUBLISH_TRACK_VERIFY=N compares
++     * every Nth such publish with a whole save. "[publish track]" lines. */
++    static int track = -1, verify = 0;
++    static uint8_t *verify_buf = NULL;
++    static uint64_t pubs = 0, partial_n = 0, ns_sum[2] = {0, 0}, n_sum[2] = {0, 0}, checked = 0, bad = 0;
++    if (track < 0) {
++        const char *t = getenv("PSX_PUBLISH_TRACK"), *v = getenv("PSX_PUBLISH_TRACK_VERIFY");
++        track = t && t[0] == '1';
++        verify = v ? atoi(v) : 0;
++        if (verify > 0) verify_buf = malloc(s_image_bytes);
++    }
++    {
++        struct timespec t0, t1;
++        clock_gettime(CLOCK_MONOTONIC, &t0);
++        int partial = 0;
++        if (track) {
++            extern int render_replay_image_save_tracked(uint8_t *dst, int slot);
++            partial = render_replay_image_save_tracked(slot_image((uint32_t)slot), slot);
++        } else render_replay_image_save(slot_image((uint32_t)slot));
++        clock_gettime(CLOCK_MONOTONIC, &t1);
++        ns_sum[partial] += (uint64_t)(t1.tv_sec - t0.tv_sec) * 1000000000ull + (uint64_t)(t1.tv_nsec - t0.tv_nsec);
++        ++n_sum[partial]; partial_n += partial; ++pubs;
++        if (verify > 0 && verify_buf && partial && partial_n % (uint64_t)verify == 0) {
++            /* The whole save of this same moment, compared over the extents a
++             * load copies (header, RAM, scratchpad, each aperture's used part). */
++            render_replay_image_save(verify_buf);
++            const uint8_t *a = slot_image((uint32_t)slot), *b = verify_buf;
++            uint32_t h[4]; memcpy(h, b, sizeof h);
++            const size_t ram_off = 16, sp_off = ram_off + 2u * 1024u * 1024u, mod_off = sp_off + 1024u;
++            const size_t dma_off = mod_off + 1024u * 1024u, ext_off = dma_off + 1024u * 1024u;
++            const int same = !memcmp(a, b, 16) && !memcmp(a + ram_off, b + ram_off, 2u * 1024u * 1024u + 1024u) &&
++                             !memcmp(a + mod_off, b + mod_off, h[0]) && !memcmp(a + dma_off, b + dma_off, h[1]) &&
++                             !memcmp(a + ext_off, b + ext_off, h[2]);
++            ++checked; bad += !same;
++            if (!same) fprintf(stderr, "[publish track] slot %d differs from a whole save\n", slot);
++        }
++        if (track || verify > 0) if (pubs % 512 == 0) {
++            extern uint64_t g_pub_pages, g_pub_written, g_pub_whole;
++            fprintf(stderr, "[publish track] publishes %llu, from written pages %.1f%%; us whole %.0f, tracked %.0f; pages written a publish %.1f, copied a tracked publish %.1f; checked %llu, differing %llu\n",
++                    (unsigned long long)pubs, 100.0 * partial_n / pubs, n_sum[0] ? ns_sum[0] / 1e3 / n_sum[0] : 0.0,
++                    n_sum[1] ? ns_sum[1] / 1e3 / n_sum[1] : 0.0, (double)g_pub_written / pubs,
++                    partial_n ? (double)g_pub_pages / partial_n : 0.0, (unsigned long long)checked, (unsigned long long)bad);
++        }
++    }
 +    atomic_fetch_add(&s_sh->slot_gen[slot], 1u);
 +    s_sh->slot_cpu[slot] = *cpu;
 +    /* The margin follows the presenter's frame classification, which a worker

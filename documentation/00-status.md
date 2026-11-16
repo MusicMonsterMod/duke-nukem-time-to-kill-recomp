@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 - D23N3 residue fixed; D23N4a proven; D23N4b built, off
+
+Desktop, autonomous ([note 482](482-d23n3-d23n4a-d23n4b-desktop.md)). The object renderer's own body now runs in the rebuild copy; later jobs whole-exact in UI 2, 8, 9 and nearly all of UI 5; the FAMILY JEWELS start's remaining class (the renderer's face culls change the packet arena) is detected and falls back. The frustum test and the transform's GTE data registers are ported exact; the detectors flag every wrong rebuild in five views. D23N4b (later jobs rebuilt in place) is built behind a developer switch, off by default: not yet exact and not cheaper. Nothing changes for players.
+
 ## 2026-11-15 - D23N2B weapon attachments and D23N3 sprites exact; D23N4 groundwork, not built
 
 Desktop, autonomous ([note 481](481-d23n2b-d23n3-d23n4-desktop.md)). The muzzle flash's rebuild had skipped our weapon-matrix hook (fixed); the scaled weapon mesh, Duke's joint sprites, the particle walk and the attach point now run in the rebuild; the line effect is confirmed exact. Every compared later job whole-exact, game packets included, in UI 2, 8, 9 and 5 at 180 (60 s each); a 120 s UI 5 run still has 4 of 265 jobs with the game's own object-renderer quads differing. D23N4: every hook-list divergence is a culling test the rebuild could evaluate for its own fraction, but the prop frustum test and GTE data registers need exact ports first, so it was not built or switched on. Developer code only; validator and Vanilla unchanged. The user accepted after three playtests and asked to close it out; committed (D23N2B Done, D23N3 In progress, D23N4 Todo).

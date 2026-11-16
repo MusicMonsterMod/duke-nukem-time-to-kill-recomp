@@ -85,6 +85,7 @@ void n2_observe(CPUState* cpu,uint32_t addr,int phase);
 void n2_at_flip(uint64_t,float);
 void n2_begin(const CPUState&);
 void n2_finish(bool);
+void n4_rotate();
 const CPUState* n2_flip_cpu=nullptr;
 void observe(CPUState* cpu,uint32_t addr,int phase) {
     if(!logging) return;
@@ -111,6 +112,9 @@ int diff_mode() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_DIFF"
 // With DNTTK_N2_CHECK bit 1024 also its stream up to the flip (D23N2B piece 8).
 struct Record {uint64_t serial=~0ull;float alpha=0;uint64_t t0=0,t1=0;std::vector<Store> stores;std::vector<Hook> hooks;std::vector<uint32_t> words;} prev;
 const uint32_t* parent_stream=nullptr;
+bool n4b_on();bool n4b_run(CPUState&);void n4b_where(uint32_t);void n4b_ot_snap(int);
+bool n4b_job=false;           // D23N4b: this job rebuilds in place
+CPUState prev_flip_cpu{};uint32_t prev_prefix=0,prev_cursor=0,prev_channel[3]={};   // the recorded (first) job's flip state and stream prefix
 uint64_t t_begin=0;
 double ms_since(uint64_t t) {return (double)(SDL_GetPerformanceCounter()-t)*1000.0/(double)SDL_GetPerformanceFrequency();}
 bool io(uint32_t a) {a&=0x1fffffffu;return a>=0x1f801000u && a<0x1f803000u;}
@@ -271,8 +275,15 @@ void compare_memory() {
 }
 
 // In the job, before the composition runs: fork the copy, start recording.
+bool n4b_allowed=true;   // false for a fallen-back job's second run
+bool n4b_norecord=false;  // D23N4b verify: the reference run is not recorded
+// D23N4b verify-first: the ordering table (buckets, bitmap) at the reference
+// run's flip and at the end of the rebuild.
+uint32_t n4b_ot[2][0x1040];bool n4b_ot_take=false;
+void n4b_ot_snap(int k) {for(uint32_t q=0;q<0x1000;++q) n4b_ot[k][q]=psx_mod_read_word(0x800d27a0u+4*q);for(uint32_t q=0;q<64;++q) n4b_ot[k][0x1000+q]=psx_mod_read_word(0x800d26a0u+4*q);}
 void begin(CPUState& cpu,const Params& p) {
-    child=-1;recording_only=false;
+    child=-1;recording_only=false;n4b_job=false;
+    if(n4b_norecord) return;
     if((!every() && !recording()) || (p.flags&4)) return;
     static unsigned count=0;
     if(!recording() && ++count%(unsigned)every()) return;
@@ -290,6 +301,15 @@ void begin(CPUState& cpu,const Params& p) {
     orig_ww=cpu.write_word;orig_wh=cpu.write_half;orig_wb=cpu.write_byte;
     auto unwrap=[&]{cpu.write_word=orig_ww;cpu.write_half=orig_wh;cpu.write_byte=orig_wb;};
     cpu.write_word=ww;cpu.write_half=wh;cpu.write_byte=wb;
+    // D23N4b: a later job of the frame the worker recorded first is not
+    // recorded (lean capture); it rebuilds in place (frame_replay.cpp).
+    if(n4b_on() && std::getenv("DNTTK_N4_TRACE")) {static unsigned tr=0;if(tr++<40) std::fprintf(stderr,"[n4b trace %ld] serial %llu alpha %.3f prev %llu %.3f words %zu allowed %d flags %u\n",(long)getpid(),(unsigned long long)p.serial,p.alpha,(unsigned long long)prev.serial,prev.alpha,prev.words.size(),n4b_allowed?1:0,p.flags);}
+    if(recording() && n4b_on() && n4b_allowed && prev.serial==p.serial && prev.alpha!=p.alpha && !prev.words.empty()) {
+        unwrap();
+        n2_serial=p.serial;n2_alpha=p.alpha;n2_begin(cpu);
+        n4b_job=true;
+        return;
+    }
     if(recording()) {
         cur_serial=p.serial;cur_alpha=p.alpha;recording_only=true;rec_t0=__rdtsc();xf::pending=false;n2_serial=p.serial;n2_alpha=p.alpha;n2_begin(cpu);
         g_psx_mod_hook_observer=observe;logging=true;
@@ -308,6 +328,7 @@ void begin(CPUState& cpu,const Params& p) {
 
 // The composition reached the flip: stop recording, let the copy rebuild.
 void at_flip(const CPUState& cpu) {
+    if(n4b_ot_take) {n4b_ot_snap(0);n4b_ot_take=false;}
     if(recording_only) {
         recording_only=false;logging=false;g_psx_mod_hook_observer=nullptr;rec_t1=__rdtsc();
         if(sh->overflow) {prev.serial=~0ull;return;}
@@ -320,6 +341,8 @@ void at_flip(const CPUState& cpu) {
             diff_records();
             if(dt.pairs%64==0) diff_report();
         }
+        n4_rotate();   // D23N4a: this job's culling decisions become the earlier job's
+        prev_flip_cpu=cpu;prev_prefix=sh->prefix;prev_cursor=psx_mod_read_word(0x800d67a8u);render_replay_channel_get(prev_channel);
         prev.serial=cur_serial;prev.alpha=cur_alpha;prev.t0=rec_t0;prev.t1=rec_t1;
         prev.stores.assign(sh->store,sh->store+sh->nstores);
         prev.hooks.assign(sh->hook,sh->hook+sh->nhooks);

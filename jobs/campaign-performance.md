@@ -1731,7 +1731,7 @@ belongs to D23N4.
 
 ### D23N3 - The game's camera-dependent packets
 
-**Status: In progress (2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 4: the line effect exact, Duke's joint sprites and the particles run in the copy; 4 of 265 UI 5 jobs left in a 120 s run; 2026-11-15 night, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 3: every host-exact rebuilt later job identical with its game packets in UI 2, 8, 9 and 5 but one unexplained worker; the line effect's port not yet seen running; 2026-11-15: listed, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2). Dependencies: D23N2B.** About 1 in 10 of the game's own
+**Status: Done (2026-11-16, closeout authorized; [note 482](../documentation/482-d23n3-d23n4a-d23n4b-desktop.md): the UI 5 residue fixed, the remaining arena class detected by D23N4a and left to fall back. Earlier: 2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 4: the line effect exact, Duke's joint sprites and the particles run in the copy; 4 of 265 UI 5 jobs left in a 120 s run; 2026-11-15 night, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 3: every host-exact rebuilt later job identical with its game packets in UI 2, 8, 9 and 5 but one unexplained worker; the line effect's port not yet seen running; 2026-11-15: listed, [note 478](../documentation/478-d23t-d23n2b-d23v2-desktop.md) section 2). Dependencies: D23N2B.** About 1 in 10 of the game's own
 packets change between the jobs of a frame (one semi-transparent quad and
 about two textured quads a job, note 449 section 7). Identify their guest
 routines and give each a host equivalent (or run that routine alone).
@@ -1787,6 +1787,17 @@ from the game's own object-renderer path (store PCs `0x80010680-
 0x8001068c`) and a flat quad written inside a hook (cause not
 established). Note 480's worker incident did not recur in five UI 5 runs.
 
+Work log, 2026-11-16 (desktop, [note 482](../documentation/482-d23n3-d23n4a-d23n4b-desktop.md)): the UI 5 residue was the
+object renderer's own body (`0x80010000`, quads at PCs `0x80010680-0x8001068c`),
+replayed from the earlier fraction; the copy now runs it (bit 33554432),
+UI 5 game-packet differences 6/272 -> 0/256 on the same run. Wider check, 120
+s: UI 2 176/176, UI 8 212/212, UI 9 322/322, UI 5 (DUKE HILL town) 291/293,
+FAMILY JEWELS start (made in lab slot 11 with the console) 166/224. The rest
+is one class: the renderer's own face culls follow the camera, so the copy's
+packet arena leaves the source's and later replayed packet stores no longer
+fit; not rebuildable by replay, counted per job and flagged by the D23N4a
+detectors (falls back). One FAMILY JEWELS host difference remains unexplained.
+
 ### D23N4 - Later jobs skip the game's code
 
 **Status: Todo (2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
@@ -1841,6 +1852,31 @@ actor tests need exact ports of `0x80031584` and of the GTE data registers
 the transform leaves, and the water and small-model ports their unlinked
 side, before "no job the rebuild gets wrong is accepted" can be proven; so,
 by the user's rule, no D23N4 switch and no measurement.
+
+Work log, 2026-11-16 (desktop, [note 482](../documentation/482-d23n3-d23n4a-d23n4b-desktop.md)): **D23N4a**: the frustum test
+`0x80031584` reads GTE control registers only (TRX/TRY/TRZ, H; not data
+registers as note 481 assumed); ported and checked against the game's own
+routine at its six call sites: about 930,000 calls identical. The
+transform's GTE data registers (MulMatrix0's last MVMVA: V0, IR1-3, MAC1-3,
+FLAG) ported, exact at about 1.6 million next hooks that follow it directly.
+Detectors (bit 134217728): every job records its culling decisions; a
+rebuilt later job compares its own (far/near/frustum per site, the prop's box
+tests, the occluder stage and the actor hit test `0x80076330` as unprovable,
+water boxes and tiles, small models, the hooks of every routine run alone,
+the packet arena, game GTE work before the object renderer). Proof, 120 s in
+UI 2, 8, 9, 5 and the FAMILY JEWELS start: 371-378 wrong jobs, **0
+unflagged**; false alarms still high (UI 5: the actor hit test). **D23N4b**:
+built behind `DNTTK_N4_REBUILD=1`, off by default (lean first-job capture per
+worker, in-place rebuild, image reload and the full job on any flag; verify
+switches `DNTTK_N4_VERIFY`/`DNTTK_N4_VERIFY_FIRST`). It only applies with one
+worker (at 180 with three workers a frame's jobs go to different workers).
+Not exact: 2-6% of accepted rebuilds differ from the full job (mostly the
+game packets after the flip); not cheaper: UI 5 worker CPU 94.5% of a core
+against 91.2% plain. Left off; pictures with every switch off: validator 908/908,
+Vanilla shots 6/6 identical. Field laptop (same session): no saving beyond run order (the check's recording
+alone measures the same as N4b in the town; FAMILY JEWELS start: one later job
+rebuilt in 60 s), town 191/192 accepted rebuilds exact; default-on: no. D23Y8
+(part 3) not started (note 482 sections 8-9).
 
 ### D23O - Leaner render-thread submission
 

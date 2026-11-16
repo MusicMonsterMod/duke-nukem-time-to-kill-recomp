@@ -1680,6 +1680,30 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if(len<sizeof(Params)) return 0;
     Params p;
     std::memcpy(&p,params,sizeof p);
+    // D23N4b (developer, DNTTK_N4_REBUILD=1, off by default): a later job of a
+    // frame may rebuild in place (redraw_n2.inc); its image is saved first so
+    // a rebuild that is flagged falls back to the full job.
+    static std::vector<uint8_t> n4b_image;bool n4b_saved=false;
+    if(n1::n4b_on() && n1::n4b_allowed && !(p.flags&4) && n1::prev.serial==p.serial && n1::prev.alpha!=p.alpha) {
+        n4b_image.resize(render_replay_image_bytes());render_replay_image_save(n4b_image.data());n4b_saved=true;
+    }
+    // D23N4b developer comparison, reference first (DNTTK_N4_VERIFY_FIRST=N):
+    // every Nth candidate job is first run in full from its image, not
+    // recorded, into a scratch stream; then the job runs as N4b runs it
+    // (rebuild, or fallback) and its stream is compared with the reference.
+    static const int n4b_vfirst=[]{const char* t=std::getenv("DNTTK_N4_VERIFY_FIRST");return t?std::atoi(t):0;}();
+    static unsigned n4b_vfc=0;static std::vector<uint32_t> n4b_ref;bool n4b_ref_ok=false;
+    if(n4b_saved && n4b_vfirst>0 && ++n4b_vfc%(unsigned)n4b_vfirst==0) {
+        uint32_t nw0=0;uint32_t* base=const_cast<uint32_t*>(render_replay_record_words(&nw0));
+        std::vector<uint32_t> pre(base,base+nw0);
+        n4b_ref.assign(1u<<20,0);render_replay_record_begin(n4b_ref.data(),1u<<20);
+        n1::n4b_allowed=false;n1::n4b_norecord=true;n1::n4b_ot_take=true;
+        const int r=worker_draw(source,params,len);
+        n1::n4b_allowed=true;n1::n4b_norecord=false;
+        int of=0;const uint32_t nr=render_replay_record_end(&of);n4b_ref.resize(nr);n4b_ref_ok=r && !of;
+        render_replay_image_load(n4b_image.data());render_replay_reset_channel();
+        render_replay_record_begin(base,1u<<20);if(nw0) render_replay_record_splice(pre.data(),nw0);
+    }
     bolt_barrel_job=(p.flags&64)!=0;   // D49E
     if(p.magic!=0x54544b32u || sizeof(Params)+(uint64_t)p.nmats*sizeof(MatPatch)>len) return 0;
     // Developer mask DNTTK_INTERP_CAM: 1 rotation, 2 anchor/distance/room,
@@ -1783,7 +1807,26 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     if((p.flags&32) && !(p.flags&4)) beams_animate(p.beam_t);
     n1::begin(cpu,p);   // D23N1 developer check (DNTTK_N1_CHECK)
     tchk::begin(cpu,p); // D23T developer check (DNTTK_T_CHECK)
-    psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
+    bool n4b_rebuilt=false;
+    if(n1::n4b_job) {
+        n1::n4b_job=false;
+        n4b_rebuilt=n1::n4b_run(cpu);
+        if(!n4b_rebuilt) {
+            // Fall back: the job's image as it came, the stream from the
+            // start, and the full job (no rebuild for this run).
+            g_psx_call_bail=0;
+            if(!n4b_saved) return 0;
+            uint32_t nw=0;uint32_t* base=const_cast<uint32_t*>(render_replay_record_words(&nw));
+            sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={}; quake_cam={};
+            render_replay_image_load(n4b_image.data());
+            render_replay_reset_channel();
+            render_replay_record_begin(base,1u<<20);   // render_worker.c RW_OUT_WORDS
+            n1::n4b_allowed=false;
+            const int r=worker_draw(source,params,len);
+            n1::n4b_allowed=true;
+            return r;
+        }
+    } else psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
     n1::at_flip(cpu);
     tchk::at_flip(cpu);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
@@ -1826,6 +1869,44 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         std::fprintf(stderr,"[quality worker] total_ms=%.3f actor_ms=%.3f actors=%u rooms=%u xf_hit=%llu xf_miss=%llu\n",
             (SDL_GetPerformanceCounter()-quality_start)*ms,quality_actor_ticks*ms,quality_actor_count,
             psx_mod_read_word(0x800d68a8),(unsigned long long)(substituted-hits0),(unsigned long long)(sub_misses-miss0));
+    }
+    // D23N4b developer comparison (DNTTK_N4_VERIFY=N): every Nth accepted
+    // rebuild, the full job is run again from the job's image into a scratch
+    // stream and compared word for word; the rebuild's stream is kept.
+    if(n4b_ref_ok) {
+        static uint64_t vj[2]={},ve[2]={};
+        uint32_t nw=0;const uint32_t* w=render_replay_record_words(&nw);
+        const int k=n4b_rebuilt?0:1;++vj[k];
+        const bool same=ok && nw==n4b_ref.size() && !std::memcmp(w,n4b_ref.data(),4u*nw);ve[k]+=same;
+        if(!same) {uint32_t q=0;while(q<nw && q<n4b_ref.size() && w[q]==n4b_ref[q]) ++q;
+            std::fprintf(stderr,"[n2 check %ld]   D23N4b verify-first: %s job differs from the reference: words %u/%zu first at %u\n",(long)getpid(),k?"fallen-back":"rebuilt",nw,n4b_ref.size(),q);if(!k) n1::n4b_where(q);
+            if(!k) {unsigned nd=0;std::fprintf(stderr,"[n2 check %ld]     ordering table, rebuilt/reference:",(long)getpid());
+                for(uint32_t b=0;b<0x1040;++b) if(n1::n4b_ot[1][b]!=n1::n4b_ot[0][b] && nd++<6) std::fprintf(stderr," %s %u %08x/%08x",b>=0x1000?"bitmap":"bucket word",b>=0x1000?b-0x1000:b,n1::n4b_ot[1][b],n1::n4b_ot[0][b]);
+                std::fprintf(stderr," (%u words differ)\n",nd);}}
+        if((vj[0]+vj[1])%16==0) std::fprintf(stderr,"[n2 check %ld] D23N4b verify-first: rebuilt jobs %llu exact %llu, fallen-back jobs %llu exact %llu\n",(long)getpid(),(unsigned long long)vj[0],(unsigned long long)ve[0],(unsigned long long)vj[1],(unsigned long long)ve[1]);
+    }
+    static const int n4b_verify=[]{const char* t=std::getenv("DNTTK_N4_VERIFY");return t?std::atoi(t):0;}();
+    static unsigned n4b_vcount=0;static uint64_t n4b_vjobs=0,n4b_vexact=0;
+    if(n4b_rebuilt && ok && n4b_verify>0 && n4b_saved && ++n4b_vcount%(unsigned)n4b_verify==0) {
+        uint32_t nw=0;uint32_t* base=const_cast<uint32_t*>(render_replay_record_words(&nw));
+        std::vector<uint32_t> mine(base,base+nw);
+        static std::vector<uint32_t> full;full.assign(1u<<20,0);
+        render_replay_image_load(n4b_image.data());render_replay_reset_channel();
+        render_replay_record_begin(full.data(),1u<<20);
+        const CPUState used=n1::prev_flip_cpu;
+        n1::n4b_allowed=false;const int r=worker_draw(source,params,len);n1::n4b_allowed=true;
+        int of=0;const uint32_t nf=render_replay_record_end(&of);
+        {static unsigned shown=0;const CPUState& real=n1::prev_flip_cpu;   // the full run was recorded: its flip state
+         if(shown<12) {bool any=false;for(int q=0;q<32;++q) if(used.gpr[q]!=real.gpr[q]) {if(!any) std::fprintf(stderr,"[n2 check %ld]   D23N4b flip registers, the source's against the full job's:",(long)getpid());any=true;std::fprintf(stderr," r%d %08x/%08x",q,used.gpr[q],real.gpr[q]);}
+           if(any) {++shown;std::fprintf(stderr,"\n");}}}
+        ++n4b_vjobs;const bool same=r && !of && nf==nw && !std::memcmp(full.data(),mine.data(),4u*nw);
+        n4b_vexact+=same;
+        if(!same) {uint32_t k=0;while(k<nw && k<nf && full[k]==mine[k]) ++k;std::fprintf(stderr,"[n2 check %ld]   D23N4b verify: rebuilt job differs from the full job: words %u/%u first at %u:",(long)getpid(),nw,nf,k);
+            for(uint32_t q=k>3?k-3:0;q<k+8 && q<nw && q<nf;++q) std::fprintf(stderr," %08x/%08x",mine[q],full[q]);std::fprintf(stderr,"\n");n1::n4b_where(k);
+            static int dumped=0;if(const char* d=std::getenv("DNTTK_N4_DUMP")) if(dumped++<2) {char path[512];std::snprintf(path,sizeof path,"%s/n4b-%ld-%d.bin",d,(long)getpid(),dumped);
+                if(FILE* f=std::fopen(path,"wb")) {const uint32_t h[2]={nw,nf};std::fwrite(h,4,2,f);std::fwrite(mine.data(),4,nw,f);std::fwrite(full.data(),4,nf,f);std::fclose(f);}}}
+        if(n4b_vjobs%16==0) std::fprintf(stderr,"[n2 check %ld] D23N4b verify: accepted rebuilds compared with the full job %llu exact %llu\n",(long)getpid(),(unsigned long long)n4b_vjobs,(unsigned long long)n4b_vexact);
+        render_replay_record_begin(base,1u<<20);render_replay_record_splice(mine.data(),nw);   // the channel as the full run left it
     }
     return ok ? 1 : 0;
 }

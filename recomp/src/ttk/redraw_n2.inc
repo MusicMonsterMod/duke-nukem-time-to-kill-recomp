@@ -65,11 +65,29 @@
 //   2097152 the weapon mesh 0x80033e40 run alone (desktop, note 481);
 //   4194304 Duke's joint sprites 0x800307c0 run alone, 8388608 the particles
 //      0x8009ce44 run alone, 16777216 the attach point 0x80032364 redone
-//      (desktop, note 481).
+//      (desktop, note 481);
+//   33554432 the object renderer 0x80010000 run in the copy (desktop, note 482).
+// 67108864 D23N4a ports checked on their own: the frustum test 0x80031584
+//      against the game's at its six call sites, the transform's GTE data
+//      registers at the next hook (namespace n4, note 482).
+// 134217728 with 1024: D23N4a detectors: every job records its culling
+//      decisions; a rebuilt later job takes its own and is flagged where they
+//      differ from its source's or cannot be taken; jobs whose hook lists
+//      differ are rebuilt too (the source's list), and every job is
+//      classified wrong or exact, flagged or not (namespace n4).
 // DNTTK_N2_DUMP=dir (with 1024): the first host-exact jobs whose game
 // packets differ, both tails, both records' stores and the hook list.
 // Results: "[n2 check]" lines on stderr.
 uint64_t n2_serial=0; float n2_alpha=0;   // the job being recorded (its frame and fraction)
+// D23N4b (developer, off by default): DNTTK_N4_REBUILD=1 with DNTTK_N2_CHECK
+// holding 1024 and 134217728 and DNTTK_N2_WHOLE="1 1": a worker records
+// (lean: only) the first job of each frame; its later jobs of the frame do not
+// run the game's composition but rebuild their stream in place from that
+// record (wj::body), with the D23N4a detectors; any flag, failure or a prefix
+// that differs falls back to the full job (frame_replay.cpp reloads the job's
+// image and runs it again). The forked comparison (the check) is not run in
+// this mode; run the check without the switch to compare.
+bool n4b_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_N4_REBUILD");return t && t[0]=='1';}();return v;}
 int n2_mask() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_CHECK");return t?(int)std::strtol(t,nullptr,0):0;}();return v;}
 
 namespace xf {
@@ -727,7 +745,7 @@ std::vector<Face> queue;size_t qi=0;
 // Counters, in wj::Shared: models, faces queued, links rewritten, texpage
 // links, all links simulated, failures: transform out of range, queue
 // mismatch (an emitter hook without a face or of another shape), faces left.
-enum {c_models,c_faces,c_xy,c_e1,c_links,f_range,f_queue,f_left,c_wboxes,c_wroom,c_wtriples,c_wtiles,c_otlinks,f_wcull,c_rooms,c_portal,c_rec_found,c_rec_diff,c_rec_shown,c_em_gte_same,c_em_gte_diff,c_em_changed,c_model_ended,c_shadow,c_sprites,c_flash,c_lines,c_wmesh,c_jspr,f_jspr,c_parts,c_attach,c_n};
+enum {c_models,c_faces,c_xy,c_e1,c_links,f_range,f_queue,f_left,c_wboxes,c_wroom,c_wtriples,c_wtiles,c_otlinks,f_wcull,c_rooms,c_portal,c_rec_found,c_rec_diff,c_rec_shown,c_em_gte_same,c_em_gte_diff,c_em_changed,c_model_ended,c_shadow,c_sprites,c_flash,c_lines,c_wmesh,c_jspr,f_jspr,c_parts,c_attach,c_obj,c_obj_drew,f_obj,c_arena,c_n};
 uint32_t* cnt=nullptr;
 inline bool emitter_ra(uint32_t ra) {return ra>=0x8002bf8cu && ra<0x8002d508u;}
 inline bool link_pc(uint32_t pc) {return pc>=0x8002bd48u && pc<0x8002bdc8u;}
@@ -905,7 +923,7 @@ void after(const CPUState& cpu,uint32_t addr) {
 // vertex's hook, each flag after its vertex's hook (the game's flag stores
 // are not replayed), each tile's corners, colour and key before its hook;
 // every 0x8002bc18 call is linked here after its hook.
-bool w_active=false;uint32_t w_box=0,w_rect=0;
+bool w_active=false;uint32_t w_box=0,w_rect=0;std::unordered_map<uint32_t,uint32_t>* n4_capture_sz=nullptr;   // D23N4a: the source's SZ words
 int w_vertex(uint32_t ra,int& pass) {
     static const uint32_t r[6]={0x8002f1e8u,0x8002f288u,0x8002f334u,0x8002f508u,0x8002f5b0u,0x8002f65cu};
     for(int k=0;k<6;++k) if(ra==r[k]) {pass=k/3;return k%3;}
@@ -960,6 +978,7 @@ void w_before(CPUState& cpu,uint32_t addr,uint32_t gte_out[8],bool& have_gte) {
     if(k==0) {
         const NearGte g=gte_of(cpu);
         const uint32_t base=cpu.gpr[18],region=w_box+8;
+        if(n4_capture_sz) for(uint32_t j=0;j<3;++j) (*n4_capture_sz)[base+16*j]=psx_mod_read_word(base+16*j+4);
         const int16_t y=(int16_t)(psx_mod_read_half(region+2)+psx_mod_read_half(0x800c3cd8u));
         const int16_t z=(int16_t)(pass==0 ? psx_mod_read_half(region+4) : psx_mod_read_half(cpu.gpr[29]+0x58));
         for(uint32_t j=0;j<3;++j) {
@@ -1052,6 +1071,7 @@ void linkup(bool clear) {   // 0x8001fba0 (clear), 0x8001fc44's first step
 // the arguments rebuilt from that hook's frame), our hooks firing inside as
 // in the job; the source's stores up to the link hook are not replayed.
 constexpr uint32_t shadow_fn=0x80030fe8u,shadow_end=0x80031588u;
+constexpr uint32_t obj_fn=0x80010000u,obj_end=0x80010d18u;   // the object renderer (near_clip.cpp's hashed extent)
 // D23N3 (bit 262144, with 1024 and 1 for the stores): the sprite queue run
 // alone. CONFIRMED by the disassembly: the camera render 0x8002e48c (camera
 // a0, kept in s2) calls 0x8009b750 (camera, 0x800d2210) at 0x8002e808; it
@@ -1184,6 +1204,378 @@ void fl_capture(uint32_t* f,const CPUState* cpu,uint32_t addr,int phase) {
 }
 }  // namespace n3
 
+namespace n4 {
+// D23N4a (developer, desktop, note 482). Exact host ports of the culling the
+// game's object draws take between two hooks, each checked against the game's
+// own code on the same inputs (DNTTK_N2_CHECK bit 67108864), and the decisions
+// every job records so a rebuild of a later job can take its own and compare
+// them (bit 134217728, with 1024: the detectors; a rebuild whose decision
+// differs from its source's, or that cannot take one, is flagged and would
+// fall back to the full job).
+//
+// The frustum test 0x80031584 (r a0, rectangle a1), CONFIRMED by the
+// disassembly: it reads only GTE control registers (cfc2 TRX 5, TRY 6, TRZ 7
+// and H 26; not data registers), the halves *0x800d2214 / *0x800d2216 and the
+// rectangle's x, y, w, h halves:
+//   TRZ < -r: 0; TRZ < r: 1;
+//   x = lo(TRX H) / TRZ, y = lo(TRY H) / TRZ (MIPS div, toward zero);
+//   mx = lo((lo(r w) / 320) H) / TRZ, my = lo((lo(r h) / 240) H) / TRZ, the
+//     two quotients by the compiler's multiply-high sequences (0x66666667
+//     >> 7 and 0x88888889 + n >> 7, toward zero);
+//   0 when x < rx - mx, rx + rw + mx < x, y < ry - my or ry + rh + my < y;
+//   else 1. The game's divide traps when TRZ is 0 (r <= 0); then -1 here.
+constexpr uint32_t frustum_fn=0x80031584u,box_fn=0x800365e8u,ctxp=0x800d67a8u,water_fn=0x8002ef90u;
+inline bool ports_on() {return (n2_mask()&67108864)!=0;}
+inline bool detect_on() {return (n2_mask()&134217728)!=0;}
+struct Fr {int32_t r,tx,ty,tz,h,sw,shh,rx,ry,rw,rh;};
+int frustum(const Fr& f) {
+    const int32_t r=f.r,z=f.tz;
+    if(z<(int32_t)(0u-(uint32_t)r)) return 0;
+    if(z<r) return 1;
+    if(z==0) return -1;
+    auto lo=[](int32_t a,int32_t b){return (int32_t)(uint32_t)(uint64_t)((int64_t)a*(int64_t)b);};
+    auto add=[](int32_t a,int32_t b){return (int32_t)((uint32_t)a+(uint32_t)b);};
+    auto sub=[](int32_t a,int32_t b){return (int32_t)((uint32_t)a-(uint32_t)b);};
+    bool bad=false;
+    auto dv=[&](int32_t a){if(z==-1 && a==INT32_MIN) {bad=true;return 0;} return a/z;};
+    const int32_t x=dv(lo(f.tx,f.h)),y=dv(lo(f.ty,f.h));
+    const int32_t p=lo(r,f.sw),ph=(int32_t)(((int64_t)p*0x66666667LL)>>32);
+    const int32_t mx=dv(lo(sub(ph>>7,p>>31),f.h));
+    const int32_t q=lo(r,f.shh),qh=(int32_t)(((int64_t)q*(int64_t)(int32_t)0x88888889u)>>32);
+    const int32_t my=dv(lo(sub(add(qh,q)>>7,q>>31),f.h));
+    if(bad) return -1;
+    if(x<sub(f.rx,mx) || add(add(f.rx,f.rw),mx)<x || y<sub(f.ry,my) || add(add(f.ry,f.rh),my)<y) return 0;
+    return 1;
+}
+Fr fr_of(CPUState& c,int32_t r,uint32_t rect) {
+    Fr f;f.r=r;
+    f.tx=(int32_t)gte_read_ctrl(&c,5);f.ty=(int32_t)gte_read_ctrl(&c,6);f.tz=(int32_t)gte_read_ctrl(&c,7);f.h=(int32_t)gte_read_ctrl(&c,26);
+    f.sw=(int16_t)psx_mod_read_half(0x800d2214u);f.shh=(int16_t)psx_mod_read_half(0x800d2216u);
+    f.rx=(int16_t)psx_mod_read_half(rect);f.ry=(int16_t)psx_mod_read_half(rect+2);f.rw=(int16_t)psx_mod_read_half(rect+4);f.rh=(int16_t)psx_mod_read_half(rect+6);
+    return f;
+}
+// The six call sites, CONFIRMED by the disassembly: each is the transform
+// 0x800292a0 (its return z), a far test against context +0x74 (the prop's
+// z - r, the others' z), the hooked 0x800b4d2c (cfc2 H) and a near test (the
+// prop's z + r, the others' z, against H), then the frustum test. Return
+// addresses of the transform and of 0x800b4d2c; the frustum test's arguments
+// from the caller's registers and stack at the 0x800b4d2c hook.
+struct Site {uint32_t xf_ra,near_ra;};
+constexpr Site sites[6]={{0x80031900u,0x80031924u},{0x80031decu,0x80031e18u},{0x80032f48u,0x80032f68u},{0x80033584u,0x800335acu},{0x800349c8u,0x800349e8u},{0x80038f5cu,0x80038f7cu}};
+int site_xf(uint32_t ra) {for(int k=0;k<6;++k) if(sites[k].xf_ra==ra) return k;return -1;}
+int site_near(uint32_t ra) {for(int k=0;k<6;++k) if(sites[k].near_ra==ra) return k;return -1;}
+inline uint32_t rw32(uint32_t a) {return psx_mod_read_word(a);}
+inline int32_t rh16(uint32_t a) {return (int16_t)psx_mod_read_half(a);}
+int32_t site_r(int k,const CPUState& c) {
+    const uint32_t* g=c.gpr;
+    switch(k) {
+    case 0: return (int32_t)psx_mod_read_half(g[18]+2);
+    case 1: return rh16(g[18]+0x5a);
+    case 2: return rh16(g[19]+0x5a);
+    case 3: return rh16(rw32(rw32(rw32(g[19]+0x40)+g[20]+0x68)+8)+0xe);
+    case 4: return rh16(g[21]+0x5a);
+    default: return rh16(rw32(rw32(g[17]+0x20)+8)+0xe);
+    }
+}
+uint32_t site_rect(int k,const CPUState& c) {
+    const uint32_t* g=c.gpr;
+    switch(k) {case 0: return g[20];case 1: return g[21];case 2: case 3: return rw32(g[29]+0xa8);case 4: return rw32(g[29]+0xa0);default: return g[23];}
+}
+int32_t site_z(int k,const CPUState& c) {return k==0 ? (int32_t)c.gpr[17] : k==1 ? (int32_t)c.gpr[20] : (int32_t)c.gpr[16];}
+// The box test 0x800365e8 (a0, rectangle a1, 0, far a3): not pure (it writes
+// eight projected corners at a0 and runs GTE routines), so it is run as the
+// game's code on a scratch CPU whose writes are undone; no hooks inside.
+// Returns 0, 1 or 2 (any other value), -1 when the run failed.
+struct Undo {uint32_t a,old,size;};
+std::vector<Undo> undo;
+void sb_ww(uint32_t a,uint32_t v) {undo.push_back({a,psx_mod_read_word(a),4});orig_ww(a,v);}
+void sb_wh(uint32_t a,uint16_t v) {undo.push_back({a,psx_mod_read_half(a),2});orig_wh(a,v);}
+void sb_wb(uint32_t a,uint8_t v) {undo.push_back({a,psx_mod_read_byte(a),1});orig_wb(a,v);}
+uint64_t scratch_ns=0;
+int scratch_call(const CPUState& base,uint32_t fn,uint32_t a0,uint32_t a1,uint32_t a2,uint32_t a3,uint32_t* v0) {
+    const uint64_t t0=SDL_GetPerformanceCounter();
+    CPUState c=base;c.pc=0;c.gpr[4]=a0;c.gpr[5]=a1;c.gpr[6]=a2;c.gpr[7]=a3;c.gpr[31]=sentinel;c.gpr[29]=(base.gpr[29]-0x400u)&~7u;
+    c.write_word=sb_ww;c.write_half=sb_wh;c.write_byte=sb_wb;
+    auto obs=g_psx_mod_hook_observer;g_psx_mod_hook_observer=nullptr;
+    const bool lg=logging;logging=false;const int bail=g_psx_call_bail;
+    undo.clear();
+    psx_dispatch_call(&c,fn,sentinel);
+    for(size_t i=undo.size();i-->0;) {const Undo& u=undo[i];if(u.size==4) orig_ww(u.a,u.old); else if(u.size==2) orig_wh(u.a,(uint16_t)u.old); else orig_wb(u.a,(uint8_t)u.old);}
+    undo.clear();
+    const bool ok=c.pc==0 && !g_psx_call_bail;
+    g_psx_call_bail=bail;g_psx_mod_hook_observer=obs;logging=lg;
+    scratch_ns+=(uint64_t)(ms_since(t0)*1e6);
+    if(!ok) return -1;
+    *v0=c.gpr[2];return 0;
+}
+int box(const CPUState& base,uint32_t a0,uint32_t rect) {
+    uint32_t v=0;if(scratch_call(base,box_fn,a0,rect,0,rw32(ctxp+0x74),&v)) return -1;
+    return v==0?0:v==1?1:2;
+}
+// A site's decision at its 0x800b4d2c hook (z its transform's): 0 near cull,
+// 1 frustum cull, 2 drawn, 3-5 the prop's box test when context +0x50 has
+// 0x400 (0 cull, 1, other), 6 unprovable.
+int near_decision(int k,CPUState& c,int32_t z) {
+    const int32_t r=site_r(k,c),h=(int32_t)gte_read_ctrl(&c,26);
+    if((k==1 ? (int32_t)((uint32_t)z+(uint32_t)r) : z)<h) return 0;
+    const int f=frustum(fr_of(c,r,site_rect(k,c)));
+    if(f<0) return 6;
+    if(f==0) return 1;
+    int d=2;
+    if(k==1 && (rw32(ctxp+0x50)&0x400u)) {const int b=box(c,c.gpr[18]+0x4c,c.gpr[21]);if(b<0) return 6;if(b==0) return 3;d=3+b;}
+    // The prop's second stage (0x80031f80, CONFIRMED by the disassembly):
+    // unless the object's flags have 0x400 (cleared there), z under the
+    // camera's +0xa0 and the type's word without 0x100000 run the box test
+    // again into a stack buffer (0 culls) and then the hooked occluder test
+    // 0x8002ee50 on that buffer, whose game result is not ported: 6.
+    if(k==1 && !(rw32(c.gpr[18])&0x400u) && z<(int32_t)rw32(c.gpr[22]+0xa0) &&
+       !(rw32(rw32(0x800d2660u)+28u*psx_mod_read_half(c.gpr[18]+0x2c))&0x100000u)) {
+        const int b=box(c,c.gpr[18]+0x4c,c.gpr[21]);
+        if(b<0) return 6;
+        if(b==0) return 10+d;   // culled by the second box test
+        return 6;
+    }
+    return d;
+}
+int far_decision(int k,const CPUState& c,int32_t z) {
+    const int32_t lim=(int32_t)rw32(ctxp+0x74),v=k==1 ? (int32_t)((uint32_t)z-(uint32_t)site_r(k,c)) : z;
+    return lim<v ? 0 : 1;
+}
+// The job's decisions (hook index, decision), and the earlier job's.
+struct Dec {uint32_t hook;int8_t d;};
+std::vector<Dec> cur,prev_dec;
+// Ports checked on their own (bit 67108864).
+struct Stats {uint64_t fr_calls=0,fr_exact=0,fr_differ=0,fr_unprov=0,fr_failed=0,by_site[6][2]={},
+    dr_checked[3]={},dr_exact[3]={},dr_reg_differ[10]={},xf_checked=0,box_runs=0,box_failed=0,decisions=0;} st;
+bool pend=false;xf::Result pr{};uint32_t pend_ra=0;
+// The transform's GTE data registers, CONFIRMED by the disassembly: the last
+// GTE work of 0x800292a0 is MulMatrix0 0x800b41dc's third MVMVA (sf 1, lm 0,
+// RT x V0, no translation) on the transposed matrix's third column: V0
+// (data 0-1) is the matrix's third row (m[6], m[7] | m[8]), MAC1-3 (25-27)
+// the view's rows times it >> 12, IR1-3 (9-11) those saturated to 16 bits,
+// FLAG (control 31) bits 24-22 for IR1-3 saturated, bit 31 when IR1 or IR2
+// is (bit 22 is not in bit 31's set); no MAC overflow is reachable from
+// 16-bit products. Nothing else in the routine writes a data register
+// (ApplyMatrixLV's IR and MAC are overwritten; SetRotMatrix, SetTransMatrix
+// and the transpose touch none).
+struct Data {uint32_t v0xy;int32_t vz0,ir[3],mac[3];uint32_t flag;};
+Data data_of(uint32_t cam,uint32_t mat) {
+    Data d{};int16_t v[9],m[9];
+    for(int k=0;k<9;++k) {v[k]=(int16_t)psx_mod_read_half(cam+0x20+2*k);m[k]=(int16_t)psx_mod_read_half(mat+2*k);}
+    d.v0xy=(uint16_t)m[6]|(uint32_t)(uint16_t)m[7]<<16;d.vz0=m[8];
+    for(int row=0;row<3;++row) {
+        int64_t s=0;for(int k=0;k<3;++k) s+=(int64_t)v[3*row+k]*m[6+k];
+        d.mac[row]=(int32_t)(s>>12);
+        const int32_t ir=std::clamp<int32_t>(d.mac[row],-0x8000,0x7fff);
+        d.ir[row]=ir;if(ir!=d.mac[row]) d.flag|=1u<<(24-row);
+    }
+    if(d.flag&((1u<<24)|(1u<<23))) d.flag|=0x80000000u;
+    return d;
+}
+Data pend_data{};
+void check_data(CPUState* c,uint32_t addr) {
+    const int kind=addr==0x80010000u?0:addr==0x800b4d2cu?1:2;
+    ++st.dr_checked[kind];
+    const uint32_t want[9]={pend_data.v0xy,(uint32_t)pend_data.vz0,(uint32_t)pend_data.ir[0],(uint32_t)pend_data.ir[1],(uint32_t)pend_data.ir[2],(uint32_t)pend_data.mac[0],(uint32_t)pend_data.mac[1],(uint32_t)pend_data.mac[2],pend_data.flag};
+    const uint8_t reg[9]={0,1,9,10,11,25,26,27,31};
+    bool ok=true;
+    for(int q=0;q<9;++q) {
+        const uint32_t got=q==8 ? gte_read_ctrl(c,31) : gte_read_data(c,reg[q]);
+        if(got!=want[q]) {ok=false;++st.dr_reg_differ[q];}
+    }
+    // The control registers the transform leaves (piece 1's port).
+    for(int k=0;k<8;++k) if(c->gte_ctrl[k]!=pr.out[k] && !(k==4 && (int16_t)c->gte_ctrl[4]==(int16_t)pr.out[4])) {ok=false;++st.dr_reg_differ[9];break;}
+    st.dr_exact[kind]+=ok;
+    if(kind==2 && !ok) {   // which hooks follow a transform after other GTE work
+        static uint32_t oa[8][3];static unsigned no=0;unsigned q=0;
+        while(q<no && !(oa[q][0]==addr && oa[q][1]==c->gpr[31])) ++q;
+        if(q==no && no<8) {oa[q][0]=addr;oa[q][1]=c->gpr[31];oa[q][2]=0;++no;}
+        if(q<8 && ++oa[q][2]==1000) std::fprintf(stderr,"[n2 check %ld] D23N4a data registers: 1000 differing at next hook %08x/%08x (transform ra %08x)\n",(long)getpid(),addr,c->gpr[31],pend_ra);
+    }
+}
+// From the D23N1 observer (the job's top-level hooks).
+void observe(CPUState* cpu,uint32_t addr,int phase) {
+    if(phase==0) {
+        if(pend) {pend=false;if(ports_on()) check_data(cpu,addr);}
+        return;
+    }
+    const uint32_t ra=cpu->gpr[31];
+    if(addr==0x800292a0u) {
+        pr=xf::from_memory(cpu->gpr[4],cpu->gpr[5]);pend_data=data_of(cpu->gpr[4],cpu->gpr[5]);pend=true;pend_ra=ra;++st.xf_checked;
+        const int k=site_xf(ra);
+        if(k>=0 && detect_on()) {cur.push_back({sh->nhooks,(int8_t)far_decision(k,*cpu,pr.z)});++st.decisions;}
+        return;
+    }
+    if(addr==0x800b4d2cu) {
+        const int k=site_near(ra);
+        if(k<0) return;
+        if(ports_on()) {
+            const int32_t r=site_r(k,*cpu);const Fr f=fr_of(*cpu,r,site_rect(k,*cpu));
+            const int mine=frustum(f);
+            ++st.fr_calls;
+            if(mine<0) ++st.fr_unprov;
+            else {
+                uint32_t v=0;
+                if(scratch_call(*cpu,frustum_fn,(uint32_t)r,site_rect(k,*cpu),0,0,&v)) ++st.fr_failed;
+                else if((int)v==mine) {++st.fr_exact;++st.by_site[k][0];}
+                else {++st.fr_differ;++st.by_site[k][1];
+                    static unsigned shown=0;if(shown++<12) std::fprintf(stderr,"[n2 check %ld] D23N4a frustum differs at ra %08x: port %d game %u (r %d tr %d %d %d h %d w %d %d rect %d %d %d %d)\n",(long)getpid(),ra,mine,v,f.r,f.tx,f.ty,f.tz,f.h,f.sw,f.shh,f.rx,f.ry,f.rw,f.rh);}
+            }
+        }
+        if(detect_on()) {
+            const int d=near_decision(k,*cpu,site_z(k,*cpu));
+            if(d>=3 && d<=5) ++st.box_runs;
+            cur.push_back({sh->nhooks,(int8_t)d});++st.decisions;
+        }
+        return;
+    }
+    if(addr==water_fn && detect_on()) {
+        const int b=box(*cpu,cpu->gpr[4]+8,cpu->gpr[5]);
+        ++st.box_runs;if(b<0) ++st.box_failed;
+        cur.push_back({sh->nhooks,(int8_t)b});++st.decisions;
+    }
+}
+void begin() {cur.clear();pend=false;}
+void rotate() {prev_dec.swap(cur);cur.clear();}
+void report() {
+    if(ports_on()) {
+        std::fprintf(stderr,"[n2 check %ld] D23N4a ports: frustum calls %llu exact %llu differ %llu unprovable %llu failed %llu | by site",(long)getpid(),(unsigned long long)st.fr_calls,(unsigned long long)st.fr_exact,(unsigned long long)st.fr_differ,(unsigned long long)st.fr_unprov,(unsigned long long)st.fr_failed);
+        for(int k=0;k<6;++k) std::fprintf(stderr," %c %llu/%llu",(char)('A'+k),(unsigned long long)st.by_site[k][0],(unsigned long long)(st.by_site[k][0]+st.by_site[k][1]));
+        std::fprintf(stderr," | transform data registers at the next hook: object renderer %llu exact %llu, 0x800b4d2c %llu exact %llu, other hooks %llu exact %llu | differing v0 %llu vz0 %llu ir %llu %llu %llu mac %llu %llu %llu flag %llu control %llu | scratch ms %llu\n",
+            (unsigned long long)st.dr_checked[0],(unsigned long long)st.dr_exact[0],(unsigned long long)st.dr_checked[1],(unsigned long long)st.dr_exact[1],(unsigned long long)st.dr_checked[2],(unsigned long long)st.dr_exact[2],
+            (unsigned long long)st.dr_reg_differ[0],(unsigned long long)st.dr_reg_differ[1],(unsigned long long)st.dr_reg_differ[2],(unsigned long long)st.dr_reg_differ[3],(unsigned long long)st.dr_reg_differ[4],(unsigned long long)st.dr_reg_differ[5],(unsigned long long)st.dr_reg_differ[6],(unsigned long long)st.dr_reg_differ[7],(unsigned long long)st.dr_reg_differ[8],(unsigned long long)st.dr_reg_differ[9],(unsigned long long)(scratch_ns/1000000));
+    }
+    if(detect_on()) std::fprintf(stderr,"[n2 check %ld] D23N4a decisions: recorded %llu, box tests run %llu failed %llu\n",(long)getpid(),(unsigned long long)st.decisions,(unsigned long long)st.box_runs,(unsigned long long)st.box_failed);
+}
+// The copy's side (wj::run): flags by class.
+enum {F_FAR=1,F_NEAR=2,F_UNPROV=4,F_WBOX=8,F_WFLAG=16,F_RUNS=32,F_SHADOW=64,F_MODEL=128,F_PIECE=256,F_WCULL=512,F_NOSRC=1024,F_ARENA=2048,F_GTE=4096,F_N=13};
+std::vector<int16_t> sd;   // the source's decision by hook index
+int csite=-1;int32_t cz=0;
+bool cap=false;std::vector<std::pair<uint32_t,uint32_t>> fired,replaced;uint32_t obj_cur1=0;
+// The hooks one run alone fired against the source's hooks it replaces.
+size_t run_f0=0;
+void run_begin() {run_f0=fired.size();cap=true;}
+bool run_end(const char* name,const uint32_t* hooks_addr,const uint32_t* hooks_ra,uint32_t lo,uint32_t hi,const void* H_) {
+    cap=false;
+    struct HH {uint32_t addr,before,after,stores;CPUState cpu;uint64_t t_in,t_out;};
+    (void)hooks_addr;(void)hooks_ra;
+    const Hook* H=(const Hook*)H_;
+    bool same=fired.size()-run_f0==hi-lo;
+    for(uint32_t q=lo;same && q<hi;++q) same=fired[run_f0+q-lo].first==H[q].addr && fired[run_f0+q-lo].second==H[q].cpu.gpr[31];
+    if(!same) {static unsigned shown=0;if(shown++<12) {
+        std::fprintf(stderr,"[n2 check %ld]   D23N4a run %s: fired %zu, source %u:",(long)getpid(),name,fired.size()-run_f0,hi-lo);
+        for(size_t q=run_f0;q<fired.size() && q<run_f0+6;++q) std::fprintf(stderr," %08x/%08x",fired[q].first,fired[q].second);
+        std::fprintf(stderr," | source");for(uint32_t q=lo;q<hi && q<lo+6;++q) std::fprintf(stderr," %08x/%08x",H[q].addr,H[q].cpu.gpr[31]);std::fprintf(stderr,"\n");}}
+    fired.resize(run_f0);
+    return same;
+}
+// Water (D23N4a): a tile is culled when its four corner flags share a bit, any
+// has 0x10, or its corners' SZ words summed >> 4 are over 0x4000 (measured:
+// that test does cull, the record's SZ word is not the 16-bit SZ alone); so
+// the copy's tile decisions equal the source's when, for every tile, both
+// corner sets (flags and SZ) give the same result. The copy's flag of
+// each vertex hook (box, record, pass) in order; the source's flag stores in
+// order (one per vertex). The grid's rows are as wide as its pass-0 row (two
+// record buffers alternate); tiles join vertices i, i+1 of a row and of the
+// row before. The source's tile hooks are only the tiles our host water path
+// left to the game, so they are not compared as a set (water_tiles_differ,
+// kept as a diagnostic); a linked tile the copy would cull is f_wcull.
+struct WV {uint32_t box,rec,f,sz,pass,ssz;};
+std::vector<WV> wv;std::vector<uint32_t> wsrc;uint32_t wbox=0;std::unordered_map<uint32_t,uint32_t> wsz_src;   // record -> the source's SZ word
+struct WT {uint32_t box,s1,s2;};
+std::vector<WT> wt_src;   // the source's tile hooks (0x8002bc18 from 0x8002fbb4): s1, s2
+// The game's tile test (CONFIRMED, see w_before): corners s1, s1 +16, s2,
+// s2 +16; culled when their flags share a bit, any has 0x10, or (the four SZ
+// summed) >> 4 (toward zero) is over 0x4000.
+bool tile_cull4(const WV& a,const WV& b,const WV& c,const WV& d) {
+    const int32_t sum=(int32_t)(a.sz+b.sz+c.sz+d.sz),s3=sum<0 ? (sum+3)>>4 : sum>>4;
+    return (a.f&b.f&c.f&d.f)!=0 || ((a.f|b.f|c.f|d.f)&0x10u) || (uint32_t)s3>=0x4001u;
+}
+bool water_tiles_differ() {
+    std::vector<WT> mine;
+    size_t i=0;
+    while(i<wv.size()) {
+        size_t e=i;while(e<wv.size() && wv[e].box==wv[i].box) ++e;
+        std::vector<std::pair<size_t,size_t>> rows;
+        // Rows: the first row is the pass-0 vertices (ra 0x8002f1e8/f288/
+        // f334), every next row as many (ra 0x8002f508/f5b0/f65c).
+        size_t w=0;while(i+w<e && wv[i+w].pass==0) ++w;
+        if(!w) return true;
+        for(size_t k=i;k<e;k+=w) rows.push_back({k,std::min(k+w,e)});
+        for(size_t r=1;r<rows.size();++r) {
+            const size_t a=rows[r-1].first,b=rows[r].first,n=std::min(rows[r-1].second-a,rows[r].second-b);
+            for(size_t q=0;q+1<n;++q) if(!tile_cull4(wv[a+q],wv[a+q+1],wv[b+q],wv[b+q+1])) mine.push_back({wv[i].box,wv[a+q].rec,wv[b+q].rec});
+        }
+        i=e;
+    }
+    size_t k=0;while(k<mine.size() && k<wt_src.size() && mine[k].box==wt_src[k].box && mine[k].s1==wt_src[k].s1 && mine[k].s2==wt_src[k].s2) ++k;
+    const bool d=k!=mine.size() || k!=wt_src.size();
+    static unsigned shown=0;
+    if(d && shown++<6) {std::fprintf(stderr,"[n2 check %ld]   D23N4a water: mine %zu source %zu vertices %zu first differ %zu:",(long)getpid(),mine.size(),wt_src.size(),wv.size(),k);
+        for(size_t q=k;q<k+3;++q) std::fprintf(stderr," %u %08x %08x / %u %08x %08x",q<mine.size()?mine[q].box:0,q<mine.size()?mine[q].s1:0,q<mine.size()?mine[q].s2:0,q<wt_src.size()?wt_src[q].box:0,q<wt_src.size()?wt_src[q].s1:0,q<wt_src.size()?wt_src[q].s2:0);
+        std::fprintf(stderr," | records");for(size_t q=0;q<wv.size() && q<12;++q) std::fprintf(stderr," %u:%08x",wv[q].box,wv[q].rec);std::fprintf(stderr,"\n");}
+    return d;
+}
+bool tile_cull(uint32_t a,uint32_t b,uint32_t c,uint32_t d) {return (a&b&c&d)!=0 || ((a|b|c|d)&0x10u);}
+bool water_differs() {
+    if(wv.size()!=wsrc.size()) return true;
+    size_t i=0;
+    while(i<wv.size()) {
+        size_t e=i;while(e<wv.size() && wv[e].box==wv[i].box) ++e;
+        std::vector<std::pair<size_t,size_t>> rows;   // [from, to) of each row
+        size_t w=0;while(i+w<e && wv[i+w].pass==0) ++w;
+        if(!w) return true;
+        for(size_t k=i;k<e;k+=w) rows.push_back({k,std::min(k+w,e)});
+        for(size_t r=1;r<rows.size();++r) {
+            const size_t a=rows[r-1].first,b=rows[r].first,n=std::min(rows[r-1].second-a,rows[r].second-b);
+            for(size_t q=0;q+1<n;++q) {
+                const WV* v[4]={&wv[a+q],&wv[a+q+1],&wv[b+q],&wv[b+q+1]};const size_t ix[4]={a+q,a+q+1,b+q,b+q+1};
+                WV sv[4];for(int t=0;t<4;++t) {sv[t]=*v[t];sv[t].f=wsrc[ix[t]];sv[t].sz=v[t]->ssz;}
+                if(tile_cull4(*v[0],*v[1],*v[2],*v[3])!=tile_cull4(sv[0],sv[1],sv[2],sv[3])) return true;
+            }
+        }
+        i=e;
+    }
+    return false;
+}
+void copy_begin(uint32_t nh) {
+    sd.assign(nh,-1);for(const Dec& d:prev_dec) if(d.hook<nh) sd[d.hook]=d.d;
+    csite=-1;cz=0;cap=false;fired.clear();replaced.clear();wv.clear();wsrc.clear();wbox=0;wt_src.clear();wsz_src.clear();
+}
+// After the copy called hook i's callbacks (cpu: as the routine reads it).
+uint32_t copy_hook(uint32_t i,uint32_t addr,CPUState& cpu) {
+    const uint32_t ra=cpu.gpr[31];
+    if(addr==0x800292a0u) {
+        const int k=site_xf(ra);
+        if(k<0) return 0;
+        const xf::Result r=xf::from_memory(cpu.gpr[4],cpu.gpr[5]);
+        csite=k;cz=r.z;
+        if(sd[i]<0) return F_NOSRC;
+        return far_decision(k,cpu,r.z)!=sd[i] ? F_FAR : 0;
+    }
+    if(addr==0x800b4d2cu) {
+        const int k=site_near(ra);
+        if(k<0) return 0;
+        if(csite!=k) return F_UNPROV;
+        csite=-1;
+        if(sd[i]<0) return F_NOSRC;
+        const int d=near_decision(k,cpu,cz);
+        return d==6 || sd[i]==6 ? F_UNPROV : d!=sd[i] ? F_NEAR : 0;
+    }
+    // The game's actor hit test 0x80076330 (projectile or line against the
+    // actors, run in the composition on the job's own actor poses): its
+    // decisions are not ported, so a rebuild whose source calls it falls back.
+    if(addr==0x80076330u) return F_UNPROV;
+    if(addr==water_fn) {
+        if(sd[i]<0) return F_NOSRC;
+        const int b=box(cpu,cpu.gpr[4]+8,cpu.gpr[5]);
+        return b<0 ? F_UNPROV : b!=sd[i] ? F_WBOX : 0;
+    }
+    return 0;
+}
+const char* flag_name(int b) {static const char* n[F_N]={"far","near/frustum/box","unprovable","water box","water tiles","hooks inside routines run alone","shadow without a source link","small model","piece not run","water tile cull","no source decision","packet arena after the object renderer","GTE changed by game code between hooks"};return n[b];}
+}  // namespace n4
+
 namespace wj {
 // D23N2B piece 8 (bit 1024): a whole later job rebuilt from its start. A copy
 // of the worker forked at a later job's start (its memory after the job's
@@ -1199,25 +1591,46 @@ namespace wj {
 // it produced against the same hook's in the job's real stream, word for word
 // (the game's PGXP records left out, as D23N1 does), and the game items
 // between hooks likewise. Every 4th later job of a frame.
-constexpr uint32_t max_words=1u<<20,max_seg=12288;
-struct Shared {uint32_t done,ok,skip,n,flip,cflip,channel[3],seg[max_seg][2],nseg,why,smc[sm::c_n],hgte[max_seg][8];uint64_t vm[4];uint32_t ot[2][0x1040];uint32_t prod[max_seg],merge_to[max_seg];double run_ms[4];double ms;uint32_t fl_copy[n3::fl_n];CPUState flip_cpu;uint32_t words[max_words];};
+constexpr uint32_t max_words=1u<<21,max_seg=12288;
+struct Shared {uint32_t done,ok,skip,n,flip,cflip,channel[3],seg[max_seg][2],nseg,why,smc[sm::c_n],hgte[max_seg][8];uint64_t vm[4];uint32_t ot[2][0x1040];uint32_t prod[max_seg],merge_to[max_seg];double run_ms[4];double ms;uint32_t fl_copy[n3::fl_n];uint32_t n4f,listdiff,n4_by[16];CPUState flip_cpu;uint32_t words[max_words];};
 std::vector<std::array<uint32_t,8>> earlier_gte;std::vector<std::pair<uint32_t,uint32_t>> earlier_list;std::vector<Store> earlier_stores;   // the copy's source, kept at the job start
 Shared* s=nullptr;pid_t child=-1;int go=-1;bool active=false,waiting=false;uint64_t t_job=0;double ms_job=0;uint64_t vm_job0[4],vm_job[4];
 int src_stores() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_WHOLE");return t?std::atoi(t):0;}();return v;}
 int src_cpu() {static const int v=[]{const char* t=std::getenv("DNTTK_N2_WHOLE");const char* sp=t?std::strchr(t,' '):nullptr;return sp?std::atoi(sp+1):0;}();return v;}
 bool eye_word(uint32_t a) {a&=0x1fffffffu;const uint32_t c=camera_base&0x1fffffffu;return (a>=c+0x14 && a<c+0x20) || (a>=c+0x34 && a<c+0x40);}
 jr::Pre pre_counts{};
+// D23N4b: the body runs in the forked copy (the check) or in place in a later
+// job (in_place: no job record, the worker's own stream, no chain close or
+// submit); it returns whether the rebuild is complete and unflagged.
+bool body(bool in_place);
 [[noreturn]] void run(int fd) {
     char c=0;
     if(read(fd,&c,1)!=1 || c!='g') _exit(0);
-    logging=false;g_psx_mod_hook_observer=[](CPUState* c,uint32_t a,int ph){n3::fl_capture(s->fl_copy,c,a,ph);};
+    body(false);
+    _exit(0);
+}
+bool body(bool in_place) {
+    logging=false;g_psx_mod_hook_observer=[](CPUState* c,uint32_t a,int ph){n3::fl_capture(s->fl_copy,c,a,ph);if(ph==0 && n4::cap) n4::fired.push_back({a,c->gpr[31]});if(ph==1 && a==n3::obj_fn) n4::obj_cur1=psx_mod_read_word(0x800d67a8u);};
     const uint64_t t0=SDL_GetPerformanceCounter();
     uint64_t vm0[4];near_clip_viewmodel_counts(vm0);
     const int S=src_stores(),C=src_cpu();
-    const bool earlier_ok=prev.serial==n2_serial && prev.alpha!=n2_alpha && prev.hooks.size()==sh->nhooks && !prev.words.empty();
+    const bool detect=n4::detect_on() && S==1 && C==1;
+    const bool have_earlier=prev.serial==n2_serial && prev.alpha!=n2_alpha && !prev.words.empty();
+    const bool earlier_ok=have_earlier && (in_place || prev.hooks.size()==sh->nhooks);
     bool same_list=earlier_ok;
-    for(uint32_t i=0;same_list && i<sh->nhooks;++i) same_list=prev.hooks[i].addr==sh->hook[i].addr && prev.hooks[i].cpu.gpr[31]==sh->hook[i].cpu.gpr[31];
-    if((S==1 || C==1) && !same_list) {s->skip=earlier_ok?2u:1u;__atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);_exit(0);}
+    for(uint32_t i=0;!in_place && same_list && i<sh->nhooks;++i) same_list=prev.hooks[i].addr==sh->hook[i].addr && prev.hooks[i].cpu.gpr[31]==sh->hook[i].cpu.gpr[31];
+    if(in_place && !(detect && have_earlier)) return false;
+    // D23N4a: with the detectors a job whose list differs is rebuilt from
+    // the source's list (as a rebuild that does not know the job's would be)
+    // and counted wrong; the detectors must flag it.
+    if(detect && have_earlier && !same_list) s->listdiff=1;
+    else if((S==1 || C==1) && !same_list) {s->skip=earlier_ok?2u:1u;__atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);return false;}
+    const uint32_t NH=C==1 ? (uint32_t)prev.hooks.size() : sh->nhooks;
+    if(NH>max_seg) {s->skip=1;__atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);return false;}
+    const uint32_t JH=in_place ? 0u : sh->nhooks;   // the job's own record (the check only)
+    if(detect) {n4::copy_begin(NH);sm::n4_capture_sz=&n4::wsz_src;}
+    uint32_t& F=s->n4f;uint32_t n4_last_g[8]={};uint32_t n4_last_i=~0u;
+    auto flag=[&](uint32_t f){const uint32_t nw=f&~F;F|=f;for(int b=0;b<n4::F_N;++b) if(nw&(1u<<b)) ++s->n4_by[b];};
     const Hook* H=C==1 ? prev.hooks.data() : sh->hook;
     jr::stores_replayed=S!=0;
     const uint32_t* src=C==1 ? prev.words.data() : parent_stream;
@@ -1226,10 +1639,11 @@ jr::Pre pre_counts{};
     const uint32_t nst=S==1 ? (uint32_t)prev.stores.size() : S==2 ? sh->nstores : 0;
     // The hooks' stores positions are in their own record.
     if(S!=2 && in::pred_ok) for(int k=0;k<3;++k) {orig_ww(camera_base+0x14+4*k,(uint32_t)in::pred_eye[k]);orig_ww(camera_base+0x34+4*k,(uint32_t)in::pred_eye[k]);}
-    render_replay_record_begin(s->words,max_words);
+    if(!in_place) render_replay_record_begin(s->words,max_words);
     std::memset(s->merge_to,0,sizeof s->merge_to);std::memset(s->run_ms,0,sizeof s->run_ms);
-    render_replay_record_splice(parent_stream,sh->prefix);
-    uint32_t si=0,last=sh->prefix;
+    uint32_t si=0,last=0;
+    if(!in_place) {render_replay_record_splice(parent_stream,sh->prefix);last=sh->prefix;}
+    else {uint32_t pn=0;render_replay_record_words(&pn);last=prev_prefix;if(pn!=prev_prefix) return false;}   // the same prefix as the source
     // Bit 4096 (piece 9): the small models and every 0x8002bd48 link in host code.
     const bool host_links=(n2_mask()&4096)!=0,host_water=(n2_mask()&8192)!=0;
     sm::cnt=s->smc;
@@ -1240,15 +1654,18 @@ jr::Pre pre_counts{};
     // 0x800296a8/0x800296dc y, 0x800296f0 z) is redone for this job's eye:
     // room = d + the source's eye (its eye stores, kept aside), then
     // xf::compute without a matrix, as w_room; the GTE the next hooks see.
-    const bool host_rooms=(n2_mask()&16384)!=0,host_portal=(n2_mask()&32768)!=0,host_linkup=(n2_mask()&65536)!=0,host_shadow=(n2_mask()&131072)!=0,host_sprites=(n2_mask()&262144)!=0,host_flash=(n2_mask()&524288)!=0,host_lines=(n2_mask()&1048576)!=0,host_wmesh=(n2_mask()&2097152)!=0,host_jspr=(n2_mask()&4194304)!=0,host_parts=(n2_mask()&8388608)!=0,host_attach=(n2_mask()&16777216)!=0;
+    const bool host_rooms=(n2_mask()&16384)!=0,host_portal=(n2_mask()&32768)!=0,host_linkup=(n2_mask()&65536)!=0,host_shadow=(n2_mask()&131072)!=0,host_sprites=(n2_mask()&262144)!=0,host_flash=(n2_mask()&524288)!=0,host_lines=(n2_mask()&1048576)!=0,host_wmesh=(n2_mask()&2097152)!=0,host_jspr=(n2_mask()&4194304)!=0,host_parts=(n2_mask()&8388608)!=0,host_attach=(n2_mask()&16777216)!=0,host_obj=(n2_mask()&33554432)!=0;
     uint32_t producer=~0u,cur_i=0;
-    uint32_t duke_s4=0,cam_s2=0,sprite_sp=0,sprite_end=0,flash_until=0,keep_lo=0,keep_hi=0;bool sprite_skip=false;const CPUState* last_cpu=nullptr;   // D23N3 diagnostics: the hook whose computation the next hooks' GTE is
+    uint32_t duke_s4=0,cam_s2=0,sprite_sp=0,sprite_end=0,flash_until=0,keep_lo=0,keep_hi=0,obj_until=0;bool sprite_skip=false;const CPUState* last_cpu=nullptr;   // D23N3 diagnostics: the hook whose computation the next hooks' GTE is
     int32_t src_eye[3]={0,0,0},rt_d[3]={0,0,0};
     if(S==1) for(int k=0;k<3;++k) src_eye[k]=(int32_t)psx_mod_read_word(camera_base+0x14+4*k);
     auto apply=[&](uint32_t upto) {
         for(;si<upto && si<nst;++si) {
             const Store& w=ST[si];
             const uint32_t pa=w.addr|0x80000000u;
+            // Bit 33554432 (D23N3, desktop): the object renderer's own body was
+            // run in the copy; its source stores are the other fraction's.
+            if(si<obj_until && w.pc>=n3::obj_fn && w.pc<n3::obj_end) continue;
             if(si<flash_until) {
                 // The sprite queue's marker (a later call of the caller) is
                 // not the skipped routine's (desktop, note 481).
@@ -1260,7 +1677,7 @@ jr::Pre pre_counts{};
                 CPUState c=*last_cpu;c.pc=0;c.gpr[31]=sentinel;c.gpr[29]=spc;c.gpr[4]=cam_s2;c.gpr[5]=0x800d2210u;
                 if(have_gte) for(int k=0;k<8;++k) c.gte_ctrl[k]=gte_out[k];
                 sm::active=false;
-                {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::sprite_wrap,sentinel);s->run_ms[2]+=ms_since(t);}
+                {const uint64_t t=SDL_GetPerformanceCounter();n4::cap=detect;psx_dispatch_call(&c,n3::sprite_wrap,sentinel);n4::cap=false;s->run_ms[2]+=ms_since(t);}
                 if(c.pc!=0 || g_psx_call_bail) {sprite_skip=false;return;}
                 for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
                 have_gte=true;producer=0x80000000u|cur_i;++s->smc[sm::c_sprites];
@@ -1275,7 +1692,7 @@ jr::Pre pre_counts{};
                     CPUState c=*last_cpu;c.pc=0;c.gpr[31]=n3::parts_ret;c.gpr[29]=spc;c.gpr[4]=cam_s2;c.gpr[5]=0x800d2210u;
                     if(have_gte) for(int k=0;k<8;++k) c.gte_ctrl[k]=gte_out[k];
                     sm::active=false;
-                    {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::parts_fn,n3::parts_ret);s->run_ms[2]+=ms_since(t);}
+                    {const uint64_t t=SDL_GetPerformanceCounter();n4::cap=detect;psx_dispatch_call(&c,n3::parts_fn,n3::parts_ret);n4::cap=false;s->run_ms[2]+=ms_since(t);}
                     if(c.pc!=0 || g_psx_call_bail) {sprite_skip=false;return;}
                     for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
                     have_gte=true;producer=0x80000000u|cur_i;++s->smc[sm::c_parts];
@@ -1294,7 +1711,7 @@ jr::Pre pre_counts{};
                         CPUState c=*last_cpu;c.pc=0;c.gpr[29]=spc;c.gpr[31]=n3::jspr_ret;
                         c.gpr[4]=mats+32*j+0x14;c.gpr[5]=0xff;c.gpr[6]=j;
                         if(have_gte) for(int k=0;k<8;++k) c.gte_ctrl[k]=gte_out[k];
-                        psx_dispatch_call(&c,n3::jspr_fn,n3::jspr_ret);
+                        n4::cap=detect;psx_dispatch_call(&c,n3::jspr_fn,n3::jspr_ret);n4::cap=false;
                         if(c.pc!=0 || g_psx_call_bail) {s->run_ms[2]+=ms_since(t);return;}
                     }
                     s->run_ms[2]+=ms_since(t);
@@ -1330,21 +1747,32 @@ jr::Pre pre_counts{};
                 if(sm::qi!=sm::queue.size()) ++s->smc[sm::f_left];
                 sm::active=false;++s->smc[sm::c_model_ended];
             }
+            if(detect && host_water && sm::w_flag_pc(w.pc) && w.size==4) n4::wsrc.push_back(w.value);
             if(io(w.addr) || (S==1 && eye_word(w.addr)) || (host_linkup && n3::pc_skip(w.pc)) || (host_links && sm::link_pc(w.pc)) || (host_water && (sm::w_flag_pc(w.pc) || sm::ot_pc(w.pc)))) continue;
             if(w.size==4) orig_ww(w.addr,w.value); else if(w.size==2) orig_wh(w.addr,(uint16_t)w.value); else orig_wb(w.addr,(uint8_t)w.value);
         }
     };
-    for(uint32_t i=0;i<sh->nhooks && !g_psx_call_bail;++i) {
+    for(uint32_t i=0;i<NH && !g_psx_call_bail;++i) {
         const Hook& h=H[i];cur_i=i;
         if(h.cpu.gpr[31]>=n3::camera_render && h.cpu.gpr[31]<n3::camera_render_end) cam_s2=h.cpu.gpr[18];
         last_cpu=&h.cpu;
         if(h.cpu.gpr[31]>=n3::duke_draw && h.cpu.gpr[31]<n3::duke_draw_end) duke_s4=h.cpu.gpr[20];
         if(ST) apply(SH[i].stores);
         if(g_psx_call_bail) break;
+        // D23N4a: where the source's GTE rotation and translation changed
+        // between the previous hook and this one but the copy's did not, the
+        // source's game code did GTE work between hooks that a rebuild does
+        // not follow (stores are replayed, GTE commands are not).
+        if(detect && i>0 && have_gte) {
+            const bool src_changed=std::memcmp(H[i].cpu.gte_ctrl,H[i-1].cpu.gte_ctrl,32)!=0;
+            if(src_changed && h.addr==n3::obj_fn && !std::memcmp(gte_out,n4_last_g,32) && n4_last_i==i-1) flag(n4::F_GTE);   // the object renderer reads them directly
+        }
+        std::memcpy(n4_last_g,gte_out,32);n4_last_i=i;
         if(sprite_skip && SH[i].stores<=sprite_end && h.cpu.gpr[29]<sprite_sp) {
             uint32_t nw=0;render_replay_record_words(&nw);
             render_replay_record_splice(src+last,h.before-last);render_replay_record_words(&nw);
             s->seg[i][0]=s->seg[i][1]=nw;std::memset(s->hgte[i],0xff,32);last=h.after;
+            if(detect) n4::replaced.push_back({h.addr,h.cpu.gpr[31]});
             continue;
         }
         if(sprite_skip && SH[i].stores>sprite_end) sprite_skip=false;
@@ -1355,7 +1783,7 @@ jr::Pre pre_counts{};
         if(C==1 && have_gte) for(int k=0;k<8;++k) cpu.gte_ctrl[k]=gte_out[k];
         if(host_attach && S==1 && h.addr==n3::attach_next && (h.cpu.gpr[31]==0x8003492cu || h.cpu.gpr[31]==0x80033020u)) {
             CPUState c=cpu;c.pc=0;c.gpr[31]=h.cpu.gpr[31]-12;   // the call's own return (0x80034920, 0x80033014)
-            psx_dispatch_call(&c,n3::attach_fn,c.gpr[31]);
+            psx_dispatch_call(&c,n3::attach_fn,c.gpr[31]);   // no culling inside (a joint's translation plus a rotated offset); the hooks it fires are the source's own top-level hooks before this one, which the loop calls as well (not compared)
             if(c.pc!=0 || g_psx_call_bail) break;
             std::memcpy(cpu.gte_ctrl,c.gte_ctrl,sizeof cpu.gte_ctrl);std::memcpy(cpu.gte_data,c.gte_data,sizeof cpu.gte_data);
             for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
@@ -1366,7 +1794,7 @@ jr::Pre pre_counts{};
         if(host_links) sm::before(cpu,h.addr,gte_out,have_gte);
         // D23N3: the records the copy projected against the job's own
         // (its top-level stores to them before this hook).
-        if(host_links && sm::active && h.addr==0x8002d848u && sh->hook[i].addr==h.addr) {
+        if(host_links && sm::active && h.addr==0x8002d848u && i<JH && sh->hook[i].addr==h.addr) {
             const uint32_t recs=cpu.gpr[5]&0x1fffffffu,nv=(psx_mod_read_half(cpu.gpr[4]+2)+2)/3*3;
             uint32_t found=0,diff=0;
             for(uint32_t q=0;q<2*nv;q+=2) {
@@ -1404,17 +1832,17 @@ jr::Pre pre_counts{};
         const bool wm=host_wmesh && S==1 && h.addr==n3::wmesh_fn && h.cpu.gpr[31]==n3::wmesh_ret;
         if(wm || (host_flash && S==1 && h.addr==n3::flash_fn && h.cpu.gpr[31]==n3::flash_ret)) {
             const uint32_t sp0=h.cpu.gpr[29];
-            uint32_t j=i+1;while(j<sh->nhooks && H[j].cpu.gpr[29]<sp0) ++j;
+            uint32_t j=i+1;while(j<NH && H[j].cpu.gpr[29]<sp0) ++j;
             // The call's own return address, not the sentinel: our D36 hooks
             // on these entries act only for Duke's draw's calls (ra
             // 0x80035348 / 0x8003531c), as in the job.
             CPUState c=cpu;c.pc=0;
             sm::active=false;
-            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,h.addr,h.cpu.gpr[31]);s->run_ms[3]+=ms_since(t);}
+            {const uint64_t t=SDL_GetPerformanceCounter();if(detect) n4::run_begin();psx_dispatch_call(&c,h.addr,h.cpu.gpr[31]);if(detect && !n4::run_end("flash or weapon mesh",nullptr,nullptr,i,j,H)) flag(n4::F_RUNS);s->run_ms[3]+=ms_since(t);}
             if(c.pc!=0 || g_psx_call_bail) break;
             for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
             have_gte=true;producer=i;++s->smc[wm?sm::c_wmesh:sm::c_flash];
-            flash_until=j<sh->nhooks?SH[j].stores:nst;keep_lo=n3::duke_draw;keep_hi=n3::duke_draw_end;
+            flash_until=j<NH?SH[j].stores:nst;keep_lo=n3::duke_draw;keep_hi=n3::duke_draw_end;
             uint32_t nw=0;render_replay_record_words(&nw);s->seg[i][1]=nw;s->merge_to[i]=j;
             for(uint32_t k=i+1;k<j;++k) {s->seg[k][0]=s->seg[k][1]=nw;std::memset(s->hgte[k],0xff,32);}
             last=H[j-1].after;i=j-1;
@@ -1425,41 +1853,42 @@ jr::Pre pre_counts{};
             // Only the routine's own hooks (its links, ra in 0x8008f71c-
             // 0x800900a0): the camera render's next calls (the sprite queue,
             // small models) also run below sp0 (desktop, note 481).
-            uint32_t j=i+1;while(j<sh->nhooks && H[j].cpu.gpr[29]<sp0 && H[j].cpu.gpr[31]>=n3::lines_lo && H[j].cpu.gpr[31]<n3::lines_hi) ++j;
+            uint32_t j=i+1;while(j<NH && H[j].cpu.gpr[29]<sp0 && H[j].cpu.gpr[31]>=n3::lines_lo && H[j].cpu.gpr[31]<n3::lines_hi) ++j;
             CPUState c=cpu;c.pc=0;c.gpr[31]=n3::lines_call_ret;c.gpr[29]=sp0;c.gpr[5]=0x800d2210u;
             sm::active=false;
-            {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::lines_fn,n3::lines_call_ret);s->run_ms[3]+=ms_since(t);}
+            {const uint64_t t=SDL_GetPerformanceCounter();if(detect) n4::run_begin();psx_dispatch_call(&c,n3::lines_fn,n3::lines_call_ret);if(detect && !n4::run_end("lines",nullptr,nullptr,i,j,H)) flag(n4::F_RUNS);s->run_ms[3]+=ms_since(t);}
             if(c.pc!=0 || g_psx_call_bail) break;
             for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
             have_gte=true;producer=i;++s->smc[sm::c_lines];
-            flash_until=j<sh->nhooks?SH[j].stores:nst;keep_lo=n3::camera_render;keep_hi=n3::camera_render_end;
+            flash_until=j<NH?SH[j].stores:nst;keep_lo=n3::camera_render;keep_hi=n3::camera_render_end;
             uint32_t nw=0;render_replay_record_words(&nw);s->seg[i][1]=nw;s->merge_to[i]=j;
             for(uint32_t k=i+1;k<j;++k) {s->seg[k][0]=s->seg[k][1]=nw;std::memset(s->hgte[k],0xff,32);}
             last=H[j-1].after;i=j-1;
             continue;
         }
         if(host_shadow && h.cpu.gpr[31]>=n3::shadow_fn+8 && h.cpu.gpr[31]<n3::shadow_end) {
-            uint32_t j=i;while(j<sh->nhooks && !(H[j].addr==0x8002bc18u && H[j].cpu.gpr[31]==0x8003154cu)) ++j;
-            if(j<sh->nhooks) {
+            uint32_t j=i;while(j<NH && !(H[j].addr==0x8002bc18u && H[j].cpu.gpr[31]==0x8003154cu)) ++j;
+            if(j<NH) {
                 const uint32_t spf=cpu.gpr[29];
                 CPUState c=cpu;c.pc=0;
                 c.gpr[31]=sentinel;c.gpr[29]=spf+208;c.gpr[4]=cpu.gpr[21];c.gpr[5]=cpu.gpr[17];c.gpr[6]=psx_mod_read_word(spf+44);
-                {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,n3::shadow_fn,sentinel);s->run_ms[1]+=ms_since(t);}
+                {const uint64_t t=SDL_GetPerformanceCounter();if(detect) n4::run_begin();psx_dispatch_call(&c,n3::shadow_fn,sentinel);if(detect && !n4::run_end("shadow",nullptr,nullptr,i,j+1,H)) flag(n4::F_RUNS);s->run_ms[1]+=ms_since(t);}
                 if(c.pc!=0 || g_psx_call_bail) break;
                 for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];
                 have_gte=true;producer=i;++s->smc[sm::c_shadow];
-                if(ST) si=std::max(si,j+1<sh->nhooks?SH[j+1].stores:nst);
+                if(ST) si=std::max(si,j+1<NH?SH[j+1].stores:nst);
                 uint32_t nw=0;render_replay_record_words(&nw);s->seg[i][1]=nw;s->merge_to[i]=j+1;
                 for(uint32_t k=i+1;k<=j;++k) {s->seg[k][0]=s->seg[k][1]=nw;std::memset(s->hgte[k],0xff,32);}
                 last=H[j].after;i=j;
                 continue;
             }
+            if(detect) flag(n4::F_SHADOW);
         }
         if(host_portal && h.addr==0x8006276cu && cpu.gpr[31]==0x8002e650u) {
-            uint32_t j=i+1;while(j<sh->nhooks && !(H[j].addr==0x80062b48u && H[j].cpu.gpr[31]==0x8002e688u)) ++j;
-            if(j<sh->nhooks) {
+            uint32_t j=i+1;while(j<NH && !(H[j].addr==0x80062b48u && H[j].cpu.gpr[31]==0x8002e688u)) ++j;
+            if(j<NH) {
                 CPUState c=cpu;c.pc=0;
-                {const uint64_t t=SDL_GetPerformanceCounter();psx_dispatch_call(&c,0x8006276cu,0x8002e650u);s->run_ms[0]+=ms_since(t);}
+                {const uint64_t t=SDL_GetPerformanceCounter();if(detect) n4::run_begin();psx_dispatch_call(&c,0x8006276cu,0x8002e650u);if(detect && !n4::run_end("portal walk",nullptr,nullptr,i,j,H)) flag(n4::F_RUNS);s->run_ms[0]+=ms_since(t);}
                 if(c.pc!=0 || g_psx_call_bail) break;
                 const uint32_t ctxp=0x800d67a8u,v=psx_mod_read_word(cpu.gpr[7])?psx_mod_read_word(0x800da34cu):psx_mod_read_word(ctxp+0x70);
                 orig_ww(ctxp+0x74,v);orig_ww(ctxp+0x78,(uint32_t)((int32_t)v>>2));
@@ -1475,10 +1904,58 @@ jr::Pre pre_counts{};
         uint32_t pk_before[10]={};const bool em=h.addr==0x8002bd48u && sm::emitter_ra(h.cpu.gpr[31]) && !sm::active;
         if(em) {
             for(int q=0;q<10;++q) pk_before[q]=psx_mod_read_word(cpu.gpr[5]+4*q);
-            const bool gs=!std::memcmp(cpu.gte_ctrl,sh->hook[i].cpu.gte_ctrl,32);
+            const bool gs=i<JH && !std::memcmp(cpu.gte_ctrl,sh->hook[i].cpu.gte_ctrl,32);
             ++s->smc[gs?sm::c_em_gte_same:sm::c_em_gte_diff];
         }
-        psx_mod_function_entry(&cpu,h.addr);
+        // Bit 33554432 (D23N3, desktop, the UI 5 residue): the game's object
+        // renderer 0x80010000 run in the copy from the hook's call, our entry
+        // hooks firing inside as in the job. Where our host path left a mesh
+        // to the game (budget, no frame) its body projects and emits packets
+        // itself (store PCs 0x80010680-0x8001068c, gouraud quads 0x38), which
+        // follow this job's GTE, not the source's. Its body calls only its
+        // own helpers (0x80010284, 0x80010374, 0x80010480, 0x800104a8), so no
+        // hook fires inside it.
+        const bool obj=host_obj && S==1 && h.addr==n3::obj_fn;
+        if(obj) {
+            CPUState c=cpu;c.pc=0;
+            const uint32_t cur0=psx_mod_read_word(0x800d67a8u);
+            {const uint64_t t=SDL_GetPerformanceCounter();if(detect) n4::run_begin();psx_dispatch_call(&c,n3::obj_fn,h.cpu.gpr[31]);if(detect && !n4::run_end("object renderer",nullptr,nullptr,i,i+1,H)) flag(n4::F_RUNS);s->run_ms[3]+=ms_since(t);}
+            if(c.pc!=0 || g_psx_call_bail) break;
+            if(std::memcmp(c.gte_ctrl,cpu.gte_ctrl,32)) {for(int k=0;k<8;++k) gte_out[k]=c.gte_ctrl[k];have_gte=true;producer=i;}
+            ++s->smc[sm::c_obj];if(psx_mod_read_word(0x800d67a8u)!=cur0) ++s->smc[sm::c_obj_drew];
+            // The packet arena after the body: the source's body leaves the
+            // cursor at its last store to it (or where its hook left it); when
+            // the copy's body allocated otherwise (its own face culls follow
+            // the camera), the source's later absolute cursor and packet
+            // stores no longer fit the copy's arena: not rebuildable by replay
+            // (counted; with the detectors, flagged).
+            {
+                const uint32_t lo=SH[i].stores,hi=i+1<NH?SH[i+1].stores:nst;uint32_t want=n4::obj_cur1;
+                for(uint32_t q=lo;q<hi && q<nst;++q) if((ST[q].addr&0x1fffffffu)==0x000d67a8u && ST[q].size==4 && ST[q].pc>=n3::obj_fn && ST[q].pc<n3::obj_end) want=ST[q].value;
+                if(psx_mod_read_word(0x800d67a8u)!=want) {++s->smc[sm::c_arena];if(detect) flag(n4::F_ARENA);}
+            }
+            obj_until=i+1<NH?SH[i+1].stores:nst;
+        } else {
+            psx_mod_function_entry(&cpu,h.addr);
+            if(detect) {
+                flag(n4::copy_hook(i,h.addr,cpu));
+                // A small model the source did not draw (no 0x8002d848 from
+                // 0x8002e02c next): the copy's own range test must agree.
+                // CONFIRMED by the disassembly: 0x800a2690 draws (0x8002e02c, then
+                // 0x8002d848 unless 0x8002df20 returns below 0: -1 out of range,
+                // else the translation's z, so also behind the eye) only when its
+                // room's bit is set in the portal walk's bitmap 0x800e1f10 (room
+                // byte +0x38: word (int8)b >> 5, bit b & 31).
+                if(h.addr==0x800a2690u) {
+                    const bool src_draw=i+1<NH && H[i+1].addr==0x8002d848u && H[i+1].cpu.gpr[31]==0x8002e06cu;
+                    const uint8_t rb=psx_mod_read_byte(cpu.gpr[5]+0x38);
+                    const bool vis=(psx_mod_read_word(0x800e1f10u+4u*(uint32_t)((int32_t)(int8_t)rb>>5))>>(rb&31))&1u;
+                    uint32_t t[8];const bool draw=vis && sm::transform(cpu.gpr[4],cpu.gpr[5]+0xc,t) && (int32_t)t[7]>=0;
+                    if(draw!=src_draw) {flag(n4::F_MODEL);
+                        static unsigned shown=0;if(shown++<10) std::fprintf(stderr,"[n2 check %ld]   D23N4a model: src draw %d vis %d range %d next %08x/%08x obj %08x room byte %u word %08x\n",(long)getpid(),src_draw,vis,(int)sm::transform(cpu.gpr[4],cpu.gpr[5]+0xc,t),i+1<NH?H[i+1].addr:0,i+1<NH?H[i+1].cpu.gpr[31]:0,cpu.gpr[5],rb,psx_mod_read_word(0x800e1f10u+4u*(uint32_t)((int32_t)(int8_t)rb>>5)));}
+                }
+            }
+        }
         if(em) {
             bool ch=false;for(int q=1;q<10;++q) ch|=pk_before[q]!=psx_mod_read_word(cpu.gpr[5]+4*q);
             if(ch) ++s->smc[sm::c_em_changed];
@@ -1486,6 +1963,12 @@ jr::Pre pre_counts{};
         if(host_linkup && (h.addr==0x8001fba0u || h.addr==0x8001fc44u)) n3::linkup(h.addr==0x8001fba0u);
         if(host_links) sm::after(cpu,h.addr);
         if(host_water) sm::w_after(cpu,h.addr);
+        if(detect && host_water) {
+            if(h.addr==n4::water_fn) ++n4::wbox;
+            int wp=0;const int wk=h.addr==0x800b4d2cu && sm::w_active ? sm::w_vertex(cpu.gpr[31],wp) : -1;
+            if(wk>=0) {const uint32_t rec=cpu.gpr[18]+16u*(uint32_t)wk;{const auto it=n4::wsz_src.find(rec);n4::wv.push_back({n4::wbox,rec,psx_mod_read_word(rec+8),psx_mod_read_word(rec+4),(uint32_t)wp,it!=n4::wsz_src.end()?it->second:~0u});}}
+            if(h.addr==0x8002bc18u && h.cpu.gpr[31]==0x8002fbb4u) n4::wt_src.push_back({n4::wbox,h.cpu.gpr[17],h.cpu.gpr[18]});
+        }
         // Bit 2048: the transform's own effects (its scratchpad stores and the
         // GTE rotation and translation it leaves), from piece 1's exact host
         // port on the matrix the routine reads after our callbacks.
@@ -1500,8 +1983,26 @@ jr::Pre pre_counts{};
         last=h.after;
     }
     if(ST) apply(nst);
+    if(detect) {
+        if(n4::fired!=n4::replaced) {flag(n4::F_RUNS);
+            static unsigned shown=0;
+            if(shown++<10) {size_t k=0;while(k<n4::fired.size() && k<n4::replaced.size() && n4::fired[k]==n4::replaced[k]) ++k;
+                std::fprintf(stderr,"[n2 check %ld]   D23N4a runs: fired %zu replaced %zu first differ %zu:",(long)getpid(),n4::fired.size(),n4::replaced.size(),k);
+                for(size_t q=k;q<k+4;++q) std::fprintf(stderr," %08x/%08x vs %08x/%08x",q<n4::fired.size()?n4::fired[q].first:0,q<n4::fired.size()?n4::fired[q].second:0,q<n4::replaced.size()?n4::replaced[q].first:0,q<n4::replaced.size()?n4::replaced[q].second:0);
+                std::fprintf(stderr,"\n");}
+        }
+        if(host_water && n4::water_differs()) flag(n4::F_WFLAG);
+        if(s->smc[sm::f_range] || s->smc[sm::f_queue] || s->smc[sm::f_left]) flag(n4::F_MODEL);
+        if(s->smc[sm::f_wcull]) flag(n4::F_WCULL);
+        if(s->smc[sm::f_jspr]) flag(n4::F_PIECE);
+    }
     render_replay_record_splice(src+last,src_flip-last);
     {uint32_t n=0;render_replay_record_words(&n);s->cflip=n;}
+    if(in_place) {
+        g_psx_mod_hook_observer=nullptr;sm::n4_capture_sz=nullptr;
+        s->ms=ms_since(t0);s->nseg=NH;
+        return !g_psx_call_bail && !F;
+    }
     {uint64_t v[4];near_clip_viewmodel_counts(v);for(int k=0;k<3;++k) s->vm[k]=v[k]-vm0[k];s->vm[3]=v[3];}
     for(uint32_t q=0;q<0x1000;++q) s->ot[1][q]=psx_mod_read_word(0x800d27a0u+4*q);for(uint32_t q=0;q<64;++q) s->ot[1][0x1000+q]=psx_mod_read_word(0x800d26a0u+4*q);
     s->ms=ms_since(t0);
@@ -1521,11 +2022,20 @@ jr::Pre pre_counts{};
     if(overflow) s->why=4;
     s->nseg=sh->nhooks;s->ok=ok && !overflow;
     __atomic_store_n(&s->done,1u,__ATOMIC_RELEASE);
-    _exit(0);
+    return s->ok;
+}
+bool ensure_shared() {
+    if(!s) {
+        void* m=mmap(nullptr,sizeof(Shared),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
+        if(m==MAP_FAILED) return false;
+        s=(Shared*)m;
+    }
+    return true;
 }
 void begin() {
     if(child>0) {kill(child,SIGKILL);waitpid(child,nullptr,0);child=-1;if(go>=0) {close(go);go=-1;}}
     active=waiting=false;
+    if(n4b_on()) return;   // D23N4b: later jobs rebuild in place instead
     if(!(prev.serial==n2_serial && prev.alpha!=n2_alpha)) return;   // later jobs only
     static unsigned count=0;
     if(++count%4) return;
@@ -1534,7 +2044,7 @@ void begin() {
         if(m==MAP_FAILED) return;
         s=(Shared*)m;
     }
-    s->done=s->ok=s->skip=s->n=s->nseg=s->why=0;std::memset(s->smc,0,sizeof s->smc);
+    s->done=s->ok=s->skip=s->n=s->nseg=s->why=0;std::memset(s->smc,0,sizeof s->smc);s->n4f=s->listdiff=0;std::memset(s->n4_by,0,sizeof s->n4_by);
     std::memset(s->fl_copy,0,sizeof s->fl_copy);std::memset(n3::fl_job,0,sizeof n3::fl_job);
     int fds[2];
     if(pipe(fds)!=0) return;
@@ -1559,7 +2069,7 @@ void items(const uint32_t* w,uint32_t a,uint32_t b,std::vector<uint32_t>& out) {
         i+=1+count;
     }
 }
-struct Stats {double run_ms[4]={};uint64_t merged=0,gte_hooks[2]={},sm_gte[2]={},ot_cmp[3]={},vm_cmp[3]={},host_exact_tail_differs=0,tail_items=0,tail_exact=0,tail_exact_jobs=0;uint64_t jobs=0,skipped_no_earlier=0,skipped_list=0,failed=0,timeouts=0,exact_jobs=0,host_exact_jobs=0,hooks=0,hooks_exact=0,hooks_empty=0,gaps=0,gaps_exact=0,sm[sm::c_n]={},sm_jobs=0,sm_exact=0,sm_hooks_clean=0,sm_hooks_clean_exact=0,w_hooks_clean=0,w_hooks_clean_exact=0,fail_why[5]={};double ms_job=0,ms_rebuild=0;} st;
+struct Stats {uint64_t arena_jobs=0,arena_exact=0,inexact_other=0,n4_jobs=0,n4_wrong=0,n4_flagged=0,n4_wrong_flagged=0,n4_wrong_unflagged=0,n4_exact_flagged=0,n4_listdiff=0,n4_listdiff_flagged=0,n4_failed=0,n4_by[16]={},n4_unflagged_by[3]={};double run_ms[4]={};uint64_t merged=0,gte_hooks[2]={},sm_gte[2]={},ot_cmp[3]={},vm_cmp[3]={},host_exact_tail_differs=0,tail_items=0,tail_exact=0,tail_exact_jobs=0;uint64_t jobs=0,skipped_no_earlier=0,skipped_list=0,failed=0,timeouts=0,exact_jobs=0,host_exact_jobs=0,hooks=0,hooks_exact=0,hooks_empty=0,gaps=0,gaps_exact=0,sm[sm::c_n]={},sm_jobs=0,sm_exact=0,sm_hooks_clean=0,sm_hooks_clean_exact=0,w_hooks_clean=0,w_hooks_clean_exact=0,fail_why[5]={};double ms_job=0,ms_rebuild=0;} st;
 struct ByAddr {uint32_t addr=0,ra=0;uint64_t differ=0;};
 ByAddr by[24],first[24],tail_by[24],gte_by[32],list_by[24];uint32_t list_e[24][2];unsigned nlist=0;uint64_t gte_earlier[32]={};unsigned ngte=0,nby=0,nfirst=0,ntail=0,shown=0,tail_shown=0;
 void at_flip() {
@@ -1599,6 +2109,30 @@ void finish(bool job_ok) {
             if(q==nlist && q<24) {list_by[q].addr=ja;list_by[q].ra=jr;list_e[q][0]=ea;list_e[q][1]=er;++nlist;}
             if(q<24) ++list_by[q].differ;
         }
+        return;
+    }
+    const bool detect=n4::detect_on() && src_stores()==1 && src_cpu()==1;
+    if(detect) {for(int b=0;b<n4::F_N;++b) st.n4_by[b]+=s->n4_by[b];}
+    // D23N4a: a failed rebuild is never accepted (it falls back); a rebuild
+    // of a job whose hook list differs from its source's is wrong.
+    if(detect && (!s->ok || s->listdiff)) {
+        ++st.n4_jobs;++st.n4_wrong;
+        const bool fl=s->n4f!=0 || !s->ok;
+        if(!s->ok) ++st.n4_failed;
+        if(s->listdiff) {++st.n4_listdiff;st.n4_listdiff_flagged+=fl;}
+        if(fl) {++st.n4_flagged;++st.n4_wrong_flagged;}
+        else {++st.n4_wrong_unflagged;++st.n4_unflagged_by[0];
+            static unsigned shown=0;
+            if(shown++<12) {
+                uint32_t k=0;const uint32_t n=std::min<uint32_t>(sh->nhooks,(uint32_t)earlier_list.size());
+                while(k<n && earlier_list[k].first==sh->hook[k].addr && earlier_list[k].second==sh->hook[k].cpu.gpr[31]) ++k;
+                std::fprintf(stderr,"[n2 check %ld]   D23N4a unflagged wrong job (hook list differs at %u of %u/%zu): job %08x/%08x earlier %08x/%08x | before:",(long)getpid(),k,sh->nhooks,earlier_list.size(),
+                    k<sh->nhooks?sh->hook[k].addr:0,k<sh->nhooks?sh->hook[k].cpu.gpr[31]:0,k<earlier_list.size()?earlier_list[k].first:0,k<earlier_list.size()?earlier_list[k].second:0);
+                for(uint32_t q=k>4?k-4:0;q<k;++q) std::fprintf(stderr," %08x/%08x",sh->hook[q].addr,sh->hook[q].cpu.gpr[31]);
+                std::fprintf(stderr,"\n");
+            }
+        }
+        if(!s->ok) {++st.failed;++st.fail_why[std::min(s->why,4u)];}
         return;
     }
     if(!s->ok) {++st.failed;++st.fail_why[std::min(s->why,4u)];return;}
@@ -1771,6 +2305,12 @@ void finish(bool job_ok) {
         all_ok=all_ok && tail_ok;
     }
     st.host_exact_jobs+=host_ok;st.exact_jobs+=all_ok;
+    if(s->smc[sm::c_arena]) {++st.arena_jobs;st.arena_exact+=all_ok;} else if(!all_ok) ++st.inexact_other;
+    if(detect) {
+        ++st.n4_jobs;const bool fl=s->n4f!=0;st.n4_flagged+=fl;
+        if(all_ok) st.n4_exact_flagged+=fl;
+        else {++st.n4_wrong;if(fl) ++st.n4_wrong_flagged; else {++st.n4_wrong_unflagged;++st.n4_unflagged_by[host_ok?2:1];}}
+    }
     if(s->smc[sm::c_models]) {++st.sm_jobs;st.sm_exact+=host_ok;}
 }
 void report() {
@@ -1788,11 +2328,19 @@ void report() {
     {std::string t;char b[96];
      for(unsigned q=0;q<nlist;++q) {std::snprintf(b,sizeof b," job %08x/%08x earlier %08x/%08x x%llu",list_by[q].addr,list_by[q].ra,list_e[q][0],list_e[q][1],(unsigned long long)list_by[q].differ);t+=b;}
      const double nj=st.jobs?(double)st.jobs:1.0;
+     std::fprintf(stderr,"[n2 check %ld] D23N3, arena: jobs whose object renderer allocated otherwise than the source %llu (exact anyway %llu); inexact jobs without that %llu\n",(long)getpid(),(unsigned long long)st.arena_jobs,(unsigned long long)st.arena_exact,(unsigned long long)st.inexact_other);
+     if(n4::detect_on()) {
+        std::fprintf(stderr,"[n2 check %ld] D23N4a proof: rebuilt jobs %llu wrong %llu (hook list differs %llu, failed %llu) flagged %llu | wrong flagged %llu wrong unflagged %llu (list %llu host %llu game packets %llu) | exact but flagged %llu | flags by class:",(long)getpid(),
+            (unsigned long long)st.n4_jobs,(unsigned long long)st.n4_wrong,(unsigned long long)st.n4_listdiff,(unsigned long long)st.n4_failed,(unsigned long long)st.n4_flagged,(unsigned long long)st.n4_wrong_flagged,(unsigned long long)st.n4_wrong_unflagged,
+            (unsigned long long)st.n4_unflagged_by[0],(unsigned long long)st.n4_unflagged_by[1],(unsigned long long)st.n4_unflagged_by[2],(unsigned long long)st.n4_exact_flagged);
+        for(int b=0;b<n4::F_N;++b) std::fprintf(stderr," %s %llu;",n4::flag_name(b),(unsigned long long)st.n4_by[b]);
+        std::fprintf(stderr,"\n");
+     }
      std::fprintf(stderr,"[n2 check %ld] D23N4, routines run alone, ms a rebuilt job: portal walk %.3f, shadow %.3f, sprite queue %.3f, muzzle flash and lines %.3f | hook lists leave the earlier job's at:%s\n",(long)getpid(),st.run_ms[0]/nj,st.run_ms[1]/nj,st.run_ms[2]/nj,st.run_ms[3]/nj,t.c_str());}
     {std::string t;char b[64];
      for(unsigned q=0;q<ngte;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu(earlier's %llu)",gte_by[q].addr,gte_by[q].ra,(unsigned long long)gte_by[q].differ,(unsigned long long)gte_earlier[q]);t+=b;}
      std::fprintf(stderr,"[n2 check %ld] D23N3, hook GTE in host-exact jobs: as the job's %llu, differs %llu:%s\n",(long)getpid(),(unsigned long long)st.gte_hooks[0],(unsigned long long)st.gte_hooks[1],t.c_str());}
-    if(n2_mask()&4096) std::fprintf(stderr,"[n2 check %ld] D23N3, model records the copy projected against the job's: words %llu differ %llu | emitter links outside models: GTE as the job's %llu, differs %llu; packet changed by our hook %llu; models ended by other code's stores %llu; shadows %llu, sprite queues %llu, muzzle flashes %llu, line effects %llu, weapon meshes %llu, Duke's joint sprites %llu (not run %llu), particle walks %llu, attach points %llu\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rec_found],(unsigned long long)st.sm[sm::c_rec_diff],(unsigned long long)st.sm[sm::c_em_gte_same],(unsigned long long)st.sm[sm::c_em_gte_diff],(unsigned long long)st.sm[sm::c_em_changed],(unsigned long long)st.sm[sm::c_model_ended],(unsigned long long)st.sm[sm::c_shadow],(unsigned long long)st.sm[sm::c_sprites],(unsigned long long)st.sm[sm::c_flash],(unsigned long long)st.sm[sm::c_lines],(unsigned long long)st.sm[sm::c_wmesh],(unsigned long long)st.sm[sm::c_jspr],(unsigned long long)st.sm[sm::f_jspr],(unsigned long long)st.sm[sm::c_parts],(unsigned long long)st.sm[sm::c_attach]);
+    if(n2_mask()&4096) std::fprintf(stderr,"[n2 check %ld] D23N3, model records the copy projected against the job's: words %llu differ %llu | emitter links outside models: GTE as the job's %llu, differs %llu; packet changed by our hook %llu; models ended by other code's stores %llu; shadows %llu, sprite queues %llu, muzzle flashes %llu, line effects %llu, weapon meshes %llu, Duke's joint sprites %llu (not run %llu), particle walks %llu, attach points %llu, object renderer bodies %llu (drew %llu, arena not the source's %llu)\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rec_found],(unsigned long long)st.sm[sm::c_rec_diff],(unsigned long long)st.sm[sm::c_em_gte_same],(unsigned long long)st.sm[sm::c_em_gte_diff],(unsigned long long)st.sm[sm::c_em_changed],(unsigned long long)st.sm[sm::c_model_ended],(unsigned long long)st.sm[sm::c_shadow],(unsigned long long)st.sm[sm::c_sprites],(unsigned long long)st.sm[sm::c_flash],(unsigned long long)st.sm[sm::c_lines],(unsigned long long)st.sm[sm::c_wmesh],(unsigned long long)st.sm[sm::c_jspr],(unsigned long long)st.sm[sm::f_jspr],(unsigned long long)st.sm[sm::c_parts],(unsigned long long)st.sm[sm::c_attach],(unsigned long long)st.sm[sm::c_obj],(unsigned long long)st.sm[sm::c_obj_drew],(unsigned long long)st.sm[sm::c_arena]);
     if(n2_mask()&16384) std::fprintf(stderr,"[n2 check %ld] piece 11, room transforms redone %llu | piece 13, portal walks run %llu\n",(long)getpid(),(unsigned long long)st.sm[sm::c_rooms],(unsigned long long)st.sm[sm::c_portal]);
     std::string t;char b[64];
     for(unsigned q=0;q<nby;++q) {std::snprintf(b,sizeof b," %08x/%08x x%llu",by[q].addr,by[q].ra,(unsigned long long)by[q].differ);t+=b;}
@@ -2092,6 +2640,7 @@ void report() {
 
 // Called from the D23N1 observer for each top-level hook entry.
 void n2_observe(CPUState* cpu,uint32_t addr,int phase) {
+    if(n2_mask()&(67108864|134217728)) n4::observe(cpu,addr,phase);
     if((n2_mask()&128) && phase==0 && addr==0x800292a0u) sk::entry(cpu);
     if((n2_mask()&1024) && wj::active) n3::fl_capture(n3::fl_job,cpu,addr,phase);
     if(n2_mask()&1) {
@@ -2111,7 +2660,52 @@ void n2_begin(const CPUState& job) {
     if(n2_mask()&14) in::begin(job);
     if(n2_mask()&4) vis::begin(job,n2_serial,n2_alpha);
     if(n2_mask()&16) jr::begin();
+    if(n2_mask()&(67108864|134217728)) n4::begin();
     if(n2_mask()&1024) wj::begin();
+}
+void n4_rotate() {if(n2_mask()&134217728) n4::rotate();}
+// D23N4b: a later job's in-place rebuild (redraw_check.inc decided it is one).
+struct N4bStats {uint64_t jobs=0,rebuilt=0,fell=0,cursor=0,by[16]={};double ms_ok=0,ms_fell=0;} n4b_st;
+// Where a stream position of the last in-place rebuild falls (diagnostics).
+std::vector<std::pair<uint32_t,uint32_t>> n4b_list;   // the last rebuild's source hooks
+void n4b_where(uint32_t pos) {
+    if(!wj::s) return;
+    for(uint32_t i=0;i<wj::s->nseg && i<n4b_list.size();++i) {
+        if(pos<wj::s->seg[i][0]) {std::fprintf(stderr,"[n2 check %ld]     in the game items before hook %u %08x/%08x\n",(long)getpid(),i,n4b_list[i].first,n4b_list[i].second);return;}
+        if(pos<wj::s->seg[i][1]) {std::fprintf(stderr,"[n2 check %ld]     in hook %u %08x/%08x (merged to %u)\n",(long)getpid(),i,n4b_list[i].first,n4b_list[i].second,wj::s->merge_to[i]);return;}
+    }
+    std::fprintf(stderr,"[n2 check %ld]     after the last hook (cflip %u)\n",(long)getpid(),wj::s->cflip);
+}
+bool n4b_run(CPUState& cpu) {
+    if(!wj::ensure_shared()) return false;
+    wj::s->done=wj::s->ok=wj::s->skip=wj::s->n=wj::s->nseg=wj::s->why=0;std::memset(wj::s->smc,0,sizeof wj::s->smc);
+    wj::s->n4f=wj::s->listdiff=0;std::memset(wj::s->n4_by,0,sizeof wj::s->n4_by);
+    // A rebuild starts from the state a forked copy would have: the host
+    // ports' per-job state as before any rebuild (statics persist in place).
+    sm::active=false;sm::ctx=sm::object=sm::records=sm::last_key=0;sm::queue.clear();sm::qi=0;sm::w_active=false;sm::w_box=sm::w_rect=0;
+    const uint64_t t=SDL_GetPerformanceCounter();
+    bool ok=wj::body(true);
+    n4b_ot_snap(1);
+    // The packet arena at the end: a rebuild follows its source's decisions,
+    // so its cursor must be where the source's was at its flip; otherwise
+    // something allocated otherwise (not provable): fall back.
+    if(ok && psx_mod_read_word(0x800d67a8u)!=prev_cursor) {ok=false;++wj::s->n4_by[11];++n4b_st.cursor;}
+    if(std::getenv("DNTTK_N4_VERIFY") || std::getenv("DNTTK_N4_VERIFY_FIRST")) {n4b_list.resize(prev.hooks.size());for(size_t q=0;q<prev.hooks.size();++q) n4b_list[q]={prev.hooks[q].addr,prev.hooks[q].cpu.gpr[31]};}
+    const double ms=ms_since(t);
+    ++n4b_st.jobs;
+    if(ok) {
+        ++n4b_st.rebuilt;n4b_st.ms_ok+=ms;
+        const auto ww=cpu.write_word;const auto wh=cpu.write_half;const auto wb=cpu.write_byte;
+        cpu=prev_flip_cpu;cpu.write_word=ww;cpu.write_half=wh;cpu.write_byte=wb;
+        render_replay_channel_set(prev_channel);   // spliced items do not move the channel; the source's at its flip
+    } else {++n4b_st.fell;n4b_st.ms_fell+=ms;for(int b=0;b<16;++b) n4b_st.by[b]+=wj::s->n4_by[b];}
+    if(n4b_st.jobs==1 || n4b_st.jobs%16==0) {
+        std::fprintf(stderr,"[n2 check %ld] D23N4b rebuilds: later jobs %llu rebuilt %llu fell back %llu (arena cursor at the end %llu) | ms a rebuild %.2f, a fallen-back attempt %.2f | fallbacks by class:",(long)getpid(),
+            (unsigned long long)n4b_st.jobs,(unsigned long long)n4b_st.rebuilt,(unsigned long long)n4b_st.fell,(unsigned long long)n4b_st.cursor,n4b_st.rebuilt?n4b_st.ms_ok/n4b_st.rebuilt:0.0,n4b_st.fell?n4b_st.ms_fell/n4b_st.fell:0.0);
+        for(int b=0;b<n4::F_N;++b) std::fprintf(stderr," %s %llu;",n4::flag_name(b),(unsigned long long)n4b_st.by[b]);
+        std::fprintf(stderr,"\n");
+    }
+    return ok;
 }
 void n2_at_flip(uint64_t serial,float alpha) {
     static unsigned jobs=0;
@@ -2133,4 +2727,5 @@ void n2_at_flip(uint64_t serial,float alpha) {
     if(n2_mask()&16) {jr::at_flip();if(jobs%64==0) jr::report();}
     if(n2_mask()&1024) {wj::at_flip();if(jobs%64==0) wj::report();}
     if((n2_mask()&128) && jobs%64==0) sk::report();
+    if((n2_mask()&(67108864|134217728)) && jobs%64==0) n4::report();
 }

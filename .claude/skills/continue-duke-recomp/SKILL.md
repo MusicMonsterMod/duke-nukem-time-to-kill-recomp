@@ -102,6 +102,8 @@ Play it once per finished job, not for job listings or intermediate steps. A fai
 
 Close every program you started once you are finished with it (user request, 2026-11-08): reference engines and ports (EDuke32, UZDoom, Ironwail and so on), Photon Studio, offscreen test games, Xvfb displays, ffmpeg captures, background watch loops, browsers or viewers opened for the work, and anything else. Leftover programs compete with the player's game for the CPU and GPU. Track the process IDs you start (pid files, not broad `pkill -f`), stop them when the step that needed them ends, and before the final summary check that nothing you launched is still running (`pgrep -a Xvfb`, the game, the reference ports). Never close programs the user started themselves unless they ask.
 
+Close your own shells too (user request, 2026-11-16, after four were left open): every background shell or task you started in the session (wait loops moved to the background by a timeout, `run_in_background` commands, monitors, SSH sessions to the field laptop) is stopped when its step is done, and before the final summary list the session's background tasks and stop any still running (Claude Code: TaskList/TaskStop). Prefer one completion notification over a second wait loop on the same run.
+
 When the user asks to close a job out, that is also the signal to tidy up and pack up shop: stop every program and background task from the work, remove scratch captures and temporary files that are not wanted evidence, and leave the machine as it was before the job started.
 
 ## After a closeout

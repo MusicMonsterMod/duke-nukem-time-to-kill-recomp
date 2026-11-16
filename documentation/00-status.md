@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-16 (night) - D08A44: Duke 3D-style night vision look (Done)
+
+User-accepted and closed out: DUKE 3D is the default night-vision look, with a slight green overlay tint the user asked for. With the goggles on (Modernized, Polymorph) the world keeps its light and takes Duke 3D's green palette shift, and hostile creatures glow as a pale-lime negative, matched to an EDuke32 capture ([note 499](499-d08a44-duke3d-night-vision.md)). No measurable GPU cost at 180 Hz. NIGHT VISION LOOK DUKE 3D (default) / ORIGINAL in OPTIONS > ADVANCED > ITEMS; launcher schema 77. Done.
+
 ## 2026-11-16 (evening) - closed out: low-end machines hold 60 at AUTO
 
 User, after playing at pure AUTO on the field laptop: "ok now gameplay is looking significantly better!" D23AD (60 Hz screens keep 60 pictures) and D23AE (AUTO on 2-core laptops uses the redraws) accepted and Done ([note 498](498-d23ad-60hz-pacing.md)); D23AB Done. Off pending the user: D23N5, D23Y10. Next: performance work continues tomorrow.

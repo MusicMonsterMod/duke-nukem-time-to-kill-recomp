@@ -2040,7 +2040,7 @@ behave the same. Acceptance: the crystal visible in the slot until taken.
 
 ### D08A44 - Duke 3D-style night vision look
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08A23.**
+**Status: Done, user-accepted 2026-11-16 ("you are right. we will leave it just like this. the duke3d style night vis becomes the default setting in duke ttk. lock it in and close it out"). Dependencies: D08A23 (Done).** [Note 499](documentation/499-d08a44-duke3d-night-vision.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: night vision should look like Duke Nukem 3D's,
@@ -2049,6 +2049,38 @@ and EDuke32 do it (the night-vision palette and how sprites are shaded with
 it), then a palette or lookup-table step in Polymorph, not an expensive
 post-process. Acceptance: matched shots against EDuke32, cost measured as
 negligible at 180 Hz; the current look stays selectable if the user wants.
+
+Work log, 2026-11-16 (implemented, Needs playtest):
+- Research: EDuke32 draws the view through SLIMEPAL and every enemy in
+  palette 6 at shade 0 (a pale-lime negative, darkest texels brightest).
+  TTK's goggles instead store one flat green (0x800c0bb8, flickering) that
+  every 3D renderer uses in place of its light. Measured on the user's EDuke32
+  clip and our own EDuke32 capture of four enemies (private copy, test CON).
+- Look (Modernized, Polymorph): TTK's flat green is cleared at the composition
+  entry; the presented picture takes a 32^3 colour lookup from our fitted rule
+  (only green rises, toward red and with the mid tones); hostile creatures
+  (type class 6, never Duke) are tagged per triangle and drawn by a textured
+  shader remap (unshaded, inverted luma onto a pale-lime ramp, gain matched to
+  EDuke32). Redraw images carry their frame's state.
+- Framework: `psx_mod_gpu_host_vertex_mode` (remap bit, recorded into redraws),
+  remap program variants bound only for batches holding a remap triangle,
+  `psx_mod_set_present_lut` (program variants of the present and the
+  interpolation blend), developer `PSX_NV_RAMP`, `PSX_GL_PROGRAM_DUMP`.
+- Setting NIGHT VISION LOOK DUKE 3D (default) / ORIGINAL, live; schema 77,
+  `--night-vision-look`; Vanilla and Classic keep TTK's look.
+- Evidence: enemy pixels mean (165, 201, 103) and luminance quartiles
+  166/187/201 against EDuke32's (155, 188, 96) and 160/186/199; GPU at 180 Hz
+  22.1 % goggles off and 22.5 % on against 23.4 % with the remap compiled out
+  (no measurable cost; the first build's in-program remap cost 1.5 points with
+  the goggles off and was replaced). No `lmem`. ORIGINAL, Classic, Vanilla,
+  savestate restore checked. Python 260 OK, near/input/flash suites, runtime
+  tests, patch on clean `08ec704a`. `ttk-controls-test` fails its HUD identity
+  assertion with and without this job (predates it).
+- 2026-11-16, user: a tiny touch more green overlay in well-lit places, not
+  brighter: red x0.93, blue x0.90, green raised by the luma they lose (note 499).
+- Accepted 2026-11-16 with the tint; blood left as Duke 3D draws it (EDuke32
+  check: only enemies and players glow). Done.
+- Not measured on the field laptop or the TV PC.
 
 ### D08A45 - FAMILY JEWELS jewels in three colours
 

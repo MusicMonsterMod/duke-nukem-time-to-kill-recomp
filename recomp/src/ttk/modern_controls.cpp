@@ -1256,6 +1256,7 @@ static bool facing_ready() {
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
 #include "sleeping_enemies.inc"
+#include "night_vision_look.inc"
 #include "spawn.inc"
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
@@ -2727,6 +2728,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);ttk::sleeping_update(cpu);});
+    // D08A44: the object loop's draws and its step (night-vision creatures).
+    for(uint32_t address:ttk::nv_draws) psx_mod_register_function_entry_plugin("ttk.night.vision.look",address,ttk::night_vision_object_entry);
+    psx_mod_register_function_entry_plugin("ttk.night.vision.look",0x8001ca4cu,ttk::night_vision_object_step);
     // D41B: every round's launch and impact (shot lights).
     psx_mod_register_function_entry_plugin("ttk.lights",0x800718ac,[](CPUState* cpu,uint32_t){ttk::lights_launch(cpu);});
     psx_mod_register_function_entry_plugin("ttk.lights",0x8006f1b8,[](CPUState* cpu,uint32_t){ttk::lights_impact(cpu);});

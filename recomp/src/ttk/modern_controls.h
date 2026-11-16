@@ -230,6 +230,14 @@ bool cowboy_hat_mesh(uint32_t address);
 bool first_person_duke_drawing();
 // D11B: any actor draw (0x800348d8) is in progress, until the next list step.
 bool first_person_actor_drawing();
+// D08A44: Duke 3D-style night vision look (night_vision_look.inc).
+bool night_vision_look_duke3d();
+bool night_vision_look_live();          // the goggles' effect is on (Duke 3D look)
+void night_vision_look_compose();       // composition entry: TTK's flat green cleared
+bool night_vision_glow_object();        // the object being drawn is a creature that glows
+void night_vision_draw_end();
+const uint8_t* night_vision_lut();      // 32 x 32 x 32 RGB8, red fastest
+void night_vision_look_stats(uint64_t out[2]);
 bool first_person_interaction_drawing();
 // D12: true while Duke's hand joint, its weapon, muzzle flash or held item is
 // drawn with the first-person weapon transform.

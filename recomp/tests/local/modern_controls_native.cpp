@@ -80,6 +80,7 @@ extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t,uint32_t,int32_t,int32_
 extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_mode(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float,uint32_t){return 1;}   // D08A44
 // D41A dynamic lighting.
 extern "C" int psx_mod_gpu_host_vertex_world(uint32_t,uint32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_world_normal(uint32_t,uint32_t,float,float,float,float,float,float){return 1;}

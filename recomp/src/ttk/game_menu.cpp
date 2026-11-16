@@ -522,6 +522,8 @@ std::vector<Screen> make_screens() {
          {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         {"NIGHT VISION",Section::Controls,"night_vision","DNTTK_NIGHT_VISION",true,"MODERN: INSTANT ON/OFF WITHOUT INTERRUPTING FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
+        {"NIGHT VISION LOOK",Section::Controls,"night_vision_look","DNTTK_NIGHT_VISION_LOOK",true,"DUKE 3D: GREEN WORLD, ENEMIES GLOW. ORIGINAL: FLAT GREEN",
+         {{"DUKE 3D","duke3d","\"duke3d\""},{"ORIGINAL","original","\"original\""}},0},
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"STEROIDS",Section::Controls,"steroids","DNTTK_STEROIDS",false,"PORTABLE: A PICKUP IS STORED, R TAKES IT",
@@ -1902,6 +1904,8 @@ const char* needs(const Row& r) {
     // DRAW DISTANCE EXTENDED (draw_distance.inc): at ORIGINAL every lighting
     // effect is off (user report 2026-11-14; making them work there is D41V).
     if((k=="dynamic_lights" || k=="shadow_edges" || k=="model_shadows" || k=="glows") && is("draw_distance","original")) return "NEEDS DRAW DISTANCE EXTENDED, IN ADVANCED";
+    // D08A44: the look is drawn by Polymorph (present lookup, creature remap).
+    if(k=="night_vision_look" && is("world_renderer","classic")) return "NEEDS RENDERER POLYMORPH, IN ADVANCED";
     return nullptr;
 }
 void draw_settings(Guest& g,const Geometry& geo) {

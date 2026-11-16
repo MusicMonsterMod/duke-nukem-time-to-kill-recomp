@@ -466,6 +466,7 @@ struct Frame {
     // D41C: a primary-Duke presentation draw (first-person weapon layer,
     // display or contact limbs) that takes the frame's lights.
     bool duke_lit=false;
+    bool nv_glow=false;   // D08A44: a night-vision creature (renderer remap)
     bool glow=false; // D41D1: a neon sign prop: gives light, never lit
     int64_t floor_surf=-1;   // D41P: the baked floor under this mesh's origin (-1 not looked up)
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
@@ -820,6 +821,11 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
+            if(f.nv_glow) {
+                // D08A44: the same modes as below, plus the night-vision remap.
+                const uint32_t mode=(poly.depth_only?2u:poly.depth_test_only?1u:(f.borrowed || poly.foreign)?PSX_MOD_HOST_BANK:0u)|PSX_MOD_HOST_REMAP;
+                psx_mod_gpu_host_vertex_mode(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth),(float)f.coverage,mode);
+            } else
             (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
             if(lit) {
                 const double* p=v[i].p;const double* m=light_inv;
@@ -2493,6 +2499,7 @@ void object(CPUState* cpu) {
     const bool glow_copy=security_glow_owns(mesh) && security_glow_owns(vertices) && security_glow_owns(list);
     if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed && !tv && !glow_copy)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    f.nv_glow=night_vision_glow_object();
     const bool game_view=game_camera_view();   // D52
     light_probe_cur=mesh;
     f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none

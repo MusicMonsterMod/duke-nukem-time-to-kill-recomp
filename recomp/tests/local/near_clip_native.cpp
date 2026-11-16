@@ -65,6 +65,15 @@ int observed_depth_only=0;
 extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_depth_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
 extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_test_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
 extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
+// D08A44: the explicit mode call (night-vision creatures).
+static bool test_glow=false;
+static int observed_remap=0,observed_mode_other=0;
+extern "C" int psx_mod_gpu_host_vertex_mode(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage,uint32_t mode){
+    if(mode&8u) ++observed_remap;
+    if(mode&~8u) ++observed_mode_other;
+    return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);
+}
+namespace ttk {bool night_vision_glow_object(){return test_glow;}}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;
@@ -259,6 +268,28 @@ static void packet_contracts(const char* executable) {
             for(unsigned i=0;i<2048;++i) assert((head(i)!=0)==(i==156 || i==162));
             for(unsigned i=0;i<6;++i) assert(semi && i>=3 ? host_corners[i].depth<0 : host_corners[i].depth>0);
         }
+        // D08A44: the same faces drawn for a glowing creature: every host
+        // vertex goes through the mode call with the remap bit and the depth
+        // mode it had (opaque faces: test and write, no bank); others never.
+        for(bool glow:{true,false}) {
+            const int remap0=observed_remap,other0=observed_mode_other;
+            auto c=reset();c.gpr[31]=0x80032288;prop_object(c,0x80180000u);
+            psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int face=0;face<2;++face) {
+                const uint32_t v=verts+face*24;
+                word(v,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(v+4,5000+face*200);
+                word(v+8,100|uint32_t(uint16_t(-100))<<16);word(v+12,5000+face*200);
+                word(v+16,100u<<16);word(v+20,5000+face*200);
+                const uint32_t record=list+4+face*16;
+                word(record,face?0x00050403:0x00020100);word(record+4,0);
+                word(record+8,0x02000000|0x1f);word(record+12,0x1f00);
+            }
+            word(list,0x00020024);word(list+36,0xff);
+            test_glow=glow;observed_hook(&c,0x80010000);test_glow=false;
+            assert(host_vertices==6 && observed_mode_other==other0);
+            assert(observed_remap-remap0==(glow?6:0));
+        }
+        std::puts("PASS: D08A44 night-vision creatures carry the remap mode with their depth mode, other objects never");
         // D17AP: a warped prop quad is drawn as its two native halves
         // (0-1-2, 2-1-3), each with its own plane depth, as D17X requires;
         // as one packet its snapped corners took raw vertex depth.

@@ -421,6 +421,7 @@ struct Frame {
     bool menu_mode=false;  // D19E: captured in game mode 0 (frontend menus can be drawn)
     uint32_t shows[max_jobs]; // D19C: menu signature of the image each redraw is drawn from
     FlashState flash;      // D39B: the screen flash at composition
+    bool night_vision=false;   // D08A44: the Duke 3D night-vision look at composition
     uint32_t duke_word=0;  // D39E trace: Duke's word 0 at composition (bit 0x20000 frozen)
 };
 Frame frames[slots];
@@ -1411,6 +1412,7 @@ void capture(CPUState* cpu,int kind) {
     }
     f->slot=slot;
     f->flash=screen_flash_read();
+    f->night_vision=night_vision_look_live();
     f->duke_word=psx_mod_read_word(0x800d7198);
     f->valid=true;
     f->frontend=kind!=gameplay_image;
@@ -2040,7 +2042,7 @@ Cached cache[cache_entries];
 // D39B: each cached redraw's screen flash, mixed at the redraw's own alpha
 // between the two frames it blends, so the fade follows the same clock as
 // the motion it is drawn over (and a repeated image keeps its tint).
-struct CachedTint {bool on=false; float rgbw[4]{}; uint64_t serial=0; double alpha=0; uint32_t duke_word=0;};
+struct CachedTint {bool on=false; float rgbw[4]{}; uint64_t serial=0; double alpha=0; uint32_t duke_word=0; bool night_vision=false;};
 CachedTint cache_tint[cache_entries];
 uint64_t cache_clock=0, prefetched=0, governed=0, deferred=0, late_repeats=0;
 int last_shown_cache=-1;   // cache entry of the last present (late camera keeps it)
@@ -2160,7 +2162,7 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
         const Frame* next=frame_by_serial(f.serial+1);
         CachedTint& t=cache_tint[c];
         t.on=flash_mix(f.flash,next?next->flash:f.flash,std::min(f.alpha[index],1.0f),screen_flash_steps(),t.rgbw);
-        t.serial=f.serial;t.alpha=f.alpha[index];t.duke_word=f.duke_word;
+        t.serial=f.serial;t.alpha=f.alpha[index];t.duke_word=f.duke_word;t.night_vision=f.night_vision;
     }
     // D17AW: on the render thread the image is only queued. A present due now
     // waits for it a little, as the single-thread path drew it right here.
@@ -2510,6 +2512,26 @@ int present_tint(int slot,float rgbw[4],void*) {
     return on;
 }
 
+// D08A44: the present colour lookup of the Duke 3D night-vision look. A
+// replay image carries its frame's state; anything else, the live state.
+uint64_t nv_lut_presents=0;
+int present_lut(int slot,void*) {
+    bool on;
+    if(slot>=1 && slot<=cache_entries) on=cache_tint[slot-1].night_vision && night_vision_look_duke3d();
+    else on=night_vision_look_live();
+    nv_lut_presents+=on;
+    // Developer trace (DNTTK_NV_TRACE=1): about every two seconds at 180 Hz.
+    static const bool trace=[]{const char* t=std::getenv("DNTTK_NV_TRACE");return t && t[0]=='1';}();
+    static uint64_t asked=0;
+    if(trace && ++asked%360==0) {
+        uint64_t s[2];night_vision_look_stats(s);
+        std::fprintf(stderr,"[TTK nv] look %s live %d presents %llu of %llu frames cleared %llu glowing objects %llu\n",
+            night_vision_look_duke3d()?"duke3d":"original",night_vision_look_live()?1:0,(unsigned long long)nv_lut_presents,
+            (unsigned long long)asked,(unsigned long long)s[0],(unsigned long long)s[1]);
+    }
+    return on;
+}
+
 bool modernized_session=false;   // D19G1: FRAME RATE can start replay later
 bool slack_fixed=false;
 // The present rate's own settings, at a launch and on a FRAME RATE change.
@@ -2542,6 +2564,7 @@ void activate() {
     if(const char* t=std::getenv("DNTTK_RT_DUE_WAIT_MS")) due_wait_ms=std::clamp(std::atof(t),0.0,8.0);
     psx_mod_set_replay_status(status_json);
     psx_mod_set_present_tint(present_tint,nullptr);
+    psx_mod_set_present_lut(night_vision_lut(),32,present_lut,nullptr);   // D08A44
     // D23X: the original presentation shows the buffer the game flips to in
     // this vertical blank (a field sooner, as the console scans it out).
     {const char* t=std::getenv("DNTTK_FLIP_PRESENT");psx_mod_set_flip_present(!(t && t[0]=='0' && !t[1]));}
@@ -2579,6 +2602,8 @@ void start_workers_once() {
     if(psx_mod_replay_workers_start(workers,worker_draw)<=0) interp_replay=false;
 }
 void composition_entry(CPUState* cpu,uint32_t address) {
+    // D08A44: before this frame is captured for the redraws.
+    if(address==composition && !psx_mod_replay_active()) night_vision_look_compose();
     // D19: our OPTIONS screens are drawn first, so this image's capture has them.
     if(!psx_mod_replay_active() && address==composition) game_menu_frame(cpu);
     if(!psx_mod_replay_active() && address==composition && replay_on && interp_replay && frontend_composition(cpu))

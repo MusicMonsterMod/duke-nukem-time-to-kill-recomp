@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-16 (night) - D08A44 closed out (Done)
+
+Duke 3D-style night vision look, [note 499](499-d08a44-duke3d-night-vision.md). Framework (in the exported patch, verified on a clean `08ec704a`): `psx_mod_gpu_host_vertex_mode` with `PSX_MOD_HOST_REMAP`, four textured programs (the remap variants bound only for batches holding a remap triangle), `psx_mod_set_present_lut`; developer `PSX_NV_RAMP` ("hi,k" or "off"), `PSX_GL_PROGRAM_DUMP=<dir>` (driver binaries: grep the NVIDIA assembly for `lmem`). Title: `night_vision_look.inc`, developer `DNTTK_NV_TRACE=1`. Lab `recomp/analysis/d08a44/` (local; EDuke32 capture in `eduke32/`). Accepted with the overlay tint (DNTTK_NV_TINT, default 0.93,0.90); DUKE 3D is the default look. Pre-existing, not this job: `ttk-controls-test` stops at `hud_intact()`, `ttk-aim-test` lacks a `psx_mod_replay_active` stub, `ttk-live-env-test` cannot find `SDL.h`.
+
 ## 2026-11-16 (overnight) - two lanes closed out: D23N4 decided, D23V3 built, OSD upload cache accepted
 
 User, after playing on the field laptop: "the game plays undeniably, phenomenally well, and it is in fact pleasing to play on ultra at 120 on the field laptop. yes, it doesnt achieve 120 100% of the time, but the drops are so elegantly handled, and i dont feel like there's any latency on the mouse and keyboard to make it feel unplayable. There is far more at 120 than there has ever been on the field laptop. lock it in and close it out".

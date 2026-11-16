@@ -2693,8 +2693,9 @@ prepared disc), messages use the generic host font.
 With Modern controls, **N** toggles night vision immediately, including while
 firing, moving or changing weapons. There is no goggles equip/removal animation,
 holster or added shot delay. **Enter** on the selected goggles does the same;
-holding either key toggles once. The original TTK visual effect, battery capacity
-and drain remain. Switching off preserves the remaining charge; depletion turns
+holding either key toggles once. The original battery capacity and drain remain
+(the picture is chosen separately, see Duke 3D night vision look below).
+Switching off preserves the remaining charge; depletion turns
 the goggles off automatically. Goggles replace the Bio Mask, as the original
 face-equipment system allows one of those items at a time.
 
@@ -2708,6 +2709,23 @@ a save do not play the cue. Original night vision and Vanilla retain their origi
 saves the choice. Vanilla retains original behavior. The launcher also accepts
 `--night-vision modern|original`; this saves the preference. In `--settings`,
 choose **N Night vision**.
+
+### Duke 3D night vision look (D08A44)
+
+In Modernized with the Polymorph renderer, the goggles show the world the way
+Duke Nukem 3D's night vision does: rooms keep their own light and shadow and
+take Duke 3D's green tint (browns and greys turn olive green, reds turn
+yellow-orange, including the status bar), and every enemy glows a pale
+fluorescent green, unshaded, with its darkest parts brightest, so enemies stand
+out even in the dark. Your weapon and Duke himself keep their normal shading.
+Toggling, charge, sounds and saves behave as before.
+
+**OPTIONS > ADVANCED > ITEMS > NIGHT VISION LOOK** offers **DUKE 3D** (default)
+and **ORIGINAL** (TTK's flat green over everything, which also lifts the
+darkness). Confirm applies it immediately and saves the choice. The Classic
+renderer and Vanilla always show the original look. The launcher also accepts
+`--night-vision-look duke3d|original` (saved); in `--settings`, **N Night
+vision** asks for the look after the controls choice.
 
 ### Cowboy hat under the Bio Mask (D08A35)
 

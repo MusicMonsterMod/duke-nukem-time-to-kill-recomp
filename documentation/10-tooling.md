@@ -335,6 +335,16 @@ frame is normally two video fields (33.4 ms). Runtime telemetry:
 `phase_profile`, `phase_hot` (diff two snapshots), `frame_perf`. Reference
 script: `recomp/analysis/d08y-gap-jump/gpuperf.py` (local only).
 
+Offscreen runs have no display refresh, so GRAPHICS AUTO picks 60: set
+`graphics: custom` in the private profile to measure at a requested FRAME RATE
+(D08A44). Shader cost checks (D41F1, D08A44): `PSX_GL_PROGRAM_DUMP=<dir>`
+writes the textured programs' driver binaries (`tex`, `tex_lean`, `tex_nv`,
+`tex_lean_nv`); NVIDIA's carry their assembly, where `lmem` means local
+memory, a cost every fragment pays. `PSX_NV_RAMP=off` compiles the
+night-vision remap out, `PSX_NV_RAMP=hi,k` retunes its ramp;
+`DNTTK_NV_TRACE=1` logs graded presents, cleared frames and glowing creature
+draws ([note 499](499-d08a44-duke3d-night-vision.md)).
+
 
 ## Jump feel measurements (D08Z)
 

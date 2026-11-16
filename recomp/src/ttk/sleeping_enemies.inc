@@ -311,6 +311,7 @@ static void sleeping_draw(CPUState* source) {
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
         cpu.gpr[4]=source->gpr[4];cpu.gpr[5]=picks[i].actor;cpu.gpr[6]=picks[i].entry;
         guest_busy=true;psx_mod_host_call_begin();psx_dispatch_call(&cpu,0x80032e78,0x800000fc);psx_mod_host_call_end();guest_busy=false;
+        night_vision_draw_end();   // D08A44: no list step follows a stand-in
         if(cpu.pc!=0 || g_psx_call_bail) break;
         ++sleep_last_drawn;
     }

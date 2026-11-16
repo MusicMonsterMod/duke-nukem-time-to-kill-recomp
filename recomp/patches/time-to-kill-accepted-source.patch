@@ -16258,7 +16258,7 @@ index fe317583..fa78d0d6 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..72d7c621 100644
+index 9d55ad16..24f735fe 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -17004,7 +17004,7 @@ index 9d55ad16..72d7c621 100644
      memset(overlay_watch_bitmap, 0, sizeof(overlay_watch_bitmap));
      memset(overlay_page_gen, 0, sizeof(overlay_page_gen));
      memset(g_dirty_ram_exec_page_bitmap, 0, sizeof(g_dirty_ram_exec_page_bitmap));
-@@ -808,19 +1432,71 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -808,19 +1432,85 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
   * bumps overlay_page_gen. Without this, ENTRY_VALID overlays keep the gen-gated
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
@@ -17015,29 +17015,19 @@ index 9d55ad16..72d7c621 100644
 +static int s_trk_snap_valid = 0;
 +static uint32_t s_trk_snap_epoch, s_trk_snap_lo, s_trk_snap_hi;
 +static const uint8_t *s_trk_snap_ref;
- void dirty_ram_text_guard_resync_after_restore(void) {
--    /* text_diverged_bitmap is sticky: once a page's entry bytes fail the
--     * reference compare, native stays blocked forever. That is correct for
--     * forward sim, but after a savestate/RB rewind the restored RAM may
--     * match the reference again — leaving the pre-load sticky bit forces
--     * dirty-interp where the peer (or the prior resim) still runs native,
--     * forking MotK selfcheck warm #2vs#3 at matched clocks (win#118 class:
--     * cold≡0, warm FAIL; post-span irq_resume also drifts). Drop both
--     * host-only text-guard bitmaps; live writes re-arm modified, and the
--     * next native_ok compare re-decides diverge against restored bytes. */
-+    /* Restores bypass the store observer. Clearing modified bits alone falsely
-+     * labels changed code as pristine, allowing the page-clean fast path to
-+     * skip byte validation. Rebuild them from the restored RAM instead. */
-     memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
-     memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
-     g_text_diverged_pages = 0;
-+    s_text_native_gen++;
-+    if (!text_ref_image || text_ref_hi <= text_ref_lo) { s_trk_snap_valid = 0; return; }
++/* D23N5: a restore's resync (dirty_ram_text_guard_resync_after_restore with
++ * only the written pages compared again); 0 when it does not apply and the
++ * whole resync must run. */
++static int trk_text_resync_incremental(void) {
 +    /* D23N5 restore: a page nothing wrote since the whole load holds the
 +     * bytes that load's resync compared, against the same reference, so its
 +     * bit is the kept one; only the written pages are compared again. */
++    if (!text_ref_image || text_ref_hi <= text_ref_lo) return 0;
 +    if (s_trk_resync == 2 && s_trk_snap_valid && s_trk_snap_epoch == s_text_ref_epoch &&
 +        s_trk_snap_ref == text_ref_image && s_trk_snap_lo == text_ref_lo && s_trk_snap_hi == text_ref_hi) {
++        memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
++        g_text_diverged_pages = 0;
++        s_text_native_gen++;
 +        memcpy(text_modified_bitmap, s_trk_text_snap, sizeof(text_modified_bitmap));
 +        for (uint32_t page=text_ref_lo >> DIRTY_RAM_PAGE_SHIFT;
 +             page <= (text_ref_hi-1u) >> DIRTY_RAM_PAGE_SHIFT; ++page) {
@@ -17066,8 +17056,37 @@ index 9d55ad16..72d7c621 100644
 +            ++g_trk_resync_checked;
 +            if (memcmp(full, text_modified_bitmap, sizeof full) != 0) ++g_trk_resync_bad;
 +        }
-+        return;
++        return 1;
 +    }
++    return 0;
++}
++/* After a whole resync: keep its bitmap for the image a worker restores from. */
++static void trk_text_resync_keep(void) {
++    if (!text_ref_image || text_ref_hi <= text_ref_lo) { s_trk_snap_valid = 0; return; }
++    if (s_trk_resync == 1) {
++        memcpy(s_trk_text_snap, text_modified_bitmap, sizeof(s_trk_text_snap));
++        s_trk_snap_valid = 1; s_trk_snap_epoch = s_text_ref_epoch;
++        s_trk_snap_ref = text_ref_image; s_trk_snap_lo = text_ref_lo; s_trk_snap_hi = text_ref_hi;
++    } else if (s_trk_resync == 0) s_trk_snap_valid = 0;
++}
+ void dirty_ram_text_guard_resync_after_restore(void) {
+-    /* text_diverged_bitmap is sticky: once a page's entry bytes fail the
+-     * reference compare, native stays blocked forever. That is correct for
+-     * forward sim, but after a savestate/RB rewind the restored RAM may
+-     * match the reference again — leaving the pre-load sticky bit forces
+-     * dirty-interp where the peer (or the prior resim) still runs native,
+-     * forking MotK selfcheck warm #2vs#3 at matched clocks (win#118 class:
+-     * cold≡0, warm FAIL; post-span irq_resume also drifts). Drop both
+-     * host-only text-guard bitmaps; live writes re-arm modified, and the
+-     * next native_ok compare re-decides diverge against restored bytes. */
++    /* Restores bypass the store observer. Clearing modified bits alone falsely
++     * labels changed code as pristine, allowing the page-clean fast path to
++     * skip byte validation. Rebuild them from the restored RAM instead. */
+     memset(text_modified_bitmap, 0, sizeof(text_modified_bitmap));
+     memset(text_diverged_bitmap, 0, sizeof(text_diverged_bitmap));
+     g_text_diverged_pages = 0;
++    s_text_native_gen++;
++    if (!text_ref_image || text_ref_hi <= text_ref_lo) return;
 +    for (uint32_t page=text_ref_lo >> DIRTY_RAM_PAGE_SHIFT;
 +         page <= (text_ref_hi-1u) >> DIRTY_RAM_PAGE_SHIFT; ++page) {
 +        uint32_t lo=page << DIRTY_RAM_PAGE_SHIFT;
@@ -17077,15 +17096,22 @@ index 9d55ad16..72d7c621 100644
 +        if(memcmp(ram+lo,text_ref_image+(lo-text_ref_lo),hi-lo)!=0)
 +            text_modified_bitmap[page>>5] |= 1u << (page&31u);
 +    }
-+    if (s_trk_resync == 1) {
-+        memcpy(s_trk_text_snap, text_modified_bitmap, sizeof(s_trk_text_snap));
-+        s_trk_snap_valid = 1; s_trk_snap_epoch = s_text_ref_epoch;
-+        s_trk_snap_ref = text_ref_image; s_trk_snap_lo = text_ref_lo; s_trk_snap_hi = text_ref_hi;
-+    } else if (s_trk_resync == 0) s_trk_snap_valid = 0;
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -912,6 +1588,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -829,7 +1519,10 @@ void overlay_watch_invalidate_after_ram_restore(void) {
+     extern void overlay_loader_note_code_write(void);
+     extern void overlay_loader_resync_validation_after_restore(void);
+     overlay_loader_note_code_write();
+-    dirty_ram_text_guard_resync_after_restore();
++    if (!trk_text_resync_incremental()) {
++        dirty_ram_text_guard_resync_after_restore();
++        trk_text_resync_keep();
++    }
+     psx_kernel_bless_resync_after_restore();
+     overlay_loader_resync_validation_after_restore();
+ }
+@@ -912,6 +1605,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -17095,7 +17121,7 @@ index 9d55ad16..72d7c621 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1854,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +1871,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -17103,7 +17129,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1862,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +1879,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -17111,7 +17137,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1973,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +1990,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -17119,7 +17145,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1981,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +1998,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -17127,7 +17153,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +2094,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +2111,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -17135,7 +17161,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +2102,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +2119,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -17143,7 +17169,7 @@ index 9d55ad16..72d7c621 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1562,7 +2247,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
+@@ -1562,7 +2264,7 @@ static uint32_t psx_read_word_raw(uint32_t addr) {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
              uint32_t v;
@@ -17152,7 +17178,7 @@ index 9d55ad16..72d7c621 100644
              return v;
          }
      }
-@@ -1649,7 +2334,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +2351,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
@@ -17162,7 +17188,7 @@ index 9d55ad16..72d7c621 100644
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1749,7 +2436,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
+@@ -1749,7 +2453,8 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 4u, &off)) {
@@ -17172,7 +17198,7 @@ index 9d55ad16..72d7c621 100644
              return;
          }
      }
-@@ -1810,8 +2498,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
+@@ -1810,8 +2515,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off))
@@ -17183,7 +17209,7 @@ index 9d55ad16..72d7c621 100644
      }
      {
          uint32_t off;
-@@ -1851,7 +2539,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2556,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -17193,7 +17219,7 @@ index 9d55ad16..72d7c621 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -1875,8 +2565,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
+@@ -1875,8 +2582,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off)) {
@@ -17205,7 +17231,7 @@ index 9d55ad16..72d7c621 100644
              return;
          }
      }
-@@ -1929,7 +2620,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
+@@ -1929,7 +2637,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off))
@@ -17214,7 +17240,7 @@ index 9d55ad16..72d7c621 100644
      }
      {
          uint32_t off;
-@@ -2186,7 +2877,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +2894,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
@@ -17224,7 +17250,7 @@ index 9d55ad16..72d7c621 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2209,7 +2902,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
+@@ -2209,7 +2919,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off)) {

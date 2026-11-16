@@ -134,6 +134,18 @@ every run:
   the publish on also presented fewer redraws in UI 2 and UI 9, so only
   the town and UI 8 (71 / 74, 73 / 74) compare.
 
+## Real screens at pure AUTO, with D23AD (MEASURED, 2026-11-16 evening)
+
+D23N5's restore and D23Y10's tracked publish together, against both off,
+two interleaved runs a scene, GRAPHICS and FRAME RATE AUTO, the morning's
+level-3 save, UI 2, 8, 9, DUKE HILL town and the FAMILY JEWELS start:
+pictures 59.8-60 a second and the game at 60 either way on both machines
+(the field laptop's town hands over to the original presentation either
+way). The emulation thread (% of a core, off / on): citadel 47 / 45, 52 /
+50, 61 / 58, 63 / 59, 48 / 45, 53 / 50; the field laptop 52 / 51, 63 / 60,
+69 / 69, 87 / 85, 50 / 50, 63 / 61. A little headroom, no visible change;
+both stay off, default on is the user's decision.
+
 ## 6. Reproduce
 
 `recomp/analysis/d23n5/` (desktop, local): `abx.sh` (`ON=...`), `proofy.sh`;

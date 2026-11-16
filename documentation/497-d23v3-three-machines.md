@@ -87,6 +87,25 @@ original presentation in 4 of 10 runs). It is not "not worse anywhere", so
 default on is not proposed. D23V3 stays off; Blocked until citadel's
 worker count (D23AC) is settled, then measured again there.
 
+## 6b. On the real screens with D23AD (MEASURED, 2026-11-16 evening)
+
+The citadel collapses of section 5 were the pacer's 30-picture step (fixed
+in D23AD, note 498). Measured again on the real screens, two interleaved
+runs a scene, the D23AD/D23AE build:
+
+- Field laptop, pure AUTO (BALANCED, redraws at 60): 60 pictures a second
+  in all five scenes either way; whole-GPU work inc / need: UI 2 523 /
+  523, the town 448 / 487, UI 8 495 / 529, UI 9 450 / 490, the FAMILY
+  JEWELS start 490 / 521 (+6 to +9% in four).
+- Citadel, pure AUTO: 59.9-60 either way, work within the spread (106-140 /
+  117-140). ULTRA 120: equal in four scenes; at the FAMILY JEWELS start one
+  `need` run dipped (pictures 59 and 48, game lowest tenth 41.3) against 58
+  and 59 without.
+- 0 stale tiles in every run.
+
+No measurable gain on the real screens of the machines it was meant for;
+stays off, not proposed for default on.
+
 ## 7. Reproduce
 
 `xm.sh` with `CFGS="inc need" CFG_need=LAB_PSX_REPLAY_CAPTURE_NEED=1`

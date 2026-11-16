@@ -2394,7 +2394,7 @@ capture instead of half; the rest is D23V3.
 
 ### D23V3 - Leave the frame bands out of the capture
 
-**Status: Blocked (2026-11-16, [note 497](../documentation/497-d23v3-three-machines.md): exact, lighter on the GPU at 2x on the field laptop, worse on citadel at AUTO's three workers; revisit after D23AC); earlier 2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
+**Status: Blocked (2026-11-16 evening: no gain on the real screens of the field laptop and citadel with D23AD, [note 497](../documentation/497-d23v3-three-machines.md) section 6b; not proposed for default on); earlier 2026-11-16, [note 497](../documentation/497-d23v3-three-machines.md): exact, lighter on the GPU at 2x on the field laptop, worse on citadel at AUTO's three workers; revisit after D23AC); earlier 2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
 After D23V2 the capture is 1.04-1.08 ms of GPU a game frame on the field
 laptop: 245 of 512 canonical tiles a capture, nearly all of them the game's
 two frame bands (rewritten every frame), and about 0.55 ms (INFERRED) of raw
@@ -2442,6 +2442,14 @@ equal elsewhere. Citadel: work lower in 9 of 10 cells but UI 2 at 120 fell
 back to the original presentation ("workers behind") in 4 of 10 runs with
 `need` against 1 of about 20 without. Not "not worse anywhere": default on
 not proposed; Blocked until citadel's worker count (D23AC) is settled.
+
+Work log, 2026-11-16 evening ([note 497](../documentation/497-d23v3-three-machines.md) section 6b): the real
+screens, the D23AD/D23AE build, two interleaved runs a scene: at pure AUTO
+60 pictures a second either way on the field laptop and citadel, 0 stale
+tiles; whole-GPU work with `need` 6-9% higher on the laptop in four of five
+scenes, equal on citadel; at ULTRA 120 on citadel equal in four scenes, one
+`need` run at the FAMILY JEWELS start dipped (48 pictures). No gain where it
+matters; stays off and Blocked, not proposed for default on.
 
 ### D23W - Field laptop: measure on real weak hardware
 
@@ -3700,7 +3708,7 @@ everywhere. Needs the real display: citadel's AUTO probe on its TV and its
 
 ### D23AC - AUTO redraw workers on four-core CPUs
 
-**Status: Todo (2026-11-16, found in D23AB, [note 496](../documentation/496-d23ab-three-machines.md) section 5). Dependencies: D23AB.**
+**Status: Cancelled (2026-11-16 evening: not needed after D23AD; citadel's pure AUTO with 3 workers holds 60 on its real screen, [note 498](../documentation/498-d23ad-60hz-pacing.md) section 4b). Dependencies: D23AB.**
 
 On citadel (Ryzen 3 3200GE, 4 cores without SMT) AUTO starts three redraw
 workers; at FRAME RATE 120 and 2x, UI 9 and the FAMILY JEWELS start then

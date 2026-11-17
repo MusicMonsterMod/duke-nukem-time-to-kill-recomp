@@ -21049,7 +21049,7 @@ index 00000000..016906fb
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..dd31d555
+index 00000000..fcc1644f
 --- /dev/null
 +++ b/runtime/src/render_worker.c
 @@ -0,0 +1,897 @@
@@ -21154,7 +21154,7 @@ index 00000000..dd31d555
 +static pid_t     s_parent = 0;
 +static PSXModReplayDrawFn s_draw = NULL;
 +static uint32_t  s_overlay_loads = 0, s_mod_used = 0;
-+/* D23AF2 (developer PSX_RW_ASYNC_REAP=1, off by default): a restart of the
++/* D23AF2 (on by default since 2026-11-17; PSX_RW_ASYNC_REAP=0 turns it off): a restart of the
 + * workers (a new code overlay, or a plugin's mod-memory allocation: about 27
 + * at a level start, one at the session's first shot) waited on the emulation
 + * thread for every killed worker's full teardown (a ~600 MB forked address
@@ -21184,7 +21184,7 @@ index 00000000..dd31d555
 +}
 +static int async_reap(void) {
 +    static int v = -1;
-+    if (v < 0) { const char *t = getenv("PSX_RW_ASYNC_REAP"); v = t && t[0] == '1'; }
++    if (v < 0) { const char *t = getenv("PSX_RW_ASYNC_REAP"); v = !(t && t[0] == '0'); }
 +    return v;
 +}
 +extern uint32_t  psx_mod_memory_used_bytes(void);

@@ -405,3 +405,98 @@ default once accepted, D23AF8 (the user's decision after this census:
 GRAPHICS grades leave FRAME RATE alone, so SIMPLE keeps the redraws), D23AF3 (cheaper forks: the observability rings out
 of the fork, each proven untouched by workers), D23AF4 (the user's choice of
 AUTO's grade on 15 W laptops).
+
+## 6. Follow-up: D23AF1 refined, D23AF2 on by default, D23AF8 (2026-11-17, afternoon)
+
+Same machines and harness (`census.py`, local `recomp/analysis/d23af/`;
+`next.sh` is the queue, `nextanalyze.py` the summaries). All three machines
+ran this build (HEAD `9003f77` plus the work below). Player files unchanged
+in every run.
+
+### 6.1 D23AF1 refined
+
+Change (game code; `DNTTK_BAKE_YIELD=1` still developer, off):
+
+- Seconds while a bake runs are judged again (before: never judged, so the
+  redraws kept running while the game was behind).
+- A floor fallback taken while a bake runs does not double the governor's
+  wait, and as soon as the bake ends the redraws are retried
+  (`replay_load_bake`, `frame_replay.cpp`; log line "the lamp bake ended:
+  redraws again now"). That retry counts as a fresh start, not a probe: a
+  scene that still cannot hold falls back by the first-fallback rule,
+  without doubling. A shed backoff raised during the bake returns to its
+  value from before the bake.
+- CPUs with 2 physical cores: one bake thread at full duty (the SMT
+  sibling), no quarter-duty sleeps. More cores keep the quarter duty while
+  the game is behind.
+
+Field laptop, real display, pure AUTO, first person, cold caches (fresh
+`DNTTK_LAMP_BAKE_CACHE` folder a run), levels 0 (TIME TO KILL) and 3
+(GOLD AND GUNS), staying 100 s after the route, switch off and on
+alternating, 3 repeats (MEASURED):
+
+| | Off | On (refined) | On (first version, section 4.1) |
+| --- | --- | --- | --- |
+| TIME TO KILL: bake | 27.3-28.0 s | 36.7-38.8 s | 110 s or more |
+| game frames/s during the bake (mean) | 46.3-47.7 | 58.7-59.4 | - |
+| seconds under 57 (of about 121-127) | 23, 23, 23 | 7, 2, 6 | 10, 29 |
+| redraws, after the bake | 0% (fallback held by the backoff) | 100% | 100% |
+| GOLD AND GUNS: bake | 16.7-16.8 s | 26.7-26.8 s | 28.6-31.9 s |
+| seconds under 57 | 7, 8, 9 | 1, 0, 0 | 0, 0 |
+| redraws, whole run | 74-78% | 100% | 100% |
+
+Each run had one fallback (TIME TO KILL's bake) either way; with the switch
+on it was retried when the bake ended in all 3 runs (the redraws then held,
+whole run 79-81% against 2%). Bakes byte-identical: levels 0, 3 and 6
+(the run's next level) in all six runs.
+
+Verdict (MEASURED): the refinement is better than off on both levels and
+keeps the medium-bake win: about 70% fewer slow seconds on TIME TO KILL,
+none on GOLD AND GUNS, the redraws back for the rest of the level instead
+of off for minutes; the bake takes 1.4-1.6x longer (the level is lit by the
+live lamps meanwhile, as before). Citadel (4 cores) keeps the quarter duty,
+which section 4.1 found neutral there; its seconds are now judged, and its
+bakes caused no fallback in the census. **On by default** since the
+closeout (user, 2026-11-17: "turn the bake yield on by default too");
+`DNTTK_BAKE_YIELD=0` switches it off.
+
+### 6.2 D23AF2: asynchronous reap on by default
+
+`PSX_RW_ASYNC_REAP` is now on unless set to `0` (framework
+`render_worker.c`; coalescing, `PSX_RW_COALESCE_MS`, stays off). In the
+ten runs of this section the restart cost matches section 4.4's async
+column (INFERRED from cost; the mode line prints only with
+`PSX_REPLAY_PROFILE=1`): field laptop worst restart 5.0-7.3 ms (async
+7.2-7.4, off 14-25), citadel 16.4 ms (async 18-22, off 28-33). Detector:
+0 foreign-generation jobs, 0 hand-backs, no aborts.
+
+### 6.3 D23AF8: GRAPHICS grades leave FRAME RATE alone
+
+Change (launcher schema 78): `GRAPHICS_PRESETS` and the menu's `grade_rows`
+set internal resolution, LIGHTING, LIVE SHADOWS and DRAW DISTANCE only.
+FRAME RATE is the player's own row, AUTO by default: a grade never changes
+it, and choosing it (menu or `--frame-rate`) no longer makes GRAPHICS
+CUSTOM. Migration: before schema 78 a non-CUSTOM profile's FRAME RATE came
+from its grade (a hand change made it CUSTOM, and the menu saved the
+grade's value back), so it becomes AUTO with a notice; CUSTOM profiles keep
+theirs. Vanilla is unchanged (always 60). Tests: `test_frame_rate_survives_grades`,
+`test_frame_rate_migration_78`, the grade-launch and menu-table tests.
+
+GRAPHICS SIMPLE (graded, not CUSTOM) at FRAME RATE AUTO, real 60 Hz
+screens, all 21 levels, census route (MEASURED; before this change the
+same profile ran the original presentation, about 30 new pictures a
+second):
+
+| | game frames/s med / p10 | fresh pictures med / p10 | redraws | s under 57 | fallbacks |
+| --- | --- | --- | --- | --- | --- |
+| Field laptop, first person | 60.0 / 59.3 | 59.9 / 48.4 | 100% | 2 of 741 | 0 |
+| (census SIMPLE 120, first) | 60.0 / 59.3 | 59.9 / 43.4 | 100% | 3 of 744 | 0 |
+| Field laptop, third person | 60.0 / 59.3 | 59.9 / 55.0 | 100% | 2 of 747 | 0 |
+| (census SIMPLE 120, third) | 60.0 / 59.3 | 59.9 / 54.5 | 100% | 2 of 745 | 0 |
+| Citadel, first person | 60.0 / 59.3 | 60.0 / 59.1 | 100% | 0 | 0 |
+| Citadel, third person | 60.0 / 59.2 | 60.0 / 59.3 | 100% | 0 | 0 |
+| (citadel census, pure AUTO = BALANCED) | 60.0 / 59.3 | 60.0 / 59.1-59.3 | 100% | 0 | 0 |
+
+Verdict (MEASURED): SIMPLE at AUTO holds the redraws exactly like the
+census's SIMPLE 120 on the field laptop (the 120 there presented at the
+panel's 60 anyway, D23Y6), and like pure AUTO on citadel.

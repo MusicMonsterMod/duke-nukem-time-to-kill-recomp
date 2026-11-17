@@ -3856,7 +3856,7 @@ Tests for the user in note 503 section 5.
 
 ### D23AF1 - A level's first lamp bake yields to the game
 
-**Status: Todo (2026-11-17, built off by default; refinement queued, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+**Status: Done (2026-11-17, user: "turn the bake yield on by default too, then lock it in and close it out"; on by default, `DNTTK_BAKE_YIELD=0` turns it off, [note 503](../documentation/503-d23af-campaign-census.md) section 6.1). Dependencies: D23AF.**
 
 Census finding (MEASURED): a level's first bake after any change to the
 bake's inputs (D55A changed every level's key) ran 15-27 s on the field
@@ -3892,9 +3892,32 @@ judge bake seconds again but retry a fallback taken during a bake as soon as
 it ends without doubling the backoff; one bake thread at full duty on 2-core
 CPUs instead of a quarter duty; re-measure levels 0 and 3.
 
+Work log, 2026-11-17 afternoon (note 503 section 6.1): refined as queued.
+Bake seconds are judged again; a floor fallback taken during a bake keeps
+the wait undoubled and the redraws are retried the moment the bake ends
+(`replay_load_bake`, `frame_replay.cpp`; the retry counts as a fresh start,
+and a shed backoff raised during the bake is restored); 2-core CPUs bake on
+one thread at full duty, more cores keep the quarter duty. Field laptop,
+cold caches, levels 0 and 3 staying 100 s, off/on alternating, 3 repeats:
+TIME TO KILL bake 36.7-38.8 s (off 27.3-28.0), game 58.7-59.4 a second
+during it (off 46.3-47.7), 7/2/6 seconds under 57 (off 23/23/23), the
+fallback retried at the bake's end in every run and the redraws then held
+(off: held off by the backoff, 2% of the run); GOLD AND GUNS bake
+26.7-26.8 s (off 16.7), 1/0/0 slow seconds (off 7-9), redraws 100% (off
+74-78%). Bakes byte-identical on and off (levels 0, 3, 6, six runs).
+Proposed default on; left off pending the user's decision and playtest.
+Remaining: the bake is 1.4x longer on the laptop (the level is lit by the
+live lamps meanwhile); citadel's quarter duty unchanged (neutral there).
+
+Closeout, 2026-11-17 (user: "turn the bake yield on by default too, then lock it in and close it out"): the yield is on by default
+(`DNTTK_BAKE_YIELD=0` switches it off). Desktop smoke on the default, cold
+cache, offscreen ULTRA 120: GOLD AND GUNS and the next level baked (3.5 s
+and 2.3 s), game 59.9, 120 pictures a second (p10 119), 0 fallbacks, player
+files unchanged. Local tests OK.
+
 ### D23AF2 - Redraw worker restarts without the hitch
 
-**Status: Needs playtest (2026-11-17, built off by default, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+**Status: Done (2026-11-17, user: "turn the bake yield on by default too, then lock it in and close it out"; asynchronous reap on by default (`PSX_RW_ASYNC_REAP=0` turns it off); coalescing off, [note 503](../documentation/503-d23af-campaign-census.md) section 6.2). Dependencies: D23AF.**
 
 Census finding (MEASURED): the session's first shot hitches on every
 machine (desktop 50-61 ms, citadel 44-47 ms, field laptop 30.5 ms a present
@@ -3927,6 +3950,17 @@ Proposed default on. Coalescing 120 ms: the desktop's stall 76-81 ms, but
 the second after a coalesced restart shows a new gap on every machine
 (field laptop 59-64 ms, citadel 33-39, desktop 16-21): off. Vanilla 6 of 6
 shots byte-identical against HEAD's build.
+
+Work log, 2026-11-17 afternoon (note 503 section 6.2): user selection -
+the asynchronous reap is on by default (framework `render_worker.c`:
+`PSX_RW_ASYNC_REAP=0` switches it off); `PSX_RW_COALESCE_MS` stays off.
+Patch exported and verified against the pinned framework;
+`test_render_worker_epoch.py` and the other CI runtime tests pass. Ten
+remote runs on the default (field laptop, citadel): worst restart 5.0-7.3
+ms on the laptop and 16.4 ms on citadel, the async figures of section 4.4
+(INFERRED from cost); detector 0, hand-backs 0, no aborts. Remaining: the
+user's playtest (first shot, level starts). Closed out 2026-11-17 with
+D23AF1 and D23AF8 (user: "turn the bake yield on by default too, then lock it in and close it out").
 
 ### D23AF3 - Cheaper worker forks
 
@@ -4030,7 +4064,7 @@ counts as fresh; `runtime/tests/test_starvation_watchdog_wrap.py`
 
 ### D23AF8 - Graphics grades leave FRAME RATE alone
 
-**Status: Todo (2026-11-17, the user's decision after D23AF). Dependencies: D23AF.**
+**Status: Done (2026-11-17, user: "turn the bake yield on by default too, then lock it in and close it out"; launcher schema 78, [note 503](../documentation/503-d23af-campaign-census.md) section 6.3). Dependencies: D23AF.**
 
 User, 2026-11-17: "the only issue i have really with graphics simple is that
 it always downplays the fps. i dont really see any reason why we have to run
@@ -4063,6 +4097,23 @@ Acceptance: SIMPLE at FRAME RATE AUTO on the field laptop and citadel (real
 60 Hz screens) holds the redraws like the census's SIMPLE 120 (game 60,
 fresh pictures near 60); a player's FRAME RATE survives a grade change;
 `test_player_profiles` covers the migration; the user's playtest.
+
+Work log, 2026-11-17 afternoon (note 503 section 6.3): built.
+`GRAPHICS_PRESETS` (`player_profiles.py`) and `grade_rows`
+(`game_menu.cpp`) no longer carry `frame_rate`; FRAME RATE is not a grade
+row, so choosing it (OPTIONS or `--frame-rate`) keeps the grade. Schema 78:
+a non-CUSTOM Modernized profile's FRAME RATE (necessarily the grade's
+before 78) becomes AUTO with a notice; CUSTOM keeps its rate; Vanilla
+unchanged (60). Launcher help, `--settings` description, OPTIONS comments
+and GAME_MANUAL's GRAPHICS section updated. Tests: grade launches leave
+FRAME RATE AUTO, a chosen 144 survives four grade changes,
+`test_frame_rate_migration_78` (six cases), schema bumps; 262 local tests
+OK. Measured, real 60 Hz screens, GRAPHICS SIMPLE at AUTO, all 21 levels,
+first and third person: field laptop game 60 (p10 59.3), fresh pictures
+median 59.9 (p10 48.4 first, 55.0 third), redraws 100%, 2 slow seconds,
+0 fallbacks: the census's SIMPLE 120 (p10 43.4 / 54.5, 3 / 2 slow
+seconds); citadel game 60, pictures 60 (p10 59.1-59.3), redraws 100%, 0
+slow seconds. Closed out 2026-11-17 with D23AF1 and D23AF2 (user: "turn the bake yield on by default too, then lock it in and close it out").
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

@@ -139,8 +139,10 @@ VSYNC_SWAP_INTERVAL = {'on': '1', 'off': '0', 'adaptive': '-1'}
 # settings that cost the GPU, plus AUTO (one of the four, picked from the
 # measured GPU probe of D23W: gpu_auto.grade_for) and CUSTOM (the individual
 # rows as the player set them). A grade sets internal resolution, LIGHTING,
-# LIVE SHADOWS, DRAW DISTANCE and FRAME RATE at launch; changing one of those
-# rows makes the profile CUSTOM. Fresh installs start at AUTO; profiles from
+# LIVE SHADOWS and DRAW DISTANCE at launch; changing one of those rows makes
+# the profile CUSTOM. D23AF8 (schema 78; user, 2026-11-17): FRAME RATE is the
+# player's own row, AUTO by default, never set by a grade (SIMPLE used to drop
+# to 60, the original presentation of about 30 new pictures a second). Fresh installs start at AUTO; profiles from
 # before schema 74 become CUSTOM, keeping every choice. D23Y6: SIMPLE renders
 # at 2x (the user, 2026-11-13: "1x is really bad ... 2x is the first
 # 'acceptible' look"); its other rows stay the lightest.
@@ -148,13 +150,13 @@ GRAPHICS_MODES = ('auto', 'simple', 'balanced', 'pretty', 'ultra', 'custom')
 GRAPHICS_GRADES = ('simple', 'balanced', 'pretty', 'ultra')
 GRAPHICS_PRESETS = {
     'simple': ({'internal_scale': 2},
-               {'dynamic_lights': 'off', 'shadow_edges': 'simple', 'draw_distance': 'original', 'frame_rate': '60'}),
+               {'dynamic_lights': 'off', 'shadow_edges': 'simple', 'draw_distance': 'original'}),
     'balanced': ({'internal_scale': 2},
-                 {'dynamic_lights': 'on', 'shadow_edges': 'simple', 'draw_distance': 'extended', 'frame_rate': 'auto'}),
+                 {'dynamic_lights': 'on', 'shadow_edges': 'simple', 'draw_distance': 'extended'}),
     'pretty': ({'internal_scale': 3},
-               {'dynamic_lights': 'relit', 'shadow_edges': 'smooth', 'draw_distance': 'extended', 'frame_rate': 'auto'}),
+               {'dynamic_lights': 'relit', 'shadow_edges': 'smooth', 'draw_distance': 'extended'}),
     'ultra': ({'internal_scale': 4},
-              {'dynamic_lights': 'relit', 'shadow_edges': 'smooth', 'draw_distance': 'extended', 'frame_rate': 'auto'}),
+              {'dynamic_lights': 'relit', 'shadow_edges': 'smooth', 'draw_distance': 'extended'}),
 }
 
 
@@ -479,7 +481,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 77, 'active': 'modernized',
+    return {'version': 78, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -525,7 +527,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 77:
+        if type(version) is int and version > 78:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -534,8 +536,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 77.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77):
+            notices.append('Migrated version 0 profile settings to version 78.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -600,6 +602,16 @@ def load(path):
                 result['profiles']['modernized']['controls']['cpu_timing'] = 'fast'
                 notices.append('Modernized now uses fast CPU timing by default; '
                                'run.py --cpu-timing accurate restores the full cycle model.')
+            # D23AF8: before schema 78 a grade set FRAME RATE (SIMPLE 60, the
+            # others AUTO) and the menu saved the grade's value back; a FRAME
+            # RATE changed by hand made the profile CUSTOM. So a non-CUSTOM
+            # Modernized profile's rate came from its grade: it becomes AUTO.
+            # A CUSTOM profile keeps the player's rate.
+            if version < 78:
+                mc = result['profiles']['modernized']['controls']
+                if mc['graphics'] != 'custom' and mc['frame_rate'] != 'auto':
+                    mc['frame_rate'] = 'auto'
+                    notices.append('GRAPHICS grades no longer set FRAME RATE; FRAME RATE is AUTO (run.py --frame-rate chooses another).')
             # D19N (user, 2026-10-20): Enter alone uses the item; U is no longer
             # its default. Only the old default is cleared, a U bound elsewhere stays.
             if version < 36:
@@ -618,8 +630,8 @@ def load(path):
                 return result, notices
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 77; retained preferences and added control and presentation defaults.'
-                               if version < 77 else
+                notices.append(f'Migrated version {version} profile settings to version 78; retained preferences and added control and presentation defaults.'
+                               if version < 78 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -678,7 +690,7 @@ def describe(settings):
         lines.append(f"Live shadows: {dict(smooth='sharp', simple='simple', off='off')[controls['shadow_edges']]} (shadows of flickering or breakable lamps, and lamp shadows on models; sharp: the exact shape of the geometry, anti-aliased; simple: faster, stepped edges; off: none, fastest; steady lamps' wall shadows are baked; Lighting Enhanced or Relit only)")
         lines.append(f"Model shadows: {controls['model_shadows']}; glows: {controls['glows']} (with LIVE SHADOWS OFF: on = shapes, round = discs under enemies; halos at flames and shots in flight)")
         lines.append(f"Vsync: {controls['vsync']} (every frame rate up to the display refresh; off: about 10 ms less input lag, a window stays tear-free under a desktop compositor, fullscreen can tear; adaptive: tears only when a frame is late)")
-        lines.append(f"Graphics: {controls['graphics']} (auto: a grade from the measured GPU; simple, balanced, pretty, ultra set resolution, lighting, live shadows, draw distance and frame rate; custom: your own rows)")
+        lines.append(f"Graphics: {controls['graphics']} (auto: a grade from the measured GPU; simple, balanced, pretty, ultra set resolution, lighting, live shadows and draw distance; custom: your own rows)")
         lines.append(f"Security monitors: {controls['security_monitors']} (duke3d: larger lit TV screens and a camera frame with REC, Duke 3D style; ttk: the original monitors; Polymorph renderer only)")
         lines.append(f"Third-person kick: {controls['third_person_kick']} (quick: a fast legs-only kick with any weapon, on the move; original: the holstered Boot's full-body kicks)")
         lines.append(f"Sidearm return: {controls['sidearm_return']} (never: keep a climb sidearm until you choose; auto: your weapon comes back 0.75 s after the last shot)")

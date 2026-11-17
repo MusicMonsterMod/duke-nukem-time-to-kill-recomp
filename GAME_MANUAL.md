@@ -131,27 +131,31 @@ game slows down, lower the internal resolution.
 
 ### Graphics (Modernized)
 
-**OPTIONS > DISPLAY > GRAPHICS** (D23P2) sets the five settings that cost the
-graphics chip most in one go. Everything else stays as you set it.
+**OPTIONS > DISPLAY > GRAPHICS** (D23P2) sets the four settings that cost the
+graphics chip most in one go. Everything else stays as you set it, FRAME RATE
+included (D23AF8: it is always your own choice, AUTO by default, and a grade
+never changes it).
 
-| GRAPHICS | Resolution | LIGHTING | LIVE SHADOWS | Draw distance | FRAME RATE |
-| --- | --- | --- | --- | --- | --- |
-| SIMPLE | 2x | ORIGINAL | SIMPLE | original | 60 |
-| BALANCED | 2x | ENHANCED | SIMPLE | extended | AUTO |
-| PRETTY | 3x | RELIT | SHARP | extended | AUTO |
-| ULTRA | 4x | RELIT | SHARP | extended | AUTO |
+| GRAPHICS | Resolution | LIGHTING | LIVE SHADOWS | Draw distance |
+| --- | --- | --- | --- | --- |
+| SIMPLE | 2x | ORIGINAL | SIMPLE | original |
+| BALANCED | 2x | ENHANCED | SIMPLE | extended |
+| PRETTY | 3x | RELIT | SHARP | extended |
+| ULTRA | 4x | RELIT | SHARP | extended |
 
 - **AUTO** (the default for new settings) picks one of the four from the same
   one-second measurement of your graphics chip as resolution AUTO (taken once
   per chip, driver and game build). On an Intel HD Graphics 5500 laptop it
   picks BALANCED, which holds 60 there; PRETTY also plays at about 60 there
   with an occasional dip. A desktop graphics card gets ULTRA.
-- **CUSTOM**: your own choices. Changing one of the five rows above by hand
+- **CUSTOM**: your own choices. Changing one of the four rows above by hand
   (in OPTIONS or with a launcher flag) switches GRAPHICS to CUSTOM. Settings
   saved before GRAPHICS existed start as CUSTOM, so nothing changes for you
-  until you pick a grade.
+  until you pick a grade. Settings saved before this change that used a grade
+  (not CUSTOM) have FRAME RATE set to AUTO once, since the grade had chosen
+  it; CUSTOM settings keep their FRAME RATE.
 
-Confirming a grade changes LIGHTING, LIVE SHADOWS and FRAME RATE at once;
+Confirming a grade changes LIGHTING and LIVE SHADOWS at once;
 resolution and draw distance follow at the next launch. Launcher:
 `python3 recomp/tools/local/run.py --graphics pretty` (or `auto`, `simple`,
 `balanced`, `ultra`, `custom`); this updates your saved Modernized

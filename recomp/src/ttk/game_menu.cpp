@@ -391,8 +391,9 @@ std::vector<Screen> make_screens() {
          {{">",">",">"}},0,false,0,0,1,1,true},
     }};
     s[1]={"DISPLAY",{
-        // D23P2: a grade sets RESOLUTION, LIGHTING, LIVE SHADOWS, DRAW DISTANCE
-        // and FRAME RATE (graphics_grade); changing one of them makes it CUSTOM.
+        // D23P2: a grade sets RESOLUTION, LIGHTING, LIVE SHADOWS and DRAW
+        // DISTANCE (graphics_grade); changing one of them makes it CUSTOM.
+        // D23AF8: FRAME RATE is the player's own row, never set by a grade.
         {"GRAPHICS",Section::Controls,"graphics","DNTTK_GRAPHICS",true,"QUALITY PRESET. AUTO PICKS ONE FOR YOUR GPU",
          {{"AUTO","auto","\"auto\""},{"SIMPLE","simple","\"simple\""},{"BALANCED","balanced","\"balanced\""},
           {"PRETTY","pretty","\"pretty\""},{"ULTRA","ultra","\"ultra\""},{"CUSTOM","custom","\"custom\""}},0},
@@ -1421,7 +1422,6 @@ const GradeRow grade_rows[]={
     {"dynamic_lights",{"off","on","relit","relit"}},
     {"shadow_edges",{"simple","simple","smooth","smooth"}},
     {"draw_distance",{"original","extended","extended","extended"}},
-    {"frame_rate",{"60","auto","auto","auto"}},
 };
 bool grade_key(const char* key) {
     for(const auto& g:grade_rows) if(key && !std::strcmp(key,g.key)) return true;

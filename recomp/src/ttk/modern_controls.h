@@ -164,6 +164,9 @@ bool live_frame_redraw_only();
 // Returns 1 after a shed, -1 when behind and nothing is left to shed (pause
 // the overclock), else 0.
 int replay_load_window(int window);
+// D23AF1: whether a level's lamp bake runs in this second (DNTTK_BAKE_YIELD):
+// a fallback taken during a bake keeps the backoff and retries when it ends.
+void replay_load_bake(bool baking);
 // D17AQ: the audio ring is under a third of its target in gameplay: shed one present
 // step now. Returns 1 after a shed, else 0 (nothing to shed, shedding off).
 int replay_audio_low();

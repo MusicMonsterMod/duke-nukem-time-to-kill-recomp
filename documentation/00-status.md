@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 (evening) - D23AF1, D23AF2, D23AF8 closed out (Done)
+
+GRAPHICS grades no longer set FRAME RATE (D23AF8, launcher schema 78): SIMPLE at AUTO keeps the redraws on real 60 Hz screens (field laptop and citadel, all levels, 100% of seconds). The redraw workers' asynchronous reap is on by default (D23AF2). The refined bake yield (D23AF1, on by default; `DNTTK_BAKE_YIELD=0` off) cuts TIME TO KILL's cold-bake slow seconds on the field laptop from 23 to 2-7 and brings the redraws back when the bake ends ([note 503](503-d23af-campaign-census.md) section 6).
+
 ## 2026-11-17 (night) - D57G: iron-ring chandeliers give light (Done)
 
 The five-candle iron-ring chandeliers of RESISTANCE IS FEUDAL (prop type 372) are lit by model, every copy on every level: a warm light among the candles warms the vault and the ring, a broad fill reaches the hall below, and a soft halo marks each candle ([note 436](436-d41l-saloon-light.md) section D57G). All 5 level-7 copies found by the scan, 3 seen lit offscreen; matched before/after from UI slot 1. GPU at 180 Hz (headless) within the run-to-run noise. Accepted by the user: "lock it in and close it out".

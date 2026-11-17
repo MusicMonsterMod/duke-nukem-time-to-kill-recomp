@@ -41,19 +41,21 @@ static struct {
     uint64_t corners_seen=0;
     bool held=false;uint32_t hold_since=0;   // waiting for a reloaded level's inputs
 } bake_state;
-// D23AF1 (developer DNTTK_BAKE_YIELD=1, off by default): a level's first
+// D23AF1 (on by default since 2026-11-17; DNTTK_BAKE_YIELD=0 turns it off): a level's first
 // bake after an update ran 15-27 s on the field laptop (5-8 s on citadel) and
 // held the game at 38-50 frames a second throughout, on its 2 cores beside
 // the emulation thread; the redraw governor then took the original
 // presentation and its backoff kept the redraws off for minutes after the
-// bake ended (note 503). With the switch: the bake works at a quarter duty
+// bake ended (note 503). With the switch: one bake thread at full duty on
+// CPUs of 2 physical cores; on more cores the bake works at a quarter duty
 // while the game is behind (bake_behind, set by the per-second judge for 3
-// s), one bake thread on CPUs of 2 physical cores, and seconds while a bake
-// runs are not judged by the governor. The bake's output is unchanged
+// s). Seconds while a bake runs are judged, but a fallback taken then does
+// not lengthen the governor's backoff and the redraws are retried as soon as
+// the bake ends (replay_load_bake, frame_replay.cpp). The bake's output is unchanged
 // (charts are independent; only the pace of the work changes).
 extern "C" int psx_host_physical_cores(void);
 static std::atomic<int> bake_behind{0};
-static bool bake_yield_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_BAKE_YIELD");return t && t[0]=='1';}();return v;}
+static bool bake_yield_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_BAKE_YIELD");return !(t && t[0]=='0');}();return v;}
 static bool lamp_bake_running() {
     return bake_state.job.valid() && bake_state.job.wait_for(std::chrono::seconds(0))!=std::future_status::ready;
 }
@@ -185,8 +187,11 @@ static void lamp_bake_tick() {
     if(const char* t=std::getenv("DNTTK_LAMP_BAKE_SAMPLES")) in.samples=std::clamp(std::atoi(t),1,4);
     if(const char* t=std::getenv("DNTTK_LAMP_BAKE_THREADS")) in.threads=(unsigned)std::clamp(std::atoi(t),1,64);
     if(bake_yield_on()) {
-        in.behind=&bake_behind;
-        if(!in.threads && psx_host_physical_cores()<=2) in.threads=1;
+        // D23AF1 refinement: on 2 physical cores one bake thread at full duty
+        // (the quarter duty stretched TIME TO KILL's bake from 28 s to 110 s
+        // on the field laptop); on more cores the bake yields while behind.
+        if(psx_host_physical_cores()<=2) {if(!in.threads) in.threads=1;}
+        else in.behind=&bake_behind;
     }
     char name[64];std::snprintf(name,sizeof name,"/level%02u-%016llx.bake",level,(unsigned long long)ttk::lamp_bake_hash(in));
     const std::string path=lamp_bake_cache_dir()+name;

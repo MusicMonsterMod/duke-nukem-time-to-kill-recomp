@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (evening) - D23AF1, D23AF2, D23AF8 closed out (Done)
+
+State: committed from the main checkout (user: "turn the bake yield on by default too, then lock it in and close it out"); the field laptop and citadel run the same source (synced with `rsync -c`, rebuilt). D23AF8 changes the launcher schema to 78 (non-CUSTOM profiles get FRAME RATE AUTO once). D23AF2's reap is on by default in the framework patch. D23AF1's bake yield is on by default too (`DNTTK_BAKE_YIELD=0` off). Evidence and tables: [note 503](503-d23af-campaign-census.md) section 6; lab scripts `next.sh` and `nextanalyze.py` (local, `recomp/analysis/d23af/`).
+
 ## 2026-11-17 (night) - D57G iron-ring chandeliers give light closed out (Done)
 
 [Note 436](436-d41l-saloon-light.md) section D57G. Title only: `prop_lights.cpp` (`ring_mesh` signature, kind `prop_light_ring` in `prop_lights.h`; `ring_light` / `ring_fill` tunes and positions; five halos from the candle blocks in `glows`; developer `DNTTK_PROP_LIGHT_RING`, `DNTTK_PROP_LIGHT_RING_FILL`, `DNTTK_PROP_RING_AT`, `DNTTK_PROP_RING_HALO`). Lab `recomp/analysis/d57g/` (local): `cards` = a private copy of UI slot 1 (runtime slot 0), `start`/`do` session, `ab.py` matched before/after against `build-local/...d57g-before`, `perf/lab.py` (D41N lab, CASES=perf2, OFFSCREEN=1, RATE=180, CTRL graphics custom: the ultra grade forces AUTO, which sees 0 Hz offscreen). Accepted at the first-pass tuning ("lock it in and close it out") and committed. Not seen: rooms 20 and 31 copies and D54 on these props not seen.

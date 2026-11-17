@@ -2911,6 +2911,13 @@ static void shed_step(double feed,const char* why) {
 // DNTTK_REPLAY_FLOOR=0 (developer) keeps the redraws at any speed.
 static bool floor_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_REPLAY_FLOOR");return !(t && t[0]=='0' && !t[1]);}();return v;}
 constexpr int floor_seconds=3, floor_clear=10;
+// D23AF1: a level's lamp bake is running (replay_load_bake). A fallback
+// taken then is the bake's doing, not the scene's: it does not double the
+// wait, and the redraws come back as soon as the bake ends. A shed backoff
+// raised during the bake returns to its value before the bake.
+bool load_baking=false, floor_bake=false;
+int bake_shed_backoff=0;
+uint64_t floor_bake_retries=0;
 static bool floor_fallback() {
     if(!psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
     // DNTTK_REPLAY_FLOOR_WAIT=seconds (developer): the first wait before a retry.
@@ -2918,7 +2925,8 @@ static bool floor_fallback() {
         if(t && std::atoi(t)>0) floor_wait=std::clamp(std::atoi(t),5,480);return true;}();
     (void)wait_set;
     floor_rate=capped_hz ? capped_hz : target_hz;floor_active=true;capped_hz=0;
-    if(floor_since_retry<=60) floor_wait=std::min(floor_wait*2,480);
+    if(floor_since_retry<=60 && !load_baking) floor_wait=std::min(floor_wait*2,480);
+    floor_bake=load_baking;
     replay_on=interp_replay=false;target_hz=60;reset_timeline();
     floor_bad=floor_good=0;floor_elapsed=0;++floor_fallbacks;
     std::fprintf(stderr,"[TTK pace] the original presentation (emulation behind at every %d%s refresh); redraws again in %d s\n",pace_div,pace_div==1?"st":pace_div==2?"nd":"rd",floor_wait);
@@ -2976,9 +2984,28 @@ static int last_div() {
     if(skip30() && rate<75.0) return 1;
     return std::clamp((int)(rate/30.0+1e-6),1,3);
 }
+void replay_load_bake(bool baking) {
+    if(baking && !load_baking) bake_shed_backoff=shed_backoff;
+    if(!baking && load_baking) {
+        if(bake_shed_backoff>0 && shed_backoff>bake_shed_backoff) shed_backoff=bake_shed_backoff;
+        bake_shed_backoff=0;
+    }
+    load_baking=baking;
+}
 int replay_load_window(int window) {
     display_cap_check();
     if(!shed_enabled()) window=window==1 ? 2 : window;
+    if(floor_active && !replay_on && floor_bake && !load_baking) {
+        // D23AF1: the bake that caused this fallback has ended: retry now.
+        // A restoration, not a probe: a scene that still cannot hold the
+        // redraws falls back by the first-fallback rule (3 slow seconds at
+        // the last step), without doubling the wait.
+        floor_bake=false;++floor_bake_retries;
+        std::fprintf(stderr,"[TTK pace] the lamp bake ended: redraws again now\n");
+        floor_retry();
+        floor_since_retry=1000;
+        return 0;
+    }
     if(floor_active && !replay_on) {
         if(window==0 && ++floor_elapsed>=floor_wait) floor_retry();
         return window==1 ? -1 : 0;

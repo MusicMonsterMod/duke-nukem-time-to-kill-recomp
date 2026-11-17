@@ -73,7 +73,7 @@ def main(argv=None):
     p.add_argument('--model-shadows', choices=profiles.MODEL_SHADOWS_MODES, help='save Modernized MODEL SHADOWS: with LIVE SHADOWS OFF, a dark flattened shape of each enemy on the floor under it, Quake style (on, default; SHAPE in the menu), a soft round shadow under each enemy like the one under Duke (round) or none (off); Lighting Enhanced or Relit, Polymorph renderer')
     p.add_argument('--glows', choices=profiles.GLOWS_MODES, help='save Modernized GLOWS: with LIVE SHADOWS OFF, a soft halo at flames and at rounds and bolts in flight, Hexen II style (on, default) or none (off); Lighting Enhanced or Relit, Polymorph renderer')
     p.add_argument('--vsync', choices=profiles.VSYNC_MODES, help='save Modernized VSYNC (every frame rate up to the display refresh): on (default, tear-free), off (about 10 ms less input lag; a desktop compositor keeps a window tear-free, fullscreen can tear) or adaptive (tears only when a frame is late, where the driver has it)')
-    p.add_argument('--graphics', choices=profiles.GRAPHICS_MODES, help='save Modernized GRAPHICS: auto (one of the four grades from the measured GPU, the default), simple, balanced, pretty, ultra (each sets resolution, lighting, live shadows, draw distance and frame rate), or custom (your own rows)')
+    p.add_argument('--graphics', choices=profiles.GRAPHICS_MODES, help='save Modernized GRAPHICS: auto (one of the four grades from the measured GPU, the default), simple, balanced, pretty, ultra (each sets resolution, lighting, live shadows and draw distance; FRAME RATE stays your own), or custom (your own rows)')
     p.add_argument('--shadow-edges', choices=profiles.SHADOW_EDGES_MODES, help='save Modernized LIVE SHADOWS (flickering or breakable lamps; steady lamps are baked): smooth (menu SHARP, default; the exact shape of the geometry, anti-aliased), simple (faster, stepped edges) or off (no live shadows, fastest; baked lamp shadows on walls stay); Lighting Enhanced or Relit, Polymorph renderer')
     p.add_argument('--dynamic-lights', choices=profiles.DYNAMIC_LIGHTS_MODES, help='save Modernized LIGHTING by its stored value: on (Enhanced, the default), relit or off (Original); Vanilla never has dynamic lights')
     p.add_argument('--lighting', choices=tuple(profiles.LIGHTING_NAMES), help='save Modernized LIGHTING: enhanced (default; blasts, guns, lamps and signs light the world on top of the original light), relit (the original light dimmed so those lights carry the scene) or original (only the original light); Polymorph renderer; Vanilla never has them')
@@ -193,9 +193,10 @@ def main(argv=None):
             if a.camera is not None: controls['camera'] = a.camera
             if a.mouse_sensitivity is not None: controls['mouse_sensitivity'] = a.mouse_sensitivity
             if a.invert_y is not None: controls['invert_y'] = a.invert_y == 'on'
-            # D23P2: a flag for a row a grade sets makes the profile CUSTOM.
+            # D23P2: a flag for a row a grade sets makes the profile CUSTOM
+            # (D23AF8: FRAME RATE is not one of them).
             if (a.dynamic_lights is not None or a.lighting is not None or a.shadow_edges is not None or
-                    a.draw_distance is not None or a.frame_rate is not None):
+                    a.draw_distance is not None):
                 controls['graphics'] = 'custom'
             if a.graphics is not None: controls['graphics'] = a.graphics
             settings['profiles']['modernized']['controls'] = profiles.validate_controls(controls)

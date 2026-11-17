@@ -46,3 +46,5 @@ jobs:
           python3 recomp/psxrecomp/runtime/tests/test_dirty_text_restore.py
           python3 recomp/psxrecomp/runtime/tests/test_pipeline_batch_deadlines.py
           python3 recomp/psxrecomp/runtime/tests/test_render_worker_deadline.py
+          python3 recomp/psxrecomp/runtime/tests/test_render_worker_epoch.py
+          python3 recomp/psxrecomp/runtime/tests/test_starvation_watchdog_wrap.py

@@ -134,10 +134,10 @@ index cb14c4b7..db8c45a5 100644
  
  
 diff --git a/runtime/CMakeLists.txt b/runtime/CMakeLists.txt
-index df6b213d..9865381f 100644
+index df6b213d..dc151b9a 100644
 --- a/runtime/CMakeLists.txt
 +++ b/runtime/CMakeLists.txt
-@@ -511,6 +511,16 @@ if(BUILD_TESTING)
+@@ -511,6 +511,20 @@ if(BUILD_TESTING)
  
      find_package(Python3 COMPONENTS Interpreter)
      if(Python3_Interpreter_FOUND)
@@ -148,6 +148,10 @@ index df6b213d..9865381f 100644
 +                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pipeline_batch_deadlines.py)
 +            add_test(NAME ttk_render_worker_deadline
 +                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_render_worker_deadline.py)
++            add_test(NAME ttk_render_worker_epoch
++                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_render_worker_epoch.py)
++            add_test(NAME ttk_starvation_watchdog_wrap
++                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_starvation_watchdog_wrap.py)
 +            add_test(NAME ttk_host_vertex_depth
 +                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_host_vertex_depth.py)
 +        endif()
@@ -21045,10 +21049,10 @@ index 00000000..016906fb
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..705da3b9
+index 00000000..dd31d555
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,786 @@
+@@ -0,0 +1,897 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -21124,12 +21128,16 @@ index 00000000..705da3b9
 +    uint32_t slot, params_len, out_words, ok, overflow;
 +    uint64_t tag, done_ticks;
 +    _Atomic uint64_t start_ticks;
++    uint32_t epoch;             /* D23AF2: the worker generation it was queued for */
++    uint32_t done_epoch;        /* D23AF2: the generation of the worker that finished it */
 +    uint8_t  params[RW_PARAMS];
 +} RwJob;
 +
 +typedef struct RwShared {
 +    uint32_t magic;
 +    _Atomic uint32_t shutdown;
++    _Atomic uint32_t epoch;     /* D23AF2: bumped at every worker restart */
++    _Atomic uint32_t handbacks; /* D23AF2: jobs a retired worker gave back */
 +    RwJob jobs[RW_JOBS];
 +    CPUState slot_cpu[RW_SLOTS];
 +    int32_t  slot_ws_margin[RW_SLOTS];   /* widescreen reveal at publish time */
@@ -21146,6 +21154,39 @@ index 00000000..705da3b9
 +static pid_t     s_parent = 0;
 +static PSXModReplayDrawFn s_draw = NULL;
 +static uint32_t  s_overlay_loads = 0, s_mod_used = 0;
++/* D23AF2 (developer PSX_RW_ASYNC_REAP=1, off by default): a restart of the
++ * workers (a new code overlay, or a plugin's mod-memory allocation: about 27
++ * at a level start, one at the session's first shot) waited on the emulation
++ * thread for every killed worker's full teardown (a ~600 MB forked address
++ * space): 30-60 ms, a visible hitch on every machine (note 503). With the
++ * switch the killed workers are reaped later (WNOHANG in maintain). Exact by
++ * construction: the epoch is bumped before the kill, a worker re-checks it
++ * after every claim and hands a job of another epoch back and exits, and the
++ * job slots a killed worker held stay out of use (quarantine) until it is
++ * reaped, so no late write of a dying worker can reach a new job. */
++#define RW_MAX_DYING 64
++static pid_t     s_dying[RW_MAX_DYING];
++static int       s_ndying = 0;
++static uint8_t   s_quarantine[RW_JOBS];
++static uint64_t  s_restarts = 0, s_restart_us_total = 0, s_restart_us_max = 0, s_epoch_bad = 0;
++/* D23AF2 (developer PSX_RW_COALESCE_MS=N, off by default): the first level
++ * of a session grows mod memory in about 30 small steps within a second, each
++ * a full restart. With N > 0 a growth retires the workers once and the new
++ * ones are forked N ms after the last growth; meanwhile the emulation thread
++ * draws the live frames itself (redraw-only disengages: workers inactive), so
++ * the pictures stay exact and only in-between redraws pause. */
++static uint64_t  s_restart_due = 0;
++static uint64_t  s_coalesced = 0;
++static int coalesce_ms(void) {
++    static int v = -1;
++    if (v < 0) { const char *t = getenv("PSX_RW_COALESCE_MS"); v = t ? atoi(t) : 0; if (v < 0) v = 0; if (v > 2000) v = 2000; }
++    return v;
++}
++static int async_reap(void) {
++    static int v = -1;
++    if (v < 0) { const char *t = getenv("PSX_RW_ASYNC_REAP"); v = t && t[0] == '1'; }
++    return v;
++}
 +extern uint32_t  psx_mod_memory_used_bytes(void);
 +static uint64_t  s_spawns = 0, s_deaths = 0, s_kills = 0, s_jobs_done = 0, s_jobs_failed = 0, s_jobs_overflow = 0;
 +static uint64_t  s_job_us_total = 0, s_job_us_max = 0;
@@ -21250,12 +21291,20 @@ index 00000000..705da3b9
 +        setenv("PSX_PROF",path,1);
 +        extern void host_profiler_start(void);host_profiler_start();
 +    }
++    const uint32_t my_epoch = atomic_load(&s_sh->epoch);   /* D23AF2 */
 +    for (;;) {
-+        if (atomic_load(&s_sh->shutdown) || getppid() != s_parent) _exit(0);
++        if (atomic_load(&s_sh->shutdown) || getppid() != s_parent || atomic_load(&s_sh->epoch) != my_epoch) _exit(0);
 +        int claimed = -1;
 +        for (int j = 0; j < RW_JOBS; j++) {
 +            uint32_t expect = RW_QUEUED;
 +            if (atomic_compare_exchange_strong(&s_sh->jobs[j].state, &expect, RW_RUNNING)) {
++                /* D23AF2: the claim's acquire makes the job's epoch visible. A
++                 * retired worker gives a newer job back untouched and leaves. */
++                if (s_sh->jobs[j].epoch != my_epoch) {
++                    atomic_fetch_add(&s_sh->handbacks, 1u);
++                    atomic_store(&s_sh->jobs[j].state, RW_QUEUED);
++                    _exit(0);
++                }
 +                claimed = j;
 +                break;
 +            }
@@ -21371,6 +21420,7 @@ index 00000000..705da3b9
 +        if(profile && *profile && ++profile_jobs%128==0) {
 +            extern void host_profiler_flush(void);host_profiler_flush();
 +        }
++        job->done_epoch = my_epoch;   /* D23AF2 */
 +        if (atomic_load(&job->discard)) atomic_store(&job->state, RW_FREE);
 +        else atomic_store(&job->state, job->ok ? RW_DONE : RW_FAILED);
 +    }
@@ -21390,18 +21440,41 @@ index 00000000..705da3b9
 +
 +static void stop_workers(void) {
 +    if (!s_sh) return;
++    const int async = async_reap() && !atomic_load(&s_sh->shutdown);
++    atomic_fetch_add(&s_sh->epoch, 1u);   /* D23AF2: retire the current workers */
 +    for (int i = 0; i < s_count; i++) {
 +        if (s_pids[i] > 0) {
 +            kill(s_pids[i], SIGKILL);
-+            (void)waitpid(s_pids[i], NULL, 0);
++            if (async && s_ndying < RW_MAX_DYING) s_dying[s_ndying++] = s_pids[i];
++            else (void)waitpid(s_pids[i], NULL, 0);
 +            s_pids[i] = 0;
 +        }
 +    }
 +    for (int j = 0; j < RW_JOBS; j++) {
 +        uint32_t st = atomic_load(&s_sh->jobs[j].state);
-+        if (st == RW_QUEUED || st == RW_RUNNING) atomic_store(&s_sh->jobs[j].state, RW_FAILED);
++        if (st == RW_QUEUED) {
++            uint32_t expect = RW_QUEUED;
++            if (atomic_compare_exchange_strong(&s_sh->jobs[j].state, &expect, RW_FAILED)) continue;
++            st = expect;   /* claimed meanwhile */
++        }
++        if (st == RW_RUNNING) {
++            if (async) s_quarantine[j] = 1;
++            atomic_store(&s_sh->jobs[j].state, RW_FAILED);
++        }
 +    }
 +    s_count = 0;
++}
++/* D23AF2: reap killed workers without waiting; once all are gone their job
++ * slots return to use. */
++static void reap_dying(int wait) {
++    for (int k = 0; k < s_ndying; ) {
++        const pid_t r = waitpid(s_dying[k], NULL, wait ? 0 : WNOHANG);
++        if (r == s_dying[k] || (r < 0 && errno == ECHILD)) s_dying[k] = s_dying[--s_ndying];
++        else ++k;
++    }
++    if (!s_ndying)
++        for (int j = 0; j < RW_JOBS; j++)
++            if (s_quarantine[j]) { s_quarantine[j] = 0; atomic_store(&s_sh->jobs[j].state, RW_FREE); }
 +}
 +
 +static void start_workers(void) {
@@ -21453,6 +21526,7 @@ index 00000000..705da3b9
 +void psx_mod_replay_release(int job);
 +static void maintain(void) {
 +    int status;
++    if (s_ndying) reap_dying(0);   /* D23AF2 */
 +    for (int j = 0; j < RW_JOBS; j++)
 +        if (s_rt_release[j] && !psx_rt_job_held(j) && !s_rt_val_hold[j]) psx_mod_replay_release(j);
 +    for (int i = 0; i < s_count; i++) {
@@ -21503,14 +21577,42 @@ index 00000000..705da3b9
 +            fprintf(stderr,"[replay refresh] overlays=%u/%u mod_bytes=%u/%u ticks=%llu\n",
 +                    s_overlay_loads,overlay_loads_now(),s_mod_used,psx_mod_memory_used_bytes(),
 +                    (unsigned long long)ticks());
++        const uint64_t r0 = ticks();
++        if (coalesce_ms() > 0) {
++            /* D23AF2: retire now, fork after the allocations settle. */
++            if (s_count > 0) stop_workers(); else s_coalesced++;
++            s_overlay_loads = overlay_loads_now();
++            s_mod_used = psx_mod_memory_used_bytes();
++            s_restart_due = ticks() + (uint64_t)coalesce_ms() * SDL_GetPerformanceFrequency() / 1000u;
++            if (getenv("PSX_REPLAY_PROFILE"))
++                fprintf(stderr, "[replay refresh] retired in %llu us, new workers in %d ms\n",
++                        (unsigned long long)ticks_us(ticks() - r0), coalesce_ms());
++            return;
++        }
 +        stop_workers();
 +        start_workers();
++        const uint64_t us = ticks_us(ticks() - r0);
++        s_restarts++; s_restart_us_total += us; if (us > s_restart_us_max) s_restart_us_max = us;
++        if (getenv("PSX_REPLAY_PROFILE"))
++            fprintf(stderr, "[replay refresh] restart %llu us (%s reap, %d dying)\n", (unsigned long long)us,
++                    async_reap() ? "async" : "sync", s_ndying);
 +    }
 +}
 +
 +int psx_mod_replay_publish(int slot, const CPUState *cpu) {
 +    if (!s_sh || slot < 0 || slot >= RW_SLOTS || !cpu) return 0;
 +    maintain();
++    if (s_restart_due && ticks() >= s_restart_due && !atomic_load(&s_sh->shutdown)) {   /* D23AF2 */
++        const uint64_t r0 = ticks();
++        s_restart_due = 0;
++        start_workers();
++        const uint64_t us = ticks_us(ticks() - r0);
++        s_restarts++; s_restart_us_total += us; if (us > s_restart_us_max) s_restart_us_max = us;
++        if (getenv("PSX_REPLAY_PROFILE"))
++            fprintf(stderr, "[replay refresh] restart %llu us (coalesced, %llu growths folded, %d dying)\n",
++                    (unsigned long long)us, (unsigned long long)s_coalesced, s_ndying);
++        s_coalesced = 0;
++    }
 +    for (int j = 0; j < RW_JOBS; j++) {
 +        RwJob *job = &s_sh->jobs[j];
 +        if (job->slot != (uint32_t)slot) continue;
@@ -21588,7 +21690,8 @@ index 00000000..705da3b9
 +    for (int j = 0; j < RW_JOBS; j++) {
 +        RwJob *job = &s_sh->jobs[j];
 +        uint32_t st = atomic_load(&job->state);
-+        if (st != RW_FREE) continue;
++        if (st != RW_FREE || s_quarantine[j]) continue;
++        job->epoch = atomic_load(&s_sh->epoch);   /* D23AF2: before the QUEUED release */
 +        job->slot = (uint32_t)slot;
 +        job->params_len = len;
 +        if (len) memcpy(job->params, params, len);
@@ -21609,7 +21712,16 @@ index 00000000..705da3b9
 +int psx_mod_replay_job_state(int job, uint64_t *tag) {
 +    if (!s_sh || job < 0 || job >= RW_JOBS) return -1;
 +    if (tag) *tag = s_sh->jobs[job].tag;
-+    return (int)atomic_load(&s_sh->jobs[job].state);
++    const int st = (int)atomic_load(&s_sh->jobs[job].state);
++    /* D23AF2 detector: a finished job must come from a worker of its own
++     * generation; anything else is reported and never shown. */
++    if (st == RW_DONE && s_sh->jobs[job].done_epoch != s_sh->jobs[job].epoch) {
++        if (s_epoch_bad++ < 8) fprintf(stderr, "[replay epoch] job %d done by generation %u, queued for %u: dropped\n",
++                                        job, s_sh->jobs[job].done_epoch, s_sh->jobs[job].epoch);
++        atomic_store(&s_sh->jobs[job].state, RW_FAILED);
++        return RW_FAILED;
++    }
++    return st;
 +}
 +
 +void psx_mod_replay_release(int job) {
@@ -21799,18 +21911,21 @@ index 00000000..705da3b9
 +        }
 +    snprintf(out, cap, "{\"workers\":%d,\"spawns\":%llu,\"deaths\":%llu,\"kills\":%llu,"
 +             "\"done\":%llu,\"failed\":%llu,\"overflows\":%llu,\"job_us_avg\":%.0f,\"job_us_max\":%llu,"
-+             "\"queued\":%u,\"running\":%u,\"ready\":%u}",
++             "\"queued\":%u,\"running\":%u,\"ready\":%u,\"restarts\":%llu,\"restart_us_avg\":%.0f,\"restart_us_max\":%llu,\"dying\":%d,\"handbacks\":%u,\"epoch_bad\":%llu}",
 +             s_count, (unsigned long long)s_spawns, (unsigned long long)s_deaths,
 +             (unsigned long long)s_kills, (unsigned long long)s_jobs_done,
 +             (unsigned long long)s_jobs_failed, (unsigned long long)s_jobs_overflow,
 +             s_jobs_done ? (double)s_job_us_total / (double)s_jobs_done : 0.0,
-+             (unsigned long long)s_job_us_max, q, r, d);
++             (unsigned long long)s_job_us_max, q, r, d, (unsigned long long)s_restarts,
++             s_restarts ? (double)s_restart_us_total / (double)s_restarts : 0.0,
++             (unsigned long long)s_restart_us_max, s_ndying, s_sh ? atomic_load(&s_sh->handbacks) : 0u, (unsigned long long)s_epoch_bad);
 +}
 +
 +void render_worker_shutdown(void) {
 +    if (!s_sh) return;
 +    atomic_store(&s_sh->shutdown, 1u);
 +    stop_workers();
++    reap_dying(1);   /* D23AF2 */
 +}
 +
 +#else /* !RW_POSIX */
@@ -22730,7 +22845,7 @@ index dc358955..c5eca1c1 100644
  
  /* ---- boot snapshot: complete SPU register + voice state (LE field wire) ---- */
 diff --git a/runtime/src/starvation_ring.c b/runtime/src/starvation_ring.c
-index f0d6f913..8dd64bbe 100644
+index f0d6f913..b29320f4 100644
 --- a/runtime/src/starvation_ring.c
 +++ b/runtime/src/starvation_ring.c
 @@ -48,6 +48,7 @@ static PSX_BSS StarvationEntry s_ring[STARVATION_RING_CAP];
@@ -22741,7 +22856,21 @@ index f0d6f913..8dd64bbe 100644
  
  /* Watchdog threshold: 4 seconds of wall-clock without a heartbeat is
   * "TCP died, BIOS still running" territory. Real BIOS pad polling
-@@ -77,6 +78,7 @@ void starvation_ring_reset(void) {
+@@ -69,14 +70,20 @@ static uint64_t starvation_timeout_us(void) {
+     return timeout;
+ }
+ 
++/* D23AF: the heartbeat is also refreshed by the debug server's I/O thread
++ * (responses in flight), so it is read and written atomically, and the check
++ * below treats a heartbeat newer than its own clock sample as fresh. Before,
++ * `now - last` wrapped to ~1.8e19 us and the game aborted (seen on citadel,
++ * 2026-11-17: "18446744073709551467 us without heartbeat"). */
+ void starvation_watchdog_heartbeat(void) {
+-    s_last_heartbeat_us = host_us_now();
++    __atomic_store_n(&s_last_heartbeat_us, host_us_now(), __ATOMIC_RELAXED);
+ }
+ 
+ void starvation_ring_reset(void) {
      memset(s_ring, 0, sizeof(s_ring));
      s_seq = 0;
      s_last_heartbeat_us = 0;
@@ -22749,7 +22878,7 @@ index f0d6f913..8dd64bbe 100644
      s_dump_done = 0;
  }
  
-@@ -242,12 +244,36 @@ void starvation_ring_dump(const char *path) {
+@@ -242,19 +249,46 @@ void starvation_ring_dump(const char *path) {
      fclose(f);
  }
  
@@ -22768,13 +22897,15 @@ index f0d6f913..8dd64bbe 100644
      uint64_t timeout = starvation_timeout_us();
      if (timeout == 0) return;              /* watchdog disabled (renderer bring-up) */
      uint64_t now = host_us_now();
+-    if (now - s_last_heartbeat_us > timeout) {
 +    {
 +        const uint64_t last = s_last_check_us;
 +        s_last_check_us = now;
 +        const uint64_t gap = last ? now - last : 0;
 +        if (gap > STARVATION_HOST_GAP_US) {
-+            s_last_heartbeat_us += gap;
-+            if (s_last_heartbeat_us > now) s_last_heartbeat_us = now;
++            uint64_t b = __atomic_load_n(&s_last_heartbeat_us, __ATOMIC_RELAXED) + gap;
++            if (b > now) b = now;
++            __atomic_store_n(&s_last_heartbeat_us, b, __ATOMIC_RELAXED);
 +        }
 +        static long long log_us = -1;   /* PSX_HOST_GAP_LOG_MS (developer): log shorter gaps */
 +        if (log_us < 0) { const char *e = getenv("PSX_HOST_GAP_LOG_MS"); log_us = (e && *e) ? atoll(e) * 1000LL : 1000000LL; }
@@ -22783,9 +22914,19 @@ index f0d6f913..8dd64bbe 100644
 +                    (double)gap / 1000.0, gap > STARVATION_HOST_GAP_US ? " (host work; not counted)" : "",
 +                    (double)now / 1e6);
 +    }
-     if (now - s_last_heartbeat_us > timeout) {
++    const uint64_t beat = __atomic_load_n(&s_last_heartbeat_us, __ATOMIC_RELAXED);
++    const uint64_t silent = now > beat ? now - beat : 0;   /* D23AF: never wraps */
++    if (silent > timeout) {
          starvation_ring_dump(NULL);
          /* Abort cleanly so the dump file is preserved and the user knows
+          * the runtime starved. */
+         fprintf(stderr, "starvation_watchdog: %llu us without heartbeat — "
+                 "ring dumped to starvation_dump.jsonl, aborting\n",
+-                (unsigned long long)(now - s_last_heartbeat_us));
++                (unsigned long long)silent);
+         fflush(stderr);
+         exit(2);
+     }
 diff --git a/runtime/src/ttk_texture_sample.h b/runtime/src/ttk_texture_sample.h
 new file mode 100644
 index 00000000..c82c70d9
@@ -23375,3 +23516,94 @@ index 00000000..2277ace2
 + subprocess.run([os.environ.get('CC','cc'),'-O2',str(p/'test.c'),'-o',str(p/'test')],check=True)
 + subprocess.run([str(p/'test')],check=True)
 +print('render-worker deadline publication and boundaries: passed')
+diff --git a/runtime/tests/test_render_worker_epoch.py b/runtime/tests/test_render_worker_epoch.py
+new file mode 100644
+index 00000000..4dbe589b
+--- /dev/null
++++ b/runtime/tests/test_render_worker_epoch.py
+@@ -0,0 +1,51 @@
++#!/usr/bin/env python3
++"""Pin D23AF2's worker generations: a restart that does not wait for the old
++workers must never let one of them run or finish a job of the new workers."""
++from pathlib import Path
++import re
++src = (Path(__file__).resolve().parents[1] / 'src/render_worker.c').read_text()
++
++def body(start, end):
++    a = src.index(start)
++    return src[a:src.index(end, a)]
++
++# Shared state carries the generation; every job remembers the one it was queued for.
++assert re.search(r'_Atomic\s+uint32_t\s+epoch;', src)
++assert re.search(r'uint32_t\s+epoch;\s+/\*', src) and 'uint32_t done_epoch;' in src
++
++# submit: the job's generation is written before the QUEUED release, and a
++# quarantined slot is never handed out.
++submit = body('int psx_mod_replay_submit(', 'int psx_mod_replay_job_state(')
++assert 's_quarantine[j]' in submit.split('job->slot =')[0]
++assert submit.index('job->epoch = atomic_load(&s_sh->epoch)') < submit.index('atomic_store(&job->state, RW_QUEUED)')
++
++# stop: the generation moves on before any worker is killed; a QUEUED job is
++# failed only by compare-and-swap, and a RUNNING one is quarantined when the
++# killed worker is not waited for.
++stop = body('static void stop_workers(void)', 'static void reap_dying(')
++assert stop.index('atomic_fetch_add(&s_sh->epoch, 1u)') < stop.index('kill(s_pids[i], SIGKILL)')
++assert 'atomic_compare_exchange_strong(&s_sh->jobs[j].state, &expect, RW_FAILED)' in stop
++assert re.search(r'if \(async\) s_quarantine\[j\] = 1;', stop)
++
++# worker: the generation is taken at fork, re-checked after every claim (the
++# claim's acquire makes the job's generation visible), a newer job is handed
++# back, and every finished job is stamped with the worker's generation
++# before its state is published.
++worker = body('static void worker_main(int index)', '/* ---- parent side')
++claim = worker[worker.index('atomic_compare_exchange_strong(&s_sh->jobs[j].state, &expect, RW_RUNNING)'):]
++assert claim.index('if (s_sh->jobs[j].epoch != my_epoch)') < claim.index('claimed = j;')
++assert 'atomic_store(&s_sh->jobs[j].state, RW_QUEUED);' in claim.split('claimed = j;')[0]
++tail = worker[worker.rindex('job->done_epoch = my_epoch;'):]
++assert tail.index('job->done_epoch = my_epoch;') < tail.index('atomic_store(&job->state, job->ok ? RW_DONE : RW_FAILED)')
++
++# reaping: quarantined slots return only when no killed worker remains, and
++# shutdown waits for all of them.
++reap = body('static void reap_dying(int wait)', '/* PSX_RT_VALIDATE') if '/* PSX_RT_VALIDATE' in src[src.index('static void reap_dying'):] else body('static void reap_dying(int wait)', 'static void maintain(void)')
++assert 'if (!s_ndying)' in reap and 's_quarantine[j] = 0' in reap
++assert re.search(r'r < 0 && errno == ECHILD', reap)
++assert 'reap_dying(1);' in body('void render_worker_shutdown(void)', '#else')
++
++# A finished job from another generation is never reported done.
++state = body('int psx_mod_replay_job_state(int job, uint64_t *tag) {', 'void psx_mod_replay_release(int job)')
++assert 'done_epoch != s_sh->jobs[job].epoch' in state and 'return RW_FAILED;' in state
++print('render-worker generations (D23AF2): passed')
+diff --git a/runtime/tests/test_starvation_watchdog_wrap.py b/runtime/tests/test_starvation_watchdog_wrap.py
+new file mode 100644
+index 00000000..73381ac0
+--- /dev/null
++++ b/runtime/tests/test_starvation_watchdog_wrap.py
+@@ -0,0 +1,28 @@
++#!/usr/bin/env python3
++"""D23AF: the starvation watchdog must never read a heartbeat newer than its
++own clock sample (refreshed by the debug server's I/O thread) as a starvation."""
++from pathlib import Path
++import os,re,subprocess,tempfile
++src=(Path(__file__).resolve().parents[1]/'src/starvation_ring.c').read_text()
++hb=src[src.index('void starvation_watchdog_heartbeat(void) {'):]
++hb=hb[:hb.index('}')]
++assert '__atomic_store_n(&s_last_heartbeat_us' in hb
++chk=src[src.index('void starvation_watchdog_check(void) {'):]
++chk=chk[:chk.index('exit(2);')]
++m=re.search(r'const uint64_t silent = (now > beat \? now - beat : 0);',chk)
++assert m and 'if (silent > timeout)' in chk and '__atomic_load_n(&s_last_heartbeat_us' in chk
++assert not re.search(r'now - s_last_heartbeat_us',chk)
++code='''#include <stdint.h>
++#include <assert.h>
++static uint64_t silent(uint64_t now,uint64_t beat){return '''+m.group(1)+''';}
++int main(void){
++ assert(silent(1000,1149)==0);          /* heartbeat 149 us after the sample */
++ assert(silent(5000000,1000000)==4000000);
++ assert(silent(1000,1000)==0);
++ return 0;}
++'''
++with tempfile.TemporaryDirectory() as t:
++ p=Path(t);(p/'t.c').write_text(code)
++ subprocess.run([os.environ.get('CC','cc'),'-O2',str(p/'t.c'),'-o',str(p/'t')],check=True)
++ subprocess.run([str(p/'t')],check=True)
++print('starvation watchdog never wraps: passed')

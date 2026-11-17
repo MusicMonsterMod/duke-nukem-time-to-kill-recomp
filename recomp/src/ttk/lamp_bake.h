@@ -6,6 +6,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <atomic>
 #include <vector>
 
 namespace ttk {
@@ -33,6 +34,11 @@ struct BakeInput {
     int samples = 2;              // per texel axis (visibility supersampling)
     int atlas_width = 4096;
     unsigned threads = 0;         // 0: half the logical CPUs, at most 8
+    // D23AF1: while *behind is non-zero (the game fell behind real time in a
+    // recent second) each bake thread sleeps three times its last chart's
+    // work after it: a quarter duty, so the bake gives the game its CPU and
+    // package power back. Charts are independent; the output is unchanged.
+    const std::atomic<int>* behind = nullptr;
 };
 
 // One record per face, 16 floats (four RGBA32F texels for the shader):

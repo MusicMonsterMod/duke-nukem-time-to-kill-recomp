@@ -3777,6 +3777,293 @@ worker, 60 pictures a second in all six scenes, game median 59.9-60, lowest
 tenth 58.1-59.1, the town handing over to the original presentation. Unit
 test updated; framework patch verified.
 
+### D23AF - Campaign-wide performance census and hot-spot surgery
+
+**Status: Done (2026-11-17, user: "lock in this work and close us out"; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AB, D23AD.**
+
+User, 2026-11-17: the D23 chain has run out of single-spot fixes (D23N4b
+cannot pay, D23M3B not exact, D23Y5/Y7/Y8/AA Blocked by the field laptop's
+15 W package); the whole campaign has never been measured. Find where the
+game is actually heavy, level by level and machine by machine, then cut the
+biggest costs.
+
+Work:
+
+- Phase 0: host state on each machine logged with every run (load,
+  backups, updates, I/O pressure, swap, thermals; contention waited out);
+  the field laptop and citadel at the checkout's HEAD plus the tracked
+  framework patch; private card and savestate copies only, the player's
+  saves, cards and profile hash-checked before and after every run.
+- Phase 1: census. Every level the debug level select offers, entered with
+  `level N`, one scripted route from its start (stand 5 s, a slow 360 turn,
+  a forward walk with turns, look up and down, one weapon burst), the same
+  inputs on every machine, first and third person. Desktop at 180 and 120
+  (offscreen on the real GPU, GRAPHICS CUSTOM with the ULTRA rows); the
+  field laptop and citadel at pure AUTO on the real display, plus the
+  laptop at SIMPLE 120 and ULTRA 120. Per second: game rate, presents and
+  fresh pictures, fallbacks to the original presentation, emulation thread,
+  render threads and redraw workers, other host CPU, CPU clocks,
+  clock-weighted GPU busy, present-interval p50/p95/max, spikes over two
+  target intervals; a savestate and a picture at each level's worst second.
+- Phase 2: the top five hot spots reproduced from their savestates and
+  profiled to the owning code path; host contention, package or thermal
+  limits and real code cost told apart. Each becomes a child job
+  (D23AF1...).
+- Phase 3: the best saving per risk fixed behind a developer switch, proven
+  exact (picture and packet comparisons, validator, Vanilla shots), A/B
+  measured on all three machines with alternating repeats; default-on
+  proposed only where all three agree.
+
+Acceptance: the census JSON per run and the ranked hot-spot table in note
+503; every child job evidenced; each fix exact and measured on all three
+machines; Vanilla unchanged, Classic untouched.
+
+Work log, 2026-11-17 (overnight, started): see note 503 and the entries
+below as each phase ends.
+
+Work log, 2026-11-17 09:00 (checkpoint, phases 0-1 running). Phase 0 done:
+the field laptop and citadel at `fe18de2` with the tracked patch, full
+rebuilds (about 50 min, two runtime headers changed). Harness
+`recomp/analysis/d23af/census.py` (local) with `queue.sh`, `summary.py`,
+`abbake.sh`. Desktop census done (180 and 120, both views, 21 levels each,
+02:56-04:02, every host check passed, player files unchanged). The
+desktop holds its target everywhere but FAMILY JEWELS at 180 in first person
+(fresh pictures p10 140, three workers saturated: a first-person job there
+costs 11.9 ms against 7.3 ms in third person at the same spot, a larger
+view, not a different hook). The remote builds finished at 03:24 but the
+completion watcher never reported, so the laptop and citadel census started
+only at 08:37 (lost machine time, recorded). First weak-machine finding,
+D23AF1: a level's first lamp bake after an update (the bake's key changed
+with D55A) runs 15-27 s on the field laptop and 5-8 s on citadel beside the
+game; on the laptop the game falls to 38-50 frames a second and the
+governor's fallback then keeps the redraws off for minutes. Built behind
+`DNTTK_BAKE_YIELD=1` (off): the bake yields to a game behind real time, one
+thread on 2-core CPUs, bake seconds not judged. Exact by construction and
+proven on the desktop: the .bake files with the switch on and off are
+byte-identical on 5 levels. Remote A/B queued after their census runs.
+
+Work log, 2026-11-17 12:10 (census done, note 503): runs on all three
+machines (desktop ULTRA 180/120, field laptop pure AUTO cold and warm,
+SIMPLE 120, ULTRA 120, citadel pure AUTO, both views), 21 levels each,
+host checked before every launch and level, player files unchanged in every
+run. Ranked hot spots and children: D23AF1 (first bakes), D23AF2 (worker
+restarts), D23AF3 (fork cost), D23AF4 (the laptop's package at AUTO),
+D23AF5 (FAMILY JEWELS at 180), D23AF6 (the validator at RELIT), D23AF7 (a
+watchdog crash, fixed). Framework patch exported and verified against the
+pinned framework (92 files); 260 local tests, the five CI runtime tests,
+check_jobs and check_repo pass; all three machines on the same final build.
+Tests for the user in note 503 section 5.
+
+### D23AF1 - A level's first lamp bake yields to the game
+
+**Status: Todo (2026-11-17, built off by default; refinement queued, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+
+Census finding (MEASURED): a level's first bake after any change to the
+bake's inputs (D55A changed every level's key) ran 15-27 s on the field
+laptop (TIME TO KILL 27.2 s, LET THE GAMES BEGIN 22.8 s) and 5-8 s on
+citadel, beside the game on the same cores. On the laptop the game ran at
+38-50 frames a second throughout and the redraw governor took the original
+presentation; its backoff then kept the redraws off for several levels
+after the bake had ended. With warm caches the level starts are clean on
+every machine (fresh pictures 99.8-100% of the target in the first 2 s).
+
+Change (`DNTTK_BAKE_YIELD=1`, developer, off): while the game is behind real
+time (a judged second under 58.5 frames, sticky 3 s) each bake thread
+sleeps three times its last chart's work after it (a quarter duty); one bake
+thread on CPUs with 2 physical cores; seconds while a bake runs are not
+judged by the governor. Exact by construction (charts are independent; only
+the pace changes); proven on the desktop: the .bake files with the switch on
+and off are byte-identical on 5 levels.
+
+Acceptance: on the field laptop and citadel, cold-bake A/B (fresh cache
+folders, levels 0 2 3 5, alternating, repeats): game speed during the bake
+no worse and the redraws back after it; bakes byte-identical; Vanilla
+unchanged (it bakes nothing).
+
+Work log, 2026-11-17 (note 503 section 4.1): A/B with fresh cache folders.
+Desktop and citadel: no effect (game 59.5-60.2 during the bakes either way,
+redraws on). Field laptop, route only: 0-7 seconds under 57 a level against
+8-23, redraws kept, 0 fallbacks against 1, but most bakes unfinished within
+the 35 s route; staying 100 s: GOLD AND GUNS 0 slow seconds (7-8 off), bake
+28.6-31.9 s (16.7-16.8 off); TIME TO KILL bake 110 s or more (28 s off) and
+10 / 29 slow seconds (24 off) with the redraws kept running. Bakes
+byte-identical on and off on all three machines (and across machines). Next:
+judge bake seconds again but retry a fallback taken during a bake as soon as
+it ends without doubling the backoff; one bake thread at full duty on 2-core
+CPUs instead of a quarter duty; re-measure levels 0 and 3.
+
+### D23AF2 - Redraw worker restarts without the hitch
+
+**Status: Needs playtest (2026-11-17, built off by default, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+
+Census finding (MEASURED): the session's first shot hitches on every
+machine (desktop 50-61 ms, citadel 44-47 ms, field laptop 30.5 ms a present
+interval). Field-tagged profile: the emulation thread in
+`submit_job` > `maintain` > `stop_workers`/`start_workers` (framework
+`render_worker.c`): a plugin's lazy mod-memory allocation (+1,300 bytes)
+makes `maintain()` re-fork every redraw worker, and the stop waits for each
+killed worker's full teardown. The session's first level start does the same
+about 30 times in a second (+2,192-byte steps); THE REAPER once (+188).
+
+Change: `PSX_RW_ASYNC_REAP=1` (developer, off): killed workers are reaped
+later; exact by construction (an epoch bumped before the kill, re-checked by
+every worker after each claim; a retired worker hands a newer job back and
+exits; the job slots it held stay out of use until it is reaped; a detector
+drops and counts any finished job whose worker generation differs).
+`PSX_RW_COALESCE_MS=N` (developer, off): a growth retires the workers once
+and the new ones are forked N ms after the last growth (the emulation thread
+draws the live frames meanwhile, pictures exact).
+
+Acceptance: restart cost and the first-shot and level-start hitches measured
+on all three machines, alternating; detector counts 0; Vanilla unchanged.
+
+Work log, 2026-11-17 (note 503 sections 4.2 and 4.4): rotated A/B, levels
+0, 27, 1 from a fresh launch. Asynchronous reap: a restart's worst case
+desktop 39-41 to 22-26 ms, citadel 28-33 to 18-22, field laptop 14-25 to 7;
+the session's restart stall halved (desktop 745-768 to 347-370 ms); first
+shot 3-12 ms shorter; hand-backs and foreign-generation jobs 0 in every
+run; `runtime/tests/test_render_worker_epoch.py` pins the ordering (in CI).
+Proposed default on. Coalescing 120 ms: the desktop's stall 76-81 ms, but
+the second after a coalesced restart shows a new gap on every machine
+(field laptop 59-64 ms, citadel 33-39, desktop 16-21): off. Vanilla 6 of 6
+shots byte-identical against HEAD's build.
+
+### D23AF3 - Cheaper worker forks
+
+**Status: Todo (research; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF2.**
+
+After D23AF2's asynchronous reap a restart still costs about 15 ms on the
+desktop: three forks, each copying the page tables of the game process's
+private memory (MEASURED during TIME TO KILL at ULTRA 180: 383 MB anonymous,
+243 MB private dirty; the largest private mappings 128, 83, 65 and 48 MB).
+Find which host-only buffers the workers never read (GL staging, bake
+outputs, audio) and keep them out of the fork (`MADV_DONTFORK`, or a shared
+mapping), proven exact (workers fault on any use), measured.
+
+Second route, measured the same day (temporary allocation trace, desktop):
+the restarts come from lazy plugin allocations: `sleeping_update_body`
+takes one 2,192-byte stand-in block per sleeping enemy on first use (34 in
+TIME TO KILL; up to 48, reused afterwards), a `register_ttk_controls` hook
+on `0x8003C500` 1,300 bytes at the first shot, one on `0x80028A2C` 176 bytes
+in THE REAPER. Allocating them before the first fork removes the restarts
+outright, but changes the mod-memory layout that savestates record (a load
+keeps the saved bytes only up to the first differing allocation record), so
+it needs a savestate-compatibility design first; not done unattended.
+
+Where the copied memory is (MEASURED, desktop, TIME TO KILL, ULTRA 180):
+the largest private mapping is the executable's `.bss` (1.3 GB, about
+125 MB touched), whose biggest objects are always-on observability rings
+and buffers: `g_dirty_ram_block_log` 224 MB, `g_fntrace_ring` 144 MB,
+`s_taps` 64 MB, six host-vertex apertures (`s_hpv_ap_live`/`_replay`) of
+57 MB, `sio_irq_buf` 40 MB, `s_sreg_trace` 36 MB, `sio_txn_buf` 34 MB,
+`s_events` and `s_ring` 32 MB; then the heap (64 MB) and three anonymous
+mappings of 41-48 MB. Host-only rings are `MADV_DONTFORK` candidates (page
+aligned, never written by a worker), but some (the dirty-RAM block log)
+may be written by code a worker runs: each needs that proof first.
+
+### D23AF4 - AUTO grade for 15 W shared-package laptops
+
+**Status: Todo (the user's look decision; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+
+Census finding (MEASURED, field laptop, pure AUTO = BALANCED 2x, warm,
+third person): with the redraws on, the GPU runs 75-80% busy at 500-900 MHz
+and the 15 W package leaves the emulation thread's core at 2.1-2.5 GHz; the
+game slips to 56-57 and the governor takes the original presentation (CPU
+back at 3.1 GHz, GPU 300-600 MHz), then keeps it for minutes. AUTO's grade
+comes from a GPU-only probe that cannot see the shared package. Compare the
+census's SIMPLE 120 and AUTO runs and propose AUTO's choice for 2-core 15 W
+machines (the leanest grade that keeps the redraws).
+
+### D23AF5 - FAMILY JEWELS start in first person at 180
+
+**Status: Todo (with D23AA; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AA.**
+
+The only desktop census cell under its target: FAMILY JEWELS at 180 in
+first person, fresh pictures p10 140 with three workers saturated (300%).
+Repro from the census's worst-second savestate, one worker: 82 pictures a
+second in first person against 138 in third person; a first-person job
+costs 11.9 ms against 7.3 (the same hooks in the same shares, a bigger view:
+the eye-height camera sees more of the castle and moat). D23AA's geometry
+finding; no new exact cut found.
+
+### D23AF6 - Render-thread validator differs at ULTRA with three workers
+
+**Status: Todo (investigation; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+
+Observed during D23AF2's A/B (MEASURED, desktop, ULTRA 180, third person,
+levels 0, 27 and 1, three workers): `PSX_RT_VALIDATE=1` reported differing
+pixels in every comparison, 158 of 158 and 166 of 166 with every new
+switch off (80,000-280,000 pixels, 1-174 levels, boxes inside the centre of
+the picture). D23Y10 measured 908 of 908 exact with one worker in UI slots
+2, 8, 9. Find whether the validator's own redraw is not comparable here
+(live lights or shadow state moved between the two draws) or the redraws
+really differ from the single-thread path; if they differ, fix and prove.
+
+Narrowed the same day (MEASURED, desktop, DUKE HILL, ULTRA 180, one worker):
+LIGHTING RELIT 156 differing images, LIGHTING OFF 0. Three workers on the
+same level: 2. The differences come from live light state (lamp waves and
+flicker, shadows), which is not part of a redraw job: the validator draws
+the held job again later, under newer light values. So the validator cannot
+judge exactness at RELIT as it stands (D23Y10's 908/908 ran with lighting
+that held still). Work: freeze the light state a job was drawn with and
+give it to the validator's second draw, then re-run at RELIT; only a
+difference left after that would be a redraw defect.
+
+### D23AF7 - The starvation watchdog aborts on a fresh heartbeat
+
+**Status: Done (2026-11-17, closed with D23AF; fixed in the framework patch, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+
+MEASURED: a census run on citadel (pure AUTO, real display, MINER 69ER's
+level start, 2026-11-17 09:37) ended with
+`starvation_watchdog: 18446744073709551467 us without heartbeat ... aborting`
+(exit 2): -149 us read as unsigned. CODE: `starvation_ring.c` compared
+`now - s_last_heartbeat_us` unsigned on the emulation thread, while the
+debug server's I/O thread also refreshes the heartbeat for responses in
+flight (`debug_server.c`); a refresh just after the check's clock sample
+wrapped the difference. Any session with the debug port in use could hit
+it (the census polls it several times a second).
+
+Fix (always on; a correctness fix, not a performance trade): the heartbeat
+is read and written atomically and a heartbeat newer than the check's sample
+counts as fresh; `runtime/tests/test_starvation_watchdog_wrap.py`
+(registered) pins it.
+
+### D23AF8 - Graphics grades leave FRAME RATE alone
+
+**Status: Todo (2026-11-17, the user's decision after D23AF). Dependencies: D23AF.**
+
+User, 2026-11-17: "the only issue i have really with graphics simple is that
+it always downplays the fps. i dont really see any reason why we have to run
+graphics simple on low fps as default. i dont think eduke does that";
+option 2 chosen: grades stop touching FRAME RATE.
+
+CODE: `GRAPHICS_PRESETS` (`recomp/tools/local/player_profiles.py`) sets
+FRAME RATE in every grade: SIMPLE `60` (the original presentation: no
+redraws, the game's own new images, about 30 a second in the census), the
+others `auto`. Every grade overwrites the player's FRAME RATE, and a grade
+that sets AUTO is why the census had to run the desktop's ULTRA rows as
+CUSTOM to hold a fixed rate offscreen.
+
+Evidence (MEASURED, note 503): SIMPLE at 120 on the field laptop kept the
+redraws in 100% of its seconds, the game at 60, fresh pictures 48-56 a
+second in the lowest tenth; AUTO's own safety nets cover weaker machines
+(2 or fewer logical CPUs: the original presentation, D23AE; 60 Hz screens:
+the original presentation instead of a 30-picture step, D23AD; the floor
+fallback, D23Y1).
+
+Work: remove FRAME RATE from the grade rows (a grade sets internal
+resolution, LIGHTING, LIVE SHADOWS and DRAW DISTANCE); FRAME RATE is its own
+row, AUTO by default, kept across grade changes and no longer part of what
+makes a profile CUSTOM; a profile migration keeps existing choices (a SIMPLE
+profile's stored `60` becomes AUTO only if it came from the grade, not from
+the player); the OPTIONS menu, launcher text, `run.py --graphics` help,
+GAME_MANUAL and tests follow. Vanilla unchanged (it presents at 60).
+
+Acceptance: SIMPLE at FRAME RATE AUTO on the field laptop and citadel (real
+60 Hz screens) holds the redraws like the census's SIMPLE 120 (game 60,
+fresh pictures near 60); a player's FRAME RATE survives a grade change;
+`test_player_profiles` covers the migration; the user's playtest.
+
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 
 **Status: Todo (backlog, research; user playthrough commentary 2026-11-14). Dependencies: -.**

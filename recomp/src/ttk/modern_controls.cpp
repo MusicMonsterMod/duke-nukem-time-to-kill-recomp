@@ -1426,7 +1426,15 @@ static void overclock_lease() {
         // shed the redraws to every 2nd refresh (30 pictures a second on a 60
         // Hz panel) for the first half minute or more.
         const bool stall=rate<20.0;
-        const int window=dt>=3.0 || now<paused_until || now<settle_until || stall ? 2 : rate<57.0 ? 1 : 0;
+        // D23AF1 (DNTTK_BAKE_YIELD=1): a second while a level bakes is not
+        // judged, and a slow one makes the bake yield for the next 3 s.
+        bool baking=false;
+        if(bake_yield_on()) {
+            baking=lamp_bake_running();
+            const int b=bake_behind.load(std::memory_order_relaxed);
+            bake_behind.store(baking && rate<58.5 && !stall ? 3 : std::max(0,b-1),std::memory_order_relaxed);
+        }
+        const int window=dt>=3.0 || now<paused_until || now<settle_until || stall || baking ? 2 : rate<57.0 ? 1 : 0;
         const int verdict=replay_load_window(window);
         if(verdict>0) {
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);

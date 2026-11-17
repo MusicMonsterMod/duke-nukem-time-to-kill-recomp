@@ -236,6 +236,12 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
         for(;;) {
             const size_t at=next.fetch_add(1);if(at>=nt) break;
             const size_t i=work_order[at];
+            // D23AF1: chart cost timed only when the game can ask for its CPU back.
+            struct Yield {const std::atomic<int>* b;std::chrono::steady_clock::time_point t;
+                ~Yield(){if(b && b->load(std::memory_order_relaxed)>0) {
+                    const auto d=(std::chrono::steady_clock::now()-t)*3;
+                    if(d>=std::chrono::microseconds(100)) std::this_thread::sleep_for(std::min<std::chrono::steady_clock::duration>(d,std::chrono::milliseconds(30)));}}
+            } yield{in.behind,in.behind?std::chrono::steady_clock::now():std::chrono::steady_clock::time_point{}};
             Chart& c=ch[i];float* rec=&out.charts[i*16];
             rec[3]=rec[11]=-1;rec[13]=rec[14]=255*65536+255*256+255;
             if(!c.w || c.lamps.empty() || (!c.side[0] && !c.side[1])) continue;

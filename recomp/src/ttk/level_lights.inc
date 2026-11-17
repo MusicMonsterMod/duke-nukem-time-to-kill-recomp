@@ -1272,6 +1272,7 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     }
     level_lamp_snapshot();
 }
+static bool lamp_bake_is_active();   // lamp_bake.inc
 // Game thread, beside spawn_update (same guards for the aim query).
 static void level_lamps_update(CPUState* cpu) {
     if(!lights_enabled() || !gameplay_context()) return;
@@ -1279,14 +1280,19 @@ static void level_lamps_update(CPUState* cpu) {
     if(level!=level_lamps_level) {level_lamps_load(level);level_lamp_snapshot();}
     // D41E: lamps from the file on the far side of their prop's wall (see
     // lamp_off_wall), a few a tick once the level's room mesh is built.
+    // D41W: while no bake is shown (after a load the bake waits for these; 8
+    // a tick held it back 110-250 ms) as many as fit in 8 ms a tick (25-40
+    // lamps took 7-10 ms on the desktop).
     if(shadow_mesh_tris && !shadow_mesh_copy.empty()) {
-        unsigned budget=8,moved=0;
+        unsigned budget=lamp_bake_is_active()?8:~0u,moved=0,checked=0;
+        const auto wall_t0=std::chrono::steady_clock::now();
         for(unsigned i=0;i<level_lamps.size() && budget;++i) {
             LevelLamp& l=level_lamps[i];
             if(l.wall_checked) continue;
+            if(checked>=8 && std::chrono::steady_clock::now()-wall_t0>std::chrono::milliseconds(8)) break;
             l.wall_checked=true;
             if(l.props.empty()) continue;
-            --budget;
+            --budget;++checked;
             const double prop[3]={(double)l.props[0].p[0],(double)l.props[0].p[1],(double)l.props[0].p[2]};
             const double was[3]={l.p[0],l.p[1],l.p[2]};
             if(!lamp_off_wall(prop,l.p)) continue;
@@ -1295,6 +1301,8 @@ static void level_lamps_update(CPUState* cpu) {
             std::fprintf(stderr,"[TTK lamp] level %u lamp %u was behind its prop's wall: %.0f %.0f %.0f -> %.0f %.0f %.0f (%s)\n",level,i,was[0],was[1],was[2],l.p[0],l.p[1],l.p[2],l.note.c_str());
         }
         if(moved) level_lamp_snapshot();
+        if(checked>8 && std::getenv("DNTTK_LAMP_TRACE")) std::fprintf(stderr,"[TTK lamp] level %u: %u lamps checked against their props' walls in %.1f ms\n",level,checked,
+            std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-wall_t0).count());
     }
     // D41D1: the neon sign set, 45 ticks after a level or savestate load
     // (the level's textures in place), and once more when the object

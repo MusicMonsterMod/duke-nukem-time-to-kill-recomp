@@ -1,5 +1,11 @@
 # Next-session handoff
 
+## 2026-11-17 (night) - D41W: lights present after a load (Done)
+
+After a load the baked lamps (D41M) used to leave the live light list as soon as the bake was read, while the renderer was still uploading the atlas over 9-15 images: those frames had no fixed lamp light at all (DUKE HILL's porch unlit). Now the live lamps light the level until the renderer draws with the bake, and the bake gets there sooner: the upload uses up to 6 ms an image while no bake is shown, the prop lamps' wall checks no longer go 8 a tick, and the renderers' copy is made before the floor grid. Field laptop, RELIT, load to bake on screen: 177-464 ms (592-770 ms before), its real screen 394-411 ms (752-770). The renderer keeps a shown bake until the new one is complete, so a LIGHTING change never drops it. Framework change (`gpu_gl_renderer.c`, `lightmap_store.c`, `mod_plugins.h`) exported to the patch. User-accepted and closed out. [Note 505](505-d41w-lights-after-a-load.md).
+
+State: committed from the main checkout. The field laptop runs the same source (the six changed files copied over and rebuilt 2026-11-17; its checkout is otherwise at 87c7fc6). Lab `recomp/analysis/d41w/` (local): `probe.py` (env LIGHTS, GRADE, RATE, SLOTS, REPS, N, COLD=1 evicts the bake cache, SWITCH for in-play LIGHTING changes, DISPLAYMODE=real), `match.py` (first load against a same-level reload at equal frames), `diff.py`. Old timing for A/B: `EXTRA_ENV=DNTTK_BAKE_WAIT=0,PSX_BAKE_UPLOAD_MS=0`.
+
 ## 2026-11-17 (night) - D17BK: no 4:3 frame after a load (Done)
 
 The picture no longer shows 4:3 before 16:9 after a load: back-to-back present shots after savestate loads (from gameplay, the pause menu, the quick load menu, LOAD GAME and the title) and level loads were 16:9 from the first shown frame on the desktop and on the field laptop (offscreen and its real screen, pure AUTO). The user's test on the rebuilt field laptop passed. No code change; which earlier change removed it is not established.

@@ -29,7 +29,12 @@ static bool lamp_bake_wanted() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_LAMP_BAKE");return !(t && t[0]=='0');}();
     return v;
 }
-struct LampBakeJob {ttk::BakeOutput out;bool ok=false,cached=false;std::string error,path;unsigned faces=0,lamps=0;ttk::LampFloorGrid floor;};   // D41P: the floor grid
+struct LampBakeJob {ttk::BakeOutput out;bool ok=false,cached=false;std::string error,path;unsigned faces=0,lamps=0;ttk::LampFloorGrid floor;
+    double t_read=0,t_floor=0,t_copy=0;};   // D41P: the floor grid; D41W: stage times
+// D41W: when each stage after a load happened (steady clock, seconds; the
+// same clock as the renderer's [gl bake] line and Python's time.monotonic).
+static double bake_now() {return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();}
+static struct {uint64_t loads=~0ull;unsigned level=~0u;double t=0,inputs=0,start=0;bool open=false;} bake_load;
 static struct {
     uint64_t key=0;                 // inputs of the bake shown (or being made)
     bool active=false;
@@ -40,6 +45,10 @@ static struct {
     std::vector<std::pair<uint32_t,uint32_t>> job_records;
     uint64_t corners_seen=0;
     bool held=false;uint32_t hold_since=0;   // waiting for a reloaded level's inputs
+    // D41W: a finished bake waits here until the renderer draws with it
+    // (psx_mod_lightmap_shown): until then the live lamps (or the bake shown
+    // before) keep lighting the level, never neither.
+    bool waiting=false;double wait_since=0;LampBakeJob ready;
 } bake_state;
 // D23AF1 (on by default since 2026-11-17; DNTTK_BAKE_YIELD=0 turns it off): a level's first
 // bake after an update ran 15-27 s on the field laptop (5-8 s on citadel) and
@@ -97,6 +106,10 @@ static float lamp_bake_reach(LevelLamp& l) {
     const float e=std::clamp((1.0f-std::clamp(a,0.2f,1.0f))/0.4f,0.0f,1.0f);
     return 1.0f+(r-1.0f)*e;
 }
+// Developer DNTTK_BAKE_WAIT=0: the pre-D41W timing (a bake published as soon
+// as it is read, before the renderer has it; lamps' walls checked 8 a tick).
+static bool bake_wait_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_BAKE_WAIT");return !(t && t[0]=='0');}();return v;}
+static bool lamp_bake_is_active() {return bake_state.active || !bake_wait_on();}
 static void lamp_bake_stop(const char* why) {
     if(!bake_state.active) return;
     bake_state.active=false;bake_state.key=0;bake_state.held=false;
@@ -119,11 +132,15 @@ static std::string lamp_bake_cache_dir() {
 // Game tick, after shadow_mesh_tick.
 static void lamp_bake_tick() {
     const unsigned level=psx_mod_read_word(0x800be570);
+    if(const uint64_t ld=psx_mod_savestate_loads();ld!=bake_load.loads || level!=bake_load.level) {
+        bake_load.loads=ld;bake_load.level=level;bake_load.t=bake_now();bake_load.inputs=bake_load.start=0;bake_load.open=true;
+    }
     const bool wanted=lamp_bake_wanted() && lights_enabled() && shadow_mesh_tris && !shadow_mesh_faces.empty()
         && level==level_lamps_level && !level_lamps.empty();
     if(!wanted) {
         // A bake finishing after the switch-off published its lightmap: clear it.
         if(bake_state.job.valid() && bake_state.job.wait_for(std::chrono::seconds(0))==std::future_status::ready) {bake_state.job.get();psx_mod_gpu_set_lightmap(nullptr);bake_state.key=0;}
+        if(bake_state.waiting) {bake_state.waiting=false;bake_state.ready=LampBakeJob{};psx_mod_gpu_set_lightmap(nullptr);bake_state.key=0;}
         // A load of the same level rebuilds the room mesh and lamps over a few
         // ticks: the bake shown stays (same inputs come back: nothing to redo)
         // instead of the live lamps showing for half a second after every load.
@@ -134,6 +151,7 @@ static void lamp_bake_tick() {
         lamp_bake_stop(lamp_bake_wanted()?"no room mesh or lamps":"switched off");return;
     }
     bake_state.held=false;
+    if(bake_load.open && !bake_load.inputs) bake_load.inputs=bake_now();
     // Inputs: the mesh build, the lamps and the lighting mode.
     uint64_t key=1469598103934665603ull;
     auto mix=[&](uint64_t v){key=(key^v)*1099511628211ull;};
@@ -148,18 +166,35 @@ static void lamp_bake_tick() {
         LampBakeJob r=bake_state.job.get();
         if(bake_state.job_key!=key) {psx_mod_gpu_set_lightmap(nullptr);return;}   // inputs changed meanwhile: bake again below
         if(!r.ok) {std::fprintf(stderr,"[TTK bake] level %u failed: %s\n",level,r.error.c_str());bake_state.key=key;return;}
+        bake_state.ready=std::move(r);bake_state.waiting=true;bake_state.wait_since=bake_now();
+    }
+    if(bake_state.waiting) {
+        if(bake_state.job_key!=key) {bake_state.waiting=false;bake_state.ready=LampBakeJob{};psx_mod_gpu_set_lightmap(nullptr);}   // inputs changed meanwhile: bake again below
+        else if(bake_wait_on() && !psx_mod_lightmap_shown() && bake_now()-bake_state.wait_since<2.0) return;   // the renderer is still uploading it
+        else {
+        bake_state.waiting=false;
+        LampBakeJob r=std::move(bake_state.ready);bake_state.ready=LampBakeJob{};
         if(model_bake_on()) ttk::lamp_bake_floor_stage(r.floor);   // D41P: before the publish that flips the table
         else ttk::lamp_bake_floor_stage(ttk::LampFloorGrid{});
         std::fprintf(stderr,"[TTK bake] level %u: models lit from the floors' bake %s (%ux%u cells of %.0f, %zu floor entries)\n",level,model_bake_on()?"on":"off",r.floor.w,r.floor.h,r.floor.cell,r.floor.y.size());
         ttk::lamp_bake_map_publish(bake_state.job_records);
         bake_state.active=true;bake_state.key=key;bake_state.level=level;
+        if(bake_load.open) {
+            const double t=bake_load.t,ms=1000;bake_load.open=false;
+            std::fprintf(stderr,"[TTK bake] level %u after the load (t %.3f): inputs %.0f ms, start %.0f, read %.0f, store %.0f, floor %.0f, published %.0f ms\n",
+                level,t,(bake_load.inputs-t)*ms,(bake_load.start-t)*ms,(r.t_read-t)*ms,(r.t_copy-t)*ms,(r.t_floor-t)*ms,(bake_now()-t)*ms);
+        }
         if(r.cached) std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), loaded from the cache in %.0f ms\n",
             level,r.faces,r.lamps,r.out.width,r.out.height,r.out.width*(double)r.out.height*8/1e6,r.out.ms);
         else std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), baked in %.0f ms (%.1fM rays); %u faces lit, %u two-sided, %u channel overflows (%u on/off lamps); faces by varying lamps: 1-4 %u, 5-6 %u, 7-8 %u, 9+ %u\n",
             level,r.faces,r.lamps,r.out.width,r.out.height,r.out.width*(double)r.out.height*8/1e6,r.out.ms,r.out.rays/1e6,r.out.faces_lit,r.out.faces_two_sided,r.out.channel_overflows,r.out.strong_overflows,r.out.faces_vary[0],r.out.faces_vary[1],r.out.faces_vary[2],r.out.faces_vary[3]);
         return;
+        }
     }
-    if(key==bake_state.key) return;
+    if(key==bake_state.key) {
+        if(bake_load.open && bake_state.active) {bake_load.open=false;std::fprintf(stderr,"[TTK bake] level %u after the load (t %.3f): the bake shown is kept\n",level,bake_load.t);}
+        return;
+    }
     // Wait until level_lamps_update has moved every lamp off its prop's wall
     // (a few a tick after a load): the inputs are then final.
     for(const LevelLamp& l:level_lamps) if(!l.wall_checked) return;
@@ -195,25 +230,30 @@ static void lamp_bake_tick() {
     }
     char name[64];std::snprintf(name,sizeof name,"/level%02u-%016llx.bake",level,(unsigned long long)ttk::lamp_bake_hash(in));
     const std::string path=lamp_bake_cache_dir()+name;
+    // A bake still shown from another level must not light this one meanwhile.
+    if(bake_state.active && bake_state.level!=level) lamp_bake_stop("another level");
     bake_state.job_key=key;bake_state.key=key;
+    if(bake_load.open) bake_load.start=bake_now();
     std::fprintf(stderr,"[TTK bake] level %u: %zu faces, %u lamps, texel %.0f: %s\n",level,in.faces.size(),nl,in.texel,path.c_str());
     bake_state.job=std::async(std::launch::async,[in=std::move(in),path]{
         // The renderers' copy is made here, off the game thread (90 MB on
         // level 3); the texels are then dropped, the statistics kept.
         auto publish=[&in](LampBakeJob& r){
             if(!r.ok) return;
+            // D41W: the renderer's copy first, so its upload runs while the floors build.
+            PSXModLightmap m{};m.width=r.out.width;m.height=r.out.height;m.steady=r.out.steady.data();m.channels=r.out.channels.data();
+            m.charts=r.out.charts.data();m.nsurf=(uint32_t)(r.out.charts.size()/16);
+            psx_mod_gpu_set_lightmap(&m);r.t_copy=bake_now();
+            r.out.steady=std::vector<uint32_t>();r.out.channels=std::vector<uint32_t>();r.out.charts=std::vector<float>();
             // D41P: the floors models take their fixed-lamp light from.
             std::vector<std::pair<uint32_t,uint32_t>> faces;faces.reserve(in.faces.size());
             for(const auto& f:in.faces) faces.push_back({f.first,f.count});
-            r.floor=ttk::lamp_bake_floor_build(in.tris,faces);
-            PSXModLightmap m{};m.width=r.out.width;m.height=r.out.height;m.steady=r.out.steady.data();m.channels=r.out.channels.data();
-            m.charts=r.out.charts.data();m.nsurf=(uint32_t)(r.out.charts.size()/16);
-            psx_mod_gpu_set_lightmap(&m);
-            r.out.steady=std::vector<uint32_t>();r.out.channels=std::vector<uint32_t>();r.out.charts=std::vector<float>();
+            r.floor=ttk::lamp_bake_floor_build(in.tris,faces);r.t_floor=bake_now();
         };
         LampBakeJob r;r.path=path;r.faces=(unsigned)in.faces.size();r.lamps=(unsigned)in.lamps.size();
         const auto t0=std::chrono::steady_clock::now();
-        if(ttk::lamp_bake_load(path,r.out) && r.out.charts.size()==in.faces.size()*16) {
+        const bool hit=ttk::lamp_bake_load(path,r.out);r.t_read=bake_now();
+        if(hit && r.out.charts.size()==in.faces.size()*16) {
             r.ok=r.cached=true;r.out.ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
             publish(r);return r;
         }

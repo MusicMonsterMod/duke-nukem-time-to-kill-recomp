@@ -1732,7 +1732,7 @@ the original draw distance unchanged, Vanilla unchanged, the user's check.
 
 ### D41W - Lights arrive late after a load
 
-**Status: Todo (2026-11-16, user report). Dependencies: none.**
+**Status: Done (2026-11-17, user-accepted). Dependencies: none.**
 
 User, 2026-11-16 (field laptop): "when the game loads, not only do lights
 take a while to load in" and loading felt slower. At the time the player's
@@ -1753,3 +1753,35 @@ around frame 30 with LIGHTING RELIT (difference 10.4, 7.4, 5.5-7.9, then
 3.0 at frames 5, 10, 20, 30) and around frames 10-20 with ON (5.5, 3.2-5.0,
 3.0-4.1); UI slot 2 shows the same at both (its frame 5 is D17BK's 4:3
 picture). So RELIT's lights arrive about a quarter of a second later.
+
+Work log, 2026-11-17 ([note 505](../documentation/505-d41w-lights-after-a-load.md); lab `recomp/analysis/d41w/`, local).
+Stage times after a load (new trace line `[TTK bake] level N after the load`,
+`[gl bake]` with a monotonic stamp): the game thread published the bake as
+soon as it was read, so (D41P2) the fixed lamps left the live list, while the
+renderer uploaded the atlas 4 MB an image and only then drew with it: 9-15
+images with neither the live lamps nor the bake (CODE, MEASURED: DUKE HILL's
+porch unlit in matched shots, 2.2 mean difference against 0.3 for the live
+lamps). Before that the bake waited for the prop lamps' wall checks, 8 a
+tick (110-400 ms). Built: the renderer uploads a new bake into separate
+textures while the shown ones stay (framework, so a LIGHTING change never
+drops the bake either) and, while none is shown, uploads for up to 6 ms an
+image; the game publishes the bake (face map, floor grid, live lamps off)
+only when `psx_mod_lightmap_shown()` says the renderer draws with it (2 s
+fallback); the renderers' copy is made before the floor grid; the wall
+checks run as many as fit in 8 ms a tick while no bake is shown. Developer
+`DNTTK_BAKE_WAIT=0` and `PSX_BAKE_UPLOAD_MS=0` give the old timing. Measured
+(RELIT, load to bake on screen): desktop 496/433 ms -> 312-317/192-200 ms
+(level 6 / DUKE HILL); field laptop offscreen 703/592 -> 464/263 ms, cold
+cache 671/733 -> 391/177 ms, its real 60 Hz screen 770/752 -> 411/394 ms;
+ON on the laptop 589/456 -> 375/165 ms. Matched frames against a same-level
+reload (the bake from its first frame): no lampless frame in the new build
+(DUKE HILL desktop 0.31 then 0.00 from 360 ms; laptop real screen at most
+0.81). LIGHTING switched in play: no dip. Vanilla smoke run: no bake code
+runs. Local tests: 262 pass (2 skipped), the five CI runtime tests pass, the
+exported patch applies to the pinned source and matches the tree. Limits:
+the bake still arrives 180-460 ms after the load, the live lamps (about 0.3
+mean difference from it) light the level until then; the first picture comes
+about 75 ms after the load. Not measured on citadel. Needs the user's check
+on the field laptop (rebuilt with this change).
+
+- 2026-11-17: accepted and closed. User: "looks awesome to me. i'd say lets lock it in and close it out".

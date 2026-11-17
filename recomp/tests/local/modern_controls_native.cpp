@@ -92,6 +92,7 @@ extern "C" void psx_mod_gpu_set_shadow_edges(int){}
 extern "C" int psx_mod_gpu_host_vertex_world_surface(uint32_t,uint32_t,float,float,float,uint32_t){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_world_normal_surface(uint32_t,uint32_t,float,float,float,float,float,float,uint32_t){return 1;}   // D41P
 extern "C" void psx_mod_gpu_set_lightmap(const PSXModLightmap*){}
+extern "C" int psx_mod_lightmap_shown(void){return 1;}   // D41W
 extern "C" void psx_mod_gpu_set_lamp_levels(const float*,float,const float*,int){}
 extern "C" void gl_shadow_counters(uint64_t out[4]){for(int i=0;i<4;++i)out[i]=0;}
 extern "C" void gpu_vram_copy(uint16_t* out){for(int i=0;i<1024*512;++i)out[i]=0;}

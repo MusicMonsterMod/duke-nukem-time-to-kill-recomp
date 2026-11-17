@@ -13,7 +13,8 @@
 #include "mod_plugins.h"
 
 namespace ttk {
-enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2};
+// D57G: prop_light_ring, the five-candle iron-ring chandelier (prop type 372).
+enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,

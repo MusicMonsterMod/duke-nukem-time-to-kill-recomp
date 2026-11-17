@@ -663,7 +663,7 @@ The backtick console edits them:
   when their props break, for the session (to compare); `lamp breaks on`
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners and
-  chandeliers for the session (to compare).
+  chandeliers (both kinds) for the session (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
   the level's rooms with lamps of their own, `lamp ambient P unlit` for rooms
@@ -678,6 +678,9 @@ woodburner burns: embers glow behind its grate and a fire light flickers on
 the floor and walls in front of it. Every candle chandelier is lit: a small
 flame dances on each candle, the ceiling around it glows warm and its light
 falls softly on the room below (in the level 1 saloon, on the stage). The
+five-candle iron-ring chandeliers (RESISTANCE IS FEUDAL's halls and towers)
+light the same way: a soft glow round each candle, the vault and the ring
+warm, and a broad light on the hall below. The
 glow and flames show whatever LIGHTING is set to; the light they cast
 needs LIGHTING ENHANCED or RELIT. If one is broken, its light goes out. Vanilla and
 Classic keep the original look.

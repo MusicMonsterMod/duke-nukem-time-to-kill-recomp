@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (night) - D57G iron-ring chandeliers give light closed out (Done)
+
+[Note 436](436-d41l-saloon-light.md) section D57G. Title only: `prop_lights.cpp` (`ring_mesh` signature, kind `prop_light_ring` in `prop_lights.h`; `ring_light` / `ring_fill` tunes and positions; five halos from the candle blocks in `glows`; developer `DNTTK_PROP_LIGHT_RING`, `DNTTK_PROP_LIGHT_RING_FILL`, `DNTTK_PROP_RING_AT`, `DNTTK_PROP_RING_HALO`). Lab `recomp/analysis/d57g/` (local): `cards` = a private copy of UI slot 1 (runtime slot 0), `start`/`do` session, `ab.py` matched before/after against `build-local/...d57g-before`, `perf/lab.py` (D41N lab, CASES=perf2, OFFSCREEN=1, RATE=180, CTRL graphics custom: the ultra grade forces AUTO, which sees 0 Hz offscreen). Accepted at the first-pass tuning ("lock it in and close it out") and committed. Not seen: rooms 20 and 31 copies and D54 on these props not seen.
+
 ## 2026-11-17 (night) - D41Q chandelier flames on their candles closed out (Done)
 
 [Note 436](436-d41l-saloon-light.md) section D41Q. Title only: `prop_lights.cpp` (`candle_at_u` = 26.5/31 of each arm, from texel column u 100; flames flagged `upright`; developer `DNTTK_PROP_FLAMES` takes `candle_at_u candle_y` as fields 6 and 7), `prop_lights.h` (`PropGlow::upright`), `near_clip.cpp` `prop_glows` (upright billboards along the prop's transformed up axis; plain billboards unchanged). Lab `recomp/analysis/d41q/` (local): `cards` slot 10 = under the saloon chandelier, `ab.py` matched before/after against `build-local/...d41q-before`. Limit: an edge-on candle card is invisible, its flame burns alone. Accepted ("lock it in and close it out") and committed.

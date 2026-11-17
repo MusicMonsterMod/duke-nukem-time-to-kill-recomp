@@ -140,3 +140,30 @@ User report (2026-11-12): the flames were not central to the candles.
 - **Limits**: candles are texel strips on flat arm planes; edge-on, the
   candle vanishes (original model) and its flame burns alone. Cost: one
   extra vertex transform per flame, not measured on the player's GPU.
+
+## D57G - the iron-ring chandeliers (2026-11-17)
+
+User (2026-11-15, UI slot 1, RESISTANCE IS FEUDAL): "make the 2 chandeliers
+emit light". Status: **Done** (user-accepted 2026-11-17: "lock it in and close it out").
+
+- **Model (CONFIRMED from the savestate's RAM)**: prop type 372, 51
+  vertices, 20 FT4 + 20 FT3. A pentagonal ring (model y 570..950, y down) on
+  five chains to an apex (0, -955, -67); a candle block at each corner
+  (vertices 14+8c..17+8c, top at y 566) with the flame as part of the model
+  (a small diamond, y 334..562). Signature `ring_mesh`: list header
+  `0x0014002c`, first vertex (-4, 948, 828), the apex. Level 7 has 5 (rooms
+  1, 3, 3, 20, 31), static, yaw 0.
+- **Lights** (kind `prop_light_ring`, two per prop, as the saloon
+  chandelier's pair): candles, model (0, 450, 0), (1.0, 0.80, 0.52), 0.9,
+  radius 2400; fill, model (0, 1800, 0), (1.0, 0.74, 0.46), 0.6, radius
+  6000. Candle shimmer, room gate and D54 as D41L.
+- **Halos**: the model's flames are not visible from the floor, so a soft
+  warm halo (420 across, level 70, the D41L halo texture) is drawn over each
+  candle block at y 500. No added flames (the model has its own).
+- **Evidence**: scan `5 rings, 10 lights`; matched before/after from UI
+  slot 1, `research/before-after/D57G/` (local); RGB means vault 45 to 84 red,
+  ring 40 to 65, floor below 26 to 50, back wall 44 to 51. Room 1's ring seen
+  lit. GPU at 180 Hz headless: props off mean 14.4 %, on 15.0 % (spread
+  11.6..16.1), 180 presents/s held. Vanilla: no scan.
+- **Limits**: rooms 20 and 31 copies found by the scan, not seen. Whether a
+  ring can be shot down (D54) not tried. Not measured on the real display.

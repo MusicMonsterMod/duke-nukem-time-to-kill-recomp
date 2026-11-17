@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 (night) - D57G: iron-ring chandeliers give light (Done)
+
+The five-candle iron-ring chandeliers of RESISTANCE IS FEUDAL (prop type 372) are lit by model, every copy on every level: a warm light among the candles warms the vault and the ring, a broad fill reaches the hall below, and a soft halo marks each candle ([note 436](436-d41l-saloon-light.md) section D57G). All 5 level-7 copies found by the scan, 3 seen lit offscreen; matched before/after from UI slot 1. GPU at 180 Hz (headless) within the run-to-run noise. Accepted by the user: "lock it in and close it out".
+
 ## 2026-11-17 (night) - D41Q: chandelier flames sit on their candles (Done)
 
 The saloon chandelier's flames were one texel outward of the candles and, seen from below, stood along the screen rather than the candle; now placed from the measured candle texel and drawn upright along the chandelier's own axis ([note 436](436-d41l-saloon-light.md) section D41Q). Matched before/after offscreen; accepted by the user ("lock it in and close it out").

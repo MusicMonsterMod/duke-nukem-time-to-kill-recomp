@@ -61,9 +61,19 @@ bool chandelier_mesh(uint32_t mesh) {
     return mesh_header(mesh,28,vp,list) && psx_mod_read_word(list)==0x000c002cu && psx_mod_read_word(vp)==0x00ebfc80u &&
            psx_mod_read_half(vp+4)==0 && psx_mod_read_word(vp+8*26)==0xff150000u && psx_mod_read_half(vp+8*26+4)==0xffe7u;
 }
+// D57G: the iron-ring chandelier (prop type 372; RESISTANCE IS FEUDAL):
+// 51 vertices, a pentagonal ring (y 570..950) on five chains to the apex,
+// a candle flame at each corner (part of the model). List header
+// 0x0014002c, first vertex (-4, 948, 828), the apex (0, -955, -67).
+bool ring_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,51,vp,list) && psx_mod_read_word(list)==0x0014002cu && psx_mod_read_word(vp)==0x03b4fffcu &&
+           psx_mod_read_half(vp+4)==0x033cu && psx_mod_read_word(vp+8*50)==0xfc450000u && psx_mod_read_half(vp+8*50+4)==0xffbdu;
+}
 int kind_of(uint32_t mesh) {
     if(stove_mesh(mesh)) return prop_light_stove;
     if(chandelier_mesh(mesh)) return prop_light_chandelier;
+    if(ring_mesh(mesh)) return prop_light_ring;
     return prop_light_none;
 }
 bool visuals() {
@@ -76,6 +86,10 @@ struct Tune {float rgb[3],k,radius;};
 Tune fire_light{{1.0f,0.46f,0.15f},1.5f,2800};          // the stove's fire, before its door
 Tune candle_light{{1.0f,0.80f,0.52f},0.9f,1600};        // among the candles: ceiling and arms
 Tune fill_light{{1.0f,0.74f,0.46f},0.5f,5000};          // the chandelier's broad fill below
+// D57G: the iron ring's five candles (one light at the ring's centre, among
+// the flames) and its fill on the hall below.
+Tune ring_light{{1.0f,0.80f,0.52f},0.9f,2400};
+Tune ring_fill{{1.0f,0.74f,0.46f},0.6f,6000};
 // D56: pickups that glow (documentation/442-d56-necro-atomic-lights.md),
 // by object type (+0x2c) of a pickup object (kind +0x14 = 4), so every copy
 // in every level, dropped or spawned, takes part. The atomic health (581):
@@ -90,6 +104,10 @@ void tune(const char* name,Tune& t) {
 // Candle flames and halos (developer: DNTTK_PROP_FLAMES="w h level halo
 // halo_level candle_at candle_y").
 float flame_w=40,flame_h=84,flame_rgb=175,halo_size=240,halo_rgb=80;
+// D57G: the iron ring's flames are the model's own (a small tongue on each
+// candle block); a soft halo round each (developer: DNTTK_PROP_RING_HALO=
+// "size level y") reads as candlelight from the hall below.
+float ring_halo_size=420,ring_halo_rgb=70,ring_halo_y=500;
 // Model points (y down; the stove's door faces model +z).
 // D41Q: each arm plane maps texture u 96 at its outer corner to u 127 at the
 // column; the candle is texel column u 100 (centre 100.5), its tip the top
@@ -98,6 +116,8 @@ float flame_w=40,flame_h=84,flame_rgb=175,halo_size=240,halo_rgb=80;
 float candle_at_u=(127-100.5f)/31,candle_y=-212;
 constexpr float fire_at[3]={0,1180,560};                 // before the grate, low
 constexpr float candle_at[3]={0,-120,0},fill_at[3]={0,700,0};
+// D57G: the ring's flames stand at model y 334..562 on its top (y 566).
+float ring_at[3]={0,450,0},ring_fill_at[3]={0,1800,0};
 constexpr float grate_x=150,grate_y0=1160,grate_y1=1305,grate_z=233;
 // The chandelier's outer arm corners (bottom row): the candle directions.
 constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
@@ -109,7 +129,7 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0;
+size_t stoves=0,chandeliers=0,rings=0;
 // D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
 // appear within a sixth of a second); one taken goes dark at once.
 std::vector<Emitter> pickups;
@@ -124,7 +144,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=0;scan_sig=0;
+    emitters.clear();stoves=chandeliers=rings=0;scan_sig=0;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     std::vector<uint32_t> seen;
@@ -144,6 +164,9 @@ void scan_props() {
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
             if(kind==prop_light_stove) {
                 place(e.p,p,yaw,fire_at);e.tune=&fire_light;e.fire=true;emitters.push_back(e);++stoves;
+            } else if(kind==prop_light_ring) {
+                place(e.p,p,yaw,ring_at);e.tune=&ring_light;emitters.push_back(e);
+                place(e.p,p,yaw,ring_fill_at);e.tune=&ring_fill;e.seed=o+1;emitters.push_back(e);++rings;
             } else {
                 place(e.p,p,yaw,candle_at);e.tune=&candle_light;emitters.push_back(e);
                 place(e.p,p,yaw,fill_at);e.tune=&fill_light;e.seed=o+1;emitters.push_back(e);++chandeliers;
@@ -151,7 +174,7 @@ void scan_props() {
         }
     }
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu lights\n",scan_level,stoves,chandeliers,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu lights\n",scan_level,stoves,chandeliers,rings,emitters.size());
 }
 void scan_pickups() {
     std::vector<Emitter> found;
@@ -284,6 +307,17 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
             out[n++].upright=true;   // D41Q: stands on its candle seen from below or above too
             out[n++]=billboard(x,candle_y-30,z,halo_size,halo_size,0.5f,0,prop_halo_u,0,prop_halo_w,prop_halo_h,halo_rgb*k,halo_rgb*k,halo_rgb*k);
         }
+    } else if(kind==prop_light_ring) {
+        uint32_t vp,list;
+        if(!mesh_header(mesh,51,vp,list)) return 0;
+        // Each candle is a block of vertices 14+8c..17+8c; the halo sits
+        // over its middle, at the flame.
+        for(int c=0;c<5 && n<max;++c) {
+            float x=0,z=0;
+            for(int v=14+8*c;v<18+8*c;++v) {x+=(float)(int16_t)psx_mod_read_half(vp+8*v);z+=(float)(int16_t)psx_mod_read_half(vp+8*v+4);}
+            const float k=prop_candle_level(ms,mesh*13u+(uint32_t)c*101u);
+            out[n++]=billboard(x/4,ring_halo_y,z/4,ring_halo_size,ring_halo_size,0.5f,0,prop_halo_u,0,prop_halo_w,prop_halo_h,ring_halo_rgb*k,ring_halo_rgb*k,ring_halo_rgb*k);
+        }
     }
     return n;
 }
@@ -339,6 +373,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_CANDLES",ttk::candle_light);
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
+    ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);
+    ttk::tune("DNTTK_PROP_LIGHT_RING_FILL",ttk::ring_fill);
+    if(const char* e=std::getenv("DNTTK_PROP_RING_HALO")) std::sscanf(e,"%f %f %f",&ttk::ring_halo_size,&ttk::ring_halo_rgb,&ttk::ring_halo_y);
+    if(const char* e=std::getenv("DNTTK_PROP_RING_AT")) std::sscanf(e,"%f %f",&ttk::ring_at[1],&ttk::ring_fill_at[1]);
     if(const char* e=std::getenv("DNTTK_PROP_FLAMES")) std::sscanf(e,"%f %f %f %f %f %f %f",&ttk::flame_w,&ttk::flame_h,&ttk::flame_rgb,&ttk::halo_size,&ttk::halo_rgb,&ttk::candle_at_u,&ttk::candle_y);
     psx_mod_register_function_entry_plugin("ttk.prop.lights",0x80026164u,ttk::composition_hook);
     ttk::prop_light_kind=ttk::kind_of;

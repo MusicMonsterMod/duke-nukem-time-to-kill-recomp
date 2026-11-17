@@ -1502,7 +1502,7 @@ crystal, nothing on empty slots.
 
 ### D57G - Iron-ring chandeliers give light (RESISTANCE IS FEUDAL)
 
-**Status: Todo (backlog; user 2026-11-15). Dependencies: D41L, D54.**
+**Status: Done (user-accepted 2026-11-17: "lock it in and close it out"; [note 436](../documentation/436-d41l-saloon-light.md) section D57G). Dependencies: D41L, D54.**
 User, 2026-11-15, from their UI slot 1 save (runtime slot 0, level 7,
 RESISTANCE IS FEUDAL): "make the 2 chandeliers emit light". Backlog only;
 no code yet.
@@ -1542,6 +1542,50 @@ baked). Acceptance: from UI slot 1, both chandeliers visibly light the hall
 below them and their own ring, in a matched before/after pair
 (`research/before-after/D57G/`); the other three level-7 copies light too;
 cost within the noise at 180 Hz; Vanilla and Classic unchanged.
+
+Work log, 2026-11-17 (Needs playtest):
+
+- **In** (title only, `prop_lights.cpp` / `prop_lights.h`): a new prop
+  kind `prop_light_ring`, found by `ring_mesh` (51 vertices, list header
+  `0x0014002c`, first vertex (-4, 948, 828), the apex (0, -955, -67)), so
+  every copy on every level. Two lights each, placed by the prop's yaw: the
+  candles, model (0, 450, 0) among the flames, (1.0, 0.80, 0.52), 0.9,
+  radius 2400; the fill, model (0, 1800, 0), (1.0, 0.74, 0.46), 0.6, radius
+  6000. Both shimmer as candles and join the D41L list (6 nearest Duke, room
+  gate, D54 sputter-out). The model's own flames are a small tongue on each
+  candle block, unseen from the hall floor, so a soft warm halo (D41L halo
+  texture, 420 across, level 70) is drawn at each of the five candles, placed
+  from the candle block's own vertices (14+8c..17+8c). Developer:
+  `DNTTK_PROP_LIGHT_RING`, `DNTTK_PROP_LIGHT_RING_FILL`, `DNTTK_PROP_RING_AT`
+  ("candle_y fill_y"), `DNTTK_PROP_RING_HALO` ("size level y").
+- **Scan** (offscreen, private copy of UI slot 1): `level 7: 0 stoves, 0
+  chandeliers, 5 rings, 10 lights`. The props do not turn or move (yaw 0,
+  positions unchanged across reads).
+- **Matched before/after** (same savestate, same camera steps, the HEAD
+  build kept as `build-local/...d57g-before`), `research/before-after/D57G/`
+  (local): `ring-near`, `ring-far`, `hall-below` (`-before`, `-after`,
+  `-cmp`). RGB means: vault by the ring 45,46,46 to 84,75,62; the ring
+  40,36,29 to 65,53,38; the floor below 26,18,16 to 50,37,27; the hall's back
+  wall 44,37,27 to 51,43,32. Room 1's ring (a round tower; Duke moved there
+  with `write_ram`, lab only) lights too: `room1-ring-off-on.png`. Rooms 20
+  and 31: found by the scan (the same mesh) but not seen; moving Duke there
+  put him out of the level.
+- **GPU at 180 Hz** (headless, SDL offscreen on the real GPU, the player's
+  controls and presentation copied, graphics custom so 180 holds; 15 s each,
+  alternating; clock-weighted work): props off 16.1 / 11.6 / 15.4 % (mean
+  14.4), on 15.6 / 15.9 / 13.6 % (mean 15.0). 180 presents/s held. The
+  difference is inside the run-to-run spread. Excludes the compositor; not
+  measured on the real display.
+- **Vanilla**: no prop-light scan (no trace lines). Classic: unchanged code
+  path (`visuals()` and the publish need Modernized Polymorph); not run.
+- Build OK; `ttk-near-test` and `ttk-input-test` pass. No framework change.
+- **Not checked**: D54 on these props (whether a ring chandelier can be shot
+  down was not tried; the shared path puts out a broken prop's light).
+  Tuning is the lab's first pass, to set with the user against the D41L
+  saloon chandelier.
+
+Closed out 2026-11-17: the user accepted the first-pass tuning ("lock it in
+and close it out").
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

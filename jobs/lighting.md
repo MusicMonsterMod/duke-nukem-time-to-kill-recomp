@@ -833,7 +833,7 @@ playtest.
 
 ### D41Q - Chandelier flames sit on their candles
 
-**Status: Todo (user report 2026-11-12). Dependencies: D41L.**
+**Status: Done (user-accepted 2026-11-17: "lock it in and close it out"; [note 436](../documentation/436-d41l-saloon-light.md) section D41Q). Dependencies: D41L.**
 User, 2026-11-12 playtest: "the flames on the chandalier are not actually
 central to the candles themselves". The chandelier's flame glows (D41L,
 `prop_lights.cpp` prop glows) are drawn offset from the candle tips. Work:
@@ -842,6 +842,35 @@ flame quad on its tip (including the chandelier's turn and sway), and check
 from several angles and distances, first and third person. Acceptance: in a
 matched before/after pair from the same spot, each flame sits on its candle;
 no cost at 180 Hz; Vanilla and Classic unchanged.
+
+Work log, 2026-11-17 (Needs playtest), [note 436](../documentation/436-d41l-saloon-light.md)
+section D41Q. Measured: each arm plane maps texture u 96 (outer corner) to
+u 127 (column); the candle is texel column u 100 (centre 100.5) with its tip
+on the top row (y -212), so it stands 26.5/31 of the arm out, radius 766.
+D41L placed the flames at radius 795 (u 99.5), one texel (29 units) outward.
+In game (offscreen, level 1 saloon, private card copy) the flames stood on
+the outer edge of each candle top or past it, worst from below. A second
+cause showed from below: the flames were screen-aligned, so looking up they
+stood along the screen's up instead of the candle's and their tips drifted
+off the candle line. Built: the candle point is the measured fraction of
+each arm (`candle_at_u`, so it follows the model), and flames are upright
+billboards (`PropGlow::upright`, `near_clip.cpp` `prop_glows`): they stand
+along the prop's own up axis as transformed (turn and sway included), face
+the camera about it, and shorten when seen along it (not below 40%). Plain
+billboards (halos, stove bloom, pickups) compute the same corners as
+before. Matched before/after from one savestate spot (third person, below,
+steep and side views), `research/before-after/D41Q/` (local): each flame
+now sits on its candle top. Cost: one extra vertex transform per flame (12
+per chandelier in view), not measured on the player's GPU. Vanilla and
+Classic: the glows are gated by `visuals()` as before. Limit: a candle is a
+texel strip on a flat arm plane; seen edge-on it disappears in the original
+model and its flame then burns alone (both builds). Unit tests 260 OK,
+`ttk-near-test` and `ttk-input-test` pass. Playtest: the saloon in level 1,
+first and third person, look up at the chandelier from below and from the
+side.
+
+Work log, 2026-11-17 (Done). User: "lock it in and close it out". Closed
+with the build as described above; the edge-on lone flame stays a known limit.
 
 ### D41R - Live shadows off
 

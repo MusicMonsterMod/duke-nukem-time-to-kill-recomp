@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (night) - D41Q chandelier flames on their candles closed out (Done)
+
+[Note 436](436-d41l-saloon-light.md) section D41Q. Title only: `prop_lights.cpp` (`candle_at_u` = 26.5/31 of each arm, from texel column u 100; flames flagged `upright`; developer `DNTTK_PROP_FLAMES` takes `candle_at_u candle_y` as fields 6 and 7), `prop_lights.h` (`PropGlow::upright`), `near_clip.cpp` `prop_glows` (upright billboards along the prop's transformed up axis; plain billboards unchanged). Lab `recomp/analysis/d41q/` (local): `cards` slot 10 = under the saloon chandelier, `ab.py` matched before/after against `build-local/...d41q-before`. Limit: an edge-on candle card is invisible, its flame burns alone. Accepted ("lock it in and close it out") and committed.
+
 ## 2026-11-17 - D55A traffic lights in the bake closed out (Done)
 
 [Note 502](502-d55a-traffic-lights-in-the-bake.md). Title: `level_lights.inc` (`signal_state`, `signal_lamp_now`: every signal lamp read each tick, used by the live loop and `lamp_bake_levels`), `lamp_bake.cpp/.h/.inc` (wide charts with channels 4-5 beside them, three ids a float, ranking by light x swing via `lamp_style_swing`, cache key version 6, histogram in the bake log). Framework: the `baked_light()` shader in `gpu_gl_renderer.c` (exported patch, verified on a clean pin). Lab `recomp/analysis/d55a/` (local: `street.py TAG AIM TO` teleports Duke and shoots across the phases, `sweep.py LEVELS` logs each level's bake, `perf.py`). Later the same day the user found bright patches (UI slot 7, OBEY OR DIE): the shader's id decode rounded the empty marker up (`int(x + 0.5)` at 2^24); fixed, see note 502. Accepted ("lock it in and close it out") and committed from the main checkout; the player build already carries it. Open follow-up: a lens glow for the SIMPLE grade (not on the board).

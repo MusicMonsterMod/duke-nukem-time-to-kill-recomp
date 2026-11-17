@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 (night) - D41Q: chandelier flames sit on their candles (Done)
+
+The saloon chandelier's flames were one texel outward of the candles and, seen from below, stood along the screen rather than the candle; now placed from the measured candle texel and drawn upright along the chandelier's own axis ([note 436](436-d41l-saloon-light.md) section D41Q). Matched before/after offscreen; accepted by the user ("lock it in and close it out").
+
 ## 2026-11-17 - D55A: traffic lights flash on the street again (Done)
 
 Traffic lights light the street and walls around them in their own colour and flash with the light again, in RELIT and ENHANCED ([note 502](502-d55a-traffic-lights-in-the-bake.md)). Two bake faults: the bake's lamp levels had no signal brightness (always on), and faces under a set of traffic lights needed six changing lamps against four. Checked offscreen on the level 5 street against the pre-fix build; a decode slip that left bright patches (UI slot 7, OBEY OR DIE) was fixed the same day. Accepted by the user: "lock it in and close it out".

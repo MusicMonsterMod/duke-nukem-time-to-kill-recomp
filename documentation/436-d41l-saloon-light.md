@@ -117,3 +117,26 @@ and profile hash-checked unchanged after every run.
   added.
 - Not measured on the player's GPU: 26 extra quads per chandelier in view,
   up to 3 more lights per image in the saloon.
+
+## D41Q - flames on their candles (2026-11-17)
+
+User report (2026-11-12): the flames were not central to the candles.
+
+- **Cause (CONFIRMED in game and from the model)**: each arm plane maps
+  texture u 96 at its outer corner (radius 896) to u 127 at the column. The
+  candle is texel column u 100 (centre 100.5), its tip the top row (v 64,
+  y -212): radius 896 x 26.5 / 31 = 766. The flames were at 795 (u 99.5),
+  one texel outward. Seen from below, a second error: billboards stood
+  along the screen's up, not the candle's, so tips drifted off the line.
+- **Fix**: `candle_at_u` = 26.5/31 of each arm's outer corner (follows the
+  model's own corners); flames are `upright` billboards: `prop_glows` takes
+  the prop's up axis (model -y, transformed: turn and sway included) in view
+  space, removes its part along the view ray, stands the flame along it and
+  turns it to face the camera; the height shortens when looked at along the
+  axis, not below 40%. Plain billboards are unchanged.
+- **Evidence**: matched before/after from one savestate under the saloon
+  chandelier (lab slot 10, third person: below, steep, side),
+  `research/before-after/D41Q/` (local). Each flame sits on its candle top.
+- **Limits**: candles are texel strips on flat arm planes; edge-on, the
+  candle vanishes (original model) and its flame burns alone. Cost: one
+  extra vertex transform per flame, not measured on the player's GPU.

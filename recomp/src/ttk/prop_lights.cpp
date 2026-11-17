@@ -87,10 +87,15 @@ void tune(const char* name,Tune& t) {
     if(const char* e=std::getenv(name)) std::sscanf(e,"%f %f %f %f %f",&t.rgb[0],&t.rgb[1],&t.rgb[2],&t.k,&t.radius);
 }
 
-// Candle flames and halos (developer: DNTTK_PROP_FLAMES="w h level halo halo_level").
+// Candle flames and halos (developer: DNTTK_PROP_FLAMES="w h level halo
+// halo_level candle_at candle_y").
 float flame_w=40,flame_h=84,flame_rgb=175,halo_size=240,halo_rgb=80;
 // Model points (y down; the stove's door faces model +z).
-constexpr float candle_r=795,candle_y=-212;               // each arm's candle top
+// D41Q: each arm plane maps texture u 96 at its outer corner to u 127 at the
+// column; the candle is texel column u 100 (centre 100.5), its tip the top
+// row (v 64, y -212). So a candle stands 26.5/31 of the arm's length out:
+// radius 766 on the 896 arm (D41L had 795, one texel outward).
+float candle_at_u=(127-100.5f)/31,candle_y=-212;
 constexpr float fire_at[3]={0,1180,560};                 // before the grate, low
 constexpr float candle_at[3]={0,-120,0},fill_at[3]={0,700,0};
 constexpr float grate_x=150,grate_y0=1160,grate_y1=1305,grate_z=233;
@@ -268,14 +273,15 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
             const uint32_t xy=psx_mod_read_word(vp+8*arm_corner[i]);
             const float vx=(float)(int16_t)xy,vz=(float)(int16_t)psx_mod_read_half(vp+8*arm_corner[i]+4);
             const float len=std::sqrt(vx*vx+vz*vz);if(len<1) continue;
-            const float x=vx/len*candle_r,z=vz/len*candle_r;
+            const float x=vx*candle_at_u,z=vz*candle_at_u;
             const uint32_t seed=mesh*13u+(uint32_t)i*101u;
             const float t=ms/1000.0f;
             // The flame stretches and leans a little, each on its own.
             const float stretch=0.88f+0.24f*prop_light_noise(t*6.0+i*3.1,seed);
             const float sway=10.0f*(prop_light_noise(t*3.0+i*1.7,seed+5)-0.5f);
             const float k=prop_candle_level(ms,seed);
-            out[n++]=billboard(x,candle_y+6,z,flame_w,flame_h*stretch,1.0f,sway,prop_flame_u,0,prop_flame_w,prop_flame_h,flame_rgb*k,flame_rgb*k,flame_rgb*k);
+            out[n]=billboard(x,candle_y+6,z,flame_w,flame_h*stretch,1.0f,sway,prop_flame_u,0,prop_flame_w,prop_flame_h,flame_rgb*k,flame_rgb*k,flame_rgb*k);
+            out[n++].upright=true;   // D41Q: stands on its candle seen from below or above too
             out[n++]=billboard(x,candle_y-30,z,halo_size,halo_size,0.5f,0,prop_halo_u,0,prop_halo_w,prop_halo_h,halo_rgb*k,halo_rgb*k,halo_rgb*k);
         }
     }
@@ -333,7 +339,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_CANDLES",ttk::candle_light);
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
-    if(const char* e=std::getenv("DNTTK_PROP_FLAMES")) std::sscanf(e,"%f %f %f %f %f",&ttk::flame_w,&ttk::flame_h,&ttk::flame_rgb,&ttk::halo_size,&ttk::halo_rgb);
+    if(const char* e=std::getenv("DNTTK_PROP_FLAMES")) std::sscanf(e,"%f %f %f %f %f %f %f",&ttk::flame_w,&ttk::flame_h,&ttk::flame_rgb,&ttk::halo_size,&ttk::halo_rgb,&ttk::candle_at_u,&ttk::candle_y);
     psx_mod_register_function_entry_plugin("ttk.prop.lights",0x80026164u,ttk::composition_hook);
     ttk::prop_light_kind=ttk::kind_of;
     ttk::prop_light_visuals=ttk::visuals;

@@ -2195,8 +2195,40 @@ void prop_glows(Frame& f,uint32_t mesh,int kind) {
         if(q.billboard) {
             const NearProjected a=near_project(f.g,(int16_t)std::lround(q.p[0][0]),(int16_t)std::lround(q.p[0][1]),(int16_t)std::lround(q.p[0][2]));
             if(a.view[2]<64) continue;
-            const double top=a.view[1]-q.h*q.anchor_y,bottom=top+q.h,hw=q.w/2;
-            const double c[4][3]={{a.view[0]-hw+q.sway,top,a.view[2]},{a.view[0]+hw+q.sway,top,a.view[2]},{a.view[0]-hw,bottom,a.view[2]},{a.view[0]+hw,bottom,a.view[2]}};
+            const double hw=q.w/2;
+            // Up (view space) and the side direction facing the camera; a
+            // plain billboard stands along the screen's up.
+            double up[3]={0,-1,0},side[3]={1,0,0},h=q.h;
+            if(q.upright) {
+                // D41Q: the prop's up axis as transformed (turn and sway
+                // included), minus its part along the view ray to the anchor.
+                const NearProjected t=near_project(f.g,(int16_t)std::lround(q.p[0][0]),(int16_t)std::lround(q.p[0][1]-256),(int16_t)std::lround(q.p[0][2]));
+                double u[3],n[3];
+                const double nl=std::sqrt(a.view[0]*a.view[0]+a.view[1]*a.view[1]+a.view[2]*a.view[2]);
+                for(int k=0;k<3;++k) {u[k]=t.view[k]-a.view[k];n[k]=a.view[k]/nl;}
+                const double ul=std::sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+                if(ul>1e-6) {
+                    for(double& c:u) c/=ul;
+                    const double along=u[0]*n[0]+u[1]*n[1]+u[2]*n[2];
+                    for(int k=0;k<3;++k) u[k]-=along*n[k];
+                    const double l=std::sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+                    if(l>0.05) {
+                        for(int k=0;k<3;++k) up[k]=u[k]/l;
+                        h*=std::max(l,0.4);
+                    }
+                }
+                // side = n x up: across the screen, to the right of the flame.
+                side[0]=n[1]*up[2]-n[2]*up[1];side[1]=n[2]*up[0]-n[0]*up[2];side[2]=n[0]*up[1]-n[1]*up[0];
+                const double sl=std::sqrt(side[0]*side[0]+side[1]*side[1]+side[2]*side[2]);
+                if(sl>1e-6) for(double& c:side) c/=sl; else {side[0]=1;side[1]=side[2]=0;}
+            }
+            double top[3],bottom[3];
+            for(int k=0;k<3;++k) {top[k]=a.view[k]+up[k]*h*q.anchor_y;bottom[k]=top[k]-up[k]*h;}
+            double c[4][3];
+            for(int k=0;k<3;++k) {
+                c[0][k]=top[k]+side[k]*(q.sway-hw);c[1][k]=top[k]+side[k]*(q.sway+hw);
+                c[2][k]=bottom[k]-side[k]*hw;c[3][k]=bottom[k]+side[k]*hw;
+            }
             for(const auto& v:c) f.verts.push_back(project_view(f.g,v));
         } else {
             for(const auto& v:q.p) f.verts.push_back(near_project(f.g,(int16_t)std::lround(v[0]),(int16_t)std::lround(v[1]),(int16_t)std::lround(v[2])));

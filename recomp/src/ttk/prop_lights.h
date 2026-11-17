@@ -29,7 +29,11 @@ inline unsigned (*prop_light_publish)(PSXModLight* out,unsigned room,bool (*show
 // p[0..3] (corners in PS1 order 0 1 2 3: top-left, top-right, bottom-left,
 // bottom-right). u, v, tw, th: the texture rectangle in the page at
 // prop_light_tpage. rgb: vertex colour (128 = the texture as painted).
-struct PropGlow {bool billboard;float p[4][3];float w,h,anchor_y,sway;int u,v,tw,th;uint8_t rgb[3];};
+// D41Q: an upright billboard (a flame) stands along the prop's own up axis
+// (model -y) as the camera sees it, turned to face the camera about that
+// axis, so its foot stays on the candle and its tip above it from any angle;
+// h then foreshortens when looked at along the axis (not below 40%).
+struct PropGlow {bool billboard;float p[4][3];float w,h,anchor_y,sway;int u,v,tw,th;uint8_t rgb[3];bool upright;};
 inline unsigned (*prop_light_glows)(uint32_t mesh,int kind,PropGlow* out,unsigned max)=nullptr;
 // Paints the flame, halo and ember textures into the second bank.
 inline void (*prop_light_paint_bank)(uint16_t* bank)=nullptr;

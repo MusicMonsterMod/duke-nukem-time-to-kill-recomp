@@ -2000,6 +2000,8 @@ ways onto HEAD's framework, the exported patch verified against a clean
 pinned checkout. Next: the field laptop (one worker, slower memory) and
 citadel. Limitations: offscreen only; the restore needs Linux 6.7+.
 
+Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 5, pure AUTO, real screens, two runs): the emulation thread 0-6 points lower on the field laptop, 0-3 on citadel; game and pictures unchanged (60, lowest tenth 58.1-59.6). The default stays the user's decision.
+
 ### D23O - Leaner render-thread submission
 
 **Status: Done (user, 2026-11-12: "if ive closed any out, then they are accepted"; [note 447](../documentation/447-d23o-render-threads.md)). Dependencies: D23K, D23N.**
@@ -2754,7 +2756,7 @@ reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
 
 ### D23Y5 - A lighter emulation thread
 
-**Status: Blocked (2026-11-14, re-measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 4; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) section 4). Dependencies: D23Y; coordinate D23Z.** The
+**Status: Blocked (2026-11-17/18, target not reachable with exact cuts; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23Y; coordinate D23Z.** The
 original 60 presentation's emulation thread takes 55-70% of a core at
 3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
 and cut its largest shares (memory access, dispatch lookups, SPU reverb,
@@ -2839,6 +2841,18 @@ User, after playing the build at ULTRA 120 on the field laptop: "the game
 plays undeniably, phenomenally well ... There is far more at 120 than there
 has ever been on the field laptop. lock it in and close it out": the cut
 is accepted; D23Y5 stays Blocked on its own target.
+
+Work log, 2026-11-17/18 ([note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): re-measured on both real screens.
+At the original 60 and 3.1 GHz the field laptop's emulation thread is
+53-61% (UI 2 53, UI 9 57, FAMILY JEWELS start 56, DUKE HILL town 61),
+citadel 46-60%. Built `PSX_STARVATION_COARSE=1` (off): the starvation
+ring's stamps and watchdog read the kernel tick clock; citadel -1 to -4
+points (its TSC is distrusted, so every clock read is an HPET system call:
+6-8% of its emulation thread, a host setting for the user), laptop
+unchanged. D23Y8's GL server was the only block of the needed size and
+does not shed its queue's cost on these CPUs. What remains is the title's
+host world (about 25 points), device emulation (31) and game code with
+dispatch (30): Blocked with the numbers in note 507 section 3.3.
 
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
@@ -3017,9 +3031,11 @@ clock the 15 W package leaves the CPU while the 4x GPU runs; Blocked: less
 emulation-thread work (D23Y5, D23Y8) or less GPU power a frame would help.
 Real-display look at ULTRA and PRETTY in the town queued for the user.
 
+Re-measured, 2026-11-17/18 ([note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): pure AUTO holds 60 / 60 in the town on both machines; ULTRA 120 on the field laptop 41.8-44.3 (lowest tenth 22.7-24.6) in every configuration, the 4x GPU 84-89% busy: still the package. Still Blocked.
+
 ### D23Y8 - Emulated GPU commands on their own thread
 
-**Status: Blocked (2026-11-14, measured, [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 3; proposed from D23Y5). Dependencies: D23Y5; coordinate D23Y7, D23N4.**
+**Status: Cancelled (2026-11-18, retired after measurement; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23Y5; coordinate D23Y7, D23N4.**
 At the original 60 the emulation thread spends 13.7% of its samples in the
 emulated GPU's command processing (DMA linked lists, GP0 into the GL
 renderer's batches) and 6.4% presenting, in UI slot 2 on the field laptop.
@@ -3061,6 +3077,41 @@ the emulation thread at 120) was redundant uploads, now cut in place under
 D23Y5 (about 1.6 points, exact); about 2 points of present work are left
 for a presentation thread, whose pacing can only be judged on the real
 display. Still Blocked (measured).
+
+Work log, 2026-11-17/18 (field laptop and citadel real screens, desktop
+offscreen for exactness, [note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): built. `PSX_GL_SERVER=1` (developer,
+off) creates the renderer's context on its own thread; 147 renderer entry
+points, the backend's vtable among them, and 10 render-thread entry points
+are wrapped by `runtime/src/gl_server_gen.py` (synchronous by default:
+exact by construction; primitives, draw state and the per-triangle host
+state queued, their outside reads audited and snapshotted; `gpu.c` waits
+for an idle GL thread before writing VRAM directly). `gpu.c` sets a host
+triangle's state in one call (`gl_set_host_triangle`, exact). Exactness
+(`PSX_VRAM_DUMP_DIR`, frame-exact VRAM and pictures): identical on the
+desktop (Vanilla and Modernized) and in Vanilla on both real screens;
+Modernized VRAM identical on the field laptop; **on citadel Modernized
+with LIGHTING on differs from +200 frames** (two-CPU and synchronous-neon
+controls identical, LIGHTING off identical; cause in the dynamic-light
+path not found). Cost: the original 60, field laptop +3 to +6 points
+(also with the GL thread pinned to the other core), citadel -1 to +1;
+pure AUTO -1 to -4; frame rates unchanged. The driver's own thread
+(`PSX_GL_THREAD=1`, Mesa glthread) exact, no gain. Two measuring defects
+fixed (statistics' clock reads on HPET; the lab's per-entry present-ring
+queries). Blocked: not exact on citadel and no net gain on the 2-core
+laptop; a coarser GPU thread (whole GP0 packets) would be the next design.
+
+Cancelled, 2026-11-18. User: "i continue with your recommendation to
+retire it". The GL server and the driver-thread switch are removed from
+the code (the generated wrappers, `gl_server*.inc`, `gl_server_gen.py`,
+`gpu.c`'s quiesce calls and the merged host-triangle call); the build is
+byte-identical in play to before the work (frame-exact VRAM and pictures,
+Vanilla and Modernized, desktop). Kept: the developer exactness dump
+`PSX_VRAM_DUMP_DIR`. Why (note 507 section 2): on a 2-core laptop the
+queue's cost exceeds the drawing it moves, radeonsi already threads its
+driver work, frame rates are GPU- or package-bound where they are not
+already 60, and Modernized was not exact on citadel. A future attempt
+would need a coarser unit (whole GP0 packets or frames), not backend calls.
+
 ### D23Y9 - Resolution headroom at 120
 
 **Status: Cancelled (2026-11-14, user: "i dont want to degrade the game that way ... revert it first, and then scratch it off the board"). Dependencies: D23Y7; coordinate D23P2.**
@@ -3145,6 +3196,8 @@ lower in all five scenes. Desktop, both D23N5 and D23Y10 on: the emulation
 process 1.1-3.6 points lower in every pair; 17,880 more tracked publishes
 checked in 120 s runs, 0 differing. Needs playtest: default on is the
 user's decision.
+
+Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 5): 0-6 points lower on the field laptop, 1-5 on citadel; its write tracking costs 1,800-2,250 page faults a second on the emulation thread (90-190 without), and one laptop run at FAMILY JEWELS fell back to the original presentation (lowest tenth 55.7). The default stays the user's decision.
 
 ### D23Z - One-off CPU spikes on the emulation thread
 
@@ -3680,6 +3733,8 @@ there against 11.8 ms in the best seconds, spread over device service,
 timing edges, GP0 and our world pass in about the clock's proportion: the
 package limit again, not the drawbridge view's own code. Blocked as before.
 
+Re-measured, 2026-11-17/18 ([note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): pure AUTO holds 60 / 60 at the start on both machines; ULTRA 120 on the field laptop 50-56 (GPU-bound), citadel 52.5-60 with occasional fallbacks. Still Blocked.
+
 ### D23AB - Three-machine baseline (desktop, field laptop, citadel)
 
 **Status: Done (2026-11-16, [note 496](../documentation/496-d23ab-three-machines.md); the real-display questions answered in note 498). Dependencies: D23Y6.**
@@ -3968,7 +4023,7 @@ D23AF1 and D23AF8 (user: "turn the bake yield on by default too, then lock it in
 
 ### D23AF3 - Cheaper worker forks
 
-**Status: Todo (research; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF2.**
+**Status: Needs playtest (2026-11-17/18, built off by default; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23AF2.**
 
 After D23AF2's asynchronous reap a restart still costs about 15 ms on the
 desktop: three forks, each copying the page tables of the game process's
@@ -3999,6 +4054,20 @@ mappings of 41-48 MB. Host-only rings are `MADV_DONTFORK` candidates (page
 aligned, never written by a worker), but some (the dirty-RAM block log)
 may be written by code a worker runs: each needs that proof first.
 
+Work log, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 4): built. `PSX_FORK_WIPE=1` marks
+29 observability rings (`psx_obs.h`, `PSX_OBS_REGISTER`) wipe-on-fork;
+`PSX_FORK_WIPE_CHECK=1` maps them `PROT_NONE` in workers and logs any
+access: two first candidates were touched and removed, the 29 never in any
+scene on any machine. Steady copy-on-write faults of the emulation thread
+halve (laptop 120-190 to 38-78 a second, citadel 136-222 to 64-106); fork
+time unchanged on the Mesa machines (3.0-3.4 ms). `PSX_FORK_DEV=1` keeps
+the GL driver's `/dev/dri` / `/dev/nvidia` maps out of the fork (0 worker
+deaths): with the wipe -35-40% on the desktop (NVIDIA's PFN maps), -5-10%
+on citadel, nothing on the laptop. Hitch (longest present interval) within
+the spread. Recommendation: the wipe on by default; the device maps off
+except NVIDIA. The remaining fork cost is private memory workers need and
+the mapping count (the no-restart route stays).
+
 ### D23AF4 - AUTO grade for 15 W shared-package laptops
 
 **Status: Todo (the user's look decision; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
@@ -4012,6 +4081,8 @@ comes from a GPU-only probe that cannot see the shared package. Compare the
 census's SIMPLE 120 and AUTO runs and propose AUTO's choice for 2-core 15 W
 machines (the leanest grade that keeps the redraws).
 
+Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 5, FRAME RATE AUTO, real screens): field laptop SIMPLE lowest tenth 58.8-59.1 against BALANCED 57.9-59.1, emulation thread 3-6 points lower in UI 2 and 9, both at the 15 W package; citadel both hold 60, SIMPLE 0.4-0.7 W and 10 GPU points less. The look is the user's call.
+
 ### D23AF5 - FAMILY JEWELS start in first person at 180
 
 **Status: Todo (with D23AA; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AA.**
@@ -4023,6 +4094,8 @@ second in first person against 138 in third person; a first-person job
 costs 11.9 ms against 7.3 (the same hooks in the same shares, a bigger view:
 the eye-height camera sees more of the castle and moat). D23AA's geometry
 finding; no new exact cut found.
+
+Re-measured on the field laptop and citadel, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): FAMILY JEWELS start (each machine's own view setting) holds 60 / 60 at the original 60 and pure AUTO on both. The first-person 180 Hz desktop case was not re-run (the desktop was background-only this session).
 
 ### D23AF6 - Render-thread validator differs at ULTRA with three workers
 

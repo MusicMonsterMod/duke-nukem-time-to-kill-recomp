@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17/18 (night) - performance chain: D23Y8 retired, D23Y5 Blocked, D23AF3 Needs playtest
+
+Baseline ([note 506](506-d23y-chain-baseline.md)): pure AUTO holds 60 / 60 in DUKE HILL town, FAMILY JEWELS start and UI 2 and 9 on the field laptop and citadel; ULTRA 120 on the laptop is GPU- and package-bound. Citadel runs on the HPET clocksource (6-8% of its emulation thread in clock reads; a host setting). Built behind developer switches, all off ([note 507](507-d23y8-gl-server-d23y5-d23af3.md)): the GL server `PSX_GL_SERVER=1` (exact on the desktop and in Vanilla, not exact on citadel with LIGHTING on; no net gain on the laptop; retired and removed on the user's decision, the build byte-identical to before), `PSX_STARVATION_COARSE=1` (-1 to -4 points on citadel), `PSX_FORK_WIPE=1` (halves the copy-on-write faults, proven exact) and `PSX_FORK_DEV=1` (forks -35-40% on NVIDIA only). Defaults data for D23N5, D23Y10, D23AF4 in note 507 section 5. Nothing committed.
+
 ## 2026-11-17 (night) - D41W: lights present after a load (Done)
 
 After a load the baked lamps (D41M) used to leave the live light list as soon as the bake was read, while the renderer was still uploading the atlas over 9-15 images: those frames had no fixed lamp light at all (DUKE HILL's porch unlit). Now the live lamps light the level until the renderer draws with the bake, and the bake gets there sooner: the upload uses up to 6 ms an image while no bake is shown, the prop lamps' wall checks no longer go 8 a tick, and the renderers' copy is made before the floor grid. Field laptop, RELIT, load to bake on screen: 177-464 ms (592-770 ms before), its real screen 394-411 ms (752-770). The renderer keeps a shown bake until the new one is complete, so a LIGHTING change never drops it. Framework change (`gpu_gl_renderer.c`, `lightmap_store.c`, `mod_plugins.h`) exported to the patch. User-accepted and closed out. [Note 505](505-d41w-lights-after-a-load.md).

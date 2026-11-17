@@ -918,6 +918,53 @@ index 25ba1f3b..29150412 100644
  
  /* Deadline-device model bookkeeping (written by psx_cycles.c). Hot path
   * reads these from the inlined psx_advance_cycles below. */
+diff --git a/runtime/include/psx_obs.h b/runtime/include/psx_obs.h
+new file mode 100644
+index 00000000..d30ddf34
+--- /dev/null
++++ b/runtime/include/psx_obs.h
+@@ -0,0 +1,41 @@
++#ifndef PSX_OBS_H
++#define PSX_OBS_H
++/* psx_obs.h - observability-only memory and forked redraw workers
++ * (Time to Kill D23AF3).
++ *
++ * Trace rings and histories (CD, DMA, SIO, audio events, dirty-RAM logs) hold
++ * tens of megabytes that a redraw worker never reads or writes: a worker is a
++ * frozen machine with every device, debug observer and trace off
++ * (render_worker.c). A fork still copies the page tables of every resident
++ * page and leaves the pages shared copy-on-write, so the emulation thread pays
++ * a fault and a 4 KB copy at its next write to each of them.
++ *
++ * An object registered here is, with the developer switch PSX_FORK_WIPE=1,
++ * marked MADV_WIPEONFORK over the whole pages it covers before the first
++ * worker is forked: a fork gives the child zero pages there instead of a copy,
++ * so neither cost arises. Only objects proven untouched by workers may be
++ * registered (developer check PSX_FORK_WIPE_CHECK=1: a worker maps them
++ * PROT_NONE and logs every access); the main process is unaffected.
++ *
++ * Include from runtime .c files only (generated code never includes it). */
++#include <stddef.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++void psx_obs_register(const void *p, size_t bytes, const char *name);
++
++#ifdef __cplusplus
++}
++#endif
++
++#if defined(__GNUC__) || defined(__clang__)
++#define PSX_OBS_REGISTER(sym) \
++    static void __attribute__((constructor)) psx_obs_reg_##sym(void) { \
++        psx_obs_register(&(sym), sizeof(sym), #sym); }
++#else
++#define PSX_OBS_REGISTER(sym)
++#endif
++
++#endif
 diff --git a/runtime/include/render_replay.h b/runtime/include/render_replay.h
 new file mode 100644
 index 00000000..c8edc573
@@ -1248,7 +1295,7 @@ index 149a3fdc..48698346 100644
      ${PSXRECOMP_ROOT}/runtime/src/psx_fiber.c
      ${PSXRECOMP_ROOT}/runtime/src/sio.c
 diff --git a/runtime/src/audio_trace.c b/runtime/src/audio_trace.c
-index 9008c094..9e3a3548 100644
+index 9008c094..26aca3cf 100644
 --- a/runtime/src/audio_trace.c
 +++ b/runtime/src/audio_trace.c
 @@ -6,6 +6,8 @@
@@ -1326,6 +1373,27 @@ index 9008c094..9e3a3548 100644
      uint64_t oldest = head - avail;
  
      uint64_t s;   /* absolute first frame of the slice */
+@@ -261,3 +268,8 @@ int64_t audio_trace_dump_wav(int tap, const char *path,
+     fclose(fp);
+     return (int64_t)count;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_events)
++PSX_OBS_REGISTER(s_taps)
+diff --git a/runtime/src/bios_hle.c b/runtime/src/bios_hle.c
+index 11a875f4..fd544002 100644
+--- a/runtime/src/bios_hle.c
++++ b/runtime/src/bios_hle.c
+@@ -356,3 +356,7 @@ const char* psx_bios_hle_backend_name(void)
+ {
+     return s_call_hle_on ? "HLE (LLE fallback)" : "LLE (recompiled BIOS)";
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_ring)
 diff --git a/runtime/src/boot_state.c b/runtime/src/boot_state.c
 index f0284eaf..c1615773 100644
 --- a/runtime/src/boot_state.c
@@ -1556,7 +1624,7 @@ index f0284eaf..c1615773 100644
      return 1;
  }
 diff --git a/runtime/src/cdrom.c b/runtime/src/cdrom.c
-index dd5c231d..67bbb648 100644
+index dd5c231d..d83bec80 100644
 --- a/runtime/src/cdrom.c
 +++ b/runtime/src/cdrom.c
 @@ -667,11 +667,28 @@ static int initial_read_delay_cycles(void) {
@@ -1660,6 +1728,15 @@ index dd5c231d..67bbb648 100644
              pending_arm(cmd, lat, 1); /* 0x15/0x16 — completed in process_pending */
              s_cd_probe_seek_count++;
              s_cd_probe_seek_cycles += (uint64_t)lat;
+@@ -3491,3 +3546,8 @@ void debug_force_cd_reinsert(void) {
+     trace_cdrom('O', 0, (uint32_t)CDROM_LID_CLOSE_DELAY_CYCLES,
+                 (uint32_t)(CDROM_LID_CLOSE_DELAY_CYCLES >> 32));
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(cdrom_trace)
++PSX_OBS_REGISTER(sector_history)
 diff --git a/runtime/src/crash_trace.c b/runtime/src/crash_trace.c
 index 0fe0d272..0863cb1c 100644
 --- a/runtime/src/crash_trace.c
@@ -1682,7 +1759,7 @@ index 0fe0d272..0863cb1c 100644
  #ifdef _WIN32
            Sleep(1);
 diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
-index 645f055e..22235dd3 100644
+index 645f055e..a67fbe4e 100644
 --- a/runtime/src/debug_server.c
 +++ b/runtime/src/debug_server.c
 @@ -128,6 +128,23 @@ static int    s_resp_overflow = 0;
@@ -2048,8 +2125,35 @@ index 645f055e..22235dd3 100644
      if (s_client != SOCK_INVALID) {
          sock_close(s_client);
          s_client = SOCK_INVALID;
+@@ -14726,3 +14901,14 @@ int debug_server_turbo_enabled(void)
+ {
+     return s_turbo_enabled != 0;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_restore_trace)
++PSX_OBS_REGISTER(s_sio_ctrl_reg_trace)
++PSX_OBS_REGISTER(s_sio_pc_trace)
++PSX_OBS_REGISTER(s_thread_trace)
++PSX_OBS_REGISTER(s_card_mgr_trace)
++PSX_OBS_REGISTER(s_probe_trace)
++PSX_OBS_REGISTER(s_sreg_trace)
++PSX_OBS_REGISTER(s_rec_buf)
+diff --git a/runtime/src/device_trace.c b/runtime/src/device_trace.c
+index 43468d75..922a42d6 100644
+--- a/runtime/src/device_trace.c
++++ b/runtime/src/device_trace.c
+@@ -64,3 +64,7 @@ uint32_t device_trace_get(DevEvent* out, uint32_t max_rows)
+         out[i] = s_ring[(start + i) & (DEVTRACE_RING_CAP - 1u)];
+     return n;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_ring)
 diff --git a/runtime/src/dirty_ram_interp.c b/runtime/src/dirty_ram_interp.c
-index 1fd738b2..1f3a6e95 100644
+index 1fd738b2..090d8632 100644
 --- a/runtime/src/dirty_ram_interp.c
 +++ b/runtime/src/dirty_ram_interp.c
 @@ -1262,6 +1262,18 @@ static void xprobe_event(uint32_t src_pc, uint8_t op, uint8_t site, uint32_t tar
@@ -2131,8 +2235,19 @@ index 1fd738b2..1f3a6e95 100644
  void ls_func_set_record_only(int on) { s_lsf_record_only = on; }
  
  void ls_note_exception_entry(void) {
+@@ -3959,3 +3992,10 @@ int ls_get_func_json(char *buf, int buflen) {
+     p += snprintf(buf + p, buflen - p, "]}");
+     return p;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h).
++ * Not g_dirty_ram_insn_log or g_xdet: workers run this interpreter and touch
++ * both (PSX_FORK_WIPE_CHECK=1, 2026-11-17). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(g_dirty_ram_flow_log)
++PSX_OBS_REGISTER(g_dirty_ram_block_log)
 diff --git a/runtime/src/dma.c b/runtime/src/dma.c
-index 7d9ce988..7cba906d 100644
+index 7d9ce988..1c092255 100644
 --- a/runtime/src/dma.c
 +++ b/runtime/src/dma.c
 @@ -704,7 +704,8 @@ static int gpu_ll_begin_node(void *opaque, uint32_t addr, uint32_t num_words) {
@@ -2165,6 +2280,15 @@ index 7d9ce988..7cba906d 100644
      dma_gpu_ll_start(&gpu_linked_list, start_addr, 0x40000u);
      event_ring_record_aux(EV_DMA_SCHED, 2u, channels[2].chcr);
  }
+@@ -1432,3 +1435,8 @@ int dma_snapshot_read(const uint8_t *p, uint32_t len) {
+     }
+     return 1;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(dma_trace)
++PSX_OBS_REGISTER(cdrom_dma_history)
 diff --git a/runtime/src/dma_gpu_ll.c b/runtime/src/dma_gpu_ll.c
 index 7882b273..de3398dd 100644
 --- a/runtime/src/dma_gpu_ll.c
@@ -2234,6 +2358,18 @@ index 7882b273..de3398dd 100644
              state->phase = DMA_GPU_LL_PHASE_COMPLETE;
              state->cycles_remaining = state->word_count;
              return;
+diff --git a/runtime/src/fntrace.c b/runtime/src/fntrace.c
+index b767ee6e..78a13f48 100644
+--- a/runtime/src/fntrace.c
++++ b/runtime/src/fntrace.c
+@@ -310,3 +310,7 @@ void fntrace_clear(void) {
+     g_fntrace_seq = 0;
+     /* Storage left in place; consumer dumps relative to seq. */
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(g_fntrace_ring)
 diff --git a/runtime/src/frame_pacing.c b/runtime/src/frame_pacing.c
 index be30e5af..554291f3 100644
 --- a/runtime/src/frame_pacing.c
@@ -2333,6 +2469,18 @@ index be30e5af..554291f3 100644
      while (SDL_GetPerformanceCounter() < p->next_deadline) {
          /* final sub-ms spin */
      }
+diff --git a/runtime/src/freeze_heartbeat.c b/runtime/src/freeze_heartbeat.c
+index 52c8e86b..ce2d0637 100644
+--- a/runtime/src/freeze_heartbeat.c
++++ b/runtime/src/freeze_heartbeat.c
+@@ -1126,3 +1126,7 @@ void freeze_heartbeat_start(const char *backend_label) {
+     if (s_thread) s_started = 1;
+ #endif
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_ring)
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
 index aaf69df7..53734261 100644
 --- a/runtime/src/gpu.c
@@ -3383,7 +3531,7 @@ index aaf69df7..53734261 100644
 +#undef X
 +}
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..f104428c 100644
+index d0ccc3d5..e4508c6b 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,7 @@
@@ -10738,7 +10886,7 @@ index d0ccc3d5..f104428c 100644
      }
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
-@@ -4390,6 +9570,442 @@ static const GpuRenderBackend GL_BACKEND = {
+@@ -4390,6 +9570,446 @@ static const GpuRenderBackend GL_BACKEND = {
      .wide_clear_margins = glb_wide_clear_margins,
      .render_wide_display = glb_render_wide_display,
      .wide_dump_full = glb_wide_dump_full,
@@ -11181,6 +11329,10 @@ index d0ccc3d5..f104428c 100644
 +    s_rp_gen[ts]++;
 +    return 1;
 +}
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_coh_ring)
 diff --git a/runtime/src/gpu_probe.c b/runtime/src/gpu_probe.c
 new file mode 100644
 index 00000000..2bee8de5
@@ -12467,10 +12619,10 @@ index 62c387d0..87a3370e 100644
              int x = (lw > dw + margin) ? (lw - dw - margin) : margin;
 diff --git a/runtime/src/host_profiler.c b/runtime/src/host_profiler.c
 new file mode 100644
-index 00000000..2f6ec41a
+index 00000000..9dbc0b7d
 --- /dev/null
 +++ b/runtime/src/host_profiler.c
-@@ -0,0 +1,202 @@
+@@ -0,0 +1,243 @@
 +/* host_profiler.c - developer sampling profiler for the emulation thread.
 + *
 + * PSX_PROF=FILE samples the thread that calls host_profiler_start() every 1 ms
@@ -12488,6 +12640,7 @@ index 00000000..2f6ec41a
 +#define _GNU_SOURCE 1
 +#include <execinfo.h>
 +#include <link.h>
++#include <setjmp.h>
 +#include <signal.h>
 +#include <stdint.h>
 +#include <stdio.h>
@@ -12540,6 +12693,44 @@ index 00000000..2f6ec41a
 +static uint32_t *s_stack_frame = NULL;
 +static uint64_t s_first_frame=0,s_last_frame=0;
 +extern uint64_t s_frame_count;
++/* D23Y8 lab fix (2026-11-17): backtrace() from this handler segfaulted inside
++ * libgcc's unwinder when the sample landed in GL driver code (citadel,
++ * radeonsi): a driver frame can lead the unwinder to an unreadable address.
++ * When the interrupted PC is outside the executable the unwind runs under a
++ * temporary SIGSEGV/SIGBUS guard; a fault drops that sample (counted in
++ * s_unwind_faults) instead of killing the process. glibc's FDE lookup
++ * (_dl_find_object) takes no lock, so leaving the unwinder this way is safe. */
++static __thread sigjmp_buf s_unwind_jb;
++static __thread volatile sig_atomic_t s_unwind_armed = 0;
++static volatile uint64_t s_unwind_faults = 0;
++static void on_unwind_fault(int sig) {
++    if (s_unwind_armed) { s_unwind_armed = 0; siglongjmp(s_unwind_jb, 1); }
++    signal(sig, SIG_DFL);
++    raise(sig);
++}
++static int guarded_backtrace(void **bt, int max, int guard) {
++    if (!guard) return backtrace(bt, max);
++    struct sigaction sa, old_segv, old_bus;
++    memset(&sa, 0, sizeof sa);
++    sa.sa_handler = on_unwind_fault;
++    sa.sa_flags = SA_NODEFER;
++    sigemptyset(&sa.sa_mask);
++    sigaction(SIGSEGV, &sa, &old_segv);
++    sigaction(SIGBUS, &sa, &old_bus);
++    int n = 0;
++    if (sigsetjmp(s_unwind_jb, 1) == 0) {
++        s_unwind_armed = 1;
++        n = backtrace(bt, max);
++        s_unwind_armed = 0;
++    } else {
++        n = -1;
++        s_unwind_faults++;
++    }
++    sigaction(SIGSEGV, &old_segv, NULL);
++    sigaction(SIGBUS, &old_bus, NULL);
++    return n;
++}
++
 +static void on_prof(int sig, siginfo_t *si, void *ctx) {
 +    (void)sig; (void)si;
 +    if(s_frame_count<s_first_frame || (s_last_frame && s_frame_count>s_last_frame)) return;
@@ -12554,7 +12745,9 @@ index 00000000..2f6ec41a
 +#endif
 +    if (s_stacks && s_stack_count < STACK_SAMPLES) {
 +        void *bt[64];
-+        int n = backtrace(bt, 64), k = 0;
++        const int outside = pc < s_exe_lo || pc >= s_exe_hi;
++        int n = guarded_backtrace(bt, 64, outside), k = 0;
++        if (n < 0) return;   /* the unwind faulted: drop this sample */
 +        uintptr_t *out = s_stacks[s_stack_count];
 +        if ((pc >= s_exe_lo && pc < s_exe_hi) || s_stack_leaf) out[k++] = pc;   /* PSX_PROF_LEAF=1: library leaves too */
 +        for (int i = 2; i < n && k < STACK_DEPTH; i++) {
@@ -12566,7 +12759,7 @@ index 00000000..2f6ec41a
 +    }
 +    if (s_callers && (pc < s_exe_lo || pc >= s_exe_hi)) {
 +        void *bt[48];
-+        int n = backtrace(bt, 48);
++        int n = guarded_backtrace(bt, 48, 1);   /* only reached for PCs outside the executable */
 +        for (int i = 2, skip = s_callers_skip; i < n; i++) {
 +            uintptr_t f = (uintptr_t)bt[i];
 +            if (f >= s_exe_lo && f < s_exe_hi && skip-- <= 0) { note_caller(f); break; }
@@ -12601,8 +12794,8 @@ index 00000000..2f6ec41a
 +    if (!s_out) return;
 +    FILE *f = fopen(s_out, "w");
 +    if (!f) return;
-+    fprintf(f, "# samples %llu dropped %llu base 0x%llx\n",
-+            (unsigned long long)s_samples, (unsigned long long)s_dropped,
++    fprintf(f, "# samples %llu dropped %llu unwind_faults %llu base 0x%llx\n",
++            (unsigned long long)s_samples, (unsigned long long)s_dropped, (unsigned long long)s_unwind_faults,
 +            (unsigned long long)s_base);
 +    for (uint32_t k = 0; k < PROF_SLOTS; k++)
 +        if (s_pc[k]) fprintf(f, "%u 0x%llx 0x%llx\n", s_count[k], (unsigned long long)(s_pc[k] - s_base),
@@ -12897,7 +13090,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..306fe2f8 100644
+index fe317583..09fc9565 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -5,6 +5,9 @@
@@ -13178,18 +13371,63 @@ index fe317583..306fe2f8 100644
      if (is_load && ok)
          savestate_input_guard_arm();
      if (is_load) {
-@@ -1029,7 +1254,10 @@ extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok)
+@@ -1029,7 +1254,55 @@ extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok)
      host_osd_push(buf, 2000);
  }
  
 +extern "C" void ttk_load_ui_restored();
 +extern "C" int ttk_load_ui_present_ready();
++/* Exactness check (developer, added for D23Y8): PSX_VRAM_DUMP_DIR=dir writes all of VRAM
++ * (synced down from the GL backend) to dir/vram-f<N>.bin at the vblanks N
++ * listed in PSX_VRAM_DUMP_FRAMES (default 60,200,400) after each savestate
++ * load, and the picture presented next to dir/shot-f<N>.png; two runs from
++ * the same state then compare byte for byte. */
++static int s_vram_dump_loaded = 0;
++extern "C" int present_shot_request(const char *path);
++static void vram_dump_tick(void) {
++    static int on = -1, nf = 0, armed = 0;
++    static int frames[16];
++    static char dir[512];
++    static uint64_t base = 0;
++    if (on < 0) {
++        const char *d = std::getenv("PSX_VRAM_DUMP_DIR");
++        on = d && *d;
++        if (on) {
++            std::snprintf(dir, sizeof dir, "%s", d);
++            const char *f = std::getenv("PSX_VRAM_DUMP_FRAMES");
++            char list[256];
++            std::snprintf(list, sizeof list, "%s", f && *f ? f : "60,200,400");
++            for (char *t = std::strtok(list, ","); t && nf < 16; t = std::strtok(nullptr, ",")) frames[nf++] = std::atoi(t);
++        }
++    }
++    if (!on) return;
++    extern uint64_t s_frame_count;
++    if (s_vram_dump_loaded) { s_vram_dump_loaded = 0; base = s_frame_count; armed = 1; }
++    if (!armed) return;
++    const uint64_t n = s_frame_count - base;
++    for (int i = 0; i < nf; i++) {
++        if ((uint64_t)frames[i] != n) continue;
++        static uint16_t buf[1024 * 512];
++        gpu_vram_copy(buf);
++        char path[600];
++        std::snprintf(path, sizeof path, "%s/vram-f%d.bin", dir, frames[i]);
++        if (FILE *fp = std::fopen(path, "wb")) { std::fwrite(buf, sizeof buf, 1, fp); std::fclose(fp); }
++        uint64_t h = 1469598103934665603ull;
++        for (size_t k = 0; k < 1024u * 512u; k++) { h ^= buf[k]; h *= 1099511628211ull; }
++        std::printf("psxrecomp: [vram dump] frame +%d fnv %016llx\n", frames[i], (unsigned long long)h);
++        /* The presented picture of the same frame (captured at its present). */
++        std::snprintf(path, sizeof path, "%s/shot-f%d.png", dir, frames[i]);
++        (void)present_shot_request(path);
++    }
++}
++
  extern "C" void psx_frontend_on_savestate_loaded(void) {
++    s_vram_dump_loaded = 1;   /* developer VRAM dump */
 +    ttk_load_ui_restored();
      mod_runtime_on_savestate_loaded();
      s_disabled_frame_presented = false;
      s_force_present_after_load = true;
-@@ -1266,6 +1494,18 @@ static int           g_frame_interpolation_blend =
+@@ -1266,6 +1539,18 @@ static int           g_frame_interpolation_blend =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
  static int           g_frame_interpolation_blend_default =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
@@ -13208,7 +13446,7 @@ index fe317583..306fe2f8 100644
  static std::array<int, PSX_MAX_PLAYERS> g_mod_controller_mode_override =
      [] {
          std::array<int, PSX_MAX_PLAYERS> modes{};
-@@ -1308,6 +1548,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
+@@ -1308,6 +1593,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
      return 0;                                            /* windowed */
  }
  
@@ -13283,7 +13521,7 @@ index fe317583..306fe2f8 100644
  /* FMV auto-skip detection hooks (cdrom.c / mdec.c). */
  extern "C" int      cdrom_xa_stream_active(void);
  extern "C" uint32_t mdec_get_decode_count(void);
-@@ -1455,6 +1763,72 @@ extern "C" int psx_mod_set_frame_interpolation(
+@@ -1455,6 +1808,72 @@ extern "C" int psx_mod_set_frame_interpolation(
      return 1;
  }
  
@@ -13356,7 +13594,7 @@ index fe317583..306fe2f8 100644
  extern "C" int psx_mod_set_frame_interpolation_blend(
      uint32_t blend_mode) {
      if (blend_mode != PSX_MOD_FRAME_INTERPOLATION_LINEAR &&
-@@ -1515,6 +1889,23 @@ extern "C" int psx_mod_set_load_acceleration(
+@@ -1515,6 +1934,23 @@ extern "C" int psx_mod_set_load_acceleration(
      return 1;
  }
  
@@ -13380,7 +13618,7 @@ index fe317583..306fe2f8 100644
  extern "C" int psx_mod_set_disc_speed(
      uint32_t divisor, uint32_t instant_max_per_frame) {
      /* Any positive divisor is arithmetically safe: cdrom.c divides the sector
-@@ -1749,6 +2140,109 @@ static void update_adaptive_widescreen() {
+@@ -1749,6 +2185,109 @@ static void update_adaptive_widescreen() {
      refresh_widescreen_projection();
  }
  
@@ -13490,7 +13728,7 @@ index fe317583..306fe2f8 100644
  /* SDL GL attributes are global inputs to the next context creation.  Set the
   * runtime requirements immediately before every GL window, because launcher
   * teardown resets them and macOS otherwise supplies a legacy 2.1 context. */
-@@ -1770,6 +2264,32 @@ extern "C" void psx_ws_set_native_wide(int on) {
+@@ -1770,6 +2309,32 @@ extern "C" void psx_ws_set_native_wide(int on) {
  extern "C" int psx_ws_get_native_wide(void) { return g_ws_native_wide; }
  
  static bool          g_gl_active = false;    /* GL context live -> GL present path */
@@ -13523,7 +13761,7 @@ index fe317583..306fe2f8 100644
  static bool          g_vk_active = false;    /* Vulkan context live -> VK present path */
  
  /* present_shot — capture the COMPOSED present surface, i.e. the frame after the
-@@ -2900,7 +3420,7 @@ static int present_vsync_owns_cadence(void) {
+@@ -2900,7 +3465,7 @@ static int present_vsync_owns_cadence(void) {
          return 0;
      if (g_frame_period_ms <= 0.0)
          return 0;
@@ -13532,7 +13770,7 @@ index fe317583..306fe2f8 100644
          return 0;
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
-@@ -2938,6 +3458,8 @@ static void present_track_video_standard(void) {
+@@ -2938,6 +3503,8 @@ static void present_track_video_standard(void) {
  static int present_effective_swap_interval(void) {
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
@@ -13541,7 +13779,7 @@ index fe317583..306fe2f8 100644
      if (g_frame_interpolation)
          return 0;
      if (g_frame_period_ms <= 0.0)
-@@ -2953,6 +3475,7 @@ static int present_should_wall_pace(void) {
+@@ -2953,6 +3520,7 @@ static int present_should_wall_pace(void) {
      if (g_frame_interpolation && g_gl_active &&
          gl_renderer_interpolation_owns_cadence())
          return 0;
@@ -13549,7 +13787,7 @@ index fe317583..306fe2f8 100644
      /* Run the pacer even when driver vsync is SUPPOSED to own the cadence.
       *
       * Skipping it here trusts the swap to block, and a swap that does not
-@@ -2985,6 +3508,108 @@ static void apply_present_cadence(void) {
+@@ -2985,6 +3553,108 @@ static void apply_present_cadence(void) {
  #endif
  }
  
@@ -13658,7 +13896,7 @@ index fe317583..306fe2f8 100644
  static void log_present_cadence(void) {
      if (present_vsync_owns_cadence()) {
          /* The pacer still runs underneath as a deadline cap (see
-@@ -3050,7 +3675,20 @@ static void netplay_soft_exit(const char *origin) {
+@@ -3050,7 +3720,20 @@ static void netplay_soft_exit(const char *origin) {
      std::exit(0);
  }
  
@@ -13679,7 +13917,7 @@ index fe317583..306fe2f8 100644
      /* (sljit removed 2026-07-15: overlay_compile_worker_stop joined the
       * off-thread JIT worker here; the worker no longer exists.) */
      psx_netplay_shutdown();
-@@ -3074,6 +3712,19 @@ static void shutdown_runtime(void) {
+@@ -3074,6 +3757,19 @@ static void shutdown_runtime(void) {
      debug_server_shutdown();
  }
  
@@ -13699,7 +13937,7 @@ index fe317583..306fe2f8 100644
  /* Tear down the game window/GL/audio after a lobby soft-return. Leaves SDL
   * subsystems and the lobby WebSocket intact for the next launcher session. */
  static void teardown_game_session_keep_lobby(void) {
-@@ -3133,6 +3784,13 @@ static void sdl_audio_gain_ramp(int16_t* buf, int frames, float g0, float g1) {
+@@ -3133,6 +3829,13 @@ static void sdl_audio_gain_ramp(int16_t* buf, int frames, float g0, float g1) {
   * sdl_audio_fadein_left is declared with present_session_reset. */
  static const int sdl_audio_fade_samples = 44100 * 40 / 1000;  /* 40 ms */
  
@@ -13713,7 +13951,7 @@ index fe317583..306fe2f8 100644
  static void sdl_audio_pump(bool discard_output = false) {
      /* Guest-cycle SPU advance must not depend on host audio device/backpressure.
       * Win↔Linux rollback forked on aux/spu when one peer skipped spu_render
-@@ -3197,13 +3855,29 @@ static void sdl_audio_pump(bool discard_output = false) {
+@@ -3197,13 +3900,29 @@ static void sdl_audio_pump(bool discard_output = false) {
      static uint64_t cycle_carry = 0;
      const uint64_t now_cycles = psx_cycle_count;
      if (g_audio_cycle_resync) {
@@ -13744,7 +13982,7 @@ index fe317583..306fe2f8 100644
          return;
      }
      if (last_cycles == 0) last_cycles = now_cycles;
-@@ -3230,7 +3904,10 @@ static void sdl_audio_pump(bool discard_output = false) {
+@@ -3230,7 +3949,10 @@ static void sdl_audio_pump(bool discard_output = false) {
      int host_frames = 0;
      while (remaining > 0) {
          const int chunk = remaining > 2048 ? 2048 : remaining;
@@ -13755,7 +13993,7 @@ index fe317583..306fe2f8 100644
          remaining -= chunk;
          host_frames = chunk;
          if (discard_output) {
-@@ -3321,6 +3998,16 @@ extern "C" int psx_audio_out_stats(double *fill_ms, double *target_ms,
+@@ -3321,6 +4043,16 @@ extern "C" int psx_audio_out_stats(double *fill_ms, double *target_ms,
      return 1;
  }
  
@@ -13772,7 +14010,7 @@ index fe317583..306fe2f8 100644
  /* Lightweight production-safe cadence probe. Unlike the TCP debug build this
   * adds no per-block or per-instruction recording. All counter/timer work below
   * is opt-in via PSX_RUNTIME_PERF_DIAG; the normal Release path pays only the
-@@ -3671,6 +4358,18 @@ static void sdl_audio_pump_midframe(void) {
+@@ -3671,6 +4403,18 @@ static void sdl_audio_pump_midframe(void) {
      }
  }
  
@@ -13791,7 +14029,7 @@ index fe317583..306fe2f8 100644
  static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
      {   /* Tag audio events with the vblank frame counter. */
          extern uint64_t s_frame_count;
-@@ -3682,6 +4381,8 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3682,6 +4426,8 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
      static int sink_was_active = 0;
  
      if (hard_mute_active) {
@@ -13800,7 +14038,7 @@ index fe317583..306fe2f8 100644
          if (!muted) {
              int tail = sdl_audio_fade_samples;
              const int buf_cap = (int)(sizeof(sdl_audio_buf) / (2 * sizeof(int16_t)));
-@@ -3718,6 +4419,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3718,6 +4464,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
          audio_trace_event(AUDIO_EV_UNMUTE, (uint32_t)sdl_audio_fadein_left, 0);
          extern int g_audio_unmute_resync;
          g_audio_unmute_resync = 1;
@@ -13808,7 +14046,7 @@ index fe317583..306fe2f8 100644
      }
      if (turbo_sink_active) {
          if (!sink_was_active) {
-@@ -3736,6 +4438,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3736,6 +4483,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
          audio_trace_event(AUDIO_EV_UNMUTE,
                            (uint32_t)sdl_audio_fadein_left, 2);
          g_audio_unmute_resync = 1;
@@ -13816,7 +14054,7 @@ index fe317583..306fe2f8 100644
      }
      s_audio_gate = AUDIO_GATE_NORMAL;
      sdl_audio_pump(false);
-@@ -4233,6 +4936,14 @@ static void close_controller(void) {
+@@ -4233,6 +4981,14 @@ static void close_controller(void) {
          close_player(g_players[s]);
  }
  
@@ -13831,7 +14069,7 @@ index fe317583..306fe2f8 100644
  static int device_claimed_by_other(int self_slot, SDL_JoystickID inst) {
      for (int o = 0; o < PSX_MAX_PLAYERS; o++) {
          if (o == self_slot) continue;
-@@ -4276,8 +4987,8 @@ static void open_player(PlayerInput& p, int self_slot) {
+@@ -4276,8 +5032,8 @@ static void open_player(PlayerInput& p, int self_slot) {
              SDL_JoystickGetGUIDString(g, p.guid, (int)sizeof(p.guid));
          }
          const char* name = SDL_GameControllerName(p.handle);
@@ -13842,7 +14080,7 @@ index fe317583..306fe2f8 100644
          p.rumble_known = false;
          p.rumble_warned = false;
      }
-@@ -4298,7 +5009,9 @@ static void update_controller_rumble(void) {
+@@ -4298,7 +5054,9 @@ static void update_controller_rumble(void) {
              host, g_controller_ports_swapped ? 1 : 0);
          PlayerInput& p = g_players[host];
          uint8_t small = 0, large = 0;
@@ -13853,7 +14091,7 @@ index fe317583..306fe2f8 100644
          if (!p.handle) {
              p.rumble_small = small;
              p.rumble_large = large;
-@@ -4478,6 +5191,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
+@@ -4478,6 +5236,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
   * (arrows=d-pad, X/S/Z/A=Cross/Circle/Square/Triangle, Q/W/E/R=L1/R1/L2/R2,
   * Return=Start, RShift=Select) plus T/Y=L3/R3 stick clicks. */
  static uint16_t pad_from_keyboard(int player) {
@@ -13862,7 +14100,7 @@ index fe317583..306fe2f8 100644
      const Uint8* keys = SDL_GetKeyboardState(NULL);
      return psx_keybinds_pad_word(keys, player);
  }
-@@ -4575,6 +5290,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
+@@ -4575,6 +5335,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
  static void pad_sticks_for(const PlayerInput& p, int player, uint8_t out[4]) {
      out[0] = out[1] = out[2] = out[3] = 0x80;
      if (p.kind == 1) {
@@ -13870,7 +14108,7 @@ index fe317583..306fe2f8 100644
          /* Keyboard analog: the configurable left/right stick-direction binds
           * (default = arrow keys on the LEFT stick; RIGHT stick unbound), so the
           * old keyboard analog behaviour is preserved unless the user rebinds. */
-@@ -5033,6 +5749,33 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5033,6 +5794,33 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      out->analog = 0;
      out->connected = 0;
  
@@ -13904,7 +14142,7 @@ index fe317583..306fe2f8 100644
      const int host = host_player_for_sio_slot(s);
      PlayerInput& p = g_players[host];
      const int  player  = host + 1;          /* keybinds.ini section (1..5) */
-@@ -5086,6 +5829,9 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5086,6 +5874,9 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
                                : (uint16_t)0xFFFF;
      /* kind==1 already consumed the binds inside pad_buttons_for — ANDing the
       * same word twice is idempotent, so this stays a plain source check. */
@@ -13914,7 +14152,7 @@ index fe317583..306fe2f8 100644
      if (src.keybinds)
          btn &= pad_from_keyboard(player);
      if (src.all_pads)
-@@ -5100,7 +5846,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5100,7 +5891,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
       * inside pad_sticks_for; psx_keybinds_sticks only widens a deflection, so
       * applying it twice is idempotent. */
      if (eff_analog) {
@@ -13923,7 +14161,7 @@ index fe317583..306fe2f8 100644
              const Uint8* keys = SDL_GetKeyboardState(NULL);
              psx_keybinds_sticks(keys, player, st);
          }
-@@ -5109,6 +5855,17 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5109,6 +5900,17 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      }
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -13941,7 +14179,7 @@ index fe317583..306fe2f8 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5153,6 +5910,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
+@@ -5153,6 +5955,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
  
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -13953,7 +14191,7 @@ index fe317583..306fe2f8 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5550,6 +6312,7 @@ static void netplay_barrier_admit(int override) {
+@@ -5550,6 +6357,7 @@ static void netplay_barrier_admit(int override) {
          if (!g_headless) {
              SDL_Event ev;
              while (SDL_PollEvent(&ev)) {
@@ -13961,7 +14199,7 @@ index fe317583..306fe2f8 100644
                  if (ev.type == SDL_QUIT) {
                      netplay_soft_exit("sdl_window_close");
                      if (psx_return_to_lobby_requested()) return;
-@@ -5616,6 +6379,9 @@ static void sample_pad_into_sio(int override) {
+@@ -5616,6 +6424,9 @@ static void sample_pad_into_sio(int override) {
      for (int s = 0; s < n; s++) {
          PsxNetPad pad;
          if (!capture_pad_slot(s, &pad)) continue;  /* no device in this port */
@@ -13971,7 +14209,7 @@ index fe317583..306fe2f8 100644
          /* Push sticks every frame; request the pad type (digital/analog) through
           * the coherent channel so a policy switch is applied only at an idle,
           * non-config bus boundary (never mid-poll / mid-handshake). This is the
-@@ -6086,9 +6852,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
+@@ -6086,9 +6897,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
      if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FULLSCREEN) == 0) {
          if (value < 0 || value > 2) return 0;
          g_fullscreen = value;
@@ -13984,7 +14222,7 @@ index fe317583..306fe2f8 100644
      } else if (std::strcmp(item->key,
                             RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) {
          if (value < 1 || value > 4) return 0;
-@@ -6702,9 +7470,11 @@ static void rewind_pause_present(void) {
+@@ -6702,9 +7515,11 @@ static void rewind_pause_present(void) {
  
  /* Freeze guest in vblank present while the rewind filmstrip is open. */
  static void rewind_host_pause_loop(void) {
@@ -13996,7 +14234,7 @@ index fe317583..306fe2f8 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6712,7 +7482,7 @@ static void rewind_host_pause_loop(void) {
+@@ -6712,7 +7527,7 @@ static void rewind_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14005,7 +14243,7 @@ index fe317583..306fe2f8 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6744,9 +7514,11 @@ static void rewind_host_pause_loop(void) {
+@@ -6744,9 +7559,11 @@ static void rewind_host_pause_loop(void) {
  
  /* Freeze guest in vblank present while the save-state slot menu is open. */
  static void savestate_menu_host_pause_loop(void) {
@@ -14017,7 +14255,7 @@ index fe317583..306fe2f8 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6754,7 +7526,7 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6754,7 +7571,7 @@ static void savestate_menu_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14026,7 +14264,7 @@ index fe317583..306fe2f8 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6792,9 +7564,11 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6792,9 +7609,11 @@ static void savestate_menu_host_pause_loop(void) {
   * Applying the routing permutation here means no guest instruction or SIO byte
   * transfer runs concurrently with the change. */
  static void runtime_settings_menu_host_pause_loop(void) {
@@ -14038,7 +14276,7 @@ index fe317583..306fe2f8 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6802,7 +7576,7 @@ static void runtime_settings_menu_host_pause_loop(void) {
+@@ -6802,7 +7621,7 @@ static void runtime_settings_menu_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14047,7 +14285,7 @@ index fe317583..306fe2f8 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6842,1178 +7616,1288 @@ struct NetplayVblankEpilogue {
+@@ -6842,1178 +7661,1289 @@ struct NetplayVblankEpilogue {
  };
  
  /* Called from gpu_vblank_tick() at each simulated vblank. */
@@ -15164,6 +15402,7 @@ index fe317583..306fe2f8 100644
 +    int override = -1;
 +#endif
 +
++    vram_dump_tick();   /* developer exactness check; inert unless PSX_VRAM_DUMP_DIR */
 +    runtime_perf_frame_begin();
 +    RuntimePerfFrameScope runtime_perf_frame_scope;
 +    runtime_perf_diag_tick();
@@ -16423,7 +16662,7 @@ index fe317583..306fe2f8 100644
  static void sdl_vblank_present(void) {
      NetplayVblankEpilogue ep = sdl_vblank_present_body();
      /* Selfcheck span-end rewind: after present-body C++ RAII, before any
-@@ -11437,7 +12321,16 @@ namespace {
+@@ -11437,7 +12367,16 @@ namespace {
  }  // namespace
  #endif
  
@@ -16440,7 +16679,7 @@ index fe317583..306fe2f8 100644
      /* Force line-buffered output so messages appear even if killed. */
      std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
      std::setvbuf(stderr, nullptr, _IOLBF, BUFSIZ);
-@@ -11481,6 +12374,12 @@ int main(int argc, char** argv) {
+@@ -11481,6 +12420,12 @@ int main(int argc, char** argv) {
      int         cli_renderer   = -1;   /* 0=software 1=opengl 2=vulkan */
      const char* cli_window_title = nullptr;  /* label windows in a fleet */
      const char* cli_memcard_dir = nullptr;   /* isolate writable state in a fleet */
@@ -16453,7 +16692,7 @@ index fe317583..306fe2f8 100644
      std::vector<std::string> cli_path_arg_storage;
      cli_path_arg_storage.reserve((size_t)argc);
      auto is_cli_option = [](const char* arg) {
-@@ -11551,6 +12450,33 @@ int main(int argc, char** argv) {
+@@ -11551,6 +12496,33 @@ int main(int argc, char** argv) {
              if      (std::strcmp(r, "software") == 0) cli_renderer = 0;
              else if (std::strcmp(r, "opengl")   == 0) cli_renderer = 1;
              else if (std::strcmp(r, "vulkan")   == 0) cli_renderer = 2;
@@ -16487,7 +16726,7 @@ index fe317583..306fe2f8 100644
          } else if (std::strcmp(argv[i], "--window-title") == 0 && i + 1 < argc) {
              cli_window_title = argv[++i];
          } else if (std::strcmp(argv[i], "--launcher") == 0) {
-@@ -13568,6 +14494,22 @@ int main(int argc, char** argv) {
+@@ -13568,6 +14540,22 @@ int main(int argc, char** argv) {
      if (cli_debug_port >= 0) debug_port      = (uint16_t)cli_debug_port;
      if (cli_renderer   >= 0) g_video_renderer = cli_renderer;
      if (cli_window_title)    window_title     = cli_window_title;
@@ -16510,7 +16749,7 @@ index fe317583..306fe2f8 100644
      if (cli_memcard_dir) {
          memcard_dir = std::filesystem::path(cli_memcard_dir);
          if (memcard_dir.is_relative())
-@@ -13764,6 +14706,13 @@ session_reboot:
+@@ -13764,6 +14752,13 @@ session_reboot:
      gpu_texture_correction_set(g_video_perspective_texturing);
      pgxp_set_cpu_mode(g_video_pgxp_cpu_mode);
      pgxp_set_tolerance(g_video_pgxp_tolerance);
@@ -16524,7 +16763,7 @@ index fe317583..306fe2f8 100644
      if (g_video_geometry_correction || g_video_perspective_texturing) {
          std::fprintf(stdout,
                       "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
-@@ -14086,7 +15035,7 @@ session_reboot:
+@@ -14086,7 +15081,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -16533,7 +16772,7 @@ index fe317583..306fe2f8 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +15054,9 @@ session_reboot:
+@@ -14105,7 +15100,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -16543,7 +16782,7 @@ index fe317583..306fe2f8 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +15161,19 @@ session_reboot:
+@@ -14210,6 +15207,19 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -16563,7 +16802,7 @@ index fe317583..306fe2f8 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +15540,8 @@ session_reboot:
+@@ -14576,6 +15586,8 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -16572,7 +16811,7 @@ index fe317583..306fe2f8 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15732,7 @@ session_reboot:
+@@ -14766,6 +15778,7 @@ session_reboot:
          }
      }
  
@@ -16580,7 +16819,7 @@ index fe317583..306fe2f8 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15772,28 @@ session_reboot:
+@@ -14805,11 +15818,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }
@@ -17903,6 +18142,18 @@ index e606b43f..ff875cf7 100644
          record_ok = ls_shadow_record_end(&record_ops, &saw_exception);
          record_owned = 0;
      } else {
+diff --git a/runtime/src/parity_trace.c b/runtime/src/parity_trace.c
+index 3b1692b9..0c3f2c20 100644
+--- a/runtime/src/parity_trace.c
++++ b/runtime/src/parity_trace.c
+@@ -206,3 +206,7 @@ uint32_t parity_trace_reads_get(ParityEntry* out, uint32_t max_rows)
+         out[i] = s_rring[(start + i) & (PARITY_RING_CAP - 1u)];
+     return n;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_rring)
 diff --git a/runtime/src/pgxp.cpp b/runtime/src/pgxp.cpp
 index 654f4ca4..b78f41fd 100644
 --- a/runtime/src/pgxp.cpp
@@ -21089,10 +21340,10 @@ index 00000000..016906fb
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..fcc1644f
+index 00000000..461d9569
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,897 @@
+@@ -0,0 +1,1004 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -21158,6 +21409,21 @@ index 00000000..fcc1644f
 +#define RW_JOB_DEADLINE_MS 250
 +
 +enum { RW_FREE = 0, RW_QUEUED = 1, RW_RUNNING = 2, RW_DONE = 3, RW_FAILED = 4 };
++
++/* D23AF3 (psx_obs.h): observability-only objects, registered by constructors
++ * in their own files. Only the whole pages inside an object are kept, so a
++ * neighbour sharing its first or last page is never affected. */
++#include "psx_obs.h"
++#define OBS_MAX 64
++static struct { uintptr_t lo, hi; const char *name; } s_obs[OBS_MAX];
++static int s_obs_n = 0;
++void psx_obs_register(const void *p, size_t bytes, const char *name) {
++    const uintptr_t lo = ((uintptr_t)p + 4095u) & ~(uintptr_t)4095u;
++    const uintptr_t hi = ((uintptr_t)p + bytes) & ~(uintptr_t)4095u;
++    if (s_obs_n >= OBS_MAX || hi <= lo) return;
++    s_obs[s_obs_n].lo = lo; s_obs[s_obs_n].hi = hi; s_obs[s_obs_n].name = name;
++    s_obs_n++;
++}
 +
 +#if RW_POSIX
 +typedef struct RwJob {
@@ -21273,12 +21539,69 @@ index 00000000..fcc1644f
 +    return f ? t * 1000000u / f : 0u;
 +}
 +
++/* D23AF3: PSX_FORK_WIPE=1 (developer, off by default) marks the registered
++ * objects wipe-on-fork before the first worker is forked. A fork then neither
++ * copies their page tables nor leaves them shared copy-on-write. */
++static int fork_wipe(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("PSX_FORK_WIPE"); v = e && e[0] == '1'; }
++    return v;
++}
++static int fork_wipe_check(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("PSX_FORK_WIPE_CHECK"); v = e && e[0] == '1'; }
++    return v;
++}
++static void obs_apply(void) {
++    static int done = 0;
++    if (done || !fork_wipe()) return;
++    done = 1;
++    size_t bytes = 0; int ok = 0, refused = 0;
++#if defined(__linux__) && defined(MADV_WIPEONFORK)
++    for (int i = 0; i < s_obs_n; i++) {
++        if (madvise((void *)s_obs[i].lo, s_obs[i].hi - s_obs[i].lo, MADV_WIPEONFORK) == 0) { ok++; bytes += s_obs[i].hi - s_obs[i].lo; }
++        else refused++;
++    }
++#else
++    refused = s_obs_n;
++#endif
++    fprintf(stdout, "psxrecomp: fork wipe: %d of %d objects wipe-on-fork (%.1f MB), %d refused%s\n",
++            ok, s_obs_n, (double)bytes / 1048576.0, refused, fork_wipe_check() ? "; worker access check on" : "");
++}
++/* PSX_FORK_WIPE_CHECK=1 (developer): a worker maps every registered object
++ * PROT_NONE; the first access to each is logged ("[fork wipe check]") and the
++ * object is opened again, so the worker carries on. A clean run proves the
++ * objects untouched by workers. */
++static void obs_check_fault(int sig, siginfo_t *si, void *ctx) {
++    (void)ctx;
++    const uintptr_t a = (uintptr_t)si->si_addr;
++    for (int i = 0; i < s_obs_n; i++) {
++        if (a >= s_obs[i].lo && a < s_obs[i].hi) {
++            (void)mprotect((void *)s_obs[i].lo, s_obs[i].hi - s_obs[i].lo, PROT_READ | PROT_WRITE);
++            char m[160]; int n = snprintf(m, sizeof m, "[fork wipe check] worker %ld touched %s\n", (long)getpid(), s_obs[i].name);
++            if (n > 0) (void)!write(2, m, (size_t)(n < (int)sizeof m ? n : (int)sizeof m - 1));
++            return;
++        }
++    }
++    signal(sig, SIG_DFL);   /* not ours: fault again with the default action */
++}
++static void obs_check_worker(void) {
++    if (!fork_wipe() || !fork_wipe_check()) return;
++    struct sigaction sa;
++    memset(&sa, 0, sizeof sa);
++    sa.sa_sigaction = obs_check_fault;
++    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
++    sigaction(SIGSEGV, &sa, NULL);
++    for (int i = 0; i < s_obs_n; i++) (void)mprotect((void *)s_obs[i].lo, s_obs[i].hi - s_obs[i].lo, PROT_NONE);
++}
++
 +/* ---- worker side -------------------------------------------------------- */
 +static void worker_main(int index) {
 +#if defined(__linux__)
 +    (void)prctl(PR_SET_PDEATHSIG, SIGKILL);
 +#endif
 +    if (getppid() != s_parent) _exit(0);
++    obs_check_worker();   /* D23AF3 developer check */
 +    psx_placement_pin_side();   /* D23Y4: off the emulation thread's core */
 +    signal(SIGINT, SIG_IGN);
 +    signal(SIGTERM, SIG_DFL);
@@ -21467,11 +21790,44 @@ index 00000000..fcc1644f
 +}
 +
 +/* ---- parent side -------------------------------------------------------- */
++static uint64_t s_fork_us_total = 0, s_fork_us_max = 0, s_forks = 0;   /* D23AF3 */
++/* D23AF3 (developer, off by default): PSX_FORK_DEV=1 keeps the GL driver's
++ * device mappings (/dev/dri/..., /dev/nvidia...) out of the fork: they are
++ * PFN maps whose page tables a fork copies, and a worker never touches the
++ * GPU (see the top of this file; a worker that did would fault and be
++ * counted in "deaths"). The driver maps and unmaps buffers as it runs, so the
++ * map is read again before every fork. */
++static uint64_t s_dev_marked = 0, s_dev_bytes = 0;
++static void dev_dontfork(void) {
++#if defined(__linux__) && defined(MADV_DONTFORK)
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("PSX_FORK_DEV"); on = e && e[0] == '1'; }
++    if (!on) return;
++    FILE *f = fopen("/proc/self/maps", "r");
++    if (!f) return;
++    char line[512];
++    while (fgets(line, sizeof line, f)) {
++        unsigned long lo, hi;
++        char path[256] = "";
++        if (sscanf(line, "%lx-%lx %*s %*s %*s %*s %255s", &lo, &hi, path) < 2) continue;
++        if (strncmp(path, "/dev/dri/", 9) != 0 && strncmp(path, "/dev/nvidia", 11) != 0) continue;
++        if (madvise((void *)lo, hi - lo, MADV_DONTFORK) == 0) { s_dev_marked++; s_dev_bytes += hi - lo; }
++    }
++    fclose(f);
++#endif
++}
 +static int spawn(int index) {
 +    fflush(stdout);
 +    fflush(stderr);
++    obs_apply();
++    dev_dontfork();
++    const uint64_t f0 = ticks();
 +    pid_t pid = fork();
 +    if (pid < 0) return 0;
++    if (pid > 0) {
++        const uint64_t us = ticks_us(ticks() - f0);
++        s_forks++; s_fork_us_total += us; if (us > s_fork_us_max) s_fork_us_max = us;
++    }
 +    if (pid == 0) worker_main(index);   /* never returns */
 +    s_pids[index] = pid;
 +    s_spawns++;
@@ -21951,14 +22307,16 @@ index 00000000..fcc1644f
 +        }
 +    snprintf(out, cap, "{\"workers\":%d,\"spawns\":%llu,\"deaths\":%llu,\"kills\":%llu,"
 +             "\"done\":%llu,\"failed\":%llu,\"overflows\":%llu,\"job_us_avg\":%.0f,\"job_us_max\":%llu,"
-+             "\"queued\":%u,\"running\":%u,\"ready\":%u,\"restarts\":%llu,\"restart_us_avg\":%.0f,\"restart_us_max\":%llu,\"dying\":%d,\"handbacks\":%u,\"epoch_bad\":%llu}",
++             "\"queued\":%u,\"running\":%u,\"ready\":%u,\"restarts\":%llu,\"restart_us_avg\":%.0f,\"restart_us_max\":%llu,\"fork_us_avg\":%.0f,\"fork_us_max\":%llu,\"dev_marked\":%llu,\"dev_mb\":%.1f,\"dying\":%d,\"handbacks\":%u,\"epoch_bad\":%llu}",
 +             s_count, (unsigned long long)s_spawns, (unsigned long long)s_deaths,
 +             (unsigned long long)s_kills, (unsigned long long)s_jobs_done,
 +             (unsigned long long)s_jobs_failed, (unsigned long long)s_jobs_overflow,
 +             s_jobs_done ? (double)s_job_us_total / (double)s_jobs_done : 0.0,
 +             (unsigned long long)s_job_us_max, q, r, d, (unsigned long long)s_restarts,
 +             s_restarts ? (double)s_restart_us_total / (double)s_restarts : 0.0,
-+             (unsigned long long)s_restart_us_max, s_ndying, s_sh ? atomic_load(&s_sh->handbacks) : 0u, (unsigned long long)s_epoch_bad);
++             (unsigned long long)s_restart_us_max,
++             s_forks ? (double)s_fork_us_total / (double)s_forks : 0.0, (unsigned long long)s_fork_us_max,
++             (unsigned long long)s_dev_marked, s_forks ? (double)s_dev_bytes / 1048576.0 / (double)s_forks : 0.0, s_ndying, s_sh ? atomic_load(&s_sh->handbacks) : 0u, (unsigned long long)s_epoch_bad);
 +}
 +
 +void render_worker_shutdown(void) {
@@ -22687,7 +23045,7 @@ index 00000000..199b37d4
 +    out[3] = atomic_load(&s_cls_dropped); out[4] = atomic_load(&s_cls_full);
 +}
 diff --git a/runtime/src/sio.c b/runtime/src/sio.c
-index 08dcadd0..05e36cf9 100644
+index 08dcadd0..9bec3ffe 100644
 --- a/runtime/src/sio.c
 +++ b/runtime/src/sio.c
 @@ -17,6 +17,7 @@
@@ -22824,7 +23182,7 @@ index 08dcadd0..05e36cf9 100644
          return 0;
      if (r->p != r->end) return 0;
      return 1;
-@@ -3156,8 +3181,17 @@ int sio_snapshot_read(const uint8_t *p, uint32_t len) {
+@@ -3156,8 +3181,23 @@ int sio_snapshot_read(const uint8_t *p, uint32_t len) {
      const uint32_t rumble_bytes = (uint32_t)(sizeof(pad_rumble_map) +
                                    sizeof(pad_rumble_small) +
                                    sizeof(pad_rumble_large));
@@ -22844,8 +23202,14 @@ index 08dcadd0..05e36cf9 100644
 -    return sio_snap_parse(&r);
 +    return sio_snap_parse(&r, saved_players);
  }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(sio_trace_buf)
++PSX_OBS_REGISTER(sio_txn_buf)
++PSX_OBS_REGISTER(sio_irq_buf)
 diff --git a/runtime/src/spu.c b/runtime/src/spu.c
-index dc358955..c5eca1c1 100644
+index dc358955..199a301e 100644
 --- a/runtime/src/spu.c
 +++ b/runtime/src/spu.c
 @@ -154,6 +154,8 @@ typedef struct {
@@ -22884,11 +23248,40 @@ index dc358955..c5eca1c1 100644
  }
  
  /* ---- boot snapshot: complete SPU register + voice state (LE field wire) ---- */
+@@ -1822,3 +1826,7 @@ void spu_snapshot_part_digests(SpuSnapPartDigests *out)
+     crc = crc32_update(crc, buf + regs_n + voices_n, SPU_SNAPSHOT_TAIL_BYTES);
+     out->tail = crc ^ 0xFFFFFFFFu;
+ }
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++PSX_OBS_REGISTER(s_events)
 diff --git a/runtime/src/starvation_ring.c b/runtime/src/starvation_ring.c
-index f0d6f913..b29320f4 100644
+index f0d6f913..5fbc5c12 100644
 --- a/runtime/src/starvation_ring.c
 +++ b/runtime/src/starvation_ring.c
-@@ -48,6 +48,7 @@ static PSX_BSS StarvationEntry s_ring[STARVATION_RING_CAP];
+@@ -29,9 +29,20 @@ static uint64_t host_us_now(void) {
+ }
+ #else
+ #include <sys/time.h>
++/* D23Y5 (developer, off by default): PSX_STARVATION_COARSE=1 stamps the ring
++ * and the watchdog heartbeat with the kernel's tick clock. Both are
++ * diagnostics (the watchdog fires after seconds), and a precise read costs a
++ * system call plus an HPET read on hosts whose TSC the kernel distrusts
++ * (citadel, 2026-11-17: about 2.4% of the emulation thread here). */
+ static uint64_t host_us_now(void) {
++    static int coarse = -1;
++    if (coarse < 0) { const char *e = getenv("PSX_STARVATION_COARSE"); coarse = e && e[0] == '1'; }
+     struct timespec ts;
++#if defined(CLOCK_MONOTONIC_COARSE)
++    clock_gettime(coarse ? CLOCK_MONOTONIC_COARSE : CLOCK_MONOTONIC, &ts);
++#else
+     clock_gettime(CLOCK_MONOTONIC, &ts);
++#endif
+     return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+ }
+ #endif
+@@ -48,6 +59,7 @@ static PSX_BSS StarvationEntry s_ring[STARVATION_RING_CAP];
  static uint64_t        s_seq = 0;
  static uint64_t        s_last_heartbeat_us = 0;
  static int             s_dump_done = 0;
@@ -22896,7 +23289,7 @@ index f0d6f913..b29320f4 100644
  
  /* Watchdog threshold: 4 seconds of wall-clock without a heartbeat is
   * "TCP died, BIOS still running" territory. Real BIOS pad polling
-@@ -69,14 +70,20 @@ static uint64_t starvation_timeout_us(void) {
+@@ -69,14 +81,20 @@ static uint64_t starvation_timeout_us(void) {
      return timeout;
  }
  
@@ -22918,7 +23311,7 @@ index f0d6f913..b29320f4 100644
      s_dump_done = 0;
  }
  
-@@ -242,19 +249,46 @@ void starvation_ring_dump(const char *path) {
+@@ -242,19 +260,46 @@ void starvation_ring_dump(const char *path) {
      fclose(f);
  }
  
@@ -22967,6 +23360,16 @@ index f0d6f913..b29320f4 100644
          fflush(stderr);
          exit(2);
      }
+@@ -287,3 +332,9 @@ uint64_t starvation_ring_total(void) { return 0; }
+ int starvation_ring_get(uint64_t seq, StarvationEntry *out) { (void)seq; (void)out; return 0; }
+ 
+ #endif /* STARVATION_RING_ENABLED */
++
++/* D23AF3: observability-only objects; wipe-on-fork for redraw workers (psx_obs.h). */
++#include "psx_obs.h"
++#if STARVATION_RING_ENABLED
++PSX_OBS_REGISTER(s_ring)
++#endif
 diff --git a/runtime/src/ttk_texture_sample.h b/runtime/src/ttk_texture_sample.h
 new file mode 100644
 index 00000000..c82c70d9

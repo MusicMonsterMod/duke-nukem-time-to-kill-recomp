@@ -2506,6 +2506,9 @@ void object(CPUState* cpu) {
     // D08A46: a red or yellow key card (in the world or in Duke's hand).
     KeycardRecolour keycard;
     const bool keycard_on=keycard_frame(viewmodel || first_person_duke_drawing() || third_person_duke_drawing(),keycard);
+    // D08A45: a Family Jewel model (any object showing one) in blue, green or red.
+    JewelRecolour jewel;
+    const bool jewel_on=jewel_frame(mesh,jewel);
     const bool game_view=game_camera_view();   // D52
     light_probe_cur=mesh;
     f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
@@ -2710,6 +2713,8 @@ void object(CPUState* cpu) {
                 }
                 if(inside) {p.clut=keycard.bank_clut;p.clut_bank=true;}
             }
+            if(jewel_on && !p.clut_bank && !((p.tpage>>7)&3))
+                for(unsigned k=0;k<4;++k) if(p.clut==jewel.clut[k]) {p.clut=jewel.bank_clut[k];p.clut_bank=true;break;}
         }
         const uint32_t color_bytes=type==0x34 || type==0x3c ? 16 : 8;
         for(unsigned j=0;j<p.count;++j) {

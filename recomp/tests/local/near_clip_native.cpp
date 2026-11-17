@@ -87,6 +87,16 @@ bool keycard_frame(bool,KeycardRecolour& out) {
     out.clut=0x1234;out.page=0;out.rect[2]=255;out.rect[3]=255;out.bank_clut=0x7810;return true;
 }
 }
+static bool test_jewel=false;
+namespace ttk {
+struct JewelRecolour {uint16_t clut[4]={0,0,0,0},bank_clut[4]={0,0,0,0};};
+bool jewel_frame(uint32_t,JewelRecolour& out) {
+    out={};if(!test_jewel) return false;
+    const uint16_t c[4]={0x1234,0x4321,0x1111,0x2222},b[4]={0x7850,0x7851,0x7852,0x7853};
+    for(int k=0;k<4;++k) {out.clut[k]=c[k];out.bank_clut[k]=b[k];}
+    return true;
+}
+}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;
@@ -327,6 +337,32 @@ static void packet_contracts(const char* executable) {
             assert(pass==2 ? observed_bank_cluts.empty() : observed_bank_cluts.count(0x7810)==1 && !observed_bank_cluts.count(0x1234));
         }
         std::puts("PASS: D08A46 red and yellow key card faces read their palette from the second bank, other faces never");
+        // D08A45: a jewel model's faces each take their own palette's bank
+        // replacement (two palettes here); a face with a CLUT outside the
+        // model's set, or any face when the mesh is not a jewel's, never.
+        for(int pass=0;pass<3;++pass) {
+            const int bank0=observed_clut_bank,other0=observed_mode_other;observed_bank_cluts.clear();
+            auto c=reset();c.gpr[31]=0x80032288;prop_object(c,0x80180000u);
+            psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int face=0;face<2;++face) {
+                const uint32_t v=verts+face*24;
+                word(v,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(v+4,5000+face*200);
+                word(v+8,100|uint32_t(uint16_t(-100))<<16);word(v+12,5000+face*200);
+                word(v+16,100u<<16);word(v+20,5000+face*200);
+                const uint32_t record=list+4+face*16;
+                word(record,face?0x00050403:0x00020100);
+                word(record+4,(face?(pass==1?0x5555u:0x4321u):0x1234u)<<16);
+                word(record+8,0x02000000|0x1f);word(record+12,0x1f00);
+            }
+            word(list,0x00020024);word(list+36,0xff);
+            test_jewel=pass<2;observed_hook(&c,0x80010000);test_jewel=false;
+            assert(host_vertices==6 && observed_mode_other==other0);
+            assert(observed_clut_bank-bank0==(pass==0?6:pass==1?3:0));
+            if(pass==0) assert(observed_bank_cluts.count(0x7850)==1 && observed_bank_cluts.count(0x7851)==1 && !observed_bank_cluts.count(0x1234));
+            if(pass==1) assert(observed_bank_cluts.count(0x7850)==1 && !observed_bank_cluts.count(0x7851));
+            if(pass==2) assert(observed_bank_cluts.empty());
+        }
+        std::puts("PASS: D08A45 jewel faces read their own palette's blue, green or red ramp from the second bank, other faces never");
         // D17AP: a warped prop quad is drawn as its two native halves
         // (0-1-2, 2-1-3), each with its own plane depth, as D17X requires;
         // as one packet its snapped corners took raw vertex depth.

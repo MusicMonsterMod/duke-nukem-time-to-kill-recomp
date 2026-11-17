@@ -12,6 +12,7 @@ void mission_update(unsigned level,const uint16_t* flags);
 // D08A46: Duke 3D key card colours are on (red and yellow card icons); off,
 // every key card shows the blue icon as the cards in the world do.
 void mission_keycard_colours(bool on);
+void mission_jewel_colours(bool on);   // D08A45: jewel icons match the world
 void mission_browse_press(int direction);
 bool mission_visible();
 void mission_close();

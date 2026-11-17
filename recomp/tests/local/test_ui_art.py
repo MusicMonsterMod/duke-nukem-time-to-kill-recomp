@@ -132,7 +132,8 @@ class ProjectUiArt(unittest.TestCase):
         names = {item['name'] for item in manifest['items']}
         expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
                     'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
-                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT',
+                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'FAMILY JEWEL BLUE', 'FAMILY JEWEL GREEN',
+                    'FAMILY JEWEL RED', 'STEROIDS', 'MEDKIT',
                     'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE', 'CHALLENGE ITEM'}  # D08A20 option A
         self.assertEqual(names, expected)
         for item in manifest['items']:

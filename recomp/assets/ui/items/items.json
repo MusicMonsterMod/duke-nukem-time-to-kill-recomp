@@ -1,5 +1,5 @@
 {
-  "note": "Original 16x16 RGBA icons by MusicMonsterMod (D24A). One drawing can serve several items: every key-slot item is the same keycard object in the game (types 153/154, named per level). D08A46: Duke 3D colours by mission slot, type 153 (item 6) blue, 154 (item 7) red, 155 (item 8) yellow; item-keycard-red.png is a hue-shifted copy of the blue card drawing (no level names an item-8 card, so no yellow icon).",
+  "note": "Original 16x16 RGBA icons by MusicMonsterMod (D24A). One drawing can serve several items: every key-slot item is the same keycard object in the game (types 153/154, named per level). D08A46: Duke 3D colours by mission slot, type 153 (item 6) blue, 154 (item 7) red, 155 (item 8) yellow; item-keycard-red.png is a hue-shifted copy of the blue card drawing (no level names an item-8 card, so no yellow icon). D08A45: the Family Jewels (items 14, 15, 16; types 854-856) in the energy crystals' blue, green and red; the coloured icons are recoloured copies of the pink jewel drawing (hue set to the crystal icons', saturation lifted), chosen by item in the mission row.",
   "items": [
     {"name": "SUBWAY SECURITY KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [0]},
     {"name": "TRANSPORT ROOM ID", "file": "item-keycard-red.png", "types": [154], "levels": [0]},
@@ -16,6 +16,9 @@
     {"name": "OLD NOTE", "file": "item-old-note.png", "types": [548], "levels": [1]},
     {"name": "TORN PAPER", "file": "item-scrap-of-paper.png", "types": [549], "levels": [1]},
     {"name": "FAMILY JEWEL", "file": "item-family-jewel.png", "types": [854, 855, 856], "levels": [6]},
+    {"name": "FAMILY JEWEL BLUE", "file": "item-family-jewel-blue.png", "types": [854], "levels": [6], "colour_of": "FAMILY JEWEL"},
+    {"name": "FAMILY JEWEL GREEN", "file": "item-family-jewel-green.png", "types": [855], "levels": [6], "colour_of": "FAMILY JEWEL"},
+    {"name": "FAMILY JEWEL RED", "file": "item-family-jewel-red.png", "types": [856], "levels": [6], "colour_of": "FAMILY JEWEL"},
     {"name": "STEROIDS", "file": "hud-steroids.png", "hud_file": "hud-steroids-15col.png", "types": [638], "levels": [], "hud": true, "gadget": 4},
     {"name": "MEDKIT", "file": "gadget-medkit.png", "hud_file": "gadget-medkit-15col.png", "types": [], "levels": [], "gadget": 5},
     {"name": "INVINCIBILITY", "file": "hud-invincibility.png", "hud_file": "hud-invincibility-15col.png", "types": [1047], "levels": [], "hud": true},

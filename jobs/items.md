@@ -2084,13 +2084,35 @@ Work log, 2026-11-16 (implemented, Needs playtest):
 
 ### D08A45 - FAMILY JEWELS jewels in three colours
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done, user-accepted 2026-11-17 ("perfect. lock it in and close it out"). Dependencies: -.** [Note 501](../documentation/501-d08a45-family-jewel-colours.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the three jewels in FAMILY JEWELS are all pink. Give each
 a clearly different colour, same shape and style, consistent for the
 pickup, its inventory icon and wherever it is placed. Gameplay unchanged.
 Acceptance: the three jewels distinct in the world and in the inventory.
+
+Work log, 2026-11-17 (implemented, Needs playtest):
+- Colours: the user chose the energy crystals' "blue, green, red": type 854
+  (item 14) blue, 855 (item 15) green, 856 (item 16) red.
+- Audit: three models (1595-1597), the same jewel: 13 textured 4-bit faces,
+  four single-hue pink palettes.
+- Look (Modernized, Polymorph): the texels stay the game's own; 12
+  recoloured ramps (crystal hue, saturation lifted so pale facets do not read
+  pink) in the second bank at y 481, read through D08A46's
+  `PSX_MOD_HOST_CLUT_BANK` path. The test is the mesh being drawn (a jewel
+  model), so any object showing a jewel is coloured. Mission row: blue, green
+  and red jewel icons by item. Developer `DNTTK_JEWEL_COLOURS=original`.
+  Title only, no framework change.
+- Evidence: spawned jewels blue, green, red in third and first person;
+  `original` all pink; walking into 855 sets item 15 only; mission-row dump
+  shows the green icon; Vanilla unchanged. `ttk-near-test` (new D08A45
+  group), `ttk-inventory-test` (new jewel icon check), `ttk-input-test`,
+  Python 260 OK. Built in the main checkout (`recomp/build-local`).
+- Not established: where used jewels are placed (a different model there
+  would stay pink), a full level 6 playthrough. Before/after:
+  `research/before-after/D08A45/` (local).
+- 2026-11-17, user: "perfect. lock it in and close it out". Done.
 
 ### D08A46 - Duke 3D-style coloured keycards
 

@@ -3062,6 +3062,13 @@ inventory. A third card slot, used by no level of the campaign, would be
 yellow. Doors and readers work exactly as before. The Classic renderer and
 Vanilla keep every card blue.
 
+**Coloured Family Jewels (D08A45).** In Modernized with the Polymorph world
+renderer, the three jewels of FAMILY JEWELS take the energy crystals'
+colours instead of all being pink: the first is blue, the second green and
+the third red, on the ground and in the mission inventory. Picking them up
+and using them work exactly as before. The Classic renderer and Vanilla keep
+them pink.
+
 **Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
 will use always has its own box in the bottom right corner, just above
 the ammo box, in the status bar's own style: the gadget's icon (a medkit case

@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 (early morning) - D08A45: Family Jewels in three colours (Done)
+
+The three jewels of FAMILY JEWELS are blue, green and red (the energy crystals' colours, the user's choice) instead of all pink, in the world and in the mission inventory ([note 501](501-d08a45-family-jewel-colours.md)). The jewel art is kept; only its palettes are swapped, read from the second texture bank. Modernized with Polymorph; Classic and Vanilla unchanged. Built into the main player build. User-accepted and closed out: "perfect. lock it in and close it out".
+
 ## 2026-11-16 (late night) - D08A46: Duke 3D-style coloured key cards (Done)
 
 Key cards follow Duke 3D's colours by mission slot: the first card of a level stays blue, the second (TRANSPORT ROOM ID, VALVE KEY, VALVE ROOM KEY) is red, a third slot yellow; in the world, in Duke's hand and in the mission inventory ([note 500](500-d08a46-coloured-keycards.md)). The retail card art is kept and only its 16-colour palette is swapped, read from the second texture bank. No measurable GPU cost at 180 Hz. Modernized with Polymorph; Classic and Vanilla unchanged. User-accepted and closed out: "its solid! lock it in, close it out".

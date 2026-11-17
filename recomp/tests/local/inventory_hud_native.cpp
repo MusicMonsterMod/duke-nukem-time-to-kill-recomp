@@ -78,6 +78,22 @@ int main(int argc,char**argv) {
     assert(translucent>1000); // the grey panel
     for(int x=0;x<w;++x)assert(!pixels[(h-1)*w+x]); // margin under the outline
     save("mission-level6-key1",pixels,w,h);
+    {   // D08A45: the found second jewel (item 15) shows the green icon, no pink.
+        int green=0,pink=0;
+        for(int i=0;i<w*h;++i) {
+            const int r=(pixels[i]>>16)&255,g=(pixels[i]>>8)&255,b=pixels[i]&255;
+            green+=g>r+60 && g>b+60;pink+=r>180 && b>150 && g+40<r;
+        }
+        assert(green>40 && !pink);
+        ttk::mission_jewel_colours(false);ttk::mission_update(6,mission);
+        visible();green=pink=0;
+        for(int i=0;i<w*h;++i) {
+            const int r=(pixels[i]>>16)&255,g=(pixels[i]>>8)&255,b=pixels[i]&255;
+            green+=g>r+60 && g>b+60;pink+=r>180 && b>150 && g+40<r;
+        }
+        assert(!green && pink>40);   // off: the original pink drawing
+        ttk::mission_jewel_colours(true);ttk::mission_update(6,mission);visible();
+    }
     assert(ttk_mission_card_image(&card,&cw,&ch,624) && cw==592 && ch==52);
     save("card-key1-missing",card,cw,ch);
     assert(!ttk_mission_card_image(&card,&cw,&ch,500)); // needs the full width

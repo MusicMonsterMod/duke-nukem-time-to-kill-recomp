@@ -112,6 +112,7 @@ static void inventory_feedback(bool announce) {
     uint16_t mission[17]{};
     for(unsigned i=6;i<17;++i)mission[i]=psx_mod_read_half(player+0x354+4*i);
     mission_keycard_colours(keycard_colours_on());   // D08A46: icons match the cards
+    mission_jewel_colours(jewel_colours_on());   // D08A45: jewel icons match the jewels
     mission_update(psx_mod_read_word(0x800be570),mission);
 }
 // D08A19: mark a mission item used. The original uses it up at animation 47

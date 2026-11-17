@@ -1258,6 +1258,7 @@ static bool facing_ready() {
 #include "sleeping_enemies.inc"
 #include "night_vision_look.inc"
 #include "keycard_colours.inc"
+#include "jewel_colours.inc"
 #include "spawn.inc"
 #include "pickup_nudge.inc"
 #include "level_lights.inc"

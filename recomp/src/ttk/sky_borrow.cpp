@@ -198,8 +198,8 @@ void hook(CPUState* cpu,uint32_t address) {
 // meshes' polygons with psx_mod_gpu_host_vertex_foreign).
 // The second bank: Duke Hill at x 512..1023 when the sky pack is there, and
 // D53's security TV atlas at x 0..255 (security_monitor.cpp), D41L's prop
-// lights at x 256 (rows 0-31) and D08A46's key card palettes at x 256-287,
-// y 480. Built once, on
+// lights at x 256 (rows 0-31), D08A46's key card palettes at x 256-287,
+// y 480 and D08A45's jewel palettes at x 256-447, y 481. Built once, on
 // the renderer's first upload.
 extern "C" const uint16_t* ttk_foreign_vram(void) {
     static std::vector<uint16_t> bank;
@@ -210,6 +210,7 @@ extern "C" const uint16_t* ttk_foreign_vram(void) {
         if(security_tv_paint_bank) security_tv_paint_bank(bank.data());
         if(prop_light_paint_bank) prop_light_paint_bank(bank.data());   // D41L: flames, halos, embers at x 256
         keycard_paint_bank(bank.data());   // D08A46: red and yellow key card palettes at x 256-287, y 480
+        jewel_paint_bank(bank.data());   // D08A45: blue, green and red jewel palettes at x 256-447, y 481
         bool any=sky;for(size_t i=0;!any && i<bank.size();++i) any=bank[i]!=0;
         if(!any) bank.clear();
     });

@@ -247,6 +247,14 @@ bool keycard_colours_on();
 bool keycard_frame(bool duke_frame,KeycardRecolour& out);
 void keycard_paint_bank(uint16_t* bank);   // the palettes, into the second bank
 void keycard_colour_stats(uint64_t out[2]);
+// D08A45: the Family Jewels in blue, green and red (jewel_colours.inc).
+struct JewelRecolour {uint16_t clut[4]={0,0,0,0},bank_clut[4]={0,0,0,0};};
+bool jewel_colours_on();
+// The mesh being drawn: when it is a jewel model, its palettes and their
+// recoloured replacements in the second bank.
+bool jewel_frame(uint32_t mesh,JewelRecolour& out);
+void jewel_paint_bank(uint16_t* bank);   // the ramps, into the second bank
+void jewel_colour_stats(uint64_t out[3]);
 bool first_person_interaction_drawing();
 // D12: true while Duke's hand joint, its weapon, muzzle flash or held item is
 // drawn with the first-person weapon transform.

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (early morning) - D08A45 Family Jewel colours closed out (Done)
+
+[Note 501](501-d08a45-family-jewel-colours.md). Title only: `jewel_colours.inc` (12 ramps at bank x 256-447, y 481; `jewel_frame(mesh)` matches the model of types 854-856 and collects its four CLUTs in first-use order), hook in `near_clip.cpp` after the key card one, `mission_jewel_colours()` and `art_for(name,item)` in the inventory HUD, three icons in `assets/ui/items/`. Developer `DNTTK_JEWEL_COLOURS=original`. Lab `recomp/analysis/d08a45/` (local: `probe.py` cases `dump`, `world`, `grab`, `vanilla`; `gen.py` makes the ramps and icons from the measured palettes). Built in the main checkout; `.claude/settings.local.json` turns the background worktree guard off at the user's request. Open: where used jewels are placed.
+
 ## 2026-11-16 (late night) - D08A46 coloured key cards closed out (Done)
 
 [Note 500](500-d08a46-coloured-keycards.md). Framework (in the exported patch, verified on a clean `08ec704a`): `PSX_MOD_HOST_CLUT_BANK` (16) for `psx_mod_gpu_host_vertex_mode` (the entry point's mode mask is now 5 bits), palette-only second-bank reads (`clut_at`, `v_depth + 8`) in both textured programs, `render_copy` names regenerated. Title: `keycard_colours.inc` (palettes at bank x 256-287, y 480; held card from `player+0x3b8` / `+0x3b9` / pose 266), hook in `near_clip.cpp`, `mission_keycard_colours()` in the inventory HUD; developer `DNTTK_KEYCARD_COLOURS=original`. Built and tested in a worktree, merged to `main` and the player build rebuilt. Test spots: level-0 reader route = slot 10 of `recomp/analysis/d08a28-missing/cards` (walk forward 54 frames, E). Spawned key cards land inside walls when Duke faces a building; turn down the street first.

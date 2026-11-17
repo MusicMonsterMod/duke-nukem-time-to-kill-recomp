@@ -212,7 +212,12 @@ bool load_mission(){
 // D08A46: the key cards of mission slot 7 are red in the Duke 3D colours; with
 // them off they show the blue card's icon, as in the world.
 std::atomic<bool> keycard_colours{true};
-const MissionArt* art_for(const char* name){
+// D08A45: the Family Jewels (items 14, 15, 16) are blue, green and red in the
+// world; their icons follow. Off, all three show the original pink drawing.
+std::atomic<bool> jewel_colours{true};
+const MissionArt* art_for(const char* name,unsigned item){
+    if(jewel_colours.load(std::memory_order_relaxed) && !std::strcmp(name,"FAMILY JEWEL") && item>=14 && item<=16)
+        name=item==14?"FAMILY JEWEL BLUE":item==15?"FAMILY JEWEL GREEN":"FAMILY JEWEL RED";
     if(!keycard_colours.load(std::memory_order_relaxed))
         for(const char* red:{"TRANSPORT ROOM ID","VALVE KEY","VALVE ROOM KEY"})
             if(!std::strcmp(name,red)) {name="SUBWAY SECURITY KEY";break;}
@@ -251,7 +256,7 @@ struct Canvas {
 // item keeps its icon with the user's tick on the icon's bottom-right corner.
 void framed_icon(Canvas& c,const Sprite& frame,const MissionDef& d,int x,int y){
     c.stretch(frame,x,y,42,39);
-    if(const MissionArt* a=art_for(d.name))c.sprite(collected(d)?a->icon:a->missing,x+5,y+3,2);
+    if(const MissionArt* a=art_for(d.name,d.item))c.sprite(collected(d)?a->icon:a->missing,x+5,y+3,2);
     if(used(d) && used_tick.w)c.sprite(used_tick,x+5+(16-used_tick.w)*2,y+3+(16-used_tick.h)*2,2);
 }
 unsigned found_count(){unsigned n=0;for(int i=0;i<slot_count;++i)n+=collected(*slots[i]);return n;}
@@ -330,6 +335,7 @@ void inventory_update(unsigned item,const uint16_t* f,const int16_t* a,const uin
     if(announce && count && input.active){expires=SDL_GetTicks()+2000;mission_expires=0;}
 }
 void mission_keycard_colours(bool on) {keycard_colours.store(on,std::memory_order_relaxed);}
+void mission_jewel_colours(bool on) {jewel_colours.store(on,std::memory_order_relaxed);}
 void mission_update(unsigned level,const uint16_t* mission) {
     if(level!=mission_level){browse=0;mission_expires=0;}
     mission_level=level;

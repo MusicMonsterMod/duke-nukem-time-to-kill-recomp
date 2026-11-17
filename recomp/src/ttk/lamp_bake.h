@@ -16,6 +16,10 @@ struct BakeLamp {
     float radius;        // reach (Relit reach of the lamp's own room applied)
     bool channel;        // varies live (style, signal, breakable prop): own channel
     float mean;          // its mean scalar, when it overflows a triangle's channels
+    // D55A: how far it strays from its mean (0-1), for choosing a face's four
+    // channel lamps: a traffic light (on, off) baked at its mean is wrong all
+    // the time, a candle (0.78-1.0) hardly at all.
+    float swing = 1.0f;
 };
 
 struct BakeInput {
@@ -35,17 +39,21 @@ struct BakeInput {
 //  [0..2]  chart origin P0 (world), [3]  front chart u0 (texels, -1 none)
 //  [4..6]  e1 / texel,              [7]  front chart v0
 //  [8..10] e2 / texel,              [11] back chart u0 (-1 none)
-//  [12] back chart v0, [13] channel lamps 0-1 (a*256+b, 255 none),
-//  [14] channel lamps 2-3, [15] 0
+//  [12] back chart v0, [13] channel lamps 0-2 (a*65536+b*256+c, 255 none),
+//  [14] channel lamps 3-5, [15] chart width * 4096 + height.
+// D55A: a chart whose channel lamp 4 is not 255 is "wide": channels 4-5 sit
+// in the R and G of the channel texels one chart width to the right.
 struct BakeOutput {
     int width = 0, height = 0;
     std::vector<uint32_t> steady;     // GL_RGB9_E5: the steady lamps' light
-    std::vector<uint32_t> channels;   // RGBA8: up to 4 channel lamps' weights (0-1)
+    std::vector<uint32_t> channels;   // RGBA8: up to 4 channel lamps' weights (0-1); 4-5 beside wide charts
     std::vector<float> charts;        // 16 floats per face
     // Statistics.
     double ms = 0;
     uint64_t texels = 0, rays = 0, lamp_texels = 0;
     unsigned faces_lit = 0, faces_two_sided = 0, channel_overflows = 0;
+    unsigned faces_vary[4] = {0,0,0,0};   // D55A: faces with 1-4, 5-6, 7-8, 9+ varying lamps
+    unsigned strong_overflows = 0;   // D55A: overflowing lamps with a swing of 0.5 or more (on/off)
 };
 
 bool lamp_bake(const BakeInput& in, BakeOutput& out, std::string& error);

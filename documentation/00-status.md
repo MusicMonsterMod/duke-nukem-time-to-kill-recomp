@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 - D55A: traffic lights flash on the street again (Done)
+
+Traffic lights light the street and walls around them in their own colour and flash with the light again, in RELIT and ENHANCED ([note 502](502-d55a-traffic-lights-in-the-bake.md)). Two bake faults: the bake's lamp levels had no signal brightness (always on), and faces under a set of traffic lights needed six changing lamps against four. Checked offscreen on the level 5 street against the pre-fix build; a decode slip that left bright patches (UI slot 7, OBEY OR DIE) was fixed the same day. Accepted by the user: "lock it in and close it out".
+
 ## 2026-11-17 (early morning) - D08A45: Family Jewels in three colours (Done)
 
 The three jewels of FAMILY JEWELS are blue, green and red (the energy crystals' colours, the user's choice) instead of all pink, in the world and in the mission inventory ([note 501](501-d08a45-family-jewel-colours.md)). The jewel art is kept; only its palettes are swapped, read from the second texture bank. Modernized with Polymorph; Classic and Vanilla unchanged. Built into the main player build. Accepted, then reopened the same day: jewels placed in the nuke-symbol wheel were still pink; the wheel's own jewel faces are now coloured socket by socket, and the jewel in Duke's hand during the hand-in takes its own colour (it showed blue three times). User-accepted and closed out: "lock it in and close it out".

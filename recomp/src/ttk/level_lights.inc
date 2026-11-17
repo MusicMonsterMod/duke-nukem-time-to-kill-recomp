@@ -140,6 +140,9 @@ static unsigned level_lamp_listing_level=~0u;
 static inline double lamp_ss(double a,double b,double x) {const double t=std::clamp((x-a)/(b-a),0.0,1.0);return t*t*(3-2*t);}
 static void signal_cache_clear();
 static std::vector<std::array<float,3>> signal_last;   // D55: per lamp, the colour last shown (held while it dies)
+// D55A: per lamp, this tick's signal colour and brightness (every signal
+// lamp, near Duke or not: the bake lights them all); -1 not read yet.
+static std::vector<std::array<float,4>> signal_state;
 static std::string level_lamps_dir() {
     if(const char* e=std::getenv("DNTTK_LIGHTS_DIR"); e && *e) return e;
     std::error_code ec;
@@ -327,7 +330,7 @@ struct SignalGlow {double e=0;float rgb[3]={0,0,0};};   // e: emitter fraction (
 static std::map<uint32_t,std::vector<SignalFace>> signal_faces;              // mesh -> its animated faces
 static std::map<std::array<uint32_t,5>,SignalGlow> signal_glows;             // face + frame -> glow
 static std::map<std::array<uint32_t,4>,double> signal_peaks;                  // animation entry + face -> brightest frame
-static void signal_cache_clear() {signal_faces.clear();signal_glows.clear();signal_peaks.clear();signal_last.clear();}
+static void signal_cache_clear() {signal_faces.clear();signal_glows.clear();signal_peaks.clear();signal_last.clear();signal_state.clear();}
 static inline bool signal_ram_ok(uint32_t a,uint32_t n=4) {return a>=0x80010000u && a<=0x80200000u-n && !(a&3);}
 static const std::vector<SignalFace>& signal_mesh_faces(uint32_t mesh) {
     if(auto it=signal_faces.find(mesh);it!=signal_faces.end()) return it->second;
@@ -487,6 +490,14 @@ static bool signal_mesh_flashes(uint32_t mesh) {
     return any && hi>0 && lo<=hi/10;
 }
 static uint32_t signal_cache_loads=~0u;
+// D55A: a signal lamp's colour and brightness this tick (signal_state),
+// applied to the colour and level of a lamp being published.
+static void signal_lamp_now(unsigned i,float rgb[3],float& e) {
+    if(i>=signal_state.size() || signal_state[i][3]<0) return;
+    const auto& st=signal_state[i];
+    for(int a=0;a<3;++a) rgb[a]=st[a];
+    e*=st[3];
+}
 
 // Called from lights_publish (game tick): the nearest lamps for this image.
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
@@ -555,6 +566,31 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
             if(l.broke_tick==light_ticks) std::fprintf(stderr,"[TTK lamp] lamp %u goes out: its prop broke (%s)\n",i,l.note.c_str());
         }
     }
+    // D55A: every signal lamp's frame, read here once a tick for the live
+    // lamps below and for the bake's lamp levels (lamp_bake_levels), which
+    // light every lamp, not only the nearest. Before, the bake took the lit
+    // colour without the brightness: baked traffic lights never went dark.
+    if(signal_state.size()!=level_lamps.size()) signal_state.assign(level_lamps.size(),{-1,-1,-1,-1});
+    if(signal_last.size()!=level_lamps.size()) signal_last.assign(level_lamps.size(),{-1,-1,-1});
+    for(unsigned i=0;i<level_lamps.size();++i) {
+        const LevelLamp& l=level_lamps[i];
+        if(l.style!=lamp_signal) continue;
+        auto& st=signal_state[i];
+        if(usable && l.standing!=0) {
+            float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]},level=1;
+            uint32_t o=0;for(const PropRef& r:l.props) if((o=prop_standing_object(props,r.type,r.p))) break;
+            const uint32_t mesh=o?psx_mod_read_word(o+0x44):0;
+            if(!(signal_ram_ok(mesh,0x18) && signal_now(mesh,level,rgb))) level=1;
+            if(static const bool trace=std::getenv("DNTTK_SIGNAL_TRACE")!=nullptr;trace)
+                std::fprintf(stderr,"[TTK signal] tick %u lamp %u level %.2f rgb %.2f %.2f %.2f\n",light_ticks,i,level,rgb[0],rgb[1],rgb[2]);
+            if(level>0.05f) signal_last[i]={rgb[0],rgb[1],rgb[2]};
+            st={rgb[0],rgb[1],rgb[2],level};
+        } else if(l.standing==0) {
+            // Broken: the colour last shown, sputtering out (D54).
+            const auto& c=signal_last[i][0]>=0 ? signal_last[i] : std::array<float,3>{l.rgb[0],l.rgb[1],l.rgb[2]};
+            st={c[0],c[1],c[2],1.0f};
+        }   // props not readable this tick: hold the last state
+    }
     unsigned k=0;const unsigned cap=std::min(room,level_lamp_max);
     // The first lamp left out: the last ones in fade toward it.
     const double cut=n>cap ? near[cap].d : level_lamp_far;
@@ -563,17 +599,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,near[j].i));
         // D55: a signal lamp shows its prop's frame (colour and brightness).
-        if(l.style==lamp_signal && usable && l.standing!=0) {
-            uint32_t o=0;for(const PropRef& r:l.props) if((o=prop_standing_object(props,r.type,r.p))) break;
-            const uint32_t mesh=o?psx_mod_read_word(o+0x44):0;
-            float level=1;
-            if(signal_ram_ok(mesh,0x18) && signal_now(mesh,level,rgb)) e*=level;
-            if(static const bool trace=std::getenv("DNTTK_SIGNAL_TRACE")!=nullptr;trace)
-                std::fprintf(stderr,"[TTK signal] tick %u lamp %u level %.2f rgb %.2f %.2f %.2f\n",light_ticks,near[j].i,level,rgb[0],rgb[1],rgb[2]);
-            if(signal_last.size()!=level_lamps.size()) signal_last.assign(level_lamps.size(),{-1,-1,-1});
-            if(level>0.05f) signal_last[near[j].i]={rgb[0],rgb[1],rgb[2]};
-        } else if(l.style==lamp_signal && near[j].i<signal_last.size() && signal_last[near[j].i][0]>=0)
-            for(int a=0;a<3;++a) rgb[a]=signal_last[near[j].i][a];
+        if(l.style==lamp_signal) signal_lamp_now(near[j].i,rgb,e);
         e*=(float)level_lamp_cut_fade(near[j].d,cut,level_lamp_fade);
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,near[j].i);
         if((int)near[j].i!=level_lamp_selected) e*=level_lamp_vis[near[j].i];

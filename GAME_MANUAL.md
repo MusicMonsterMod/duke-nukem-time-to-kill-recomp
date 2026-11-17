@@ -618,7 +618,10 @@ those wall shadows are slightly soft (the map's grain, not LIVE SHADOWS). A lamp
 pool keeps the size it has in its own room (in RELIT it no longer widens or
 narrows with the room Duke's camera is in); its strength still follows the
 room as before. Candles, flickering and pulsing lamps, traffic lights and
-lamps whose prop breaks still change live. The first visit to a level works
+lamps whose prop breaks still change live: traffic lights flash on the street
+and the walls around them in their own colour, in step with the light (D55A),
+and a surface keeps up to six such lamps changing (the most any level needs).
+The first visit to a level works
 its map out in the background in a few seconds (the live lamps show
 meanwhile) and keeps it beside the game, so later visits and loads take it
 at once. Duke, his weapon, enemies and props take the level's lamps from the

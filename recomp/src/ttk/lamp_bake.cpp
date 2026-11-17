@@ -134,7 +134,7 @@ V3 closest_on_tri(V3 p,V3 a,V3 b,V3 c) {
     const float den=1.0f/(va+vb+vc);return add(a,add(mul(ab,vb*den),mul(ac,vc*den)));
 }
 
-struct Chart {V3 p0,e1,e2;int w=0,h=0;int u[2]={-1,-1},v[2]={-1,-1};bool side[2]={false,false};std::vector<uint8_t> lamps;};
+struct Chart {V3 p0,e1,e2;int w=0,h=0;bool wide=false;int u[2]={-1,-1},v[2]={-1,-1};bool side[2]={false,false};std::vector<uint8_t> lamps;};
 
 inline float smooth(float a,float b,float x){const float t=std::clamp((x-a)/(b-a),0.0f,1.0f);return t*t*(3-2*t);}
 
@@ -195,6 +195,11 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
         // Wider than the atlas, or a side past 4095 texels (the record keeps
         // w * 4096 + h in one float): left to the live path.
         if(c.w>in.atlas_width || c.w>4095 || c.h>4095) {c.w=0;c.lamps.clear();continue;}
+        // D55A: more than four lamps that vary may reach it: the chart takes
+        // twice its width, the copy beside it holding channels 4-5 (the
+        // street under a set of traffic lights: up to six on levels 0, 5, 9).
+        unsigned nch=0;for(uint8_t L:c.lamps) nch+=in.lamps[L].channel;
+        c.wide=nch>4 && 2*c.w<=in.atlas_width;
     }
     // Shelf packing, tallest first.
     std::vector<std::pair<int,int>> order;   // (height, chart side as 2*i+s)
@@ -203,8 +208,9 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
     int W=in.atlas_width,x=0,y=0,shelf=0;
     for(auto& o:order) {
         Chart& c=ch[o.second/2];const int s=o.second&1;
-        if(x+c.w>W) {x=0;y+=shelf;shelf=0;}
-        c.u[s]=x;c.v[s]=y;x+=c.w;shelf=std::max(shelf,c.h);
+        const int cw=c.wide?2*c.w:c.w;
+        if(x+cw>W) {x=0;y+=shelf;shelf=0;}
+        c.u[s]=x;c.v[s]=y;x+=cw;shelf=std::max(shelf,c.h);
     }
     const int H=std::max(1,y+shelf);
     if(H>16384) {error="atlas taller than 16384";return false;}
@@ -224,14 +230,14 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
         }
         std::stable_sort(work_order.begin(),work_order.end(),[&](uint32_t p,uint32_t q){return cost[p]>cost[q];});
     }
-    std::atomic<size_t> next{0};std::atomic<uint64_t> rays{0},texels{0},lamp_texels{0};std::atomic<unsigned> lit{0},two{0},over{0};
+    std::atomic<size_t> next{0};std::atomic<uint64_t> rays{0},texels{0},lamp_texels{0};std::atomic<unsigned> lit{0},two{0},over{0},strong{0},fv[4]={0,0,0,0};
     auto work=[&]{
         std::vector<float> wsum;std::vector<float> per;   // per texel x lamp
         for(;;) {
             const size_t at=next.fetch_add(1);if(at>=nt) break;
             const size_t i=work_order[at];
             Chart& c=ch[i];float* rec=&out.charts[i*16];
-            rec[3]=rec[11]=-1;rec[13]=rec[14]=255*256+255;
+            rec[3]=rec[11]=-1;rec[13]=rec[14]=255*65536+255*256+255;
             if(!c.w || c.lamps.empty() || (!c.side[0] && !c.side[1])) continue;
             const BakeInput::Face& fc=faces[i];
             const V3 a=tri_v(in.tris,fc.first,0),b=tri_v(in.tris,fc.first,1),cc=tri_v(in.tris,fc.first,2);
@@ -281,20 +287,29 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
                     }
                 }
             }
-            // The triangle's channel lamps: the strongest four that vary.
+            // The triangle's channel lamps: the four that vary most here (their
+            // light times their swing; D55A, was their light alone, so strong
+            // candles took the channels of the traffic lights beside them).
             wsum.assign(nl,0.0f);
             for(size_t q=0;q<per.size();++q) wsum[q%nl]+=per[q];
             std::vector<size_t> vary;for(size_t L=0;L<nl;++L) if(in.lamps[c.lamps[L]].channel && wsum[L]>0) vary.push_back(L);
-            std::sort(vary.begin(),vary.end(),[&](size_t p,size_t q){return wsum[p]>wsum[q];});
-            if(vary.size()>4) {over+=(unsigned)(vary.size()-4);vary.resize(4);}
+            auto rank=[&](size_t L){const BakeLamp& lp=in.lamps[c.lamps[L]];return wsum[L]*std::max(lp.rgb[0],std::max(lp.rgb[1],lp.rgb[2]))*std::clamp(lp.swing,0.01f,1.0f);};
+            std::stable_sort(vary.begin(),vary.end(),[&](size_t p,size_t q){return rank(p)>rank(q);});
+            if(!vary.empty()) fv[vary.size()<=4?0:vary.size()<=6?1:vary.size()<=8?2:3]++;
+            const size_t cap=c.wide?6:4;
+            if(vary.size()>cap) {
+                over+=(unsigned)(vary.size()-cap);
+                for(size_t q=cap;q<vary.size();++q) if(in.lamps[c.lamps[vary[q]]].swing>=0.5f) ++strong;
+                vary.resize(cap);
+            }
             int slot_of[256];std::fill(slot_of,slot_of+256,-1);
             for(size_t q=0;q<vary.size();++q) slot_of[vary[q]]=(int)q;
-            int ids[4]={255,255,255,255};for(size_t q=0;q<vary.size();++q) ids[q]=c.lamps[vary[q]];
+            int ids[6]={255,255,255,255,255,255};for(size_t q=0;q<vary.size();++q) ids[q]=c.lamps[vary[q]];
             bool any=false;
             for(int s=0;s<2;++s) {
                 if(c.u[s]<0) continue;
                 for(int j=0;j<c.h;++j) for(int k=0;k<c.w;++k) {
-                    float rgb[3]={0,0,0},chw[4]={0,0,0,0};
+                    float rgb[3]={0,0,0},chw[6]={0,0,0,0,0,0};
                     for(size_t L=0;L<nl;++L) {
                         const float wv=per[(((size_t)s*c.h+j)*c.w+k)*nl+L];if(wv<=0) continue;
                         const BakeLamp& lp=in.lamps[c.lamps[L]];
@@ -304,8 +319,9 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
                     }
                     const size_t at=((size_t)(c.v[s]+j))*W+(c.u[s]+k);
                     out.steady[at]=rgb9e5_of(rgb[0],rgb[1],rgb[2]);out.channels[at]=rgba8_of(chw);
+                    if(c.wide) {const float w2[4]={chw[4],chw[5],0,0};out.channels[at+c.w]=rgba8_of(w2);}
                     for(int q=0;q<3;++q) any|=rgb[q]>0;
-                    for(int q=0;q<4;++q) any|=chw[q]>0;
+                    for(int q=0;q<6;++q) any|=chw[q]>0;
                 }
             }
             texels+=(uint64_t)c.w*c.h*((c.u[0]>=0)+(c.u[1]>=0));rays+=r;lamp_texels+=lt;
@@ -314,7 +330,7 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
             rec[0]=c.p0.x;rec[1]=c.p0.y;rec[2]=c.p0.z;rec[3]=(float)c.u[0];
             rec[4]=c.e1.x/tx;rec[5]=c.e1.y/tx;rec[6]=c.e1.z/tx;rec[7]=(float)c.v[0];
             rec[8]=c.e2.x/tx;rec[9]=c.e2.y/tx;rec[10]=c.e2.z/tx;rec[11]=(float)c.u[1];
-            rec[12]=(float)c.v[1];rec[13]=(float)(ids[0]*256+ids[1]);rec[14]=(float)(ids[2]*256+ids[3]);
+            rec[12]=(float)c.v[1];rec[13]=(float)(ids[0]*65536+ids[1]*256+ids[2]);rec[14]=(float)(ids[3]*65536+ids[4]*256+ids[5]);
             rec[15]=(float)(c.w*4096+c.h);   // the shader keeps its lookups inside the chart
         }
     };
@@ -332,7 +348,7 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
     };
     std::vector<std::thread> pool;for(unsigned k=0;k<nthreads;++k) pool.emplace_back(low);
     for(auto& t:pool) t.join();
-    out.rays=rays;out.texels=texels;out.lamp_texels=lamp_texels;out.faces_lit=lit;out.faces_two_sided=two;out.channel_overflows=over;
+    out.rays=rays;out.texels=texels;out.lamp_texels=lamp_texels;out.faces_lit=lit;out.faces_two_sided=two;out.channel_overflows=over;out.strong_overflows=strong;for(int q=0;q<4;++q) out.faces_vary[q]=fv[q];
     out.ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
     return true;
 }
@@ -340,11 +356,13 @@ bool lamp_bake(const BakeInput& in,BakeOutput& out,std::string& error) {
 uint64_t lamp_bake_hash(const BakeInput& in) {
     uint64_t h=1469598103934665603ull;
     auto mix=[&](const void* p,size_t n){const uint8_t* b=(const uint8_t*)p;for(size_t i=0;i<n;++i) h=(h^b[i])*1099511628211ull;};
-    // 4: chart size in rec[15]; 5: samples inset from the face's edges.
-    const uint32_t version=5;mix(&version,4);
+    // 4: chart size in rec[15]; 5: samples inset from the face's edges;
+    // 6: channel lamps chosen by light x swing, six for wide charts, three
+    // lamp ids a float (D55A).
+    const uint32_t version=6;mix(&version,4);
     for(const auto& f:in.faces) {mix(&f.first,4);mix(&f.count,4);}
     mix(in.tris.data(),in.tris.size()*4);
-    for(const BakeLamp& l:in.lamps) {mix(l.p,12);mix(l.rgb,12);mix(&l.radius,4);mix(&l.channel,1);mix(&l.mean,4);}
+    for(const BakeLamp& l:in.lamps) {mix(l.p,12);mix(l.rgb,12);mix(&l.radius,4);mix(&l.channel,1);mix(&l.mean,4);mix(&l.swing,4);}
     mix(&in.texel,4);mix(&in.samples,4);mix(&in.atlas_width,4);
     return h;
 }

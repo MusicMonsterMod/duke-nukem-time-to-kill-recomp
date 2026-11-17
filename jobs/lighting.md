@@ -1304,7 +1304,7 @@ Acceptance (first step): the published artifact, reviewed by the user.
 
 ### D55A - Traffic lights no longer light the street
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14; possible regression of D55). Dependencies: D55.**
+**Status: Done (accepted 2026-11-17; [note 502](../documentation/502-d55a-traffic-lights-in-the-bake.md)). Dependencies: D55.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14, OBEY OR DIE: traffic lights used to flash and light the
@@ -1352,6 +1352,51 @@ should certainly do that"):
   (additive halos at flames and rounds) are the framework for fallback (2).
 - The same rule applies to every animated lamp class (neon, candles,
   strobes), not only traffic lights. Measure each step on the field laptop.
+
+**Work log (2026-11-17, Needs playtest).** Two faults in the bake, which
+lights the level's lamps since D41M (and alone since D41P2):
+
+1. The bake's per-tick lamp levels gave a traffic light its lit colour at
+   full strength and never its brightness (D55 applies the frame's
+   brightness only in the live lamp loop): on walls and floors every signal
+   was on all the time, amber and red together. Now every signal lamp's
+   frame (colour and brightness) is read once a tick for all of them
+   (`signal_state`, `level_lights.inc`) and both paths apply it.
+2. The four-channel limit: the street under a set of traffic lights is
+   reached by up to six varying lamps (level 0: 68 faces, 101 traffic lights
+   baked steady at half; level 9: 71 faces; level 5: 11; level 3: 8). A
+   chart that may need more than four now takes twice its width in the
+   atlas, channels 4-5 in the copy beside it; three lamp ids a float in the
+   record; the shader makes the second fetch only there. Channel lamps are
+   ranked by light x swing, so beyond six the gentle ones go first. Overflows
+   0 on levels 0, 3, 5, 9 (7 and 29 had none); atlases 6-28 rows taller.
+   Cache key version 6 (each level bakes again once).
+
+Evidence (offscreen, private copies; pre-fix build kept for A/B): level 5
+street, building corner warmth in 16 shots, ENHANCED 19.2 every shot before,
+18.2 / 5.5 in step with the amber light after; RELIT 30.7 before, 28.3 / 5.5
+after; red over-road lights 2.19-2.20 before, 1.80 / 1.52 after. GPU work at
+180 Hz, same view, alternated: 20.5, 21.8% before, 19.5, 21.8% after. Matched
+shots `research/before-after/D55A/` (local). Tests: unit tests, ttk near,
+input, flash, live-env, audio, CI runtime tests, check_repo; patch exported
+and checked on a clean pin; savestates load.
+
+Profiles: PRETTY/ULTRA (RELIT) and BALANCED (ENHANCED) flash through the
+bake's channels (the cheap fake the job prefers, option 1). SIMPLE uses
+LIGHTING ORIGINAL: no lamp light, the game's own flashing lenses; the D41S
+style glow (option 2) is not built. Remaining: user playtest in OBEY OR DIE;
+not measured on the field laptop.
+
+**Work log (2026-11-17, later, Needs playtest).** User: "in save slot 7,
+there are now random bright patches? ... also ... obey or die". My shader
+decode rounded the empty lamp-id marker (2^24 - 1, + 0.5) up to 2^24, so most
+faces looked "wide" and added a neighbouring chart's weights in lamp 0's
+colour (pink slabs in UI slot 7, blue-ish patches on the level 5 street).
+Fixed: the ids convert without + 0.5. Reproduced and checked in UI slot 7
+(four views, faulty against fixed build) and on the level 5 street; the
+traffic lights still flash. Patch re-exported, tests pass. Note 502.
+
+**Accepted (2026-11-17).** User: "lock it in and close it out". Done.
 
 ### D56A - GOLD AND GUNS flying enemies' shots give light
 

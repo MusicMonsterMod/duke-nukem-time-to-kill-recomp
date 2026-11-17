@@ -53,6 +53,21 @@ static float lamp_style_mean(const LevelLamp& l) {
     default: return 1.0f;
     }
 }
+// D55A: how far a lamp's level strays from its mean (lamp_style_value), for
+// the bake's choice of a face's four channel lamps. A steady lamp on a prop
+// goes out when the prop breaks (D54).
+static float lamp_style_swing(const LevelLamp& l) {
+    switch(l.style) {
+    case lamp_flicker: return 0.3f;
+    case lamp_pulse: return 0.3f;
+    case lamp_candle: return 0.11f;
+    case lamp_strobe: return 0.87f;
+    case lamp_broken: return 0.87f;
+    case lamp_wave: return std::clamp(l.depth,0.05f,1.0f)*0.5f;
+    case lamp_signal: return 0.5f;
+    default: return l.props.empty()?0.0f:0.5f;
+    }
+}
 // Each lamp's reach as the live path gives it standing in the lamp's own
 // room (Relit, relit.inc light_relit_lamp_gain; 1 outside Relit).
 static float lamp_bake_reach(LevelLamp& l) {
@@ -122,8 +137,8 @@ static void lamp_bake_tick() {
         bake_state.active=true;bake_state.key=key;bake_state.level=level;
         if(r.cached) std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), loaded from the cache in %.0f ms\n",
             level,r.faces,r.lamps,r.out.width,r.out.height,r.out.width*(double)r.out.height*8/1e6,r.out.ms);
-        else std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), baked in %.0f ms (%.1fM rays); %u faces lit, %u two-sided, %u channel overflows\n",
-            level,r.faces,r.lamps,r.out.width,r.out.height,r.out.width*(double)r.out.height*8/1e6,r.out.ms,r.out.rays/1e6,r.out.faces_lit,r.out.faces_two_sided,r.out.channel_overflows);
+        else std::fprintf(stderr,"[TTK bake] level %u: %u faces, %u lamps, atlas %dx%d (%.1f MB), baked in %.0f ms (%.1fM rays); %u faces lit, %u two-sided, %u channel overflows (%u on/off lamps); faces by varying lamps: 1-4 %u, 5-6 %u, 7-8 %u, 9+ %u\n",
+            level,r.faces,r.lamps,r.out.width,r.out.height,r.out.width*(double)r.out.height*8/1e6,r.out.ms,r.out.rays/1e6,r.out.faces_lit,r.out.faces_two_sided,r.out.channel_overflows,r.out.strong_overflows,r.out.faces_vary[0],r.out.faces_vary[1],r.out.faces_vary[2],r.out.faces_vary[3]);
         return;
     }
     if(key==bake_state.key) return;
@@ -145,7 +160,7 @@ static void lamp_bake_tick() {
         for(int k=0;k<3;++k) {b.p[k]=(float)l.p[k];b.rgb[k]=l.rgb[k]*l.k;}
         bake_state.reach[i]=lamp_bake_reach(l);
         b.radius=(float)l.radius*bake_state.reach[i];
-        b.channel=l.style!=lamp_steady || !l.props.empty();b.mean=lamp_style_mean(l);
+        b.channel=l.style!=lamp_steady || !l.props.empty();b.mean=lamp_style_mean(l);b.swing=lamp_style_swing(l);
         bake_state.channel[i]=b.channel;
         in.lamps.push_back(b);
     }
@@ -217,7 +232,7 @@ static void lamp_bake_levels(LightStage& v,unsigned lamp0,unsigned lamp1) {
         const LevelLamp& l=level_lamps[i];
         float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,i));
-        if(l.style==lamp_signal && i<signal_last.size() && signal_last[i][0]>=0) for(int a=0;a<3;++a) rgb[a]=signal_last[i][a];
+        if(l.style==lamp_signal) signal_lamp_now(i,rgb,e);   // D55A: colour and brightness (it lost the brightness)
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,i);
         for(int a=0;a<3;++a) v.bake_rgb[i*3+a]=rgb[a]*e*g;
     }

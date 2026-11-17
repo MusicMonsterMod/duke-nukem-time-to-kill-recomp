@@ -3334,6 +3334,10 @@ User playtest, 2026-11-11 (session 19:00): no crackle after loads (slots 1
 and 2), F6/F9 saves and loads fine with no hitch or exit, a new game
 started without crackle. Accepted.
 
+Closed out, 2026-11-17: the user authorized the closeout ("D50A can just be
+closed off"). The implementation was already committed with the later
+performance work; this closeout records the status only. Done.
+
 ### D50D - Quick save reports could not be saved while it saves
 
 **Status: Done (user-accepted 2026-11-12, closeout authorized; fixed 2026-11-11). Dependencies: D50A.**

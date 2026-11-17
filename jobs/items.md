@@ -2084,7 +2084,7 @@ Work log, 2026-11-16 (implemented, Needs playtest):
 
 ### D08A45 - FAMILY JEWELS jewels in three colours
 
-**Status: Done, user-accepted 2026-11-17 ("perfect. lock it in and close it out"). Dependencies: -.** [Note 501](../documentation/501-d08a45-family-jewel-colours.md).
+**Status: Done, user-accepted 2026-11-17 with the wheel and hand-in fixes ("lock it in and close it out"). Dependencies: -.** [Note 501](../documentation/501-d08a45-family-jewel-colours.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the three jewels in FAMILY JEWELS are all pink. Give each
@@ -2113,6 +2113,32 @@ Work log, 2026-11-17 (implemented, Needs playtest):
   would stay pink), a full level 6 playthrough. Before/after:
   `research/before-after/D08A45/` (local).
 - 2026-11-17, user: "perfect. lock it in and close it out". Done.
+
+Work log, 2026-11-17 (reopened, Needs playtest):
+- User: "slot 7 - when you put the jewels in the nuke symbol wheel, they show
+  as their original pink models".
+- Cause: the wheel never draws the jewel models; it switches to its own
+  models with 1, 2 and 3 jewels set in (1632-1634 in level 6, sockets top,
+  right, left), whose jewel faces use the jewel's four palettes.
+- Fix (title only): any other mesh with 4-bit faces on the jewel's palettes is
+  a holder; its jewel faces are grouped into sockets by shared vertices and put
+  in fill order by comparing with the model before it (one jewel fewer). The
+  k-th socket shows the k-th used jewel (item order, as the game sets them).
+  Cached per mesh and thread until the level, a savestate load or the list
+  changes.
+- Evidence: UI slot 7 (private card copy), E three times: blue, then green,
+  then red in the wheel as it turns, third person; `original` all pink.
+  `ttk-near-test` new holder case (one CLUT, blue on one socket, red on the
+  other). Before/after: `research/before-after/D08A45/wheel-*.png` (local).
+- User: "the animation when duke is handing the crystals into the device,
+  shows the blue crystal 3 times". Measured at the wheel: during each hand-in
+  equipment `+0x3b8` is 1 (upper 47/48), then pose 266, and `+0x3b9` holds the
+  item (14, 15, 16); the game draws the first jewel's model in Duke's hand
+  every time. Fix: a jewel model drawn as part of Duke in that state takes
+  the held item's colour (the key cards' rule). Evidence: UI slot 7, E three
+  times: Duke holds blue, then green, then red
+  (`research/before-after/D08A45/hand-in-after.png`, local).
+- 2026-11-17, user: "lock it in and close it out". Done.
 
 ### D08A46 - Duke 3D-style coloured keycards
 

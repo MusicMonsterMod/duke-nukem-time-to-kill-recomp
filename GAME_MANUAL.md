@@ -3065,7 +3065,8 @@ Vanilla keep every card blue.
 **Coloured Family Jewels (D08A45).** In Modernized with the Polymorph world
 renderer, the three jewels of FAMILY JEWELS take the energy crystals'
 colours instead of all being pink: the first is blue, the second green and
-the third red, on the ground and in the mission inventory. Picking them up
+the third red, on the ground, in the mission inventory, in Duke's hand as
+he sets them into the nuke-symbol wheel and in the wheel itself. Picking them up
 and using them work exactly as before. The Classic renderer and Vanilla keep
 them pink.
 

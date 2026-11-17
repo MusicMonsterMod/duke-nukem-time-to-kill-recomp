@@ -2,7 +2,7 @@
 
 ## 2026-11-17 (early morning) - D08A45: Family Jewels in three colours (Done)
 
-The three jewels of FAMILY JEWELS are blue, green and red (the energy crystals' colours, the user's choice) instead of all pink, in the world and in the mission inventory ([note 501](501-d08a45-family-jewel-colours.md)). The jewel art is kept; only its palettes are swapped, read from the second texture bank. Modernized with Polymorph; Classic and Vanilla unchanged. Built into the main player build. User-accepted and closed out: "perfect. lock it in and close it out".
+The three jewels of FAMILY JEWELS are blue, green and red (the energy crystals' colours, the user's choice) instead of all pink, in the world and in the mission inventory ([note 501](501-d08a45-family-jewel-colours.md)). The jewel art is kept; only its palettes are swapped, read from the second texture bank. Modernized with Polymorph; Classic and Vanilla unchanged. Built into the main player build. Accepted, then reopened the same day: jewels placed in the nuke-symbol wheel were still pink; the wheel's own jewel faces are now coloured socket by socket, and the jewel in Duke's hand during the hand-in takes its own colour (it showed blue three times). User-accepted and closed out: "lock it in and close it out".
 
 ## 2026-11-16 (late night) - D08A46: Duke 3D-style coloured key cards (Done)
 

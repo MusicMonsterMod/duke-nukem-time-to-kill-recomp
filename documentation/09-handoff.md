@@ -1,8 +1,8 @@
 # Next-session handoff
 
-## 2026-11-17 (early morning) - D08A45 Family Jewel colours closed out (Done)
+## 2026-11-17 (early morning) - D08A45 Family Jewel colours closed out (Done; wheel and hand-in included)
 
-[Note 501](501-d08a45-family-jewel-colours.md). Title only: `jewel_colours.inc` (12 ramps at bank x 256-447, y 481; `jewel_frame(mesh)` matches the model of types 854-856 and collects its four CLUTs in first-use order), hook in `near_clip.cpp` after the key card one, `mission_jewel_colours()` and `art_for(name,item)` in the inventory HUD, three icons in `assets/ui/items/`. Developer `DNTTK_JEWEL_COLOURS=original`. Lab `recomp/analysis/d08a45/` (local: `probe.py` cases `dump`, `world`, `grab`, `vanilla`; `gen.py` makes the ramps and icons from the measured palettes). Built in the main checkout; `.claude/settings.local.json` turns the background worktree guard off at the user's request. Open: where used jewels are placed.
+[Note 501](501-d08a45-family-jewel-colours.md). Title only: `jewel_colours.inc` (12 ramps at bank x 256-447, y 481; `jewel_frame(mesh)` matches the model of types 854-856 and collects its four CLUTs in first-use order), hook in `near_clip.cpp` after the key card one, `mission_jewel_colours()` and `art_for(name,item)` in the inventory HUD, three icons in `assets/ui/items/`. Developer `DNTTK_JEWEL_COLOURS=original`. Lab `recomp/analysis/d08a45/` (local: `probe.py` cases `dump`, `world`, `grab`, `vanilla`; `gen.py` makes the ramps and icons from the measured palettes). Built in the main checkout; `.claude/settings.local.json` turns the background worktree guard off at the user's request. Wheel (reopened): holder meshes (1632-1634) found by the jewel palettes, sockets by shared vertices, fill order from the previous model; held jewel in the hand-in by `+0x3b9` (equipment 1 or pose 266), as the key cards; probe cases `handin`/`handshots` and `wheel` (UI slot 7 = internal 6, `PRESSES`, `GAP=240`, `BACKOFF=40`).
 
 ## 2026-11-16 (late night) - D08A46 coloured key cards closed out (Done)
 

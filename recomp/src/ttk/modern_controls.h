@@ -248,11 +248,13 @@ bool keycard_frame(bool duke_frame,KeycardRecolour& out);
 void keycard_paint_bank(uint16_t* bank);   // the palettes, into the second bank
 void keycard_colour_stats(uint64_t out[2]);
 // D08A45: the Family Jewels in blue, green and red (jewel_colours.inc).
-struct JewelRecolour {uint16_t clut[4]={0,0,0,0},bank_clut[4]={0,0,0,0};};
+// colour: a jewel model's (0 blue, 1 green, 2 red); holder: a placed-jewel
+// holder whose faces take vertex_colour[first corner] (-1: not a jewel face).
+struct JewelRecolour {uint16_t clut[4]={0,0,0,0},bank_clut[3][4]={};int8_t colour=-1;bool holder=false;int8_t vertex_colour[256];};
 bool jewel_colours_on();
 // The mesh being drawn: when it is a jewel model, its palettes and their
 // recoloured replacements in the second bank.
-bool jewel_frame(uint32_t mesh,JewelRecolour& out);
+bool jewel_frame(uint32_t mesh,bool duke_frame,JewelRecolour& out);
 void jewel_paint_bank(uint16_t* bank);   // the ramps, into the second bank
 void jewel_colour_stats(uint64_t out[3]);
 bool first_person_interaction_drawing();

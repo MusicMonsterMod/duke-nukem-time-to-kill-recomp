@@ -1,7 +1,8 @@
 # D08A45 - FAMILY JEWELS in blue, green and red
 
-Status: **Done**, user-accepted 2026-11-17: "perfect. lock it in and close it
-out". Modernized with the
+Status: **Done**, user-accepted 2026-11-17 ("lock it in and close it out"),
+after a reopening the same day for the jewels in the wheel and in Duke's hand
+during the hand-in (both fixed, below). Modernized with the
 Polymorph world renderer; Classic and Vanilla keep every jewel pink.
 
 ## Request
@@ -51,6 +52,38 @@ another palette count or an 8/15-bit page is left pink.
 Mission inventory: three recoloured copies of the jewel icon (same transform),
 chosen by item (14 blue, 15 green, 16 red) while the colours are on.
 
+## Placed jewels (the wheel)
+
+User, 2026-11-17: "slot 7 - when you put the jewels in the nuke symbol wheel,
+they show as their original pink models". The wheel does not draw the jewel
+models: Use at the wheel sets the next jewel's used bit (`0x4000`, items in
+order 14, 15, 16) and the wheel switches to its own model with 1, 2 or 3
+jewels set in (1632, 1633, 1634 in level 6: 47 vertices, 51 faces; 4, 8 and 12
+jewel faces). The sockets are top (vertices 33-39), right (26-32) and left
+(40-46), filled in that order, the same vertices in every model; their faces
+use three of the jewel's palettes.
+
+Rule (no model numbers): a mesh that is not a jewel model but has 4-bit faces
+on the jewel model's palettes is a holder. Its jewel faces are grouped into
+sockets by shared vertices (at most three). Fill order comes from the model
+before it: when that is a holder with one socket fewer on the same vertices,
+its order comes first and the new socket last (recursively); otherwise lowest
+vertex first. The k-th socket in fill order shows the k-th used jewel in item
+order, and sockets past the used ones the colours not yet shown. Each mesh's
+result is cached per thread until the level, a savestate load or its polygon
+list changes; levels without jewel models skip all of it.
+
+## The hand-in
+
+User, 2026-11-17: "the animation when duke is handing the crystals into the
+device, shows the blue crystal 3 times". The game draws the first jewel's
+model (type 854) in Duke's hand for every jewel. Measured at the wheel: Use
+sets the jewel's used bit, then equipment `player+0x3b8` is 1 with the upper
+pose 47/48 while he holds it, then pose 266 pushes it in; `+0x3b9` holds the
+item (14, 15, 16) throughout. A jewel model drawn as part of Duke in that
+state (equipment 1 or pose 266) takes the held item's colour, the same rule as
+the held key card.
+
 ## Implementation (title only; no framework change)
 
 - `recomp/src/ttk/jewel_colours.inc` (in `modern_controls.cpp`): setting gate
@@ -80,6 +113,8 @@ player files hash-checked (`recomp/analysis/d08a45/probe.py`, local):
 | Walk into a spawned 855 | item 15 set (14 and 16 untouched), as the original pickup |
 | Mission row (unit test dump) | the found second jewel shows the green icon |
 | Vanilla | loads and draws as before |
+| UI slot 7 at the wheel, E three times | blue, then green, then red set in; colours kept as the wheel turns; `original` all pink |
+| Same, shots while Duke holds each jewel | blue, then green, then red in his hand |
 
 Suites: `ttk-near-test`, `ttk-inventory-test`, `ttk-input-test`, Python 260 OK
 (2 skipped). Before/after: `research/before-after/D08A45/` (local).
@@ -87,9 +122,11 @@ Suites: `ttk-near-test`, `ttk-inventory-test`, `ttk-input-test`, Python 260 OK
 ## Limits
 
 - Polymorph only, as D08A46: Classic draws the original packets (pink).
-- Not established: where the game places the jewels once used (if a
-  different model shows them there, it stays pink); the colours under every
-  light of level 6; a full playthrough of the level.
+- The wheel cannot know the order the jewels went in beyond the used bits;
+  E sets them in item order, so the sockets match. A jewel used out of order
+  (the mission inventory's Enter) colours the sockets in item order.
+- Not established: the colours under every light of level 6; a full
+  playthrough of the level.
 - In warm corridor light the blue reads slightly cyan; clearly apart from the
   green.
 

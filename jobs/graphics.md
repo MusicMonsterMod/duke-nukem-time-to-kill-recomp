@@ -2962,7 +2962,7 @@ Closed out, 2026-11-17: the user accepted it and authorized the closeout
 
 ### D17BK - The picture pops from 4:3 to 16:9 after a load
 
-**Status: Todo (2026-11-16, user report). Dependencies: none.**
+**Status: Done (2026-11-17: does not reproduce at HEAD; the user's field laptop test passed; no code change). Dependencies: none.**
 
 User, 2026-11-16 (field laptop, also seen in the automated runs on its
 screen): "when the game loads ... you see the game pop from 4:3 to 16:9".
@@ -2998,6 +2998,43 @@ game draws its first new frame (about 8-15 frames after the load). A fix
 decides what to show until then (hold the restored picture centred and
 fill the margins from the first new frame, or keep the last picture until
 it), not detection.
+
+Work log, 2026-11-17 (measured, no code change): a fresh lab
+(`recomp/analysis/d17bk/`, local: `probe.py` with a private profile from the
+lab base profile and a copy of the lab card; `ana.py` classifies each shot by
+its side columns) took back-to-back present shots from the first shown frame
+after each load. `present_shot` is taken inside the GL present, so it covers
+redraw presents too, and the present ring has no presents for frames 2-5
+after a savestate load (the load pause), so the first shot (frame 4-9) is the
+first picture the player sees. Every shot was 16:9 and every ring entry after
+the load `wide`:
+- desktop offscreen, UI slots 2, 5 and 8: BALANCED 60, SIMPLE 60, PRETTY 60,
+  ULTRA 120 (3 redraw workers) and pure AUTO;
+- field laptop (HEAD fe18de2 plus the D23AF work, built 2026-11-17), pure
+  AUTO (BALANCED, up to 120 images a second), offscreen and on its real
+  60 Hz screen, each slot loaded twice;
+- loads started from the pause menu (Escape), the quick load menu, the main
+  menu's LOAD GAME (drawn over a 3D backdrop, so already wide), the title
+  screen, and the pause menu's LOAD GAME, the last with 60 shots across the
+  confirm;
+- debug level loads (`level 1`, `level 2`, `level 5`) on both machines: the
+  game's own fade to black, the loading screen presented wide with its tiled
+  backdrop, then wide gameplay.
+The first picture after a savestate load lacks the HUD and has the lights
+still coming in (D41W), which can read as a jump, but its width is 16:9.
+Yesterday's frames 8 and 14 at 4:3 (no files kept) are not reproduced; which
+change since then removed them is not established (candidates in between:
+D23AD/D23AE presentation pacing, D50A load audio, D23AF1/D23AF2). Acceptance
+(no 4:3 frame after a load at 60 and 120) is met in these measurements;
+remaining: the user's check on the field laptop. If it recurs, note the
+load path (savestate menu, F9, LOAD GAME, level exit) and the settings.
+
+Closeout, 2026-11-17: the field laptop was brought to 87c7fc6 and rebuilt
+(its uncommitted D23AF edits, already in main, kept in a stash); two loads on
+its real screen at pure AUTO were 16:9 from the first shown frame. The user
+ran the load test there (F3 LOAD GAME, F6/F9, the pause menu's LOAD GAME,
+LOAD GAME after a launch, a level change) and accepted: "perfect! lock it in
+and close it out". Done with no code change.
 
 ### D53B - No impatient idle lines while watching a security camera
 

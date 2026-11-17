@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (night) - D17BK: no 4:3 frame after a load (Done)
+
+The picture no longer shows 4:3 before 16:9 after a load: back-to-back present shots after savestate loads (from gameplay, the pause menu, the quick load menu, LOAD GAME and the title) and level loads were 16:9 from the first shown frame on the desktop and on the field laptop (offscreen and its real screen, pure AUTO). The user's test on the rebuilt field laptop passed. No code change; which earlier change removed it is not established.
+
 ## 2026-11-17 (night) - D17BJ: GOLD AND GUNS cabin shaft shows the sky (Done)
 
 The cabin shaft of UI slot 9 is open at the top with no painted sky face, so it showed black. GOLD AND GUNS (the only painted-sky level) now draws the borrowed Duke Hill sky behind every Modernized frame; only uncovered pixels change (24-view same-camera survey: the cabin opening only). 180 Hz cost unchanged. User-accepted and closed out. [Note 504](504-d17bj-cabin-sky.md).

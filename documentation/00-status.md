@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-17 (night) - D17BJ: GOLD AND GUNS cabin shaft shows the sky (Done)
+
+The cabin shaft of UI slot 9 is open at the top with no painted sky face, so it showed black. GOLD AND GUNS (the only painted-sky level) now draws the borrowed Duke Hill sky behind every Modernized frame; only uncovered pixels change (24-view same-camera survey: the cabin opening only). 180 Hz cost unchanged. User-accepted and closed out. [Note 504](504-d17bj-cabin-sky.md).
+
 ## 2026-11-17 (evening) - D23AF1, D23AF2, D23AF8 closed out (Done)
 
 GRAPHICS grades no longer set FRAME RATE (D23AF8, launcher schema 78): SIMPLE at AUTO keeps the redraws on real 60 Hz screens (field laptop and citadel, all levels, 100% of seconds). The redraw workers' asynchronous reap is on by default (D23AF2). The refined bake yield (D23AF1, on by default; `DNTTK_BAKE_YIELD=0` off) cuts TIME TO KILL's cold-bake slow seconds on the field laptop from 23 to 2-7 and brings the redraws back when the bake ends ([note 503](503-d23af-campaign-census.md) section 6).

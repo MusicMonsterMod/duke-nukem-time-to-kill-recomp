@@ -2924,7 +2924,7 @@ steady from every angle, not floating; Vanilla unchanged.
 
 ### D17BJ - GOLD AND GUNS cabin ceiling should show the sky (UI slot 9)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D17AO1.**
+**Status: Done (user-accepted 2026-11-17, [note 504](../documentation/504-d17bj-cabin-sky.md)). Dependencies: D17AO1.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14, UI slot 9 (their correction from slot 10; the 13:09 save,
@@ -2938,6 +2938,27 @@ Test save (2026-11-15): a private copy of UI slot 9 (runtime slot 8, the
 2026-11-14 13:09 save, GOLD AND GUNS) with the player's cards, in
 `recomp/analysis/d17bj/cards` (local, ignored; hash-checked identical when
 copied). Test on this copy; the player is free to save over their slot.
+
+Work log, 2026-11-17 (Needs playtest). The save looks up a vertical shaft
+whose top is open: nothing is drawn there, so the cleared background shows
+black. It carries no face painted with the small sky picture (primitive
+trace: none emitted or processed), so D17AO1, which requested the borrowed
+sky only while a painted face was in view, never drew it. Change
+(`sky_borrow.h`): a level with a painted sky and no sky of its own (GOLD AND
+GUNS only) draws the borrowed Duke Hill sky behind every composition; the
+sky routine draws behind the world, so only uncovered pixels change. No
+per-opening data. Same-camera off/on survey (a temporary per-composition
+gate, removed): 24 views in the cabin shaft, the lava cavern beside it and
+the level start; the only black that became sky is the cabin opening (seams
+and tunnel ends are dark texels). Cabin shows the sky at 180 first and third
+person and 120 first person; the start shaft is unchanged; 180 Hz in the start
+tunnel 59.88 fields/s, 1442 images, 0 misses (off: 60.0, 1441, 0);
+`ttk-sky-test` ok; local unit tests OK. `ttk-controls-test` does not link
+before or after (pre-existing). Offscreen only; needs the user's look at
+UI slot 9 on their display.
+
+Closed out, 2026-11-17: the user accepted it and authorized the closeout
+("lock it in and close it out"). Done.
 
 ### D17BK - The picture pops from 4:3 to 16:9 after a load
 

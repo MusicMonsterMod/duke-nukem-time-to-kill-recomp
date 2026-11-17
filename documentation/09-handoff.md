@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-17 (night) - D17BJ: GOLD AND GUNS cabin shaft shows the sky (Done)
+
+The cabin shaft of UI slot 9 is open at the top with no painted sky face, so it showed black. GOLD AND GUNS (the only painted-sky level) now draws the borrowed Duke Hill sky behind every Modernized frame; only uncovered pixels change (24-view same-camera survey: the cabin opening only). 180 Hz cost unchanged. User-accepted and closed out. [Note 504](504-d17bj-cabin-sky.md).
+
 ## 2026-11-17 (evening) - D23AF1, D23AF2, D23AF8 closed out (Done)
 
 State: committed from the main checkout (user: "turn the bake yield on by default too, then lock it in and close it out"); the field laptop and citadel run the same source (synced with `rsync -c`, rebuilt). D23AF8 changes the launcher schema to 78 (non-CUSTOM profiles get FRAME RATE AUTO once). D23AF2's reap is on by default in the framework patch. D23AF1's bake yield is on by default too (`DNTTK_BAKE_YIELD=0` off). Evidence and tables: [note 503](503-d23af-campaign-census.md) section 6; lab scripts `next.sh` and `nextanalyze.py` (local, `recomp/analysis/d23af/`).

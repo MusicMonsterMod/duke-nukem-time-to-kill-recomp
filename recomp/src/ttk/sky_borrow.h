@@ -6,7 +6,9 @@
 // picture. In Modernized that face is left out and the native sky routine
 // draws another level's sky behind it (sky_borrow.cpp), as EDuke32 draws a
 // parallaxed ceiling: an eye-centred ring that turns with the view and never
-// moves with position. Shared with near_clip.cpp, which is also linked into
+// moves with position. D17BJ: such a level draws the borrowed sky behind
+// every frame, so an opening left without any face (the GOLD AND GUNS cabin
+// shaft) shows the same sky instead of black. Shared with near_clip.cpp, which is also linked into
 // the native tests, so the state lives here.
 #pragma once
 #include <cstdint>
@@ -23,10 +25,6 @@ inline constexpr PaintedSky painted_skies[]={{3,0x1438,0x000e,64,232,86,255}};
 // a painted sky and no sky of its own.
 inline bool sky_borrow_ready=false;
 inline uint32_t sky_borrow_level=~0u;
-// Composition counter, and the last one that left a painted face out.
-inline uint32_t sky_borrow_composition=0;
-inline uint32_t sky_borrow_seen=0;
-inline uint64_t sky_borrow_faces=0;
 // The guest copy of the borrowed meshes (mod memory, above main RAM), which
 // the near-clip host path accepts for the sky routine's draws.
 inline uint32_t sky_borrow_copy=0,sky_borrow_copy_end=0;
@@ -47,13 +45,12 @@ inline bool painted_sky_face(uint32_t level,uint32_t clut,uint32_t tpage,const u
 // World face check (near_clip host path): true when the face is a painted
 // sky to leave out this composition.
 inline bool sky_borrow_skip(uint32_t clut,uint32_t tpage,const uint32_t uv[4],unsigned count) {
-    if(!sky_borrow_ready || !painted_sky_face(sky_borrow_level,clut,tpage,uv,count)) return false;
-    sky_borrow_seen=sky_borrow_composition;++sky_borrow_faces;
-    return true;
+    return sky_borrow_ready && painted_sky_face(sky_borrow_level,clut,tpage,uv,count);
 }
-// The sky is wanted while a painted face was left out this composition or
-// the previous one (the sky routine runs after the world).
-inline bool sky_borrow_wanted() {
-    return sky_borrow_ready && sky_borrow_seen && sky_borrow_composition-sky_borrow_seen<=1;
-}
+// D17BJ: the borrowed sky is drawn behind every composition of a ready
+// level, not only while a painted face is in view, so openings without a
+// face show it too. Only background pixels change: a same-camera survey of
+// 24 views (cabin, lava cavern, level start) changed nothing but the cabin
+// opening (note 504).
+inline bool sky_borrow_wanted() {return sky_borrow_ready;}
 }

@@ -169,7 +169,6 @@ void restore() {
 void hook(CPUState* cpu,uint32_t address) {
     if(address==0x80026164u) {
         restore();
-        ++sky_borrow_composition;
         const uint32_t level=psx_mod_read_word(level_index);
         bool painted=false;
         for(const auto& s:painted_skies) painted|=s.level==level;

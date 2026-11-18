@@ -4395,7 +4395,7 @@ no fallback; 22, 27, 29 short in both (29 at SIMPLE 41.8).
 
 ### D23AK - A lighter redraw worker
 
-**Status: Todo (proposed by D23AH and D23AJ, 2026-11-18; [note 509](../documentation/509-d23ag-overnight-chain.md) section 6). Dependencies: D23AJ.**
+**Status: Done (user-accepted 2026-11-18, closeout authorized: "lock in the way the game plays right now, and then close us out"; the bundle is the Modernized default, [note 510](../documentation/510-d23ak-what-a-redraw-shares.md) section 7). Dependencies: D23AJ.**
 
 MEASURED (field laptop, real 60 Hz screen, BALANCED, FRAME RATE 60): the
 single redraw worker (D23Y6 placement; a second one starves the emulation
@@ -4411,6 +4411,114 @@ the in-between camera) and compute it once per game frame for all of its
 redraws; exact (PSX_RT_VALIDATE, VRAM dumps), behind a developer switch
 first. Goal: BALANCED at 60 new pictures a second on the laptop in the
 worker-bound levels.
+
+Work log, 2026-11-18 ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)):
+worker profiles, census route, BALANCED 60, one level a launch, field
+laptop real screen (27 / 29 / 22: 39.5 / 38.4 / 43.8 new pictures, worker
+95.6 / 95.1 / 91.4%, 2,273-3,082 job samples) and the desktop (27). The
+world walk is 30.0 / 33.6 / 17.0% of a job (not 20%), the object path
+14.1 / 12.9 / 18.6%, the sleeping enemies 17.6% on level 22; `draw` and
+`emit` are 84% of the walk. CODE: every step of the walk and of the
+sleeping enemies' draw follows the job's camera (interpolated, and the
+late camera per present); what only the game frame decides (records,
+texture entries, the lamp surface lookup) is about 2% of a job, as D23N5
+found at the AUTO grade. So no exact once-per-frame cut can reach the
+30% the goal needs; nothing built. D23N5's restore (`PSX_RW_RESTORE=1`)
+at BALANCED on 27 and 29, interleaved, two runs: within the spread.
+Directions for the user (note 510 section 5): exact per-job cuts (perhaps
+10-15% together), D23AI's picture trade-offs, or the game frame's own
+image as one picture of two (not exact, D17B's judder).
+
+Work log, 2026-11-18 later ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)
+section 6): user, on the directions: "resoliution 1x is unacceptible so that
+one is out", then "option 1 it is". Built, behind developer `PSX_RW_LEAN=1`
+(off by default): batched host writes and reads for the title's packets and
+mesh records and the replay's DMA walk (`psx_mod_write_words`,
+`psx_mod_read_words`, `rec_words`), the host-vertex record without its hash
+misses (same keeps and drops), a lean clip shape, `subdivide`'s early emit,
+an inline exact `lround`, a per-thread settings cache in `ttk_live_env`.
+Developer check `PSX_RW_LEAN_VERIFY=N` (each Nth job again with the cuts
+suspended, streams word for word) and `DNTTK_LEAN_BISECT`. The check's
+re-run now reads the bake half its first run pinned (it had differed at a
+bake publish, as D23N5's had). Exactness: 3,840 checked jobs, 0 differing;
+`PSX_RT_VALIDATE` 952 exact, 0 bad; VRAM dumps identical in Modernized UI 2
+and Vanilla UI 9 (UI 9 Modernized's +400 follows host timing: it moves under
+CPU load with the cuts off). Worker ms a finished job, two runs each, with
+D23N5's restore: desktop 27 / 29 / 22 9.9-10.7 -> 7.3-8.9; field laptop real
+screen 18.4-22.3 -> 15.4-19.4, new pictures 36-44 -> 38-46 (within the
+spread). A fifth of the laptop's finished jobs miss their present; 60 needs
+about 15 ms a job there. Left: the game's code 17.6%, the dispatcher's
+lookups about 11%, the image load about 6%, the world walk's arithmetic.
+The framework edits are exported and verified against a clean pinned
+checkout; local CI passes.
+
+Work log, 2026-11-18 evening ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)
+section 6b): user: "keep pushing forward with it as far as you can ... I
+think the dispatcher yes". The dispatcher's per-call chain is generated code;
+its cold per-job caches were worth at most 0.2-0.6 ms a job (measured by
+skipping the invalidation, not kept). The larger find: worker jobs ran the
+accurate timing model's per-block hooks because D23F's fast model is leased
+by the player update, which a worker never runs; `PSX_RW_LEAN=1` now runs
+each worker job on the fast model (`ttk_fast_timing_job`), with the device
+deadline lifted for the job (no device runs in a worker; the slow-edge path
+2.6% -> 0.07%), and smooth normals take each face length once. Claim orders
+(oldest, latest, earliest feasible present) were tried and dropped.
+Exactness: 3,776 (desktop) and 1,536 (laptop real screen) checked jobs, 0
+differing; `PSX_RT_VALIDATE` 964 exact, 0 bad; VRAM dumps identical
+(Modernized UI 2, Vanilla UI 9). Worker ms a job: desktop 10.3-11.0 ->
+7.5-7.9; field laptop 17.4-22.6 -> 12.9-15.7. Field laptop real screen new
+pictures median / lowest tenth: 27 35.0-53.2 / 27.8-35.4 -> 57.8-59.5 /
+38.1-38.7; 29 38 / 27-28 -> 42.2-52.5 / 29.0-32.0; 22 41.9-46.2 / 33.6-34.8
+-> 51.4-54.0 / 31.8-33.5. The worker is 75-86% busy, no longer saturated; the
+dips that remain come with the package-limited CPU clock and a busy
+emulation thread. Needs playtest: the user's feel on the laptop with the
+switches, and whether to make them the default.
+
+Work log, 2026-11-18 night ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)
+section 6c): user: "keep pushing, tackle the remaining dips too". The dip
+seconds are the heavy views with all three threads busy on two cores at the
+package-limited clock; D23Y4's placement had put the worker and the render
+thread on one core. Developer `PSX_PLACEMENT_RENDER=side|emu|all`
+(render_thread.c, default unchanged): `all` lifts the laptop's lowest tenth
+on 22 / 27 / 29 from 30-38 / 44-53 / 31-33 to 46-59 / 55-59 / 37-51 (third
+person; first person 27 from 23-26 to 40, 29 from 25-27 to 32-35); `emu` is
+higher still but makes the governor fall back (18-19 s). The governor's 120
+s first wait turned one heavy patch into two minutes of the original
+presentation; with the existing `DNTTK_REPLAY_FLOOR_WAIT=15` the fallbacks
+are 2-14 s. Campaign census, laptop real screen, BALANCED 60, all 21 levels,
+the whole bundle: every level's median 59.5-60.0, lowest tenth 52.8-59.8
+but THE REAPER 41.6, 70 of 749 seconds without redraws (note 509: 249 of
+744). Not changed: the clear lens, the object path on hidden live frames,
+the render thread's drawing. Proposed for the user's decision: the bundle as
+the default (Modernized), the render placement and a 15 s first wait with it.
+
+Work log, 2026-11-18 late ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)
+section 6d): user: "keep pushing, fix the reaper dips and first person 29".
+Admission of redraws that would miss their present: tried, within the
+spread, removed. Developer `DNTTK_REDRAW_ONLY_OBJECTS=1`: on a hidden
+redraw-only live frame a world object keeps every decision of the hook and
+emits nothing (Duke's weapon, hand and body still draw: the shot's barrel
+and pose counters); the emulation thread 4-13 points lower on the laptop
+(desktop 48 -> 44%); THE REAPER third person lowest tenth 55-58 -> 58-59.
+Clip planes' guard ratios once a polygon (exact, within the spread). In-worker
+check, first person 27 and 29: 2,432 jobs, 0 differing. First person on 29
+stays short (median 47-58, lowest tenth 26-35): both cores full at 2.3 GHz,
+real work left; smaller exact cuts are below the runs' resolution. Needs
+playtest, including the hidden-object skip (gameplay with objects, the
+weapon's shots, the redraw-only switch-off after a stall).
+
+Work log, 2026-11-18 closeout ([note 510](../documentation/510-d23ak-what-a-redraw-shares.md)
+section 7): the user played the bundle on the field laptop (a desktop
+launcher) and reported one drop when THE REAPER hit Duke; its log showed the
+render thread behind (779 and 238 finished redraws not yet drawn at their
+presents) and one 15 s fallback. Not reproduced (census route with 88-99
+REAPER hits, test hits, a live per-second recorder while the user played;
+the user could not repeat it): a possible recurrence for the user to report.
+User: "lock in the way the game plays right now, and then close us out".
+`run.py` sets the six switches as Modernized defaults
+(`MODERNIZED_REDRAW_DEFAULTS`, overridable), none in Vanilla (checked in the
+launched process); `test_redraw_defaults.py`; GAME_MANUAL's fallback
+schedule (15 s first). Done.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

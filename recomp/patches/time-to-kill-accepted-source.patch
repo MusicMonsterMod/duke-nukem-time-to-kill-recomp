@@ -475,7 +475,7 @@ index 7406c39a..64088220 100644
  }
  #endif
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..e8b8f3ef 100644
+index a1e4645e..54d7376d 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
 @@ -25,6 +25,11 @@ int psx_mod_register_function_entry_plugin(
@@ -490,7 +490,22 @@ index a1e4645e..e8b8f3ef 100644
  
  /* Narrow guest services available to trusted plugin callbacks. */
  int psx_mod_game_started(void);
-@@ -54,6 +59,13 @@ uint32_t psx_mod_alloc_guest_memory(uint32_t size, uint32_t alignment);
+@@ -34,6 +39,14 @@ uint16_t psx_mod_read_half(uint32_t address);
+ void psx_mod_write_half(uint32_t address, uint16_t value);
+ uint32_t psx_mod_read_word(uint32_t address);
+ void psx_mod_write_word(uint32_t address, uint32_t value);
++/* Time to Kill D23AK (developer PSX_RW_LEAN=1, memory.c): n consecutive words,
++ * exactly as n psx_mod_write_word / psx_mod_read_word calls. The write returns
++ * 1 when it took the batched path (GPU DMA memory; the words then read back as
++ * written), 0 when it wrote word by word. The read returns 0 without reading
++ * when the range needs the word-by-word path. */
++int psx_rw_lean(void);
++int psx_mod_write_words(uint32_t address, const uint32_t *words, uint32_t n);
++int psx_mod_read_words(uint32_t address, uint32_t *out, uint32_t n);
+ /*
+  * Replace one guest instruction and route that address through the runtime's
+  * executable-RAM path. Use this instead of psx_mod_write_word for code so a
+@@ -54,6 +67,13 @@ uint32_t psx_mod_alloc_guest_memory(uint32_t size, uint32_t alignment);
   * without an allocation the aperture remains unmapped and DMA stays faithful.
   */
  uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t size, uint32_t alignment);
@@ -504,7 +519,7 @@ index a1e4645e..e8b8f3ef 100644
  
  /* Current per-side widescreen reveal in native game pixels (zero at 4:3). */
  int32_t psx_mod_widescreen_x_margin(void);
-@@ -153,6 +165,311 @@ enum {
+@@ -153,6 +173,311 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -816,7 +831,7 @@ index a1e4645e..e8b8f3ef 100644
  int psx_mod_set_auto_skip_fmv(int enabled);
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
-@@ -195,6 +512,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
+@@ -195,6 +520,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
  int psx_mod_set_disc_speed(uint32_t divisor,
                             uint32_t instant_max_per_frame);
  
@@ -16884,7 +16899,7 @@ index fe317583..09fc9565 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..2bc81e7c 100644
+index 9d55ad16..65c01913 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -17960,7 +17975,64 @@ index 9d55ad16..2bc81e7c 100644
              return;
          }
      }
-@@ -1810,8 +2651,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
+@@ -1787,6 +2628,56 @@ static void psx_write_word_raw(uint32_t addr, uint32_t val) {
+     unmapped_fatal(addr, phys, "WRITE");
+ }
+ 
++/* Time to Kill D23AK (developer, PSX_RW_LEAN=1, off by default): batched host
++ * accesses for the title's own packet writes and the replay's DMA walk. Each
++ * takes its fast path only where the word-by-word path has no effect beyond
++ * the bytes themselves (no lockstep or data-shard recorder, no overlay cycle
++ * flush, no RAM read watch, cache not isolated, the whole range inside one
++ * RAM or GPU DMA memory span) and then does exactly what that path does:
++ * PGXP store invalidation per word, the guest store counter and last-store
++ * record, the extra region's high-water mark. Otherwise the words go through
++ * psx_write_word / psx_read_word one at a time. Return 1 on the fast path. */
++int g_psx_rw_lean_suspend = 0;   /* PSX_RW_LEAN_VERIFY's reference run (render_worker.c) */
++int psx_rw_lean(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("PSX_RW_LEAN"); v = e && e[0] == '1'; }
++    return v && !g_psx_rw_lean_suspend;
++}
++static inline int rw_lean_plain(void) {
++    extern void (*g_overlay_flush_pending_cycles)(void);
++    return psx_rw_lean() && g_ls_mode == 0 && !g_ds_recording && !g_overlay_flush_pending_cycles;
++}
++int psx_mod_write_words(uint32_t addr, const uint32_t *w, uint32_t n) {
++    uint32_t off;
++    if (n && n <= 0x10000u && rw_lean_plain() && !(addr & 3u) && addr < 0xC0000000u &&
++        !(sr_ptr && (*sr_ptr & 0x10000u)) &&
++        psx_phys_addr(addr) >= 0x00800000u &&
++        mod_gpu_dma_memory_offset(psx_phys_addr(addr), 4u * n, &off)) {
++        if (g_pgxp_mesh_active) for (uint32_t i = 0; i < n; i++) pgxp_mesh_invalidate_store(addr + 4u * i);
++        g_guest_store_count += n;
++        g_guest_last_store_addr = addr + 4u * (n - 1u); g_guest_last_store_val = w[n - 1u]; g_guest_last_store_size = 4u;
++        mod_gpu_dma_extra_note(off, 4u * n);
++        memcpy(mod_gpu_dma_window + off, w, (size_t)n * 4u);
++        return 1;
++    }
++    for (uint32_t i = 0; i < n; i++) psx_write_word(addr + 4u * i, w[i]);
++    return 0;
++}
++int psx_mod_read_words(uint32_t addr, uint32_t *out, uint32_t n) {
++    if (!n || n > 0x10000u || !rw_lean_plain() || g_ram_read_watch_active || (addr & 3u) || addr >= 0xC0000000u) return 0;
++    const uint32_t phys = psx_phys_addr(addr);
++    if (phys < RAM_SIZE) {
++        if (phys + 4u * n > RAM_SIZE) return 0;
++        memcpy(out, &ram[phys], (size_t)n * 4u);
++        return 1;
++    }
++    uint32_t off;
++    if (phys >= 0x00800000u && mod_gpu_dma_memory_offset(phys, 4u * n, &off)) {
++        memcpy(out, mod_gpu_dma_window + off, (size_t)n * 4u);
++        return 1;
++    }
++    return 0;
++}
+ static uint16_t psx_read_half_raw(uint32_t addr);
+ uint16_t psx_read_half(uint32_t addr) {
+     if (g_ls_mode == 2) return (uint16_t)ls_read_hook(addr, 2, 0u);
+@@ -1810,8 +2701,8 @@ static uint16_t psx_read_half_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off))
@@ -17971,7 +18043,7 @@ index 9d55ad16..2bc81e7c 100644
      }
      {
          uint32_t off;
-@@ -1851,7 +2692,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2742,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -17981,7 +18053,7 @@ index 9d55ad16..2bc81e7c 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -1875,8 +2718,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
+@@ -1875,8 +2768,9 @@ static void psx_write_half_raw(uint32_t addr, uint16_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 2u, &off)) {
@@ -17993,7 +18065,7 @@ index 9d55ad16..2bc81e7c 100644
              return;
          }
      }
-@@ -1929,7 +2773,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
+@@ -1929,7 +2823,7 @@ static uint8_t psx_read_byte_raw(uint32_t addr) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off))
@@ -18002,7 +18074,7 @@ index 9d55ad16..2bc81e7c 100644
      }
      {
          uint32_t off;
-@@ -2186,7 +3030,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +3080,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
@@ -18012,7 +18084,7 @@ index 9d55ad16..2bc81e7c 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2209,7 +3055,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
+@@ -2209,7 +3105,8 @@ static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
      {
          uint32_t off;
          if (mod_gpu_dma_memory_offset(phys, 1u, &off)) {
@@ -19977,10 +20049,10 @@ index 00000000..f47f860a
 +#include "../render_replay.c"
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..5885f39a
+index 00000000..7f353e59
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,559 @@
+@@ -0,0 +1,613 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -20028,8 +20100,29 @@ index 00000000..5885f39a
 +#define REC_HV_CAP 32768u
 +static uint32_t s_rec_hv_addr[REC_HV_CAP], s_rec_hv_word[REC_HV_CAP], s_rec_hv_job[REC_HV_CAP], s_rec_job = 0;
 +static inline uint32_t rec_hv_slot(uint32_t addr) { return ((addr >> 2) * 2654435761u) >> 17; }
++/* D23AK (PSX_RW_LEAN=1): the same table without its cache misses. Within a
++ * job no slot is ever freed, so an address already placed is always met in its
++ * probe window before any free slot: whether a mark is kept or dropped (all
++ * 16 window slots taken by other addresses) depends only on which slots are
++ * taken. A bitmap of taken slots (4 KB, cleared per job) decides that exactly;
++ * the kept words live in a table indexed by address (packets are written in
++ * address order), stamped with the job. Lookups give the original's answers. */
++static uint64_t s_hv_taken[REC_HV_CAP / 64u];
++typedef struct { uint32_t word, job; } RecHvWord;
++static RecHvWord s_hv_word[1u << 22];   /* by (addr & 0xFFFFFC) >> 2; touched pages only */
 +static void rec_hv_mark(uint32_t addr, uint32_t word) {
 +    addr &= 0x00FFFFFCu;
++    if (psx_rw_lean()) {
++        RecHvWord *d = &s_hv_word[addr >> 2];
++        if (d->job == s_rec_job) { d->word = word; return; }
++        for (uint32_t k = 0, i = rec_hv_slot(addr); k < 16u; k++, i = (i + 1u) & (REC_HV_CAP - 1u)) {
++            if (!(s_hv_taken[i >> 6] & (1ull << (i & 63u)))) {
++                s_hv_taken[i >> 6] |= 1ull << (i & 63u);
++                d->job = s_rec_job; d->word = word; return;
++            }
++        }
++        return;
++    }
 +    for (uint32_t k = 0, i = rec_hv_slot(addr); k < 16u; k++, i = (i + 1u) & (REC_HV_CAP - 1u)) {
 +        if (s_rec_hv_job[i] != s_rec_job || s_rec_hv_addr[i] == addr) {
 +            s_rec_hv_job[i] = s_rec_job; s_rec_hv_addr[i] = addr; s_rec_hv_word[i] = word; return;
@@ -20038,6 +20131,10 @@ index 00000000..5885f39a
 +}
 +static int rec_hv_marked(uint32_t addr, uint32_t word) {
 +    addr &= 0x00FFFFFCu;
++    if (psx_rw_lean()) {
++        const RecHvWord *d = &s_hv_word[addr >> 2];
++        return d->job == s_rec_job ? d->word == word : 0;
++    }
 +    for (uint32_t k = 0, i = rec_hv_slot(addr); k < 16u; k++, i = (i + 1u) & (REC_HV_CAP - 1u)) {
 +        if (s_rec_hv_job[i] != s_rec_job) return 0;
 +        if (s_rec_hv_addr[i] == addr) return s_rec_hv_word[i] == word;
@@ -20047,7 +20144,8 @@ index 00000000..5885f39a
 +void render_replay_record_begin(uint32_t *buf, uint32_t cap) {
 +    s_rec = buf; s_rec_cap = cap; s_rec_n = 0; s_rec_run = UINT32_MAX; s_rec_overflow = 0;
 +    s_rec_need_src = 0;
-+    if (++s_rec_job == 0) { memset(s_rec_hv_job, 0, sizeof s_rec_hv_job); s_rec_job = 1; }
++    if (++s_rec_job == 0) { memset(s_rec_hv_job, 0, sizeof s_rec_hv_job); memset(s_hv_word, 0, sizeof s_hv_word); s_rec_job = 1; }
++    memset(s_hv_taken, 0, sizeof s_hv_taken);
 +    // Each frozen job starts with a new RAM image, never inherited precision.
 +    if (g_pgxp_mesh_active) pgxp_invalidate_all();
 +}
@@ -20143,6 +20241,28 @@ index 00000000..5885f39a
 +    if (s_rec_n + 1u > s_rec_cap) { s_rec_overflow = 1; return; }
 +    s_rec[s_rec_n++] = word;
 +    s_rec[s_rec_run]++;
++}
++
++/* D23AK (PSX_RW_LEAN=1): DMA nodes read in one batch (developer counter). */
++static uint64_t s_lean_nodes = 0;
++#ifndef PSX_RENDER_COPY
++uint64_t render_replay_lean_nodes(void) { return s_lean_nodes; }
++#endif
++/* D23AK (PSX_RW_LEAN=1): n words appended exactly as n rec_word calls. */
++static void rec_words(const uint32_t *w, uint32_t n) {
++    while (n) {
++        if (s_rec_run == UINT32_MAX || (s_rec[s_rec_run] & 0xFFFFFFu) == 0xFFFFFFu) {
++            if (s_rec_n + 1u > s_rec_cap) { s_rec_overflow = 1; return; }
++            s_rec_run = s_rec_n;
++            s_rec[s_rec_n++] = 0u;
++        }
++        uint32_t take = 0xFFFFFFu - (s_rec[s_rec_run] & 0xFFFFFFu);
++        if (take > n) take = n;
++        if (s_rec_n + take > s_rec_cap) { while (n--) rec_word(*w++); return; }
++        memcpy(&s_rec[s_rec_n], w, (size_t)take * sizeof *w);
++        s_rec_n += take; s_rec[s_rec_run] += take;
++        w += take; n -= take;
++    }
 +}
 +
 +static void gp0(uint32_t addr, uint32_t word) {
@@ -20281,6 +20401,11 @@ index 00000000..5885f39a
 +            if (count) {
 +                if (!g_render_replay_record) gpu_set_gp0_linked_list_node(addr, count);
 +                uint32_t w = psx_mod_gpu_dma_resolve_address(addr + 4u);
++                /* D23AK: the node's words in one read where that is exact
++                 * (record mode, one RAM or GPU DMA span, no watch). */
++                uint32_t lean_words[256];
++                const int lean = g_render_replay_record && psx_rw_lean() && psx_mod_read_words(w, lean_words, count);
++                if (lean) s_lean_nodes++;
 +                if (g_render_replay_record && g_pgxp_mesh_active) {
 +                    // Resolve exact native positions in the worker that produced
 +                    // them. Parent replay remains suppressed and receives only
@@ -20288,14 +20413,14 @@ index 00000000..5885f39a
 +                    extern int gp0_command_word_count(uint8_t opcode);
 +                    for (uint32_t offset=0; offset<count;) {
 +                        const uint32_t a=psx_mod_gpu_dma_resolve_address(w+4*offset);
-+                        const uint32_t first=psx_read_word(a),op=first>>24;
++                        const uint32_t first=lean?lean_words[offset]:psx_read_word(a),op=first>>24;
 +                        const int length=gp0_command_word_count((uint8_t)op);
 +                        // Variable transfers/polylines cannot be guessed from
 +                        // packet contents. No metadata for partial commands.
 +                        if(length<=0 || offset+(uint32_t)length>count || (op>=0x80 && op<0xe0)) break;
 +                        if(op>=0x20 && op<=0x3f) {
 +                            uint32_t words[12];int32_t x[4],y[4];uint16_t z[4];
-+                            for(int k=0;k<length;++k) words[k]=psx_read_word(a+4*k);
++                            for(int k=0;k<length;++k) words[k]=lean?lean_words[offset+(uint32_t)k]:psx_read_word(a+4*k);
 +                            const int corners=pgxp_mesh_polygon(a,words,length,x,y,z);
 +                            const unsigned step=1+((op&4)!=0)+((op&16)!=0);
 +                            const int texture=pgxp_mesh_textures();
@@ -20312,7 +20437,8 @@ index 00000000..5885f39a
 +                    }
 +                }
 +                if (g_render_replay_record && s_rec_need_src) rec_item(5u, &w, 1);
-+                for (uint32_t i = 0; i < count; i++) {
++                if (lean) { s_stats.gp0_words += count; rec_words(lean_words, count); }
++                else for (uint32_t i = 0; i < count; i++) {
 +                    gp0(w, psx_read_word(w));
 +                    w = psx_mod_gpu_dma_resolve_address(w + 4u);
 +                }
@@ -20542,10 +20668,10 @@ index 00000000..5885f39a
 +}
 diff --git a/runtime/src/render_thread.c b/runtime/src/render_thread.c
 new file mode 100644
-index 00000000..d2a21483
+index 00000000..cbeabccf
 --- /dev/null
 +++ b/runtime/src/render_thread.c
-@@ -0,0 +1,871 @@
+@@ -0,0 +1,885 @@
 +/* render_thread.c - redraws on host render threads (Time to Kill D17AW).
 + * See render_thread.h. The emulation thread owns the guest, its renderer
 + * instance and the window; each render thread owns another renderer instance
@@ -20702,7 +20828,21 @@ index 00000000..d2a21483
 +void psx_placement_pin_side(void) {
 +    if (psx_placement_active()) (void)pthread_setaffinity_np(pthread_self(), sizeof s_place_side, &s_place_side);
 +}
++/* D23AK (developer): PSX_PLACEMENT_RENDER=side (default, as the workers),
++ * emu (the emulation thread's core) or all (both cores) for the render
++ * threads, to measure their placement apart from the workers'. */
++void psx_placement_pin_render(void) {
++    if (!psx_placement_active()) return;
++    const char *e = getenv("PSX_PLACEMENT_RENDER");
++    if (e && !strcmp(e, "emu")) { (void)pthread_setaffinity_np(pthread_self(), sizeof s_place_emu, &s_place_emu); return; }
++    if (e && !strcmp(e, "all")) {
++        cpu_set_t both; CPU_OR(&both, &s_place_emu, &s_place_side);
++        (void)pthread_setaffinity_np(pthread_self(), sizeof both, &both); return;
++    }
++    psx_placement_pin_side();
++}
 +#else
++void psx_placement_pin_render(void) {}
 +int psx_placement_active(void) { return 0; }
 +void psx_placement_pin_emulation(void) {}
 +void psx_placement_pin_side(void) {}
@@ -20952,7 +21092,7 @@ index 00000000..d2a21483
 +#if defined(__linux__)
 +    pthread_setname_np(pthread_self(), k ? "psx-render1" : "psx-render0");   /* for profiles and /proc */
 +#endif
-+    psx_placement_pin_side();   /* D23Y4 */
++    psx_placement_pin_render();   /* D23Y4; D23AK developer choice */
 +    if (SDL_GL_MakeCurrent(t->hidden, t->ctx) != 0) {
 +        fprintf(stdout, "psxrecomp: render thread %d: MakeCurrent failed (%s)\n", k, SDL_GetError());
 +        atomic_store(&s_state, -1);
@@ -21419,10 +21559,10 @@ index 00000000..d2a21483
 +#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..67a212bf
+index 00000000..9865e352
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,1045 @@
+@@ -0,0 +1,1080 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -21732,6 +21872,10 @@ index 00000000..67a212bf
 +    const char *rv=getenv("PSX_RW_RESTORE_VERIFY");
 +    const int restore_verify=rv ? atoi(rv) : 0;
 +    uint32_t *rv_ref=restore_verify>0 ? malloc(RW_OUT_WORDS*sizeof(uint32_t)) : NULL;
++    const char *lv=getenv("PSX_RW_LEAN_VERIFY");
++    const int lean_verify=lv ? atoi(lv) : 0;
++    uint32_t *lean_ref=lean_verify>0 ? malloc(RW_OUT_WORDS*sizeof(uint32_t)) : NULL;
++    uint64_t lean_jobs=0,lean_checked=0,lean_bad=0;
 +    uint32_t rs_prev_slot=~0u,rs_prev_gen=0;int rs_prev_valid=0;
 +    uint64_t rs_jobs=0,rs_partial=0,rs_load_ns[2]={0},rs_n[2]={0},rv_same_jobs=0,rv_checked=0,rv_bytes_bad=0,rv_stream_bad=0,rv_stream_cmp=0;
 +    extern uint64_t g_trk_faults,g_trk_pages_copied,g_trk_resync_checked,g_trk_resync_bad;
@@ -21820,6 +21964,37 @@ index 00000000..67a212bf
 +                uint32_t at=0;while(at<n && at<n2 && rv_ref[at]==job_out((uint32_t)claimed)[at]) ++at;
 +                ++rv_stream_bad;
 +                fprintf(stderr,"[rw restore] stream differs: words %u/%u, first at %u, partial %d\n",n,n2,at,partial);
++            }
++        }
++        /* D23AK (developer, PSX_RW_LEAN_VERIFY=N with PSX_RW_LEAN=1): every Nth
++         * job is run again from a whole load of its image, on the first run's
++         * clock, with the lean host accesses suspended; the two streams must
++         * match word for word. "[rw lean]" lines every 64 checks. */
++        if(lean_ref && ok && !overflow && psx_rw_lean() && ++lean_jobs%(uint64_t)lean_verify==0) {
++            extern void render_replay_image_untrack(void);
++            extern uint32_t g_psx_rw_clock_last,g_psx_rw_clock_repeat;
++            extern int g_psx_rw_lean_suspend;
++            if(restore) render_replay_image_untrack();
++            render_replay_image_load(slot_image(job->slot));
++            rs_prev_valid=0;
++            CPUState again=original_cpu;
++            psx_cycle_count=cycle_before;
++            render_replay_reset_channel();
++            render_replay_record_begin(lean_ref,RW_OUT_WORDS);
++            g_psx_rw_clock_repeat=g_psx_rw_clock_last;g_psx_rw_lean_suspend=1;
++            const int ok2=s_draw(&again,job->params,job->params_len);
++            g_psx_rw_clock_repeat=0;g_psx_rw_lean_suspend=0;
++            int of2=0;const uint32_t n2=render_replay_record_end(&of2);
++            ++lean_checked;
++            if(!(ok2 && !of2 && n2==n && memcmp(lean_ref,job_out((uint32_t)claimed),n*sizeof(uint32_t))==0)) {
++                uint32_t at=0;while(at<n && at<n2 && lean_ref[at]==job_out((uint32_t)claimed)[at]) ++at;
++                ++lean_bad;
++                fprintf(stderr,"[rw lean] stream differs: words %u/%u, first at %u\n",n,n2,at);
++            }
++            if(lean_checked%64==0) {
++                extern uint64_t render_replay_lean_nodes(void);
++                fprintf(stderr,"[rw lean %ld] jobs %llu, checked %llu, differing %llu, lean DMA nodes %llu\n",(long)getpid(),
++                        (unsigned long long)lean_jobs,(unsigned long long)lean_checked,(unsigned long long)lean_bad,(unsigned long long)render_replay_lean_nodes());
 +            }
 +        }
 +        if((restore || restore_verify>0) && rs_jobs%256==0) {

@@ -13,6 +13,8 @@ void lamp_bake_map_clear();
 uint32_t lamp_bake_surface(uint32_t record);
 // D23N1: hold the table current at a redraw job's start until its end.
 void lamp_bake_pin(bool on);
+int lamp_bake_pinned();
+void lamp_bake_pin_half(int half);
 // D41P: the level's floors as a grid (Quake's R_LightPoint: a model takes the
 // bake of the floor it stands on). Built from the bake's triangles and faces
 // (face i is surface i+1); kept with the face map, published by the next

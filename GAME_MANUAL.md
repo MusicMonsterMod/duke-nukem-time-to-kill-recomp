@@ -246,8 +246,8 @@ If the extra pictures (FRAME RATE 60 and up) slow the game itself down on your c
 (on a 120 Hz or faster display it first shows a picture at every second,
 then every third refresh), the game drops to the original presentation
 for a while instead, so Duke and the enemies keep their speed, and tries the
-faster rate again after two minutes of play (then four, then eight if it
-still cannot). On a 60 Hz display (a laptop panel, most TVs) there is no
+faster rate again after 15 seconds of play (then 30 seconds, one, two,
+four and at most eight minutes if it still cannot; D23AK). On a 60 Hz display (a laptop panel, most TVs) there is no
 in-between step: 30 evenly paced pictures a second looked rougher than the
 original presentation, so it goes straight to the original presentation
 (D23AD). A load or the

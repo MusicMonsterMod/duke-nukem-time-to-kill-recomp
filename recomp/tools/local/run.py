@@ -374,6 +374,11 @@ def main(argv=None):
     env.setdefault('DNTTK_STATUS_BARS', controls['status_bars'] if modernized else 'native')
     env.setdefault('DNTTK_FP_LEGS', controls['first_person_legs'] if modernized else 'off')
     env.setdefault('DNTTK_VIEW_BOB', controls['view_bob'] if modernized else 'off')
+    # D23AK (user-accepted 2026-11-18): the lighter redraw worker and its
+    # presentation (note 510 section 6). Modernized only; an explicit value in
+    # the environment (developer A/B, e.g. PSX_RW_LEAN=0) wins.
+    if modernized:
+        for key, value in MODERNIZED_REDRAW_DEFAULTS.items(): env.setdefault(key, value)
     env['DNTTK_CAMERA_STATE_FILE'] = str(profiles.camera_state_path(a.settings_file.resolve())) if modernized else ''
     # D19: the in-game OPTIONS screens (Modernized) save confirmed settings here.
     env['DNTTK_MENU_SETTINGS_FILE'] = str(profiles.menu_settings_path(a.settings_file.resolve())) if modernized else ''
@@ -395,6 +400,28 @@ def main(argv=None):
     save_camera_state(a.settings_file)
     save_presentation_state(a.settings_file, settings['active'])
     return status
+
+
+# D23AK: Modernized defaults for the redraw workers and their presentation.
+#   PSX_RW_LEAN: exact per-job cuts in the workers and the fast CPU timing
+#     model in worker jobs (identical redraw streams, checked word for word);
+#   PSX_RW_RESTORE: a job that redraws the image its worker holds restores only
+#     the pages the previous job wrote (D23N5);
+#   PSX_PUBLISH_TRACK: a publish copies only the pages written since (D23Y10);
+#   PSX_PLACEMENT_RENDER=all: on a 2-core SMT CPU the render thread may run on
+#     either core (D23Y4 kept it on the workers' core);
+#   DNTTK_REDRAW_ONLY_OBJECTS: a hidden redraw-only live frame emits no world
+#     objects (Duke's own layers still draw);
+#   DNTTK_REPLAY_FLOOR_WAIT=15: the first wait after the governor's fallback
+#     (was 120 s; a retry that falls behind returns at once, repeats double it).
+MODERNIZED_REDRAW_DEFAULTS = {
+    'PSX_RW_LEAN': '1',
+    'PSX_RW_RESTORE': '1',
+    'PSX_PUBLISH_TRACK': '1',
+    'PSX_PLACEMENT_RENDER': 'all',
+    'DNTTK_REDRAW_ONLY_OBJECTS': '1',
+    'DNTTK_REPLAY_FLOOR_WAIT': '15',
+}
 
 
 def save_presentation_state(settings_file, mode):

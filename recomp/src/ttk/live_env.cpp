@@ -4,6 +4,7 @@
 // environment. No dependencies, so module unit tests link it as is.
 #include "live_env.h"
 #include <atomic>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -12,13 +13,41 @@ struct Slot {std::atomic<const char*> name{nullptr},value{nullptr};};
 Slot slots[32];
 }
 
-extern "C" const char* ttk_live_env(const char* name) {
-    for(Slot& s:slots) {
-        const char* n=s.name.load(std::memory_order_acquire);
+// D23AK (developer PSX_RW_LEAN=1): what a name resolves to (its slot, or the
+// launch environment's value, which nothing changes after start: no setenv of
+// a DNTTK_ name anywhere), kept per thread by the name's address (every caller
+// passes a string literal) and the slot list's generation (a new name moves
+// it). A slot's value is still read at each call. The result is the same
+// pointer the full lookup returns.
+namespace {
+std::atomic<unsigned> slot_gen{1};
+const char* live_env_full(const char* name,int& slot) {
+    slot=-1;
+    for(int i=0;i<32;++i) {
+        const char* n=slots[i].name.load(std::memory_order_acquire);
         if(!n) break;
-        if(!std::strcmp(n,name)) return s.value.load(std::memory_order_acquire);
+        if(!std::strcmp(n,name)) {slot=i;return slots[i].value.load(std::memory_order_acquire);}
     }
     return std::getenv(name);
+}
+bool live_env_lean() {static const bool v=[]{const char* e=std::getenv("PSX_RW_LEAN");const char* b=std::getenv("DNTTK_LEAN_BISECT");
+    return e && e[0]=='1' && !(b && (std::strtoul(b,nullptr,0)&32u));}();return v;}
+}
+
+extern "C" const char* ttk_live_env(const char* name) {
+    if(live_env_lean()) {
+        struct Entry {const char* name;const char* env;unsigned gen;int slot;};
+        thread_local Entry cache[64];
+        Entry& e=cache[((uintptr_t)name>>3)&63];
+        const unsigned gen=slot_gen.load(std::memory_order_acquire);
+        if(e.name!=name || e.gen!=gen) {
+            int slot;const char* v=live_env_full(name,slot);
+            e={name,slot<0?v:nullptr,gen,slot};
+            return v;
+        }
+        return e.slot>=0 ? slots[e.slot].value.load(std::memory_order_acquire) : e.env;
+    }
+    int slot;return live_env_full(name,slot);
 }
 
 // Values must stay valid for the life of the process (string literals).
@@ -26,7 +55,7 @@ extern "C" void ttk_live_env_set(const char* name,const char* value) {
     for(Slot& s:slots) {
         const char* n=s.name.load(std::memory_order_acquire);
         if(n && !std::strcmp(n,name)) {s.value.store(value,std::memory_order_release);return;}
-        if(!n) {s.value.store(value,std::memory_order_release);s.name.store(name,std::memory_order_release);return;}
+        if(!n) {s.value.store(value,std::memory_order_release);s.name.store(name,std::memory_order_release);slot_gen.fetch_add(1,std::memory_order_acq_rel);return;}
     }
 }
 

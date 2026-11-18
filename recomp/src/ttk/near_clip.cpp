@@ -64,6 +64,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 #include <cstdlib>
 #include <string_view>
 #include <vector>
@@ -634,22 +635,42 @@ uint32_t packed_xy(const Frame& f,const Vertex& v) {
     const int32_t sx=clamp((int64_t)std::floor(x),-0x400,0x3ff),sy=clamp((int64_t)std::floor(y),-0x400,0x3ff);
     return (uint32_t)(uint16_t)sx | (uint32_t)(uint16_t)sy<<16;
 }
+// D23AK (developer): DNTTK_LEAN_BISECT=mask turns single PSX_RW_LEAN cuts back
+// off, to find which one a difference follows: 1 emit's batched writes, 2
+// world's batched record reads, 4 the lean shape, 8 subdivide's early emit, 16
+// the inline lround; 32 the settings cache (live_env.cpp); 64 smooth normals'
+// face lengths once; 128 the clip planes' guard ratios once a polygon.
+// PSX_RW_LEAN read once here as the framework reads it (psx_rw_lean); its
+// developer check suspends the cuts for a reference run (g_psx_rw_lean_suspend).
+extern "C" int g_psx_rw_lean_suspend;
+const bool lean_env=[]{const char* e=std::getenv("PSX_RW_LEAN");return e && e[0]=='1';}();
+const unsigned lean_off=[]{const char* t=std::getenv("DNTTK_LEAN_BISECT");return t?(unsigned)std::strtoul(t,nullptr,0):0u;}();
+inline bool lean_cut(unsigned bit) {return lean_env && !g_psx_rw_lean_suspend && !(lean_off&bit);}
+// D23AK (developer PSX_RW_LEAN=1): std::lround without the library call. For
+// finite |x| < 2^52 the fraction x - trunc(x) is exact, so rounding half away
+// from zero from it is lround's result; anything else goes to std::lround.
+inline long lround_exact(double x) {
+    if(!lean_cut(16) || !(std::fabs(x)<4503599627370496.0)) return std::lround(x);
+    double t=std::trunc(x);const double d=x-t;
+    if(d>=0.5) t+=1.0; else if(d<=-0.5) t-=1.0;
+    return (long)t;
+}
 bool tint_object;
 uint32_t rgb_word(const Vertex& v) {
     if(tint()) return tint_object?0xc04020u:0x2040c0u;
     uint32_t w=0;
-    for(int i=0;i<3;++i) w|=(uint32_t)clamp(std::lround(v.rgb[i]),0,255)<<(8*i);
+    for(int i=0;i<3;++i) w|=(uint32_t)clamp(lround_exact(v.rgb[i]),0,255)<<(8*i);
     return w;
 }
 uint32_t uv_word(const Vertex& v) {
-    return (uint32_t)clamp(std::lround(v.uv[0]),0,255) | (uint32_t)clamp(std::lround(v.uv[1]),0,255)<<8;
+    return (uint32_t)clamp(lround_exact(v.uv[0]),0,255) | (uint32_t)clamp(lround_exact(v.uv[1]),0,255)<<8;
 }
 // Ordering-table slot: world 0x800117d0 (source maximum SZ >> 5), object 0x800104a8
 // (AVSZ3 >> 3 with the polygon's +-1 bias). -1 when past the depth limit.
 int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
     if(poly.native_order) return poly.native_slot;
     uint32_t sz[3];
-    for(int i=0;i<3;++i) sz[i]=(uint32_t)clamp(std::lround(poly.key_z>0?poly.key_z:v[i].p[2]),1,0xffff);
+    for(int i=0;i<3;++i) sz[i]=(uint32_t)clamp(lround_exact(poly.key_z>0?poly.key_z:v[i].p[2]),1,0xffff);
     if(!f.object) {
         const uint32_t nearest=(sz[0]+sz[1]+sz[2])/3;
         if((int32_t)(nearest>>2)>=(int32_t)f.far_limit) return -1;
@@ -767,6 +788,20 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     if(!prim) {++packet_skips;trace_record(f,"packet_budget",poly.source);return;}
     // Gouraud packets: colour, position and (textured) CLUT/TPAGE/UV per corner.
     const uint32_t stride=poly.textured?12:8,quad=n==4?0x08000000u:0;
+    // D23AK (developer PSX_RW_LEAN=1): the corner words in one batched write,
+    // the same words in the same order; when it took the batched path the
+    // screen words below are the ones just written (no read back).
+    const bool lean=lean_cut(1);
+    uint32_t lean_words[12];bool lean_written=false;
+    if(lean) {
+        const uint32_t per=stride/4;
+        for(unsigned i=0;i<n;++i) {
+            lean_words[per*i]=(i?0:poly.command|quad)|rgb_word(v[i]);
+            lean_words[per*i+1]=packed_xy(f,v[i]);
+            if(poly.textured) lean_words[per*i+2]=(i==0?poly.clut<<16:i==1?poly.tpage<<16:0)|uv_word(v[i]);
+        }
+        lean_written=psx_mod_write_words(prim+4,lean_words,per*n)!=0;
+    } else
     for(unsigned i=0;i<n;++i) {
         const uint32_t at=prim+4+stride*i;
         psx_mod_write_word(at,(i?0:poly.command|quad)|rgb_word(v[i]));
@@ -802,7 +837,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     {
         uint32_t poly_floor=0;float poly_fn[3]={0,0,0};   // D41P2
         for(unsigned i=0;i<n;++i) {
-            const uint32_t addr=prim+8+stride*i,word=psx_mod_read_word(addr);
+            const uint32_t addr=prim+8+stride*i,word=lean_written?lean_words[stride/4*i+1]:psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
             if(pgxp_mesh_geometry() && v[i].original>=0) {
                 x16=f.verts[v[i].original].x16;y16=f.verts[v[i].original].y16;
@@ -926,6 +961,17 @@ bool unified_oversize(const Frame& f,const Vertex* v,size_t n) {
 // Split in view space, so each piece is perspective-correct at its corners
 // and sorts by its own depth.
 void subdivide(Frame& f,const Poly& poly,const Vertex* v,unsigned depth) {
+    // D23AK (developer PSX_RW_LEAN=1): unified geometry decides on the size
+    // limit alone, so a piece that is not split is emitted before the edge
+    // lengths and depth range below are computed (they are read only for a
+    // split); the split itself takes the unchanged path.
+    if(lean_cut(8) && unified_scene(f)) {
+        const bool wanted=unified_oversize(f,v,3);
+        if(!wanted || depth>=max_depth || budget(f)<split_reserve) {
+            if(wanted) ++f.stats->budget_hits;
+            emit(f,poly,v);return;
+        }
+    }
     double sx[3],sy[3];
     for(int i=0;i<3;++i) screen(f,v[i],sx[i],sy[i]);
     int longest=0;double length=0;
@@ -979,6 +1025,17 @@ Vertex edge_cut(const Vertex& a,const Vertex& b,double da,double db) {
 // margins were clipped away (D17AM2).
 double plane(const Vertex& v,int k,double h) {
     const double gx=std::max(guard_xr,480/h),gy=std::max(guard_yr,240/h);
+    switch(k) {
+        case 0: return v.p[2]-near_z;
+        case 1: return gx*v.p[2]-v.p[0];
+        case 2: return gx*v.p[2]+v.p[0];
+        case 3: return gy*v.p[2]-v.p[1];
+        default: return gy*v.p[2]+v.p[1];
+    }
+}
+// D23AK (developer PSX_RW_LEAN=1, bit 128): plane() with its two guard ratios
+// computed once per polygon instead of at every call (the same expressions).
+inline double plane_g(const Vertex& v,int k,double gx,double gy) {
     switch(k) {
         case 0: return v.p[2]-near_z;
         case 1: return gx*v.p[2]-v.p[0];
@@ -1112,21 +1169,48 @@ void join_smooth_pairs(const Frame& f,std::vector<Poly>& polys) {
     for(size_t i=0;i<polys.size();++i) if(!gone[i]) polys[out++]=polys[i];
     polys.resize(out);
 }
+// At most four corners plus one per clip plane: no heap per polygon.
+struct ShapeFull {
+    Vertex v[12];unsigned n=0;
+    size_t size() const {return n;}
+    Vertex* data() {return v;}
+    Vertex* begin() {return v;} Vertex* end() {return v+n;}
+    const Vertex* begin() const {return v;} const Vertex* end() const {return v+n;}
+    Vertex& operator[](size_t i) {return v[i];}
+    const Vertex& operator[](size_t i) const {return v[i];}
+    void push_back(const Vertex& x) {v[n++]=x;}
+    void clear() {n=0;}
+};
+// D23AK (developer PSX_RW_LEAN=1): the same shape without initialising or
+// copying the unused corners (a Vertex is 112 bytes; only the first n are
+// ever read).
+static_assert(std::is_trivially_copyable<Vertex>::value,"Vertex is copied as bytes");
+struct ShapeLean {
+    alignas(Vertex) unsigned char raw[12*sizeof(Vertex)];unsigned n=0;
+    ShapeLean() {}
+    ShapeLean(const ShapeLean& o):n(o.n) {std::memcpy(raw,o.raw,n*sizeof(Vertex));}
+    ShapeLean& operator=(const ShapeLean& o) {n=o.n;std::memcpy(raw,o.raw,n*sizeof(Vertex));return *this;}
+    Vertex* v() {return reinterpret_cast<Vertex*>(raw);}
+    const Vertex* v() const {return reinterpret_cast<const Vertex*>(raw);}
+    size_t size() const {return n;}
+    Vertex* data() {return v();}
+    Vertex* begin() {return v();} Vertex* end() {return v()+n;}
+    const Vertex* begin() const {return v();} const Vertex* end() const {return v()+n;}
+    Vertex& operator[](size_t i) {return v()[i];}
+    const Vertex& operator[](size_t i) const {return v()[i];}
+    void push_back(const Vertex& x) {std::memcpy(raw+n*sizeof(Vertex),&x,sizeof(Vertex));++n;}
+    void clear() {n=0;}
+};
+template<class Shape> void draw_shape(Frame& f,const Poly& poly);
 void draw(Frame& f,const Poly& poly) {
+    if(lean_cut(4)) draw_shape<ShapeLean>(f,poly); else draw_shape<ShapeFull>(f,poly);
+}
+template<class Shape> void draw_shape(Frame& f,const Poly& poly) {
     ++f.stats->polys;
+    const bool lean_planes=lean_cut(128);
+    const double pgx=std::max(guard_xr,480/(double)f.g.h),pgy=std::max(guard_yr,240/(double)f.g.h);
     static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
-    // At most four corners plus one per clip plane: no heap per polygon.
-    struct Shape {
-        Vertex v[12];unsigned n=0;
-        size_t size() const {return n;}
-        Vertex* data() {return v;}
-        Vertex* begin() {return v;} Vertex* end() {return v+n;}
-        const Vertex* begin() const {return v;} const Vertex* end() const {return v+n;}
-        Vertex& operator[](size_t i) {return v[i];}
-        const Vertex& operator[](size_t i) const {return v[i];}
-        void push_back(const Vertex& x) {v[n++]=x;}
-        void clear() {n=0;}
-    } shape;
+    Shape shape;
     static const int order3[3]={0,1,2},order4[4]={0,1,3,2};
     const int* order=poly.count==3?order3:order4;
     for(unsigned j=0;j<poly.count;++j) {
@@ -1184,7 +1268,7 @@ void draw(Frame& f,const Poly& poly) {
     static const bool quads=env_int("DNTTK_UNIFIED_QUADS",1,0,1)!=0;
     if(quads && unified_scene(f) && poly.count==4 && !smooth) {
         whole=!unified_oversize(f,shape.data(),shape.size());
-        for(const auto& v:shape) for(int k=0;k<5 && whole;++k) whole=plane(v,k,f.g.h)>=0;
+        for(const auto& v:shape) for(int k=0;k<5 && whole;++k) whole=(lean_planes?plane_g(v,k,pgx,pgy):plane(v,k,f.g.h))>=0;
     }
     const bool halves=!smooth && (unified_scene(f)?!whole || (warped && warped_split):world_texture_split || (warped && warped_split));
     if(halves && poly.count==4) {
@@ -1245,13 +1329,13 @@ void draw(Frame& f,const Poly& poly) {
         // vertices directly instead of allocating/copying five temporary
         // polygons per source polygon. Mixed edges use the exact old clipper.
         bool inside=false,outside=false;
-        for(const auto& v:shape) {if(plane(v,k,f.g.h)>=0) inside=true;else outside=true;}
+        for(const auto& v:shape) {if((lean_planes?plane_g(v,k,pgx,pgy):plane(v,k,f.g.h))>=0) inside=true;else outside=true;}
         if(!outside) continue;
         if(!inside) {shape.clear();break;}
         Shape out;
         for(size_t i=0;i<shape.size();++i) {
             const Vertex& a=shape[i];const Vertex& b=shape[(i+1)%shape.size()];
-            const double da=plane(a,k,f.g.h),db=plane(b,k,f.g.h);
+            const double da=lean_planes?plane_g(a,k,pgx,pgy):plane(a,k,f.g.h),db=lean_planes?plane_g(b,k,pgx,pgy):plane(b,k,f.g.h);
             if(da>=0) out.push_back(a);
             if((da>=0)!=(db>=0)) out.push_back(edge_cut(a,b,da,db));
         }
@@ -1461,8 +1545,12 @@ void world(CPUState* cpu) {
     // Vertex positions and the polygon list, hashed as they are read
     // (rank_coplanar_world). The colour-index nibble is not geometry.
     uint64_t sig=coplanar_mix(0xcbf29ce484222325ull,count);
+    // D23AK (developer PSX_RW_LEAN=1): the vertex records in one batched read.
+    const bool lean=lean_cut(2);
+    uint32_t lean_rec[512];
+    const bool lean_read=lean && psx_mod_read_words(mesh+0x1c,lean_rec,2*count)!=0;
     for(unsigned i=0;i<count;++i) {
-        const uint32_t record=mesh+0x1c+8*i,w0=psx_mod_read_word(record),w1=psx_mod_read_word(record+4);
+        const uint32_t record=mesh+0x1c+8*i,w0=lean_read?lean_rec[2*i]:psx_mod_read_word(record),w1=lean_read?lean_rec[2*i+1]:psx_mod_read_word(record+4);
         sig=coplanar_mix(sig,w0&0xf0ffffffu);
         const uint32_t xy=((w0&0xff)<<10)|((w0&0xff00)<<15);
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)((((w0>>16)&0xff)<<10)&0xffff));
@@ -2263,6 +2351,11 @@ void smooth_model_normals(const Frame& f,std::vector<Poly>& polys,uint32_t list,
         if(!seen) fadj[fill[fidx[i]]++]=(int)face;
     }
     const double crease=smooth_crease_cos();
+    // D23AK (developer PSX_RW_LEAN=1, bit 64): each face's length once, not
+    // again for every corner that touches it (the same sqrt of the same sum).
+    thread_local std::vector<double> flen;
+    const bool lean_len=lean_cut(64);
+    if(lean_len) {flen.resize(fn.size());for(size_t i=0;i<fn.size();++i) {const V3& q=fn[i];flen[i]=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z);}}
     for(auto& p:polys) {
         const V3 own=face_normal(p.idx,p.count);
         const double ol=std::sqrt(own.x*own.x+own.y*own.y+own.z*own.z);
@@ -2272,7 +2365,7 @@ void smooth_model_normals(const Frame& f,std::vector<Poly>& polys,uint32_t list,
             const int r=rep[p.idx[j]];V3 sum{0,0,0};
             for(int a=fstart[r];a<fill[r];++a) {
                 const V3& q=fn[fadj[a]];
-                const double ql=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z);
+                const double ql=lean_len?flen[fadj[a]]:std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z);
                 if((q.x*own.x+q.y*own.y+q.z*own.z)<crease*ql*ol) continue;
                 sum.x+=q.x;sum.y+=q.y;sum.z+=q.z;
             }
@@ -2634,6 +2727,7 @@ void object_null_poison(CPUState* cpu,uint32_t mesh) {
     for(int r:{2,3,8,9,10,11,12,13,14,15}) cpu->gpr[r]=poison();
     for(uint32_t i=4;i<=0x38;i+=4) psx_mod_write_word(cpu->gpr[29]-i,poison());
 }
+uint64_t hidden_objects=0;   // D23AK: objects a hidden live frame did not emit
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const LimbPresentation limb=first_person_limb_presentation();
@@ -2820,6 +2914,17 @@ void object(CPUState* cpu) {
         cpu->gpr[4]=copy;
     }
     ++object_stats.taken;viewmodel_meshes+=viewmodel;
+    // D23AK (developer DNTTK_REDRAW_ONLY_OBJECTS=1): a redraw-only live frame
+    // is never shown (frame_replay.cpp; the redraw workers draw from the image
+    // published before it). A world object keeps every decision above (the
+    // faces left to the original, the copy or null mesh it is given) and emits
+    // nothing: no packets, coplanar ranks, smooth normals, model shades or
+    // glows, as host_visibility.inc does for the world's pieces. Duke's own
+    // layers draw as before: the first-person draw records the barrel shots
+    // aim from (weapon_aim.cpp), and their native draws advance pose counters.
+    static const bool hidden_skip=[]{const char* e=std::getenv("DNTTK_REDRAW_ONLY_OBJECTS");return e && e[0]=='1';}();
+    if(hidden_skip && !viewmodel && !body && limb.owner==LimbOwner::Native && !first_person_duke_drawing() && !third_person_duke_drawing() &&
+       live_frame_redraw_only()) {++hidden_objects;return;}
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
     std::vector<Poly> polys;polys.reserve(taken.size());

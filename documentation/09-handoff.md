@@ -1,5 +1,11 @@
 # Next-session handoff
 
+## 2026-11-18 (evening) - D23AK closed out (Done): a lighter redraw worker
+
+The redraw worker is about 30% lighter per picture and exact (word-for-word stream checks, `PSX_RT_VALIDATE`, VRAM dumps): batched host packet writes and reads, the host-vertex record without its hash misses, a lean clip shape, an inline exact `lround`, a settings cache, D23F's fast CPU timing in worker jobs with the device deadline lifted, and D23N5's restore and D23Y10's tracked publish. The render thread may run on either core of a 2-core SMT CPU, hidden redraw-only live frames emit no world objects, and the governor's first fallback wait is 15 s. All six are Modernized defaults in `run.py` (`MODERNIZED_REDRAW_DEFAULTS`; Vanilla unchanged). Field laptop, BALANCED at FRAME RATE 60, third person, all 21 levels: every level's median 59.5-60 new pictures (was down to 30), 70 of 749 s without redraws (was 249 of 744); first person on level 29 is still short (lowest tenth 26-35). One drop when THE REAPER hit Duke was reported once and not reproduced. [Note 510](510-d23ak-what-a-redraw-shares.md).
+
+State: committed from the main checkout (user: "lock in the way the game plays right now, and then close us out"). The field laptop's checkout holds the same sources and a matching build; its desktop launcher "TTK D23AK bundle" now plays the normal Modernized launch with a log per launch.
+
 ## 2026-11-18 (overnight) - D23AG, D23AF6, D23AJ closed out (Done); D23AH, D23AI Blocked
 
 FRAME RATE now counts new pictures a second (D23AG, launcher schema 79): the original look is ORIGINAL 30 (`original`), `60` is 60 new pictures; a saved `60` becomes `original`, so nothing looks different after the update. On a 180 Hz screen FRAME RATE 60 now presents 60 a second (a D17BH vsync placement fix); 120 and 144 there still exceed their label (D23AG1). The render-thread validator is exact at RELIT with three workers (D23AF6): loading-screen redraws used to inherit lamp levels; every replayed image now starts from no light state. LTO and PGO cut the emulation thread 5-25% but not the redraw worker (D23AH, opt-in proposed). On the field laptop BALANCED 60 reaches 47.5 new pictures (median), SIMPLE 60 59.9 (D23AJ); BALANCED is limited by the single redraw worker and the 15 W package (D23AI), next D23AK. [Note 509](509-d23ag-overnight-chain.md).

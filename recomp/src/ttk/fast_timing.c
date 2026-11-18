@@ -67,6 +67,30 @@ __attribute__((constructor)) static void ttk_ft_from_env(void) {
 
 int ttk_fast_timing_enabled(void) { return s_enabled; }
 
+/* D23AK (developer PSX_RW_LEAN=1, frame_replay.cpp): a redraw worker's job runs
+ * the fast model too. A frozen job's guest sees no clock (the replay's device
+ * policy reads the root counters as 0 and holds the interrupt state), no
+ * device runs, and a pending interrupt still takes the full check at the same
+ * block boundary, so its stream is the one the accurate hooks give; the
+ * worker's PSX_RW_LEAN_VERIFY compares it with a run on the accurate model.
+ * Worker processes only: the emulation thread's lease is untouched. */
+/* A worker never services devices (psx_in_device_service), so the device
+ * deadline only decides how often cycles are published; left in the past it
+ * sent every branch edge down the slow path. It is lifted for the job and put
+ * back after it. */
+void ttk_fast_timing_job(int on) {
+    static uint64_t saved_service = 0;
+    if (on) {
+        s_until = psx_cycle_count + TTK_FT_LEASE_CYCLES;
+        ttk_ft_on = 1;
+        g_ttk_ft_budget = s_period;
+        if (psx_in_device_service) { saved_service = psx_next_service_cycle; psx_next_service_cycle = UINT64_MAX >> 1; }
+    } else {
+        ttk_ft_on = 0;
+        if (psx_in_device_service && saved_service) { psx_next_service_cycle = saved_service; saved_service = 0; }
+    }
+}
+
 /* Player update (Modernized gameplay), next to the overclock lease. */
 void ttk_fast_timing_renew(void) {
     if (!s_enabled) return;

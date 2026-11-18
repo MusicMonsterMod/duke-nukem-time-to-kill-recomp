@@ -136,6 +136,10 @@ void lamp_bake_floor_stage(const LampFloorGrid& g) {
 // until the next publish but one (seconds apart: a bake takes seconds).
 int lbm_pinned=-1;
 void lamp_bake_pin(bool on) {lbm_pinned=on && lbm ? (int)(lbm->active.load(std::memory_order_acquire)&1u) : -1;}
+// D23AK: a developer re-run of a job (render_worker.c's checks) reads the half
+// the first run read, as it holds the first run's draw clock.
+int lamp_bake_pinned() {return lbm_pinned;}
+void lamp_bake_pin_half(int half) {lbm_pinned=lbm && half>=0 ? (half&1) : -1;}
 
 uint32_t lamp_bake_floor(float x,float y,float z) {
     const Shared* s=lbm;

@@ -4345,7 +4345,7 @@ the LTO/PGO executables. Proposed: opt-in `build.py --lto` / `--pgo`.
 
 ### D23AI - BALANCED GPU passes on the field laptop's HD 5500
 
-**Status: Blocked (2026-11-18 overnight, on D23AK; [note 509](../documentation/509-d23ag-overnight-chain.md) section 3). Dependencies: D23AF4.**
+**Status: Done (2026-11-18, closed out: "lock in this session and close it out"; [note 511](../documentation/511-d23ai-balanced-gpu-passes-hd5500.md)). Dependencies: D23AF4.**
 
 User, 2026-11-18: "D23AI (BALANCED GPU passes on the laptop's HD 5500)".
 D23AF4's evidence: at BALANCED the redraws' GPU work (75-80% busy at
@@ -4368,6 +4368,32 @@ ORIGINAL GPU 54 -> 37-41%, no fallback; draw distance ORIGINAL 41%, worker
 holds). `PSX_SHADOW_PROF` cannot split passes. Not done: per-pass GPU
 timing (instrumentation proposed) and any GPU change: the saturated levels
 are bound by the redraw worker (D23AK).
+
+Work log, 2026-11-18 ([note 511](../documentation/511-d23ai-balanced-gpu-passes-hd5500.md)),
+after D23AK: per-pass GPU timing under the existing `PSX_GPU_PHASES=2`
+(`gpu_gl_renderer.c`: `tex-lit` beside the lean `tex`, `shadow-map` and
+`present` kinds, `gp_span` timeline spans outside redraws with mean and
+maximum; summary `recomp/analysis/d23ai/kinds.py`, local). Field laptop,
+real 60 Hz screen, BALANCED 60, census route, D23AK defaults, levels 6, 21,
+22, 24, 26, 27, 29: a redraw 6.0-7.6 ms GPU, lit textured batches 4.6-6.0
+(75-80%; no lean batch at BALANCED), band 0.34, wide clears 0.33, fills and
+copies 0.24; present 0.7 ms; shadow maps outside redraws rare but 20-44 ms.
+Medians 59-60 new pictures, lowest tenth 36-59. Compile-out A/B
+(`PSX_SHADER_STRIP`): lighting layer 1.2-2.0 ms, shadow lookups and exact
+edges within the spread. Tried and removed: the full program without the
+exact-edge layer while SHADOW EDGES is SIMPLE (exact, desktop VRAM dumps and
+present shots matched; no gain on the HD 5500). D23U's prepass again no net
+gain (lit shading -1.0-1.3 ms, prepass +0.5-1.0 ms). No exact GPU cut kept;
+the framework keeps only the developer instrumentation (patch exported and
+verified against a clean pinned checkout). Open for the user: LIGHTING
+ORIGINAL on the laptop as a look trade-off, or a larger exact job (lean
+program for triangles no light reaches, run order kept).
+
+Work log, 2026-11-18 (user laptop test 1, "it literally went down to
+22fps"; note 511 section 8): the 22 was a one-second stall of the game
+itself with the console open (D23AM, not reproduced); level 6 in first
+person fell back to the original presentation for 15 s and 30 s, worker
+bound (D23AL). Neither is a GPU pass.
 
 ### D23AJ - Field laptop campaign census at 30 and 60 new pictures
 
@@ -4519,6 +4545,104 @@ User: "lock in the way the game plays right now, and then close us out".
 (`MODERNIZED_REDRAW_DEFAULTS`, overridable), none in Vanilla (checked in the
 launched process); `test_redraw_defaults.py`; GAME_MANUAL's fallback
 schedule (15 s first). Done.
+
+### D23AL - Level 6 worker-bound dips on the field laptop
+
+**Status: Todo (2026-11-18, [note 511](../documentation/511-d23ai-balanced-gpu-passes-hd5500.md) section 8). Dependencies: D23AK.**
+
+User, 2026-11-18: "absolutely! i want you to add it" (the hidden-object rule
+as the named first step). Work, in order:
+
+1. Hidden draws: in the object pass and the sleeping stand-ins, skip an
+   object or stand-in whose bound lies wholly outside the screen rectangle of
+   every shown room it can reach (its own room's, plus the rooms its box
+   meets, as D17AZ's reach test), on the player's camera. The bound must
+   cover the drawn mesh (from the mesh's own vertex extents, not the actor's
+   radius); cover the enemy renderer 0x80032e78's calling convention too.
+   Game-wide (no per-level data), Polymorph and extended draw distance only.
+2. The stand-ins' own cost (about 0.5 ms each on the desktop game thread).
+
+Acceptance: identical pictures (VRAM dumps and present shots off against on,
+the in-worker lean check, `PSX_RT_VALIDATE`), measured skipped draws and
+worker ms a job at UI slot 9 and level 6, new pictures a second on the
+laptop's real screen nearer 60 there; Vanilla unchanged.
+
+User laptop test (D23AI test 1, first person): level 6 (FAMILY JEWELS) fell to
+the governor's fallback twice (15 s, then 30 s). MEASURED, field laptop, real
+60 Hz screen, BALANCED 60, census route, D23AK defaults: first person median
+57-59, lowest tenth 27-31; third person lowest tenth 35-36 (59 in another
+run). In the slow seconds the redraw worker is 93-99% busy (31-60 jobs a
+second), the game thread keeps 60 fields, the package swings between 23 W at
+3.1 GHz and 15 W at 1.9-2.5 GHz. Worker profile: about 80% the game's own
+generated code, host drawing 22-26%, objects 20-26%, world walk 6-10%; no
+single hot spot; first person adds a little (its hook 16% against 9%).
+
+User, 2026-11-18: "gold and guns as per slot 9 is also diabolical, it has
+like 20 something unique frames". MEASURED, laptop, real screen, BALANCED 60,
+first person, the lab's identical copy of UI slot 9 (census REPRO, 20-25 s):
+standing, new pictures median 24.4-26.1 / lowest tenth 20.8-21.2 with the
+game at 60 fields; the worker 96% busy finishing 50-55 jobs a second (about
+19 ms a job; 7.5 ms facing away) of which 21-35 are shown in time; render
+thread 57-66%; GPU about 85% busy, 10.7 ms a redraw (lit textured 9.3);
+after about 13 s the package falls to 15 W (2.2-2.4 GHz) and the worker to
+35 jobs. Turning: 60 a second facing away, 20-22 when the view returns.
+Worker profile, 25,095 samples: world walk 29%, sleeping enemies
+(`sleeping_draw`) 18%, objects 23%; `draw_shape` 37%, `emit` 26% inclusive.
+
+Analysis of the slot 9 view (user: "analyzing that area in my statesave ...
+if the end user doesnt see any physical difference im 100% here for it";
+desktop, the lab's identical copy, note 511 section 9): a narrow mine
+tunnel, not a vast area: 10 rooms, 48 world pieces, about 160 world
+polygons a frame; about 93 object meshes a frame (about 640 polygons), 5
+sleeping stand-ins drawn a frame at about 0.5 ms each (desktop game thread).
+Developer switches (`sleeping_enemies.inc`, `host_visibility.inc`, off by
+default): `DNTTK_SLEEP_VIEW_TEST=1` (view test for stand-ins in the game's
+listed rooms: none culled here, they lie ahead down the tunnel), `=1r`
+(also their room's screen rectangle: 5 -> 3 drawn a frame, game thread 2.7
+-> 2.2 ms), `DNTTK_OBJ_RECT_STATS=1` (counts only): about 30% of the prop
+renderer 0x80031d10's draws lie wholly outside their room's rectangle
+(behind walls), in the game thread and the worker; the enemy renderer
+0x80032e78 passes its camera differently (not counted yet). Not proven exact
+(a radius-based box can be smaller than a long prop's mesh): the cut needs
+mesh bounds or a validation pass.
+
+Work: profile level 6's worker job with more samples (D23AK `lprof.sh`
+route, both views), find exact cuts as D23AK did; exact (lean check,
+`PSX_RT_VALIDATE`, VRAM dumps). Goal: lowest tenth near 60 on level 6.
+
+### D23AM - One-second game stall with the console open
+
+**Status: Monitoring (2026-11-18, waits for your report). Dependencies: none.**
+
+User laptop session 2026-11-18 (D23AI test 1): on level 3, after standing
+still about a minute, one second at 21.4 game frames and 21 presents, the
+audio buffer drained (one underrun), while the console was open just before
+`level 6`. Host idle (on AC, no backups, updates or timers, nothing in the
+journal). Not reproduced on the desktop or the laptop's real screen: 70 s
+idle, console open and close, `levels`, `fps`, `help`, `level 6` by the
+debug port and typed with real key events (xdotool), 11 attempts, slowest
+second 55.8, longest frame gap 86 ms. Reopen with a recurrence's log
+(`recomp/analysis/play/logs/` on the laptop) and what was typed or pressed.
+
+### D23AN - Reprojected in-between pictures
+
+**Status: Todo (2026-11-18). Dependencies: D23AL.**
+
+User, 2026-11-18: "absolutely! i want you to add it". In heavy views on the
+field laptop the redraw worker finishes 50-55 pictures a second but only
+21-35 reach their present (note 511 section 8); the others are shown as a
+repeat. Work: when a redraw misses its present, warp the newest finished
+picture to that present's camera with its host depth (a GPU pass), instead
+of repeating it. Rotation needs no new information; small translations
+leave thin disocclusion edges to fill. Duke's own layers (weapon, hands,
+body) and the HUD are drawn unwarped (needs their separation from the
+world picture). Polymorph only, developer switch first; Vanilla unchanged.
+
+Acceptance: on the laptop's real screen, GOLD AND GUNS at UI slot 9 and
+level 6 show close to 60 distinct pictures a second; turning judged smooth
+by the user on the real display; warp cost per present measured (GPU
+timeline); artefacts (disocclusion, moving enemies one picture behind)
+documented and accepted by the user before any default.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

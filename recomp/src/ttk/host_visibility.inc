@@ -141,6 +141,9 @@ struct HostVisCamera {double m[9];double eye[3];double h;};
 // D17AZ: the live frame's camera and guard-banded view (view-rect coordinates
 // centred on the GTE offset), for the object reach test at the object pass.
 static HostVisCamera host_vis_frame_cam;static double host_vis_frame_guard[4];
+static uint32_t host_vis_frame_cam_addr=0;   // D23AL: the camera record it came from
+// D23AL: each shown room's screen rectangle (view-rect coordinates, as sel[].r) for the frame.
+static std::vector<std::array<double,4>> host_vis_room_rect;
 // View-space position (x right, y down, z forward) of a world point.
 static void host_vis_view(const HostVisCamera& c,const double p[3],double v[3]) {
     const double d[3]={p[0]-c.eye[0],p[1]-c.eye[1],p[2]-c.eye[2]};
@@ -360,7 +363,7 @@ static bool host_vis_walk(CPUState* cpu) {
     const double view[4]={rx-ox,ry-oy,rx+rw-ox,ry+rh-oy};
     const double gx=(view[2]-view[0])*0.5*host_vis_guard(),gy=(view[3]-view[1])*0.5*host_vis_guard();
     const double guard[4]={view[0]-gx,view[1]-gy,view[2]+gx,view[3]+gy};
-    host_vis_frame_cam=c;std::copy(guard,guard+4,host_vis_frame_guard);
+    host_vis_frame_cam=c;std::copy(guard,guard+4,host_vis_frame_guard);host_vis_frame_cam_addr=cam;
     lights_upload(true,c.m,c.eye); // D41A
     host_vis_game_count=count;
     for(uint32_t i=0;i<count;++i) {
@@ -390,6 +393,8 @@ static bool host_vis_walk(CPUState* cpu) {
             host_vis_last_missed_from=source;
         }
     }
+    host_vis_room_rect.assign(rooms,{0,0,-1,-1});
+    for(uint32_t room=0;room<rooms;++room) if(sel[room].on) std::copy(sel[room].r,sel[room].r+4,host_vis_room_rect[room].begin());
     // D17AR4 audit (developer DNTTK_HOST_VIS_AUDIT=1): would Classic's portal
     // rectangles (D17P margin, D17Y open upper edge) reach past the host's?
     static const bool audit=[]{const char* t=std::getenv("DNTTK_HOST_VIS_AUDIT");return t && !std::strcmp(t,"1");}();

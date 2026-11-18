@@ -51,6 +51,12 @@ static uint64_t sleep_built=0,sleep_build_fail=0,sleep_drawn=0,sleep_frames=0,sl
 static uint32_t sleep_last_listed=0,sleep_last_drawn=0,sleep_last_eligible=0;
 static unsigned sleep_handover_logged=0;
 static uint64_t sleep_update_us=0,sleep_draw_us=0,sleep_host_rooms=0;
+// D23AL developer DNTTK_SLEEP_VIEW_TEST=1: a stand-in in a room of the game's
+// own list is drawn only when a generous box around it (4 x its radius, at
+// least 1536 units) meets the guard-banded view, as host rooms already are;
+// =1r also needs it to meet its own room's screen rectangle (measurement:
+// not yet proven exact for a stand-in reaching into a neighbouring room).
+static uint64_t sleep_room_culled=0,sleep_view_culled=0;
 static int sleep_mode() {
     static const int m=[]{const char* t=std::getenv("DNTTK_SLEEPING_ENEMIES");
         if(t && !std::strcmp(t,"0")) return 0;
@@ -289,6 +295,20 @@ static void sleeping_draw(CPUState* source) {
             for(int k=0;k<3;++k) {const double p=(int32_t)psx_mod_read_word(actor+4+4*k);lo[k]=p-rad;hi[k]=p+rad;}
             if(rad>0 && host_vis_box(host_vis_frame_cam,lo,hi,host_vis_frame_guard)) entry=0x800d2210u;
         }
+        if(entry && entry!=0x800d2210u && host_vis_shown_valid && source->gpr[4]==host_vis_frame_cam_addr) {
+            static const bool view_test=[]{const char* e=std::getenv("DNTTK_SLEEP_VIEW_TEST");return e && e[0]=='1';}();
+            if(view_test) {
+                const double rad=std::max(4.0*(int16_t)psx_mod_read_half(actor+0x5a),1536.0);
+                double lo[3],hi[3];
+                for(int k=0;k<3;++k) {const double p=(int32_t)psx_mod_read_word(actor+4+4*k);lo[k]=p-rad;hi[k]=p+rad;}
+                if(!host_vis_box(host_vis_frame_cam,lo,hi,host_vis_frame_guard)) {++sleep_view_culled;continue;}
+                static const bool room_test=[]{const char* e=std::getenv("DNTTK_SLEEP_VIEW_TEST");return e && e[1]=='r';}();
+                if(room_test && room<host_vis_room_rect.size()) {
+                    const auto& q=host_vis_room_rect[room];
+                    if(q[2]<q[0] || !host_vis_box(host_vis_frame_cam,lo,hi,q.data())) {++sleep_room_culled;continue;}
+                }
+            }
+        }
         if(!entry) continue;
         if(!sleep_ram(row,0x30) || (psx_mod_read_word(row+0x14)&0x17)) {++sleep_handover;continue;}
         picks[np++]={actor,entry,psx_mod_read_word(e+12)};
@@ -328,11 +348,40 @@ static void sleeping_draw(CPUState* source) {
     if(!psx_mod_replay_active()) sleep_draw_us+=(uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-t0).count();
 }
 static const char* sleeping_debug_json() {
-    static char buffer[400];
+    static char buffer[512];
     std::snprintf(buffer,sizeof buffer,"{\"live\":%s,\"table\":%u,\"eligible\":%u,\"built\":%llu,\"build_fail\":%llu,\"alloc_fail\":%llu,"
-        "\"frames\":%llu,\"drawn\":%llu,\"last_drawn\":%u,\"listed\":%u,\"handover\":%llu,\"update_us\":%llu,\"draw_us\":%llu,\"host_rooms\":%llu}",
+        "\"frames\":%llu,\"drawn\":%llu,\"last_drawn\":%u,\"listed\":%u,\"handover\":%llu,\"update_us\":%llu,\"draw_us\":%llu,\"host_rooms\":%llu,\"view_culled\":%llu,\"room_culled\":%llu}",
         sleeping_live()?"true":"false",sleep_table?psx_mod_read_word(sleep_table):0u,sleep_last_eligible,
         (unsigned long long)sleep_built,(unsigned long long)sleep_build_fail,(unsigned long long)sleep_alloc_fail,
-        (unsigned long long)sleep_frames,(unsigned long long)sleep_drawn,sleep_last_drawn,sleep_last_listed,(unsigned long long)sleep_handover,(unsigned long long)sleep_update_us,(unsigned long long)sleep_draw_us,(unsigned long long)sleep_host_rooms);
+        (unsigned long long)sleep_frames,(unsigned long long)sleep_drawn,sleep_last_drawn,sleep_last_listed,(unsigned long long)sleep_handover,(unsigned long long)sleep_update_us,(unsigned long long)sleep_draw_us,(unsigned long long)sleep_host_rooms,(unsigned long long)sleep_view_culled,(unsigned long long)sleep_room_culled);
     return buffer;
+}
+
+// D23AL developer DNTTK_OBJ_RECT_STATS=1: object draws (the object pass's five
+// renderers) whose generous box lies wholly outside their room's rectangle on
+// the player's camera, counted per renderer, logged every 5 s (process).
+static uint64_t obj_rect_n[5][3];
+static void obj_rect_stats(CPUState* cpu,unsigned k) {
+    if(!host_vis_shown_valid || cpu->gpr[4]!=host_vis_frame_cam_addr) {++obj_rect_n[k][2];return;}
+    const uint32_t actor=cpu->gpr[5];
+    if(actor<0x80010000u || actor>0x801fff00u) {++obj_rect_n[k][2];return;}
+    const int room=(int8_t)psx_mod_read_byte(actor+0x2e);
+    const double rad=std::max(4.0*(int16_t)psx_mod_read_half(actor+0x5a),1536.0);
+    double lo[3],hi[3];
+    for(int q=0;q<3;++q) {const double p=(int32_t)psx_mod_read_word(actor+4+4*q);lo[q]=p-rad;hi[q]=p+rad;}
+    bool in=false;
+    if(room>=0 && (size_t)room<host_vis_room_rect.size()) {const auto& r=host_vis_room_rect[room];in=r[2]>=r[0] && host_vis_box(host_vis_frame_cam,lo,hi,r.data());}
+    ++obj_rect_n[k][in?0:1];
+    static auto t0=std::chrono::steady_clock::now();
+    const auto now=std::chrono::steady_clock::now();
+    if(now-t0>std::chrono::seconds(5)) {
+        t0=now;
+        std::fprintf(stderr,"[obj rect] replay %d: object draws in/outside their room's rectangle (no camera): %llu/%llu (%llu) %llu/%llu (%llu) %llu/%llu (%llu) %llu/%llu (%llu) %llu/%llu (%llu)\n",(int)psx_mod_replay_active(),
+            (unsigned long long)obj_rect_n[0][0],(unsigned long long)obj_rect_n[0][1],(unsigned long long)obj_rect_n[0][2],
+            (unsigned long long)obj_rect_n[1][0],(unsigned long long)obj_rect_n[1][1],(unsigned long long)obj_rect_n[1][2],
+            (unsigned long long)obj_rect_n[2][0],(unsigned long long)obj_rect_n[2][1],(unsigned long long)obj_rect_n[2][2],
+            (unsigned long long)obj_rect_n[3][0],(unsigned long long)obj_rect_n[3][1],(unsigned long long)obj_rect_n[3][2],
+            (unsigned long long)obj_rect_n[4][0],(unsigned long long)obj_rect_n[4][1],(unsigned long long)obj_rect_n[4][2]);
+        std::memset(obj_rect_n,0,sizeof obj_rect_n);
+    }
 }

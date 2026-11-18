@@ -1684,6 +1684,12 @@ void filter_missing_animation(CPUState* cpu) {
 // A face's plane and corners (quads in outline order 0 1 3 2); planar when
 // the plane exists and a quad's fourth corner lies within half a unit of it.
 struct CoplanarFace {double n[3],d,c[4][3];unsigned count;};
+int coplanar_prune_mode() {static const int v=env_int("DNTTK_COPLANAR_PRUNE",1,0,2);return v;}
+bool coplanar_prune() {return coplanar_prune_mode()!=0;}
+bool coplanar_prune_check() {return coplanar_prune_mode()==2;}
+uint64_t coplanar_prune_checked=0,coplanar_prune_mismatch=0,coplanar_prune_fallbacks=0;
+// Object searches: meshes, planar faces, pairs the rule ran on, pairs found, largest mesh.
+uint64_t coplanar_obj_meshes=0,coplanar_obj_faces=0,coplanar_obj_tested=0,coplanar_obj_found=0,coplanar_obj_max=0;
 bool coplanar_face(CoplanarFace& a,unsigned count) {
     // D17AV: a triangle stored as a quad repeats one corner (indices
     // a,b,c,a: the GPU draws a,b,c twice). In edge order the repeat can land
@@ -1741,10 +1747,139 @@ std::vector<std::pair<size_t,size_t>> coplanar_pairs(const std::vector<CoplanarF
         }
         return true;
     };
+    // The pair rule itself: near-parallel planes, b's corners on a's plane,
+    // overlapping in it.
+    auto coplanar=[&](size_t i,size_t j) {
+        const CoplanarFace& a=faces[i];const CoplanarFace& b=faces[j];
+        const double dot=a.n[0]*b.n[0]+a.n[1]*b.n[1]+a.n[2]*b.n[2];
+        if(std::abs(dot)<0.9999) return false;
+        bool on=true;
+        for(unsigned k=0;k<b.count && on;++k) on=std::abs(a.n[0]*b.c[k][0]+a.n[1]*b.c[k][1]+a.n[2]*b.c[k][2]-a.d)<0.5;
+        return on && overlap(a,b);
+    };
+    std::vector<std::pair<size_t,size_t>> pairs,found;
+    // D23Y5: props compare every planar pair (no buckets, which can miss a
+    // pair); with hundreds of parallel faces that was 8-9% of the emulation
+    // thread in UI slot 9. The same rule now runs only on pairs it could
+    // accept, the same pairs in the same order (exact by construction):
+    // - normals: unit length, so |dot| >= 0.9999 means |a - s b| <= 0.01415
+    //   (s the sign of dot), and each |component| then differs by at most
+    //   that: faces are bucketed by |n.x| in steps of 0.015 (a pair lies in
+    //   one bucket or two neighbours), then |n.x|, |n.y|, |n.z| are compared
+    //   within 0.015.
+    // - plane offset: the rule is unchanged by moving the origin, so offsets
+    //   are taken from O, the first planar face's first corner:
+    //   e = n.(c0 - O). b's first corner within 0.5 of a's plane gives
+    //   |e_a - s e_b| < 0.5 + 0.01415 |c0_b - O|; within a bucket faces are
+    //   sorted by |e| and only those within 0.5 + 0.015 R + 0.001 (R the
+    //   largest |c0 - O|) are visited, each pair then within its own bound.
+    // - overlap: the rule's first separating axes are the normals of a's
+    //   edges in a's plane, fixed vectors V for a. b's corners lie in their
+    //   box, so b's interval on V lies within the box's interval; when even
+    //   that overlaps a's interval by less than 0.5 on some axis, so does b.
+    // The 0.001 covers rounding (coordinates are GTE integers, far below
+    // 1e6). A face whose plane or first corner is not finite sends the mesh
+    // to the full search. Developer DNTTK_COPLANAR_PRUNE=0 compares every
+    // pair as before; =2 runs both and counts differing meshes
+    // (near_clip_debug_json).
+    if(!bucketed && coplanar_prune()) {
+        struct Key {int64_t bx;double ax,ay,az,ae,reach;size_t i;};
+        thread_local std::vector<Key> keys;keys.clear();
+        bool finite=true;double origin[3]={0,0,0},far=0;bool have=false;
+        for(size_t i=0;i<faces.size() && finite;++i) {
+            if(!planar[i]) continue;
+            const CoplanarFace& a=faces[i];
+            if(!have) {for(int k=0;k<3;++k) origin[k]=a.c[0][k];have=true;}
+            const double v[3]={a.c[0][0]-origin[0],a.c[0][1]-origin[1],a.c[0][2]-origin[2]};
+            const double r=std::sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+            const double e=a.n[0]*v[0]+a.n[1]*v[1]+a.n[2]*v[2];
+            finite=std::isfinite(a.n[0]) && std::isfinite(a.n[1]) && std::isfinite(a.n[2]) && std::isfinite(e) && std::isfinite(r) && r<1e6;
+            if(!finite) break;
+            far=std::max(far,r);
+            const double ax=std::abs(a.n[0]);
+            keys.push_back({(int64_t)std::floor(ax/0.015),ax,std::abs(a.n[1]),std::abs(a.n[2]),std::abs(e),0.5+0.015*r+0.001,i});
+        }
+        if(finite) {
+            const double window=0.5+0.015*far+0.001;
+            std::sort(keys.begin(),keys.end(),[](const Key& x,const Key& y){return x.bx!=y.bx?x.bx<y.bx:x.ae!=y.ae?x.ae<y.ae:x.i<y.i;});
+            // Each planar face as the rule's a: its edge axes (as overlap()
+            // builds them) as 3D vectors, with its own interval on each; and
+            // its corner box.
+            struct Axes {unsigned n=0;double v[4][3],lo[4],hi[4];double box[2][3];};
+            thread_local std::vector<Axes> axes;axes.resize(faces.size());
+            for(const Key& k:keys) {
+                const CoplanarFace& a=faces[k.i];Axes& x=axes[k.i];x.n=0;
+                for(int q=0;q<3;++q) {x.box[0][q]=1e300;x.box[1][q]=-1e300;}
+                for(unsigned j=0;j<a.count;++j) for(int q=0;q<3;++q) {x.box[0][q]=std::min(x.box[0][q],a.c[j][q]);x.box[1][q]=std::max(x.box[1][q],a.c[j][q]);}
+                double u[3]={a.c[1][0]-a.c[0][0],a.c[1][1]-a.c[0][1],a.c[1][2]-a.c[0][2]};
+                const double length=std::sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+                if(length<1e-9) continue;   // overlap() rejects every pair; the rule decides
+                for(double& t:u) t/=length;
+                const double w[3]={a.n[1]*u[2]-a.n[2]*u[1],a.n[2]*u[0]-a.n[0]*u[2],a.n[0]*u[1]-a.n[1]*u[0]};
+                double pa[4][2];
+                for(unsigned j=0;j<a.count;++j) {
+                    pa[j][0]=u[0]*a.c[j][0]+u[1]*a.c[j][1]+u[2]*a.c[j][2];
+                    pa[j][1]=w[0]*a.c[j][0]+w[1]*a.c[j][1]+w[2]*a.c[j][2];
+                }
+                for(unsigned j=0;j<a.count;++j) {
+                    const double ax=-(pa[(j+1)%a.count][1]-pa[j][1]),ay=pa[(j+1)%a.count][0]-pa[j][0];
+                    const double len=std::sqrt(ax*ax+ay*ay);if(len<1e-9) continue;
+                    double* v=x.v[x.n];for(int q=0;q<3;++q) v[q]=(ax*u[q]+ay*w[q])/len;
+                    x.lo[x.n]=1e300;x.hi[x.n]=-1e300;
+                    for(unsigned m=0;m<a.count;++m) {const double d=(pa[m][0]*ax+pa[m][1]*ay)/len;x.lo[x.n]=std::min(x.lo[x.n],d);x.hi[x.n]=std::max(x.hi[x.n],d);}
+                    ++x.n;
+                }
+            }
+            auto separated=[&](size_t i,size_t j) {
+                const Axes& a=axes[i];const Axes& b=axes[j];
+                for(unsigned k=0;k<a.n;++k) {
+                    double lo=0,hi=0;
+                    for(int q=0;q<3;++q) {
+                        const double e0=a.v[k][q]*b.box[0][q],e1=a.v[k][q]*b.box[1][q];
+                        lo+=std::min(e0,e1);hi+=std::max(e0,e1);
+                    }
+                    if(std::min(a.hi[k],hi)-std::max(a.lo[k],lo)<0.5-0.001) return true;
+                }
+                return false;
+            };
+            auto visit=[&](const Key& p,const Key& q) {
+                if(std::abs(p.ax-q.ax)>0.015 || std::abs(p.ay-q.ay)>0.015 || std::abs(p.az-q.az)>0.015) return;
+                // reach: of the later record's face (b in the rule).
+                if(std::abs(p.ae-q.ae)>(p.i>q.i?p.reach:q.reach)) return;
+                const size_t i=std::min(p.i,q.i),j=std::max(p.i,q.i);
+                if(separated(i,j)) return;
+                ++coplanar_obj_tested;
+                if(coplanar(i,j)) found.push_back({i,j});
+            };
+            for(size_t x=0,next=0;x<keys.size();++x) {
+                const Key& p=keys[x];
+                // Later faces of the same bucket, within the window.
+                for(size_t y=x+1;y<keys.size() && keys[y].bx==p.bx && keys[y].ae-p.ae<=window;++y) visit(p,keys[y]);
+                // The next bucket's faces within the window (either side).
+                if(next<=x) next=x+1;
+                while(next<keys.size() && keys[next].bx==p.bx) ++next;
+                if(next<keys.size() && keys[next].bx==p.bx+1) {
+                    size_t y=next;
+                    while(y<keys.size() && keys[y].bx==p.bx+1 && keys[y].ae<p.ae-window) ++y;
+                    for(;y<keys.size() && keys[y].bx==p.bx+1 && keys[y].ae<=p.ae+window;++y) visit(p,keys[y]);
+                }
+            }
+            std::sort(found.begin(),found.end());
+            ++coplanar_obj_meshes;coplanar_obj_faces+=keys.size();coplanar_obj_found+=found.size();
+            coplanar_obj_max=std::max<uint64_t>(coplanar_obj_max,keys.size());
+            if(coplanar_prune_check()) {
+                std::vector<std::pair<size_t,size_t>> every;
+                for(size_t i=0;i<faces.size();++i) if(planar[i])
+                    for(size_t j=i+1;j<faces.size();++j) if(planar[j] && coplanar(i,j)) every.push_back({i,j});
+                ++coplanar_prune_checked;coplanar_prune_mismatch+=every!=found;
+            }
+            return found;
+        }
+        ++coplanar_prune_fallbacks;
+    }
     // D17AM2: world meshes have hundreds of faces; compare only faces whose
     // planes fall in the same or a neighbouring bucket (normal to 1/64,
     // distance to 4 units, sign-canonical). Props keep the full comparison.
-    std::vector<std::pair<size_t,size_t>> pairs,found;
     if(bucketed) {
         std::vector<std::pair<std::array<int64_t,4>,size_t>> keys;
         for(size_t i=0;i<faces.size();++i) {
@@ -1766,14 +1901,7 @@ std::vector<std::pair<size_t,size_t>> coplanar_pairs(const std::vector<CoplanarF
         for(size_t i=0;i<faces.size();++i) if(planar[i])
             for(size_t j=i+1;j<faces.size();++j) if(planar[j]) pairs.push_back({i,j});
     }
-    for(const auto& [i,j]:pairs) {
-        const CoplanarFace& a=faces[i];const CoplanarFace& b=faces[j];
-        const double dot=a.n[0]*b.n[0]+a.n[1]*b.n[1]+a.n[2]*b.n[2];
-        if(std::abs(dot)<0.9999) continue;
-        bool on=true;
-        for(unsigned k=0;k<b.count && on;++k) on=std::abs(a.n[0]*b.c[k][0]+a.n[1]*b.c[k][1]+a.n[2]*b.c[k][2]-a.d)<0.5;
-        if(on && overlap(a,b)) found.push_back({i,j});
-    }
+    for(const auto& [i,j]:pairs) if(coplanar(i,j)) found.push_back({i,j});
     return found;
 }
 // Ranks the faces of each coplanar pair (i the earlier record: it is painted
@@ -3250,14 +3378,14 @@ bool game_camera_view() {
     return composition_camera()!=0x800d6eb0u+(index>1?0u:index)*0xb0u;
 }
 const char* near_clip_debug_json() {
-    static char buffer[4096];
+    static char buffer[8192];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu,\"null\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits,(unsigned long long)s.skipped);
     };
     char w[256],o[256];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu,\"prune_checked\":%llu,\"prune_mismatch\":%llu,\"prune_fallbacks\":%llu,\"obj\":[%llu,%llu,%llu,%llu,%llu]},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -3267,7 +3395,7 @@ const char* near_clip_debug_json() {
         (unsigned long long)fallback_kind[0],(unsigned long long)fallback_kind[1],(unsigned long long)fallback_kind[2],(unsigned long long)near_fallbacks,
         (unsigned long long)water_seen,(unsigned long long)water_taken,(unsigned long long)water_guard_reject,(unsigned long long)water_grid_reject,
         (unsigned long long)water_near_cleared,(unsigned long long)water_near_dropped,(unsigned long long)water_budget_native,
-        (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,
+        (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,(unsigned long long)coplanar_prune_checked,(unsigned long long)coplanar_prune_mismatch,(unsigned long long)coplanar_prune_fallbacks,(unsigned long long)coplanar_obj_meshes,(unsigned long long)coplanar_obj_faces,(unsigned long long)coplanar_obj_tested,(unsigned long long)coplanar_obj_found,(unsigned long long)coplanar_obj_max,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
         (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
         (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)game_view_drops,(unsigned long long)security_tv_fallbacks);

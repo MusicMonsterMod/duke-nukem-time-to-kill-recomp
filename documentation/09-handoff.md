@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-18 - D23Y5: host-world profile, object coplanar prune (Blocked)
+
+The title's host world at the original 60 on the field laptop is 11-24% of the emulation thread, almost all view-dependent emission ([note 508](508-d23y5-host-world-caches.md)). The object coplanar search now runs its rule only on pairs three exact bounds cannot reject (on by default, developer `DNTTK_COPLANAR_PRUNE=0/2`): 173,329 meshes compared with the full search, 0 differing; `PSX_VRAM_DUMP_DIR` dumps identical off against on. UI 9: 57 -> 55% (search 8.6 -> 3.6%); other scenes unchanged; target not met. D17BL (sky while climbing a ladder, UI slot 12) added, not investigated. Closed out on the user's instruction ("lock it in and close it out").
+
 ## 2026-11-17/18 (night) - performance chain: D23Y8 retired, D23Y5 Blocked, D23AF3 Needs playtest
 
 Baseline ([note 506](506-d23y-chain-baseline.md)): pure AUTO holds 60 / 60 in DUKE HILL town, FAMILY JEWELS start and UI 2 and 9 on the field laptop and citadel; ULTRA 120 on the laptop is GPU- and package-bound. Citadel runs on the HPET clocksource (6-8% of its emulation thread in clock reads; a host setting). Built behind developer switches, all off ([note 507](507-d23y8-gl-server-d23y5-d23af3.md)): the GL server `PSX_GL_SERVER=1` (exact on the desktop and in Vanilla, not exact on citadel with LIGHTING on; no net gain on the laptop; retired and removed on the user's decision, the build byte-identical to before), `PSX_STARVATION_COARSE=1` (-1 to -4 points on citadel), `PSX_FORK_WIPE=1` (halves the copy-on-write faults, proven exact) and `PSX_FORK_DEV=1` (forks -35-40% on NVIDIA only). Defaults data for D23N5, D23Y10, D23AF4 in note 507 section 5. Nothing committed.

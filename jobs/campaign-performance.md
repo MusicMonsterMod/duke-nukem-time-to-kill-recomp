@@ -2756,7 +2756,7 @@ reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
 
 ### D23Y5 - A lighter emulation thread
 
-**Status: Blocked (2026-11-17/18, target not reachable with exact cuts; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23Y; coordinate D23Z.** The
+**Status: Blocked (2026-11-18, host-world prune built, target still not met; [note 508](../documentation/508-d23y5-host-world-caches.md); earlier [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23Y; coordinate D23Z.** The
 original 60 presentation's emulation thread takes 55-70% of a core at
 3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
 and cut its largest shares (memory access, dispatch lookups, SPU reverb,
@@ -2853,6 +2853,32 @@ unchanged. D23Y8's GL server was the only block of the needed size and
 does not shed its queue's cost on these CPUs. What remains is the title's
 host world (about 25 points), device emulation (31) and game code with
 dispatch (30): Blocked with the numbers in note 507 section 3.3.
+
+Work log, 2026-11-18 (field laptop, [note 508](../documentation/508-d23y5-host-world-caches.md)):
+user: "profile the title's host world (object pass, visibility walk, near
+clip, emit, object coplanar ranking) per frame on the field laptop at the
+original 60 and find exact per-frame caches". Fresh profiles of UI 2, UI 9,
+DUKE HILL town and FAMILY JEWELS start (real screen): the host world 11-24%
+of the emulation thread, almost all per-face emission that follows the
+view (projection, clipping, subdivision, packets); room and piece
+selection about 0.1%. No exact cache of size exists: smooth model normals
+weld corners by view position, world-mesh parsing would cost its own
+check, and a model-space cache of the object coplanar pairs would not
+reproduce the view-space thresholds. That search (all planar pairs of a
+prop, every frame) was 8.6% in UI 9: it now runs the same rule only on
+pairs three exact bounds cannot reject (normal components, plane offset
+from a point on the model, in-plane overlap of the corner box), returning
+the same pairs in the same order. On by default; developer
+`DNTTK_COPLANAR_PRUNE=0` full search, `=2` both with a count. Exact:
+173,329 meshes compared on the desktop and laptop, 0 differing;
+`PSX_VRAM_DUMP_DIR` dumps identical off against on (desktop UI 2, UI 9,
+town, Vanilla; laptop Vanilla; FAMILY JEWELS start and the laptop's
+Modernized dumps vary between identical runs either way). Laptop: UI 9
+search 8.6 -> 3.6%, emulation thread 57 -> 55%; UI 2, town, FAMILY
+JEWELS unchanged (54, 62-63, 56-58%). Target not met; still Blocked. Next
+in UI 9: a cheaper pair visit for the 196-face model (about 2 points).
+Also seen: modern controls' step probe (`terrain_step_probe`, game
+collision code, 1-2%) is gameplay, left alone.
 
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 

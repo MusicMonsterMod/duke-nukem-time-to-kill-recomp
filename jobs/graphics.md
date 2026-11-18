@@ -3036,6 +3036,24 @@ ran the load test there (F3 LOAD GAME, F6/F9, the pause menu's LOAD GAME,
 LOAD GAME after a launch, a level change) and accepted: "perfect! lock it in
 and close it out". Done with no code change.
 
+### D17BL - The sky flashes while climbing a ladder (UI slot 12)
+
+**Status: Todo (reported 2026-11-18, not investigated). Dependencies: none.**
+
+User, 2026-11-18 (desktop): "when you climb up this ladder, the skybox
+appears briefly." Evidence: the user's UI slot 12 savestate at the ladder,
+copied (read only, the original untouched) to
+`research/savestates/d17bl/` (`state_800AB6FC_slot11.pst` with its `.ttk`
+and `.thumb`, saved 2026-11-18 00:32; local, never committed). Test on a
+copy of that file, never the player's slot.
+
+Work: reproduce the climb from the save, find which frames show the sky
+and why (world pieces or a room missing from the host visibility walk, a
+near-clip or budget fallback, or the sky drawn over the world), and fix it
+in the game-wide rule, not for this ladder. Acceptance: no sky visible
+during the climb in matched frame captures at 60 and at the player's
+frame rate, the rest of the view unchanged, Vanilla unchanged.
+
 ### D53B - No impatient idle lines while watching a security camera
 
 **Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**

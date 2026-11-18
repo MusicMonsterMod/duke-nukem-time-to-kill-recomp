@@ -404,8 +404,11 @@ std::vector<Screen> make_screens() {
          {{"AUTO","0","0"},{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},0},
         {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",true,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
          {{"16:9","16:9","\"16:9\""},{"16:10","16:10","\"16:10\""},{"21:9","21:9","\"21:9\""},{"AUTO","auto","\"auto\""},{"OFF","off","\"off\""}},0},
-        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",
-         {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
+        // D23AG: every number counts new pictures a second; the original
+        // presentation (about 30, each shown twice) is named as such. The menu
+        // font draws ( ) as < >, so ORIGINAL 30 has no brackets.
+        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"NEW PICTURES A SECOND. ORIGINAL: AS ON THE PS1. SAME GAME SPEED",
+         {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"ORIGINAL 30","original","\"original\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
         // D23X: the swap interval (psx_mod_request_vsync). D17BH: also for the
         // extra pictures above 60, up to the display's refresh.

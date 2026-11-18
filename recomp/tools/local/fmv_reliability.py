@@ -33,7 +33,7 @@ def main():
     p.add_argument('--name', required=True)
     p.add_argument('--movie', choices=MOVIES, default='intro')
     p.add_argument('--mode', choices=('modernized', 'vanilla'), default='modernized')
-    p.add_argument('--rate', choices=('60', '120'), default='120')
+    p.add_argument('--rate', choices=('original', '120'), default='120')  # D23AG: original was 60
     p.add_argument('--scale', choices=('1', '4'), default='1')
     p.add_argument('--action', choices=('full', 'skip', 'late-skip', 'quit', 'display'), default='full')
     p.add_argument('--gameplay', action='store_true', help='after movies, start a fresh game and sample voice/music handoff')
@@ -41,8 +41,8 @@ def main():
     a = p.parse_args()
     if not a.name or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_' for c in a.name):
         p.error('name must contain only letters, digits, hyphens and underscores')
-    if a.mode == 'vanilla' and a.rate != '60':
-        p.error('Vanilla runs at 60; specify --rate 60')
+    if a.mode == 'vanilla' and a.rate != 'original':
+        p.error('Vanilla uses the original presentation; specify --rate original')
     if a.gameplay and a.action == 'quit':
         p.error('--gameplay is incompatible with --action quit')
     if not 1024 <= a.port <= 65535:

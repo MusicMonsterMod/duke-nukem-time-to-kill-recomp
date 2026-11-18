@@ -175,7 +175,7 @@ void quality_actor_end(CPUState*,uint32_t) {
 extern "C" void render_worker_stats(char* out,size_t cap);
 constexpr int slots=8, max_steps=8, max_jobs=96;   // slots <= RW_SLOTS (render_worker.c)
 
-int32_t target_hz=60;   // 60 = original presentation (replay off)
+int32_t target_hz=60;   // with replay_on false: the original presentation (D23AG: 60 with replay_on is redraws at 60)
 bool replay_on=false;
 bool interp_replay=false;
 int steps=1;            // redraws per game frame (follows the rate; DNTTK_INTERP_STEPS)
@@ -599,15 +599,22 @@ extern "C" int psx_placement_active(void);     // render_thread.c (D23Y4/D23Y6)
 // game itself to about 33 frames a second (DISPLAY on its 60 Hz panel: 17-56,
 // with underruns); the original path held 60 with the emulation thread at
 // about 63%. A fixed number is never changed.
-int32_t launch_rate(int32_t hz) {return (hz==-2 || hz==0) && psx_replay_auto_cap()<=60.0 ? 60 : hz;}
+// D23AG: every FRAME RATE number counts new pictures a second. The original
+// presentation (no redraws: the game's own images, about 30 a second, each
+// shown twice at 60 Hz) is its own value, "original" (before D23AG it was
+// "60"); 60 is now redraws at 60 new pictures a second. original_rate is
+// only this file's sentinel and never reaches the framework.
+constexpr int32_t original_rate=-3;
+int32_t launch_rate(int32_t hz) {return (hz==-2 || hz==0) && psx_replay_auto_cap()<=60.0 ? original_rate : hz;}
 int32_t parse_rate(const char* text) {
     if(!text || !*text || !std::strcmp(text,"auto")) return -2;
+    if(!std::strcmp(text,"original")) return original_rate;
     if(!std::strcmp(text,"display")) return 0;
     if(!std::strcmp(text,"unlimited")) return -1;
     char* end=nullptr;
     const long v=std::strtol(text,&end,10);
     if(end && !*end && v>=30 && v<=1000) return (int32_t)v;
-    return 60;
+    return original_rate;
 }
 
 Frame* frame_by_serial(uint64_t s) {
@@ -2540,7 +2547,8 @@ void apply_rate(int32_t hz) {
     // In-between images above 60 by default (off: DNTTK_FRAME_INTERP=off);
     // 30 shows each game image once and never redraws.
     const char* interp=std::getenv("DNTTK_FRAME_INTERP");
-    interp_replay=!(interp && !std::strcmp(interp,"off")) && (hz<0 || hz==0 || hz>60);
+    // D23AG: 60 (redraws at 60 new pictures a second) has them too.
+    interp_replay=!(interp && !std::strcmp(interp,"off")) && (hz<0 || hz==0 || hz>=60);
     // Past idle time is not a present deadline. With the optimized rendering
     // path, fixed-rate camera images must not be withheld by that stale EMA.
     // Unlimited retains the guard so overload feeds its adaptive cadence.
@@ -2573,7 +2581,7 @@ void activate() {
     // DNTTK_RENDER_THREAD=0 (developer) does too.
     psx_mod_set_render_thread(render_thread_wanted());
     const int32_t hz=launch_rate(parse_rate(std::getenv("DNTTK_FRAME_RATE")));
-    if(hz==60) return;
+    if(hz==original_rate) return;
     apply_rate(hz);
     replay_on=psx_mod_set_present_replay(provider,nullptr,target_hz)!=0;
 }
@@ -2854,7 +2862,7 @@ bool frame_rate_set(const char* value) {
     floor_rate=0;floor_active=false;floor_bad=0;   // D23Y1: the player's choice replaces a fallback
     capped_hz=0;                // D23Y6: and a display cap (checked again within a second)
     const int32_t hz=launch_rate(parse_rate(value));
-    if(hz==60) {
+    if(hz==original_rate) {
         if(replay_on && !psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
         replay_on=interp_replay=false;
         target_hz=60;
@@ -2868,7 +2876,7 @@ bool frame_rate_set(const char* value) {
         if(!psx_mod_request_present_replay_rate(hz)) return false;
         apply_rate(hz);
     }
-    std::fprintf(stderr,"[TTK replay] frame rate %s\n",value?value:"60");
+    std::fprintf(stderr,"[TTK replay] frame rate %s\n",value?value:"original");
     return true;
 }
 
@@ -2950,15 +2958,22 @@ static void floor_retry() {
 // setting is unchanged; a faster display gets the chosen rate back.
 // DNTTK_DISPLAY_CAP=0 (developer) presents at the chosen rate as before.
 static bool display_cap_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_DISPLAY_CAP");return !(t && t[0]=='0' && !t[1]);}();return v;}
+// D23AG: FRAME RATE 60 on a display within 5% of 60 Hz (59.94, 60) is timed
+// on the display as well, so it is exactly what 120 gives on that screen
+// (D23Y6) rather than a 60.00 clock beating against the panel's refresh.
+// Every other fixed rate keeps its own clock up to 5% above the display.
+static bool display_timed(int32_t hz,double host) {
+    return hz>host*1.05 || (hz==60 && hz>=host*0.95);
+}
 static void display_cap_check() {
     if(!replay_on || !display_cap_enabled()) return;
     const double host=psx_mod_display_refresh_hz();
     if(host<30.0) return;
-    if(target_hz>0 && target_hz>host*1.05) {
+    if(target_hz>0 && display_timed(target_hz,host)) {
         if(!psx_mod_request_present_replay_rate(0)) return;
         capped_hz=target_hz;apply_rate(0);
         std::fprintf(stderr,"[TTK replay] frame rate %d on a %.2f Hz display: presents at the display's rate\n",(int)capped_hz,host);
-    } else if(target_hz==0 && capped_hz>0 && capped_hz<=host*1.05) {
+    } else if(target_hz==0 && capped_hz>0 && !display_timed(capped_hz,host)) {
         if(!psx_mod_request_present_replay_rate(capped_hz)) return;
         const int32_t hz=capped_hz;capped_hz=0;apply_rate(hz);
         std::fprintf(stderr,"[TTK replay] frame rate %d (the %.2f Hz display shows it)\n",(int)hz,host);

@@ -91,7 +91,7 @@ def main(argv=None):
     p.add_argument('--texture-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh textures: original (default) or corrected perspective; OpenGL, next launch')
     p.add_argument('--world-renderer', choices=profiles.WORLD_RENDERERS, help='save Modernized renderer: polymorph (default; one geometry path, host world visibility, redraw-only frames at high refresh) or classic (the game\'s own drawing order and visibility); Vanilla always uses classic')
     p.add_argument('--draw-distance', choices=profiles.DRAW_DISTANCES, help='save Modernized draw distance: extended (default; maximum view limit, open sky over outdoor walls, distant enemies dormant until near or hurt, no distant black seams) or original; Vanilla always uses original')
-    p.add_argument('--frame-rate', choices=profiles.FRAME_RATES, help="save Modernized frame rate: auto (your display's refresh, up to 240 FPS), display (the monitor's refresh), 30, 60 (original), 120, 144, 165, 180, 240 or unlimited; game speed is unchanged, Vanilla always uses 60")
+    p.add_argument('--frame-rate', choices=profiles.FRAME_RATES, help="save Modernized frame rate, in new pictures a second: auto (your display's refresh, up to 240), display (the monitor's refresh), original (the original look, about 30), 30, 60, 120, 144, 165, 180, 240 (at most your display's refresh) or unlimited; game speed is unchanged, Vanilla always uses original")
     p.add_argument('--no-session-log', action='store_true', help='do not mirror runtime stderr into build-local/logs/session-*.log')
     a = p.parse_args(argv)
     import disc_lab
@@ -366,7 +366,7 @@ def main(argv=None):
     env['DNTTK_STEROIDS'] = controls['steroids'] if modernized else 'original'
     # D17: presentation rate. Above/below 60 the runtime presents on its own
     # display deadlines; the guest keeps its original VBlank timing.
-    env['DNTTK_FRAME_RATE'] = controls['frame_rate'] if modernized else '60'
+    env['DNTTK_FRAME_RATE'] = controls['frame_rate'] if modernized else 'original'
     # D17B: ordered single-pass transparency batching, validated against the
     # isolated path pixel-for-pixel. D35J5 also needs the mixed path at native
     # rates to preserve HUD icons over the frozen first-person scene.

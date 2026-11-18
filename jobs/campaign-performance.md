@@ -4125,7 +4125,7 @@ Re-measured on the field laptop and citadel, 2026-11-17/18 ([note 507](../docume
 
 ### D23AF6 - Render-thread validator differs at ULTRA with three workers
 
-**Status: Todo (investigation; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
+**Status: Done (2026-11-18, closed with D23AG; [note 509](../documentation/509-d23ag-overnight-chain.md) section 2, [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AF.**
 
 Observed during D23AF2's A/B (MEASURED, desktop, ULTRA 180, third person,
 levels 0, 27 and 1, three workers): `PSX_RT_VALIDATE=1` reported differing
@@ -4145,6 +4145,21 @@ judge exactness at RELIT as it stands (D23Y10's 908/908 ran with lighting
 that held still). Work: freeze the light state a job was drawn with and
 give it to the validator's second draw, then re-run at RELIT; only a
 difference left after that would be a redraw defect.
+
+Work log, 2026-11-18 overnight ([note 509](../documentation/509-d23ag-overnight-chain.md)
+section 2): the lab census now reads the validator's counters per travel
+and per route. MEASURED (desktop, ULTRA rows at 180, three workers): every
+gameplay comparison was already exact; the bad ones were all on one
+loading screen a session (the spinning logo, up to 11 levels). A new
+developer state signature, stored with each render-thread image and
+printed by the validator for a differing one, named `lamps bake_eye` in
+153 of 153: a loading-screen image is never walked, so its redraw stream
+carried no bake lamp levels and each renderer instance used its previous
+image's. Fix: every replayed image starts from no lights and the bake's
+inactive lamp levels (`render_replay.c`), walked images always send theirs
+(`dynamic_lights.inc`), and a validation spanning a savestate load (the
+render thread's epoch moved on, the image is discarded unshown) counts as
+skipped. Test `ttk_replay_light_state`.
 
 ### D23AF7 - The starvation watchdog aborts on a fresh heartbeat
 
@@ -4217,6 +4232,185 @@ median 59.9 (p10 48.4 first, 55.0 third), redraws 100%, 2 slow seconds,
 0 fallbacks: the census's SIMPLE 120 (p10 43.4 / 54.5, 3 / 2 slow
 seconds); citadel game 60, pictures 60 (p10 59.1-59.3), redraws 100%, 0
 slow seconds. Closed out 2026-11-17 with D23AF1 and D23AF2 (user: "turn the bake yield on by default too, then lock it in and close it out").
+
+### D23AG - FRAME RATE menu counts new pictures, not refreshes
+
+**Status: Done (2026-11-18, user: "ok yes confirmed working. lock it in and close it out"; [note 509](../documentation/509-d23ag-overnight-chain.md) section 1). Dependencies: D23AF8.**
+
+User, 2026-11-18: "explain to me why 60 looks like the frame rate of the
+ps1, and 120 looks like the real 60 ... our scale isnt hz, its fps", then
+"add that backlog job now". The FRAME RATE scale mixes units (manual,
+"Frame rate (Modernized)"): `60` is the original presentation, a 60 Hz
+output where the game draws about 30 new pictures a second and each is
+shown twice (the PS1's own rhythm); every other number counts new
+pictures (`120` on a 60 Hz screen shows 60 new pictures a second, D23Y6;
+`180` on a 180 Hz screen shows 180). So the menu's "60" is the PS1's
+30 fps and its "120" on a 60 Hz panel is what players call 60 fps.
+
+Work: relabel so every FRAME RATE value counts new pictures a second: the
+original presentation becomes `ORIGINAL 30` (wording to agree with the
+user), and `60` means 60 new pictures a second (what `120` gives on a
+60 Hz screen today). Covers the in-game OPTIONS > DISPLAY row, the
+launcher (`--frame-rate`, `--settings` F, help text; old saved values and
+flags migrate or stay accepted as aliases, with a profile schema step if
+needed), any on-screen FPS/statistics wording, the console, and
+GAME_MANUAL.md. AUTO's behaviour does not change, only how it is named
+and reported. Vanilla is untouched (always the original presentation).
+
+Acceptance: on a 60 Hz screen the option labelled 60 shows 60 new
+pictures a second and the original look is named as such; on the 180 Hz
+desktop the labels match the measured new pictures a second; existing
+saved settings keep the same behaviour after the upgrade; Vanilla
+unchanged.
+
+Work log, 2026-11-18 overnight ([note 509](../documentation/509-d23ag-overnight-chain.md)
+section 1): built. New saved and runtime value `original` (OPTIONS shows
+**ORIGINAL 30**: the menu font draws `(` `)` as `<` `>`, so the user's
+`ORIGINAL (30)` became bracketless; wording left for the playtest); `60`
+is now redraws at 60 new pictures a second, timed on the display when the
+display is within 5% of 60 Hz (the path `120` takes there). Launcher schema
+79: a saved `60` becomes `original` once (both profiles) with a notice;
+Vanilla launches `original`; `--frame-rate`, `--settings` F, the summary,
+help and GAME_MANUAL say new pictures. MEASURED: desktop offscreen 60 gives
+59.8-59.9 new pictures a second (redraws every second), `original` the
+original presentation; real 60 Hz screens, BALANCED: field laptop 60 =
+59.9 / 41.6 (levels 0 / 27) against 120 = 60.0 / 44.4, citadel 59.7 / 59.9
+against 60.0 / 59.5, both logging the display-timed path; the OPTIONS row
+switches an `original` launch to 60 at once and the launcher keeps it.
+Tests: schema 79 migration, menu choices equal the launcher's.
+User playtest on the field laptop, 2026-11-18: at first "60 looks the same
+as 30, and 120 looks like the smooth motion": the session log showed 60
+running display-timed at 60 presents for about 30 s, then the governor's
+fallback (emulation 46.6 frames a second, first person, BALANCED) holding
+the original presentation 120 s; choosing 120 cleared the fallback. With
+that explained and SIMPLE for the comparison: "ok yes confirmed working.
+lock it in and close it out". Closed out the same day with D23AF6 and
+D23AJ.
+
+### D23AG1 - Fixed frame rates between display multiples
+
+**Status: Todo (found by D23AG, 2026-11-18; [note 509](../documentation/509-d23ag-overnight-chain.md) section 1). Dependencies: D23AG.**
+
+MEASURED (desktop, real 180 Hz screen, ULTRA, level 0): with VSYNC on, a
+fixed FRAME RATE below the display's refresh used to present at every
+refresh (D17BH's placement ignored the rate's period): 60 gave 180 presents
+and 90 new pictures a second, 120 gave 177. D23AG fixed whole fractions (60
+on 180 or 120 Hz now presents every 3rd / 2nd refresh: 60.0 presents, 59.9
+new pictures). Other ratios keep every refresh: 120 or 144 on 180 Hz still
+show about 175 new pictures, more than their label. Placing them at their
+own rate was tried: presents then come one or two refreshes apart, and the
+in-betweens, planned evenly at the rate (`update_steps`), are shown twice
+or skipped (120: 119.9 presents but 67-82 new pictures, visible judder).
+
+Work: plan each game frame's in-betweens at the times the presents will
+actually take on the refresh grid (or choose the nearest even divisor and
+say so in the menu), so the label equals the measured new pictures.
+
+### D23AH - Profile-guided and link-time optimized build
+
+**Status: Blocked (2026-11-18 overnight, on the user's choice of an opt-in build; [note 509](../documentation/509-d23ag-overnight-chain.md) sections 4 and 6). Dependencies: D23AF.**
+
+User, 2026-11-18: "new jobs D23AH (PGO/LTO build) ... Goal: BALANCED at 60
+new pictures a second on the laptop". The field laptop (i7-5600U, 2 cores,
+15 W shared package) is bound by the emulation thread and the redraw worker
+sharing one package with the GPU (note 503). A profile-guided (PGO) and
+link-time optimized (LTO) build may cut CPU time per game frame and per
+redraw without any change to what is drawn.
+
+Work: measure the release build against LTO and LTO+PGO (profile from a
+scripted campaign route on the desktop, applied to every machine's build);
+the generated recompilation shards are the bulk of the code, so check build
+time and memory on the laptop and citadel. Keep it only where it is exact
+(same pictures, same game state) and measurably faster; opt-in or default
+by measurement.
+
+Acceptance: CPU per game frame and per redraw, A/B on the field laptop's
+real screen at BALANCED 60; images and state identical; build still works
+on all three machines.
+
+Work log, 2026-11-18 overnight ([note 509](../documentation/509-d23ag-overnight-chain.md)
+sections 4 and 6): laptop stack samples show the emulation thread mostly in
+small runtime helpers called from the generated shards. Separate
+`build-lto` and `build-pgo` directories (player build untouched). MEASURED,
+desktop offscreen BALANCED 60 (levels 27, 22, 29): LTO -5 to -11% on the
+emulation thread, LTO+PGO about -25%, the redraw workers unchanged; field
+laptop with citadel's LTO executable: -8 to -16%, no governor fallback in
+either LTO run, worker still saturated; citadel-trained PGO on the laptop:
+-12 to -21%, no fallback, 22 and 27 at 47-59 new pictures (from 39-52),
+29 still worker-bound. The framework's retiring workers now
+write profile counts first (`worker_exit`, weak `__gcov_dump`, a no-op
+outside an instrumented build). Builds: desktop 7-10 min, 1.8-3.6 GB;
+citadel LTO 34 min, 5.7 GB (its RAM). Not done: image-by-image exactness of
+the LTO/PGO executables. Proposed: opt-in `build.py --lto` / `--pgo`.
+
+### D23AI - BALANCED GPU passes on the field laptop's HD 5500
+
+**Status: Blocked (2026-11-18 overnight, on D23AK; [note 509](../documentation/509-d23ag-overnight-chain.md) section 3). Dependencies: D23AF4.**
+
+User, 2026-11-18: "D23AI (BALANCED GPU passes on the laptop's HD 5500)".
+D23AF4's evidence: at BALANCED the redraws' GPU work (75-80% busy at
+500-900 MHz) takes the 15 W package from the CPU. Work: time each GPU pass
+of a BALANCED redraw on the laptop (world draw, lights, live shadows and
+their maps, lightmap, resolve and present), find the costliest, and make it
+cheaper without changing the picture (or with a change the user accepts),
+following the leanest-choice rule (D41M).
+
+Acceptance: per-pass GPU timings before and after; BALANCED at FRAME RATE
+60 (D23AG) on the laptop's real 60 Hz screen nearer 60 new pictures a
+second in the census scenes, Polymorph only.
+
+Work log, 2026-11-18 overnight ([note 509](../documentation/509-d23ag-overnight-chain.md)
+section 3): BALANCED 60 census on all levels, then one change at a time on
+levels 6, 8, 1, 5 (real screen; package 15 W in every case): LIGHTING
+ORIGINAL GPU 54 -> 37-41%, no fallback; draw distance ORIGINAL 41%, worker
+92 -> 69%; LIVE SHADOWS OFF little change; 1x GPU 22-25%, CPU at full turbo
+3.1 GHz, worker -30%, no fallback. Two workers fall back at once (D23Y6
+holds). `PSX_SHADOW_PROF` cannot split passes. Not done: per-pass GPU
+timing (instrumentation proposed) and any GPU change: the saturated levels
+are bound by the redraw worker (D23AK).
+
+### D23AJ - Field laptop campaign census at 30 and 60 new pictures
+
+**Status: Done (2026-11-18, closed with D23AG; [note 509](../documentation/509-d23ag-overnight-chain.md) section 5). Dependencies: D23AG, D23AI.**
+
+User, 2026-11-18: "D23AJ (laptop campaign census, SIMPLE and BALANCED at 30
+and 60 new pictures a second)". The D23AF census (note 503) on the field
+laptop, real 60 Hz screen, every level-select level, first and third
+person, at GRAPHICS SIMPLE and BALANCED with FRAME RATE ORIGINAL 30 and
+60 (D23AG's names). Goal: BALANCED at 60 new pictures a second.
+
+Acceptance: per-level game rate, new pictures a second (median and lowest
+tenth), fallbacks and slow seconds for the four configurations, with the
+host state checked; the gap to the goal named level by level.
+
+Work log, 2026-11-18 overnight ([note 509](../documentation/509-d23ag-overnight-chain.md)
+section 5): four configurations, third person, all 21 levels, real 60 Hz
+screen, host gate OK at every level. All seconds: SIMPLE 60 59.9 / 55.1 new
+pictures (median / lowest tenth), redraws every second; BALANCED 60 47.5 /
+29.5, 249 of 744 s in the governor's fallback; ORIGINAL 30 30.0 / 29.1 in
+both grades; game 60 (lowest tenth 59.0-59.2) in all. Gap: 22, 27, 29
+(worker-bound, 37-40), 6, 21, 24, 26 (lowest tenth 31-45) and the fallback
+that follows them. First person at 60: BALANCED 59.6 / 32.1, SIMPLE 59.9 / 45.4,
+no fallback; 22, 27, 29 short in both (29 at SIMPLE 41.8).
+
+### D23AK - A lighter redraw worker
+
+**Status: Todo (proposed by D23AH and D23AJ, 2026-11-18; [note 509](../documentation/509-d23ag-overnight-chain.md) section 6). Dependencies: D23AJ.**
+
+MEASURED (field laptop, real 60 Hz screen, BALANCED, FRAME RATE 60): the
+single redraw worker (D23Y6 placement; a second one starves the emulation
+thread) runs at 92-96% on THE REAPER, levels 22 and 29, which show 37-46
+new pictures a second; neither LTO nor PGO moves it. 149 stack samples:
+about 20% inclusive in the title's host world walk (`host_vis_walk`,
+`draw_distance_apply`, `near_clip_host_world_piece`), redone for every
+redraw image, 17% self in other title helpers, 4-8% recording host
+vertices.
+
+Work: find what of the worker's walk depends only on the game frame (not
+the in-between camera) and compute it once per game frame for all of its
+redraws; exact (PSX_RT_VALIDATE, VRAM dumps), behind a developer switch
+first. Goal: BALANCED at 60 new pictures a second on the laptop in the
+worker-bound levels.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

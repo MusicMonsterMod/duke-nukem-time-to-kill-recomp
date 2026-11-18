@@ -1587,6 +1587,29 @@ Work log, 2026-11-17 (Needs playtest):
 Closed out 2026-11-17: the user accepted the first-pass tuning ("lock it in
 and close it out").
 
+### D57H - Red candles on iron stands give light (UI slot 9)
+
+**Status: Todo (backlog, reported 2026-11-18, not investigated). Dependencies: D57G.**
+
+User, 2026-11-18 (desktop), from their UI slot 9 save: "this kind of
+candle doesnt emit light (i dont think) so make it emit". Backlog only; no
+code yet. Evidence: the user's UI slot 9 savestate (runtime file slot08,
+level 8, saved 2026-11-18 00:44), copied (read only, the original
+untouched; SHA-256 `a4c05503de06f520cd562f865df232765b10dd607d4b7368628e9fca0fa5f96c`,
+identical to the player's file) to `research/savestates/d57h/` with its
+`.ttk` and `.thumb` (local, never committed). Test on a copy of that file,
+never the player's slot. The thumbnail shows a squat red candle with a small
+flame on a tall iron stand, beside a log wall.
+
+Work: first confirm the user's "i dont think": check whether the candle
+already gives light (any `.lights` lamp or prop light near it). If not,
+identify the prop (type and mesh signature, as D57G did for the ring
+chandelier), and light it by model in `prop_lights.cpp` so every copy on
+every level gives a small warm candle light at the flame, breaking with the
+prop (D54) and correct after loads (D41W). Acceptance: the candle in the
+slot 9 view lights the wall and floor around it in a matched before/after
+pair, other copies on the level light too, Vanilla unchanged.
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**

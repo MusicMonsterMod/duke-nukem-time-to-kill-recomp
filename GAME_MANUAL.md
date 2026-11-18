@@ -191,9 +191,17 @@ weapons, physics and timers do not run faster when you raise the display rate.
 Native scene updates normally run at 30 frames per second and can fall lower
 in busy areas. High refresh draws additional pictures between those updates.
 
+Every FRAME RATE number counts **new pictures a second** (D23AG): `60` shows
+60 different pictures a second, what players call 60 FPS. The original look,
+where the game shows each of its own pictures twice on a 60 Hz output (about
+30 new pictures a second, the PlayStation's rhythm), is its own choice,
+**ORIGINAL 30**. Before D23AG that look was called `60`, and 60 new
+pictures needed `120` on a 60 Hz screen; a saved `60` from then becomes
+ORIGINAL 30 once, so nothing you see changes after the update.
+
 Choose it with `--frame-rate`, with **F** in `--settings`, or in game under
 OPTIONS > DISPLAY > FRAME RATE, which applies as soon as you confirm, also
-after a launch at 60 (OpenGL renderer; with the software renderer it waits
+after a launch at ORIGINAL 30 (OpenGL renderer; with the software renderer it waits
 for the next launch):
 
 - `auto` (default for new Modernized settings): one picture for every
@@ -206,39 +214,46 @@ for the next launch):
   On a computer with fewer processor threads AUTO also stays within what
   they can redraw (D23P): with 4 to 7 logical CPUs at most 120 pictures a
   second (180 Hz -> 90, 120 or 240 Hz -> 120), with fewer than 4 the original
-  60. Eight or more (most desktop processors) are not limited. A processor
+  presentation. Eight or more (most desktop processors) are not limited. A processor
   with only 2 physical cores counts by its threads: with 4 (a laptop with
   hyper-threading) it takes up to 120 like a 4-core one, so on a 60 Hz
   screen it shows 60 fresh pictures a second with the newest camera
   (D23AE; where a scene cannot keep that, the original presentation takes
-  over, D23AD); with only 2 threads it keeps the original 60. A fixed
+  over, D23AD); with only 2 threads it keeps the original presentation. A fixed
   choice below is never changed. `display` follows the same limit.
   AUTO follows display changes and preserves fractional rates such as 59.94.
   Existing saved choices stay selected; choose AUTO explicitly to try it.
-- `60`: the original presentation.
+- `original` (**ORIGINAL 30** in game): the original presentation, the
+  game's own pictures (about 30 new ones a second, fewer in busy areas), each
+  shown twice at 60 Hz. Vanilla always uses it.
 - `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
   It follows the window if you move it to another monitor.
-- `30`: each new game image is shown exactly once.
-- `120`, `144`, `165`, `180`, `240`: a fixed target rate. A rate above your
-  display's refresh is shown at the display's rate (D23Y6): on a 60 Hz screen
-  `120` presents 60 evenly spaced pictures a second, because pictures between
-  two refreshes never reach the screen and drawing them only took processor
-  time the game needed. On a 120 Hz or faster display you get the full 120.
-  Your setting is not changed.
+- `30`: 30 new pictures a second, each new game image shown exactly once.
+- `60`: 60 new pictures a second, with the newest camera in each. On a 60 Hz
+  screen this is exactly what `120` gave there before (timed on the display's
+  own refresh, D23Y6); on a faster display each picture is shown for several
+  refreshes.
+- `120`, `144`, `165`, `180`, `240`: that many new pictures a second. A rate
+  above your display's refresh is shown at the display's rate (D23Y6): on a
+  60 Hz screen `120` presents 60 evenly spaced pictures a second, the same as
+  `60`, because pictures between two refreshes never reach the screen and
+  drawing them only took processor time the game needed. On a 120 Hz or
+  faster display you get the full 120. Your setting is not changed.
 - `unlimited`: the fastest paced redraw rate the scene can sustain; useful
   for stress testing, with no promise of one new image per monitor refresh.
 
-If the extra pictures above 60 slow the game itself down on your computer
+If the extra pictures (FRAME RATE 60 and up) slow the game itself down on your computer
 (on a 120 Hz or faster display it first shows a picture at every second,
-then every third refresh), the game drops to the original 60 presentation
+then every third refresh), the game drops to the original presentation
 for a while instead, so Duke and the enemies keep their speed, and tries the
 faster rate again after two minutes of play (then four, then eight if it
 still cannot). On a 60 Hz display (a laptop panel, most TVs) there is no
-in-between step: 30 pictures a second looked rougher than the original 60,
-so it goes straight to the original presentation (D23AD). A load or the
+in-between step: 30 evenly paced pictures a second looked rougher than the
+original presentation, so it goes straight to the original presentation
+(D23AD). A load or the
 title screen no longer counts as the game falling behind. Your FRAME RATE
-setting is not changed (D23Y1). With this, FRAME RATE 120 showed 60
-pictures a second in every measured scene on a 2-core laptop with a 60 Hz
+setting is not changed (D23Y1). With this, FRAME RATE 120 (now the same
+as 60 there) showed 60 pictures a second in every measured scene on a 2-core laptop with a 60 Hz
 screen (an i7-5600U with HD Graphics 5500, at 2x with LIGHTING ON or RELIT)
 and on a 4-core TV PC (a Ryzen 3 3200GE with Vega graphics, at ULTRA), at
 full game speed (D23AD).
@@ -258,13 +273,13 @@ display's (240 on a 180 Hz display, UNLIMITED) still presents without waiting.
 
 Delay between your mouse and the picture: the original game updates 30 times
 a second and shows each update two updates after it reads the controls, so at
-the original 60 presentation a turn reaches the screen about 115-130 ms after
+the original presentation a turn reaches the screen about 115-130 ms after
 the mouse moves (measured on a laptop; EDuke32 about 20 ms, UZDoom about 40).
 Modernized shows each new picture in the same refresh the game finishes it,
 as the console does; with VSYNC OFF that saves about one refresh (with VSYNC
-ON the picture still waits for the next refresh, a few milliseconds less). Above 60 the camera of
-every extra picture takes your newest mouse look, which halves the delay
-(about 65 ms at 60 with extra pictures, about 70 at 120); on computers where
+ON the picture still waits for the next refresh, a few milliseconds less). At FRAME RATE 60 and
+above the camera of every extra picture takes your newest mouse look, which halves the delay
+(about 65 ms at 60 new pictures a second, about 70 at 120); on computers where
 those extra pictures are too slow, work continues (D23Y).
 
 Above 60, the extra pictures in between are drawn by the game's own renderer
@@ -1900,10 +1915,10 @@ the largest angle off the view, 5 to 45 degrees (default 35).
 `pointblank default` restores both. Shots at an enemy under the crosshair, assisted shots, throws,
 first person, `original` aiming and Vanilla are unchanged.
 
-**Shots follow the view on screen (Modernized, D10G3).** At FRAME RATE 120 or
-higher the picture you see is newer than the game's own camera, so a shot now
+**Shots follow the view on screen (Modernized, D10G3).** At FRAME RATE 60 or
+higher (the extra pictures; before D23AG, 120 or higher) the picture you see is newer than the game's own camera, so a shot now
 leaves from the view you are looking at, turning or strafing, instead of the
-camera one game update older. At 60 Hz nothing changes. To compare, open the
+camera one game update older. At ORIGINAL 30 nothing changes. To compare, open the
 backtick console and type `shotview off` (session only); `shotview on` or
 `shotview default` turns it back on.
 
@@ -1913,23 +1928,23 @@ A shot now tests the crosshair against each enemy where the picture drew it,
 and the round then flies at that same spot on the enemy where it stands now,
 so a running enemy under the crosshair is hit instead of the wall behind it.
 Walls and cover still stop rounds as before, and the weapon's own firing
-delay is unchanged. At 60 Hz nothing changes. To compare, open the backtick
+delay is unchanged. At ORIGINAL 30 nothing changes. To compare, open the backtick
 console and type `shootseen off` (session only); `shootseen on` or
 `shootseen default` turns it back on.
 
-**The energy beam leaves the gun (Modernized, D49).** At FRAME RATE 120 or
-higher, in first person, the energy weapon's beam is drawn from the gun toward
+**The energy beam leaves the gun (Modernized, D49).** At FRAME RATE 60 or
+higher (the extra pictures; before D23AG, 120 or higher), in first person, the energy weapon's beam is drawn from the gun toward
 the crosshair while you turn or move, instead of trailing where you pointed a
 moment earlier. Only the picture changes: what the beam hits is the same.
 The glow and sparks where it strikes a wall appear at the end of the beam
 you see (D49A), and the puffs where your bullets hit a wall appear under the
-crosshair, then settle where the rounds really struck. At 60 Hz, in third
+crosshair, then settle where the rounds really struck. At ORIGINAL 30, in third
 person and in Vanilla nothing changes. To compare, open the backtick console
 and type `beamfollow off` (session only); `beamfollow on` or `beamfollow
 default` turns it back on.
 
-**The energy beam ripples smoothly (Modernized, D49C).** At FRAME RATE 120 or
-higher the beam's ripple moves on every frame shown, not only about 30 times
+**The energy beam ripples smoothly (Modernized, D49C).** At FRAME RATE 60 or
+higher (the extra pictures; before D23AG, 120 or higher) the beam's ripple moves on every frame shown, not only about 30 times
 a second, in first and third person. Its green and white stripes still flicker
 at the original rate. To compare, type `beamanim off` in the backtick console
 (session only); `beamanim on` or `beamanim default` turns it back on.
@@ -2219,8 +2234,8 @@ defaults. The line above the buttons describes the highlighted option.
 These apply as soon as you confirm: mouse sensitivity, invert mouse, window,
 widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
 auto aim, gore, status bars, game speed, red dot, jump, jump walls, landing,
-swimming, dynamite, view bob and renderer. Frame rate applies at once too, from any launch rate (choosing 60 returns
-to the original presentation); with the software renderer it says
+swimming, dynamite, view bob and renderer. Frame rate applies at once too, from any launch rate (choosing ORIGINAL 30
+returns to the original presentation); with the software renderer it says
 **NEXT LAUNCH**, like backend, resolution, filter, draw distance,
 geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
 the next time you start the game. A new widescreen shape also reshapes a plain

@@ -185,11 +185,15 @@ WALL_BACKFLIPS = ('modern', 'original')
 # crouch plus a direction walks low (camera-relative, Duke facing the view);
 # original: crouch plus a direction rolls.
 CROUCH_MODES = ('modern', 'original')
-# D17 presentation rate (Modernized only; Vanilla presents at 60 as always).
-# Game logic keeps its original timing at every value: display follows the
-# monitor's refresh rate, 30 shows each new game image once, 60 is the
-# original presentation, higher values and unlimited present more often.
-FRAME_RATES = ('auto', 'display', '30', '60', '120', '144', '165', '180', '240', 'unlimited')
+# D17 presentation rate (Modernized only; Vanilla always uses the original
+# presentation). Game logic keeps its original timing at every value.
+# D23AG (schema 79): every number counts new pictures a second. original is
+# the original presentation (the game's own images, about 30 a second, each
+# shown twice at 60 Hz; before schema 79 it was saved as 60); 30 shows each
+# new game image once; 60 and up are redraws at that many new pictures a
+# second, at most the display's refresh; display follows the monitor's
+# refresh; unlimited presents as often as possible.
+FRAME_RATES = ('auto', 'display', 'original', '30', '60', '120', '144', '165', '180', '240', 'unlimited')
 # Modernized first-person view bob (D17C): deliberate eye motion while walking.
 VIEW_BOBS = ('off', 'subtle', 'on', 'strong')
 # D17P draw distance (Modernized only; Vanilla keeps the original limits).
@@ -310,7 +314,7 @@ def default_profile(mode):
     profile = copy.deepcopy(DEFAULT_PROFILE)
     profile['presentation'].update(MODE_PRESENTATION[mode])
     if mode == 'vanilla':
-        profile['controls']['frame_rate'] = '60'
+        profile['controls']['frame_rate'] = 'original'
     return profile
 
 
@@ -481,7 +485,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 78, 'active': 'modernized',
+    return {'version': 79, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -527,7 +531,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 78:
+        if type(version) is int and version > 79:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -536,8 +540,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 78.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78):
+            notices.append('Migrated version 0 profile settings to version 79.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -559,7 +563,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **({'dynamic_lights':'on'} if version < 71 else {}), **({'security_monitors':'duke3d'} if version < 72 else {}), **({'shadow_edges':'smooth'} if version < 73 else {}), **({'vsync':'on'} if version < 74 else {}), **({'model_shadows':'on','glows':'on'} if version < 75 else {}), **({'night_vision_look':'duke3d'} if version < 77 else {}), **profile['controls'], **({'graphics':'custom'} if version < 74 else {}), **({'sidearm_return':'never'} if version == 64 else {}), **({'aim_assist':'hitscan'} if version < 69 and mode == 'modernized' and profile['controls'].get('aim_assist','off') == 'off' else {}), **({'aim_assist':'hitscan'} if version == 69 and profile['controls'].get('aim_assist') in ('eduke32','duke3d') else {})})
+                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'original'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **({'dynamic_lights':'on'} if version < 71 else {}), **({'security_monitors':'duke3d'} if version < 72 else {}), **({'shadow_edges':'smooth'} if version < 73 else {}), **({'vsync':'on'} if version < 74 else {}), **({'model_shadows':'on','glows':'on'} if version < 75 else {}), **({'night_vision_look':'duke3d'} if version < 77 else {}), **profile['controls'], **({'graphics':'custom'} if version < 74 else {}), **({'sidearm_return':'never'} if version == 64 else {}), **({'aim_assist':'hitscan'} if version < 69 and mode == 'modernized' and profile['controls'].get('aim_assist','off') == 'off' else {}), **({'aim_assist':'hitscan'} if version == 69 and profile['controls'].get('aim_assist') in ('eduke32','duke3d') else {})})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -612,6 +616,17 @@ def load(path):
                 if mc['graphics'] != 'custom' and mc['frame_rate'] != 'auto':
                     mc['frame_rate'] = 'auto'
                     notices.append('GRAPHICS grades no longer set FRAME RATE; FRAME RATE is AUTO (run.py --frame-rate chooses another).')
+            # D23AG: before schema 79 a saved 60 was the original presentation
+            # (about 30 new pictures a second); 60 now counts new pictures. The
+            # same look is now called original, in both profiles.
+            if version < 79:
+                for mode in MODES:
+                    pc = result['profiles'][mode]['controls']
+                    if pc['frame_rate'] == '60':
+                        pc['frame_rate'] = 'original'
+                        if mode == 'modernized':
+                            notices.append('FRAME RATE now counts new pictures a second: your 60 (the original look, '
+                                           'about 30 new pictures) is now called ORIGINAL 30; 60 now shows 60 new pictures a second.')
             # D19N (user, 2026-10-20): Enter alone uses the item; U is no longer
             # its default. Only the old default is cleared, a U bound elsewhere stays.
             if version < 36:
@@ -630,8 +645,8 @@ def load(path):
                 return result, notices
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 78; retained preferences and added control and presentation defaults.'
-                               if version < 78 else
+                notices.append(f'Migrated version {version} profile settings to version 79; retained preferences and added control and presentation defaults.'
+                               if version < 79 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -731,15 +746,15 @@ def describe_steroids(value, key='R'):
 def describe_frame_rate(value):
     if value == 'auto':
         return 'auto (your display\'s refresh up to 240 FPS, half or a third where a scene cannot keep up; game speed unchanged)'
-    if value == '60':
-        return '60 (original presentation)'
+    if value == 'original':
+        return 'original (the original presentation: about 30 new pictures a second, each shown twice)'
     if value == 'display':
         return "display (the monitor's refresh rate; game speed unchanged)"
     if value == '30':
-        return '30 (each new game image shown once; game speed unchanged)'
+        return '30 (30 new pictures a second, each game image shown once; game speed unchanged)'
     if value == 'unlimited':
         return 'unlimited (present as often as possible; game speed unchanged)'
-    return f'{value} (game speed unchanged)'
+    return f'{value} ({value} new pictures a second, at most your display\'s refresh; game speed unchanged)'
 
 
 def describe_cpu_timing(value):
@@ -1073,10 +1088,11 @@ def menu(settings, read=input, write=print):
                 write('Choose one of the listed values; draw distance unchanged.')
         elif choice.lower() == 'f':
             if edited['active'] != 'modernized':
-                write('Vanilla always presents at the original 60; select Modernized for the frame rate.')
+                write('Vanilla always uses the original presentation; select Modernized for the frame rate.')
                 continue
-            write('Frame rate changes how often the picture is shown; game logic keeps its original speed. '
-                  'display follows the monitor; 30 shows each new game image once; 60 is the original.')
+            write('Frame rate counts new pictures a second; game logic keeps its original speed. '
+                  'original is the original look (about 30 new pictures, each shown twice); display follows the monitor; '
+                  '30 shows each new game image once; 60 and up are new pictures a second, at most your display\'s refresh.')
             value = read('Frame rate (' + '/'.join(FRAME_RATES) + '; blank cancels): ').strip()
             if value in FRAME_RATES:
                 edited['profiles']['modernized']['controls']['frame_rate'] = value

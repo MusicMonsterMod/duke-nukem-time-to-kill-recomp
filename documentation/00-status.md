@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-18 (overnight) - D23AG, D23AF6, D23AJ closed out (Done); D23AH, D23AI Blocked
+
+FRAME RATE now counts new pictures a second (D23AG, launcher schema 79): the original look is ORIGINAL 30 (`original`), `60` is 60 new pictures; a saved `60` becomes `original`, so nothing looks different after the update. On a 180 Hz screen FRAME RATE 60 now presents 60 a second (a D17BH vsync placement fix); 120 and 144 there still exceed their label (D23AG1). The render-thread validator is exact at RELIT with three workers (D23AF6): loading-screen redraws used to inherit lamp levels; every replayed image now starts from no light state. LTO and PGO cut the emulation thread 5-25% but not the redraw worker (D23AH, opt-in proposed). On the field laptop BALANCED 60 reaches 47.5 new pictures (median), SIMPLE 60 59.9 (D23AJ); BALANCED is limited by the single redraw worker and the 15 W package (D23AI), next D23AK. [Note 509](509-d23ag-overnight-chain.md).
+
 ## 2026-11-18 - D23Y5: host-world profile, object coplanar prune (Blocked)
 
 The title's host world at the original 60 on the field laptop is 11-24% of the emulation thread, almost all view-dependent emission ([note 508](508-d23y5-host-world-caches.md)). The object coplanar search now runs its rule only on pairs three exact bounds cannot reject (on by default, developer `DNTTK_COPLANAR_PRUNE=0/2`): 173,329 meshes compared with the full search, 0 differing; `PSX_VRAM_DUMP_DIR` dumps identical off against on. UI 9: 57 -> 55% (search 8.6 -> 3.6%); other scenes unchanged; target not met. D17BL (sky while climbing a ladder, UI slot 12) added, not investigated. Closed out on the user's instruction ("lock it in and close it out").

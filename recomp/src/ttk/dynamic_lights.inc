@@ -700,7 +700,14 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     // D41H: normals only matter where the shader lights (a light or a dimmed
     // ambient); otherwise lit triangles keep their original colour.
     near_clip_light_frame(valid && lights_enabled(),m,light_view.smooth && (light_view.n>0 || light_view.amb!=1.0f),eye);
-    if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);near_clip_glow_sources(nullptr,0);return;}
+    // D23AF6: every image carries its whole light state, the bake's lamp
+    // levels too. Without them (no camera yet: a loading screen; no bake) a
+    // renderer kept the levels and steady gain of the last image it drew, so
+    // the same image came out differently on the render thread and on the
+    // emulation thread (the loading logo up to 11 levels apart at RELIT).
+    // None here is the bake's own inactive state: no channel lamps, gain 1.
+    static const float no_eye[3]={0,0,0};
+    if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);psx_mod_gpu_set_lamp_levels(no_eye,1.0f,nullptr,0);near_clip_glow_sources(nullptr,0);return;}
     for(int i=0;i<3;++i) shadow_probe_eye[i]=eye[i];   // D41F developer probe
     PSXModLight l[PSX_MOD_MAX_LIGHTS];
     const unsigned n=std::min<unsigned>(light_view.n,PSX_MOD_MAX_LIGHTS);
@@ -713,6 +720,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     psx_mod_gpu_set_shadows(light_view.sh,(int)light_view.nsh);   // D41F: before the lights that name them
     psx_mod_gpu_set_lights(l,(int)n,light_view.amb);++light_uploads;
     if(light_view.bake_n) {const float e[3]={(float)eye[0],(float)eye[1],(float)eye[2]};psx_mod_gpu_set_lamp_levels(e,light_view.bake_gain,light_view.bake_rgb,(int)light_view.bake_n);}
+    else psx_mod_gpu_set_lamp_levels(no_eye,1.0f,nullptr,0);   // D23AF6
     near_clip_light_probe_lights(l,(int)n,light_view.amb);
     near_clip_glow_sources(light_view.glow,(int)light_view.ng);   // D41S
 }

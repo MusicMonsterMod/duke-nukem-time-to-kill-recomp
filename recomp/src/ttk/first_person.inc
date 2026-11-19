@@ -1609,6 +1609,18 @@ static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t ma
 // heading. At maximum downward pitch the running thighs otherwise expose
 // their open hip ends. One rigid translation preserves the gait, proportions,
 // foot height and thigh attachment; gameplay and kick matrices stay native.
+// D14G1: while Duke swims underwater (native mode 5) the root-anchored swim
+// eye cannot frame his legs. Horizontal strokes keep them out of view, but
+// Space / Ctrl stand the body up or dive it, and the thighs then rose into
+// the picture without a torso, or around the eye (backwards near walls).
+// Underwater swim legs are hidden; surface treading (mode 4) keeps them.
+// Developer A/B only: DNTTK_FP_SWIM_LEGS=native keeps them underwater.
+static uint64_t swim_legs_hidden=0;
+static bool first_person_swim_legs_hidden() {
+    if(fp_policy.action!=PerspectiveAction::Swimming || psx_mod_read_byte(player+0x22c)!=5)return false;
+    static const bool native=[]{const char* t=std::getenv("DNTTK_FP_SWIM_LEGS");return t && !std::strcmp(t,"native");}();
+    return !native;
+}
 static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) {
     const double x=int16_t(psx_mod_read_half(camera+12));
     const double z=int16_t(psx_mod_read_half(camera+16));
@@ -1652,6 +1664,12 @@ static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) 
         psx_mod_write_word(hidden_matrix+i,psx_mod_read_word(native+i));
     psx_mod_write_word(hidden_matrix+20,psx_mod_read_word(native+20)-int32_t(std::lround(setback*x/length)));
     psx_mod_write_word(hidden_matrix+28,psx_mod_read_word(native+28)-int32_t(std::lround(setback*z/length)));
+    // D14G1 trace: the drawn left hip (recomp/tools/local/present_trace.py).
+    if(present_trace_enabled() && int(cpu->gpr[23])==duke_part_joint(desc,1)) {
+        const double h[3]={double(int32_t(psx_mod_read_word(hidden_matrix+20))),
+            double(int32_t(psx_mod_read_word(hidden_matrix+24))),double(int32_t(psx_mod_read_word(hidden_matrix+28)))};
+        present_trace("leg_hip_l",h);
+    }
     cpu->gpr[5]=hidden_matrix;
 }
 // D14E: a first-person presentation of the native torso, hinged at its
@@ -2026,6 +2044,12 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         const char* body=std::getenv("DNTTK_FP_BODY");
         if(((part>=1 && part<=8) || part==21) && (!body || !*body) &&
            mats>=0x80010000 && mats<=0x801ffd80 && cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
+            if(first_person_swim_legs_hidden()) {
+                // Hidden at the eye without the polygon-depth bridge (as the body).
+                limb_claim(cpu,LimbOwner::HiddenBody,part);
+                cpu->gpr[5]=camera;++swim_legs_hidden;
+                return;
+            }
             limb_claim(cpu,LimbOwner::Legs,part,true);
             first_person_legs_matrix(cpu,desc,mats);
             return;

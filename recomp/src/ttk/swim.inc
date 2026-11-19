@@ -517,29 +517,56 @@ static void swim_end_dive(const InputFrame& f) {
     ++swim_dive_stops;
 }
 
+// Underwater body pitch the input asks for: look pitch along the move axis,
+// or +/-vertical for Space / Ctrl.
+static int32_t swim_target_pitch(const InputFrame& f) {
+    const bool moving=f.move_x || f.move_y;
+    double forward_share=0.0;
+    if(moving) forward_share=f.move_y/std::hypot((double)f.move_x,(double)f.move_y);
+    // Host view pitch is +down (forward.y = sin(pitch)); body pitch is +up.
+    const double look_up=std::clamp(-pitch*4096/tau,(double)-k_swim_pitch_max,(double)k_swim_pitch_max);
+    if(f.held[jump] && !f.held[crouch]) return moving?k_swim_pitch_diagonal:k_swim_pitch_vertical;
+    if(f.held[crouch] && !f.held[jump]) return moving?-k_swim_pitch_diagonal:-k_swim_pitch_vertical;
+    return (int32_t)std::lround(moving?look_up*forward_share:look_up);
+}
+// D14G1: the drawn body turns toward that pitch over a few updates. Written
+// straight, the first Space / Ctrl update swung the whole skeleton up to 160
+// degrees about the root in one game tick (the arms juddered, the legs swept
+// through the eye view). Stateless: each update steps from the guest's own
+// pitch (half the gap, at most k_swim_pitch_turn). The thrust's direction
+// still takes the target at once (swim_pace), so travel is not delayed.
+// DNTTK_SWIM_PITCH_EASE=0 (developer A/B) writes the target directly.
+static constexpr int32_t k_swim_pitch_turn = 96;
+static bool swim_pitch_ease_enabled() {
+    static const bool on=[]{const char* t=std::getenv("DNTTK_SWIM_PITCH_EASE");return !(t && !std::strcmp(t,"0"));}();
+    return on;
+}
+static int32_t swim_pitch_step(int32_t current,int32_t target) {
+    if(!swim_pitch_ease_enabled())return target;
+    const int32_t d=target-current;
+    if(std::abs(d)<=8)return target;
+    const int32_t step=std::clamp<int32_t>(d/2,-k_swim_pitch_turn,k_swim_pitch_turn);
+    return current+step;
+}
+static unsigned swim_pitch_eases;
+
 // Underwater (state 5): body yaw = camera-relative move direction (view yaw
-// when idle); body pitch = look pitch along the move axis, or ±vertical for
-// Space / Ctrl. The original thrust (Square, injected by input_pad) follows it.
+// when idle); body pitch eases toward swim_target_pitch. The original thrust
+// (Square, injected by input_pad) follows the target (swim_pace).
 static void swim_steer_underwater(const InputFrame& f) {
     const bool moving=f.move_x || f.move_y;
     double heading_rad=view_yaw();
-    double forward_share=0.0;
     if(moving) {
         const auto dir=movement(view_yaw(),f.move_x,f.move_y);
         heading_rad=std::atan2(dir.x,dir.z);
-        forward_share=f.move_y/std::hypot((double)f.move_x,(double)f.move_y);
     }
     const int heading=static_cast<int>(std::lround(heading_rad*4096/tau)) & 4095;
     psx_mod_write_half(player+0x1c,heading);
     psx_mod_write_half(player+0x24,heading);
     psx_mod_write_half(player+0x2b4,0);
-    // Host view pitch is +down (forward.y = sin(pitch)); body pitch is +up.
-    const double look_up=std::clamp(-pitch*4096/tau,(double)-k_swim_pitch_max,(double)k_swim_pitch_max);
-    int32_t body_pitch;
-    if(f.held[jump] && !f.held[crouch]) body_pitch=moving?k_swim_pitch_diagonal:k_swim_pitch_vertical;
-    else if(f.held[crouch] && !f.held[jump]) body_pitch=moving?-k_swim_pitch_diagonal:-k_swim_pitch_vertical;
-    else if(moving) body_pitch=(int32_t)std::lround(look_up*forward_share);
-    else body_pitch=(int32_t)std::lround(look_up);
+    const int32_t target=swim_target_pitch(f);
+    const int32_t body_pitch=swim_pitch_step((int16_t)psx_mod_read_half(player+0x1e),target);
+    if(body_pitch!=target)++swim_pitch_eases;
     psx_mod_write_half(player+0x1e,(int16_t)body_pitch);
     psx_mod_write_half(player+0x26,(int16_t)body_pitch);
 }
@@ -565,10 +592,14 @@ static unsigned swim_paces;
 static void swim_pace(CPUState* cpu) {
     if(cpu->gpr[5]!=player+0x1f4 || !swim_lease_ready() || !swimming_modern())return;
     const auto& f=input_snapshot(Context::Gameplay);
-    if(!f.move_x && !f.move_y)return;
     const uint32_t velocity=player+0x1f4,angles=cpu->gpr[4];
     if(angles<0x80000000u || angles>0x801ffff8u || (angles&1))return;
     const unsigned animation=psx_mod_read_half(player+0x60);
+    // D14G1: the thrust travels along the target pitch while the drawn body
+    // is still turning toward it (swim_steer_underwater).
+    if(swim_native_underwater() && animation>=128 && animation<=130)
+        psx_mod_write_half(angles+2,(uint16_t)(int16_t)swim_target_pitch(f));
+    if(!f.move_x && !f.move_y)return;
     const double pace=modern_pace(input_running());
     if(swim_native_surface()) {
         // One local axis carries the stroke: Z forward / back, X sideways.

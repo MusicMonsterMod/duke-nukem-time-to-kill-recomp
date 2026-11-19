@@ -775,6 +775,33 @@ Limits: one moat route, default costume. [Note 346](documentation/346-d14g-swim-
 Accepted 2026-11-01. User: "perfect. lock it in, close it out". Closeout,
 commit and push authorized.
 
+### D14G1 - Swim ascend/descend: arms judder and legs show in first person
+
+**Status: Needs playtest. Dependencies: D14G, D36J5, D11E1.** User (2026-11-19):
+"when swimming in first person, when using space or ctrl to ascend or descend,
+duke's arms judder during the initial button press. this is the only time when
+duke's legs become visible when swimming. if this is shown near a boundary like
+a wall etc, the legs can appear at the torso cuttoff point on screen completely
+disembodied, and in worst case scenario, even backwards."
+
+Scope: first the arm judder on the initial Space/Ctrl press (holstered contact
+rig D14G and armed display arms), then the leg appearance in that phase
+(D36J5 shared swim legs: draw-only setback, torso hidden). Read notes 257,
+305/306, 311 and 346 first. Game-wide presentation fix (no per-level data);
+swim movement, third person, reflections and Vanilla unchanged.
+
+Work log 2026-11-19 (Needs playtest, [note 515](../documentation/515-d14g1-swim-ascend-descend-presentation.md)):
+the judder was the underwater body pitch written straight to +/-900 (often a
+1800-unit flip from the last thrust) in one update, turning the skeleton about
+the root-anchored eye; the holstered contact hands follow it. The drawn pitch
+now eases (stateless, half the gap, at most 96 per pass) while the thrust's
+stack copy takes the target, so travel is not delayed. Legs: hidden underwater
+(native mode 5) in first person; a hip-clearance setback was tried and did not
+help (the thigh mesh, not the hip origin, showed). 180 Hz lab: largest hand
+step at the press 2125-2508 -> 106-180 view units; no disembodied thighs in
+matched stills. Python tests OK; controls/near tests do not link on this tree
+(pre-existing). Needs the user's look on the real screen.
+
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 
 **Status: Done (user-accepted 2026-11-02). Dependencies: D14B, D14G, D36K1, D11F.** In first-person

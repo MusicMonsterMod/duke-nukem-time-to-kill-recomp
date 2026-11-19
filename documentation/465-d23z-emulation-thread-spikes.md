@@ -130,3 +130,42 @@ different game moment, not a rendering change.
 `DNTTK_SPIKE_TRACE=25` (two fields at 60 are about 33 ms), and
 `PSX_PROF=... PSX_PROF_STACKS=... PSX_PROF_FRAMES=1` with
 `stackdiff.py STACKS A0 A1 B0 B1`.
+
+## 7. Re-measured on main after D23AO (2026-11-19)
+
+The field laptop's checkout was brought to main (e95c5fa: the 18 November
+build, D23AK, D23AO's fixed frame rate, D23AP, D11E1, D14G1) and rebuilt; the
+framework patch, and so this job's code, is the same as on 13 November. The
+player's settings have changed since then: BALANCED at 2x, FRAME RATE 60,
+first person (the lab copies them; `graphics` kept at `balanced`). Same 30 s
+walks on the real display, 3 runs a slot, host idle (load 0.00, mains,
+schedutil). MEASURED:
+
+| UI slot | Slow seconds per run (walk window) | Worst second | Busiest thread | All threads | Pictures a second |
+| --- | --- | --- | --- | --- | --- |
+| 2 | 0, 1, 0 | 53.3 | 53-59% | 110-125% | 60 (lowest tenth 59-60) |
+| 8 | 2, 2, 1 | 45.3 | 75-79% | 177-185% | 60 (lowest tenth 59-60) |
+| 9 | 0, 2, 0 | 40.8 | 53-59% | 120-134% | 60 (lowest tenth 59-60) |
+
+No "emulation behind" line in any walk; the frame rate never changed. Per
+thread (UI slot 8, sampled by name each second): the emulation thread is the
+one that saturates, 87-90% for about 15 s from the walk's ninth second, Duke
+near -282 5630 21198; the redraw worker (`psx-render0`) 25-50%.
+
+`DNTTK_SPIKE_TRACE=25`, one run a slot (at these settings an update of two
+fields has a 33 ms budget, so 25 ms traces ordinary updates; the counts below
+are after the load, field 600 on):
+
+- UI slot 2: 70 traced, largest 38.0 ms.
+- UI slot 8: 631 traced (most updates), median 30.8 ms, 4 over 45 ms
+  (46-56 ms); the largest hook in each is 1.8-6.4 ms. The cost is the whole
+  update, outside any one hook.
+- UI slot 9: 81 traced, 1 over 45 ms (47.5 ms); its slow seconds are the
+  first three of the walk, the heavy view just after the load (section 2).
+
+Verdict: no one-off event spike is left on the emulation thread. The slow
+seconds that remain are sustained heavy views (UI slot 8's stretch near
+-282 5630 21198, UI slot 9's view after the load), the kind of struggle point
+D23AQ owns; written into D23AQ's work log. The acceptance as written (no slow
+second in these walks) is not met at the current settings, and is not a
+one-off-event problem any more.

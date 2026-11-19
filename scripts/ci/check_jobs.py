@@ -34,7 +34,7 @@ MAX_BYTES = 2 * 1024 * 1024
 # category file -> (title, scope written in the file header)
 CATEGORIES = {
     "traversal": ("Traversal", "D08 movement, jumping, climbing, swimming, jetpack and pushing (D08A and its children are in items)"),
-    "items": ("Items, inventory and HUD", "D08A and its children: weapon and item shortcuts, inventory, gadgets and HUD icons"),
+    "items": ("Items, inventory and HUD", "D08A and its children, D60: weapon and item shortcuts, inventory, gadgets, HUD icons and mission items"),
     "controls": ("Controls", "D03-D07, D09, D10, D27 and D28: input, camera, aiming and controller"),
     "first-person": ("First person", "D11, D12, D14, D35, D36, D47 and D48"),
     "weapons-combat": ("Weapons and combat", "D38, D39, D44, D49 and D51"),
@@ -48,6 +48,7 @@ CATEGORIES = {
 FAMILY = {}
 for _cat, _nums in {
     "controls": [3, 4, 5, 6, 7, 9, 10, 27, 28],
+    "items": [60],
     "first-person": [11, 12, 14, 35, 36, 47, 48],
     "weapons-combat": [38, 39, 44, 49, 51],
     "graphics": [13, 15, 16, 17, 40, 46, 52, 53],

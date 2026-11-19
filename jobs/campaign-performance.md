@@ -3227,7 +3227,7 @@ Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af
 
 ### D23Z - One-off CPU spikes on the emulation thread
 
-**Status: Needs playtest (2026-11-13, [note 465](../documentation/465-d23z-emulation-thread-spikes.md); backlog, found in D23W 2026-11-13). Dependencies: D23W.** On
+**Status: Done (user-accepted 2026-11-19: "this work is accepted ... lock it in and close it out"; [note 465](../documentation/465-d23z-emulation-thread-spikes.md); found in D23W 2026-11-13). Dependencies: D23W.** On
 the field laptop the remaining short slowdowns at 60 (one or two seconds of
 45-57 game frames in a 30 s walk, each followed by a 5 s overclock pause)
 lined up with one-off events on the emulation thread: the level-start lamp
@@ -3267,6 +3267,24 @@ slot 8), all threads -1 to -5 points; game frames median 60, lowest tenth
 differing pixels (the pacer alone: 66, the LEVEL STATS clock). Remaining:
 the heavy views are D23Y5's (work log there); the user's play.
 
+
+Work log, 2026-11-19 (Needs playtest), [note 465](../documentation/465-d23z-emulation-thread-spikes.md)
+section 7. Re-measured on the field laptop after its checkout was brought to
+main (e95c5fa, after D23AO; this job's code unchanged) at the player's current
+settings (BALANCED 2x, FRAME RATE 60, first person): 30 s walks, real display,
+3 runs a slot, host idle. Slow seconds in the walk window: UI slot 2 0/1/0,
+UI slot 8 2/2/1 (worst 45.3), UI slot 9 0/2/0 (the first seconds after the
+load, worst 40.8); pictures 60 throughout, no "emulation behind" line. Per
+thread, UI slot 8's emulation thread holds 87-90% for about 15 s near Duke
+-282 5630 21198 (redraw worker 25-50%). `DNTTK_SPIKE_TRACE`: after the load no
+update dominated by a hook (UI slot 8: median 30.8 ms of a 33 ms budget, 4
+updates of 46-56 ms whose largest hook is at most 6.4 ms; UI slots 2 and 9:
+largest 38.0 and 47.5 ms). No one-off event is left; the remaining slow
+seconds are sustained heavy views, written to D23AQ. No code changed.
+Remaining: D23AQ (the heavy views).
+
+2026-11-19, user: "this work is accepted ... lock it in and close it out".
+Done: no one-off spike left; the walks' remaining slow seconds are D23AQ's.
 ### D23R - Parity benchmark and acceptance
 
 **Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23N4, D23P2, D23U.**
@@ -4713,6 +4731,15 @@ section 5, with Duke's positions; the worst 52.7 frames a second at 6222 4613
 or teleport, the laptop's settings), profile the emulation thread and the
 redraw worker there, and cut the cost exactly (identical pictures); confirm
 on the laptop's real screen with the user's actions. Vanilla unchanged.
+
+Note, 2026-11-19 (from D23Z, [note 465](../documentation/465-d23z-emulation-thread-spikes.md)
+section 7): two more struggle points measured on the field laptop at the
+player's settings (BALANCED 2x, FRAME RATE 60). UI slot 8's walk: the
+emulation thread at 87-90% for about 15 s near Duke -282 5630 21198, game
+seconds down to 45.3, in every run; the cost is spread over the whole update
+(no plugin hook above 6.4 ms). UI slot 9: the first three seconds after the
+load at 40-43 game frames in one run of three. Reproduce with the D23Z lab's
+walk (`CASES=rates`, the player's profile).
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

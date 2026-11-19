@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-19 - D23Z closed out (Done); D60 added
+
+[Note 465](465-d23z-emulation-thread-spikes.md) section 7: on the field laptop with main after D23AO (BALANCED 60), no one-off spike is left on the emulation thread; the remaining slow seconds (UI slot 8, UI slot 9 after the load) are sustained heavy views, now D23AQ's. User: "this work is accepted ... lock it in and close it out". New backlog job D60: the FAMILY JEWELS device should take the jewels in any order (user report from UI slot 12 on the field laptop).
+
 ## 2026-11-19 - D11E1 closed out (Done): first person kept through a water-plane lapse while swimming
 
 The level 6 moat drops were the camera lease refusing native underwater swim when the per-room water query (`0x8005b85c`, room byte `+0x2e`) returned no water ([note 514](514-d11e1-swim-water-plane-lapse.md)). The presentation lease and the first-person swim eye now follow the native swim states (mode 4/5, 122-133) through such a lapse; movement leases are unchanged. Developer test word `nowater` (held, `DNTTK_TEST_INPUT`) gives a deterministic lapse: first person 3/224 samples before, 226/226 after on ripspace, 213/213 on the field laptop's real screen. Not reproduced naturally; the next lapse logs `[TTK swim] water plane lapsed` with its room and position, and `[TTK lease] inactive` lines now name their inputs.

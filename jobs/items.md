@@ -1,7 +1,7 @@
 # Time to Kill jobs - Items, inventory and HUD
 
-Job descriptions and work logs for D08A and its children: weapon and item
-shortcuts, inventory, gadgets and HUD icons. Status and dependencies are on
+Job descriptions and work logs for D08A and its children, and D60: weapon and
+item shortcuts, inventory, gadgets, HUD icons and mission items. Status and dependencies are on
 [the job board](../MODERNIZATION_JOBS.md); the dated session log is in the
 `log-YYYY-MM.md` files beside this one. Moved verbatim from the board on
 2026-11-10 (D58), one section per job in ID order.
@@ -2191,3 +2191,48 @@ used or adapted for the active grenade; for new mesh work follow note 265
 (D08A28 revision 5) and for the first-person view note 257. Acceptance:
 pickup, held and thrown grenade read as the same object, correct scale,
 animation and light.
+
+### D60 - FAMILY JEWELS device takes the jewels in any order
+
+**Status: Todo (backlog, user 2026-11-19). Dependencies: D08A45.**
+
+User, 2026-11-19, on the field laptop (FAMILY JEWELS, level 6, savestate UI
+slot 12): "i cant put the third jewel in the device. that being said, i would
+prefer for this device to just simply accept the gems in any order. i realise
+if you dont have all 3 and put them in in a different order (lets say you got
+the green one first or something), it fails."
+
+The user's save is copied to `research/savestates/d60/` (local, never
+committed: `state_800AB6FC_slot11.pst` with its `.ttk` and `.thumb`, UI
+slot 12, level 6, saved 2026-11-19 21:24). Load a private copy, never the
+player's card.
+
+Known from D08A45 ([note 501](../documentation/501-d08a45-family-jewel-colours.md)):
+the jewels are items 14 (type 854, blue), 15 (855, green) and 16 (856, red);
+the nuke-symbol wheel switches to its own models with 1, 2 and 3 jewels set in
+(1632-1634 in level 6, sockets top, right, left), and our colour rule shows
+the k-th socket as the k-th jewel in item order; during a hand-in Duke's
+equipment `+0x3b8` is 1 and `+0x3b9` holds the item.
+
+Work:
+1. Reproduce from the save copy and establish the cause before changing
+   anything: the game's own rule (the device takes only the next jewel in item
+   order, so a missing or out-of-order jewel fails) or a regression of ours
+   (D08A45's hand-in colour, inventory selection, Modernized use/equip
+   changes). Compare Vanilla on the same save. Evidence labels as usual.
+2. Modernized: the device accepts any jewel Duke holds, in any order; each use
+   sets one more jewel in, the wheel's model count follows the number set in,
+   and the third, whichever it is, completes the device exactly as the game's
+   own completion does (the same trigger, sounds and follow-on events).
+3. The sockets and Duke's hand show the jewel actually set in (extend
+   D08A45's rule to record the order of use instead of assuming item order),
+   so colours stay right in every order.
+4. Fix the device's handler in the game code (a hook on the use logic), not
+   level data: no per-level tables beyond what identifies the device's own
+   behaviour, so a custom level with the same device works.
+
+Acceptance: from the user's save, the third jewel goes in; from fresh level
+starts, all six orders (and pickups collected in different orders) complete
+the device with the right colours in the wheel and in Duke's hand; a save
+loaded mid-sequence continues correctly; Vanilla unchanged (`run.py
+--vanilla`, the original order rule kept).

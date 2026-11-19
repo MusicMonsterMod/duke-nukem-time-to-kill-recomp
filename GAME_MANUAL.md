@@ -875,7 +875,8 @@ in third person. With the weapon holstered, Duke's swimming arms reach in
 from the screen edge as connected arms, the same as when climbing.
 Space and Ctrl turn Duke's body smoothly toward the climb or dive (the
 movement itself starts at once). Underwater, the first-person view does not
-show Duke's legs; at the surface they show as usual.
+show Duke's legs. At the surface they stay below the view, and the eye stays
+in place when you look down beside a wall.
 
 The launcher also accepts `--swim-view first` or `--swim-view legacy-third`;
 these update the saved preference. Add `--show-settings` to save without launching.

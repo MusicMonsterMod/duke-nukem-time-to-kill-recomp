@@ -777,7 +777,7 @@ commit and push authorized.
 
 ### D14G1 - Swim ascend/descend: arms judder and legs show in first person
 
-**Status: Needs playtest. Dependencies: D14G, D36J5, D11E1.** User (2026-11-19):
+**Status: Done (user-accepted 2026-11-19). Dependencies: D14G, D36J5, D11E1.** User (2026-11-19):
 "when swimming in first person, when using space or ctrl to ascend or descend,
 duke's arms judder during the initial button press. this is the only time when
 duke's legs become visible when swimming. if this is shown near a boundary like
@@ -801,6 +801,18 @@ help (the thigh mesh, not the hip origin, showed). 180 Hz lab: largest hand
 step at the press 2125-2508 -> 106-180 view units; no disembodied thighs in
 matched stills. Python tests OK; controls/near tests do not link on this tree
 (pre-existing). Needs the user's look on the real screen.
+
+Checkpoint 2026-11-19: user: "this part is definitely accepted"; committed
+locally (not pushed). Revision 2 (Needs playtest, note 515 section 5): surface
+swimming beside a wall (player UI slot 9 video) - the native camera solver
+pulled the eye 180 down and back toward the pivot when looking down, behind
+Duke's own hips. The surface swim eye now takes its requested position (the
+D36H9 path), and surface legs use the ladder hip clearance with a 240 margin,
+hidden for a backstroke the setback cannot clear. Slot 9 copy at 180/60 Hz: no
+displaced eye, no shorts in view.
+
+Accepted 2026-11-19. User: "lock it in and close it out. great work". Closeout,
+commit and push authorized.
 
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 

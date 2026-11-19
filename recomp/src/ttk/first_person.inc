@@ -503,8 +503,20 @@ static bool hang_eye_owner() {
     static const bool native=[]{const char* t=std::getenv("DNTTK_FP_HANG_EYE");return t && !std::strcmp(t,"native");}();
     return !native && fp_blend>=1 && fp_policy.effective && fp_policy.action==PerspectiveAction::Mantle;
 }
+// D14G1: the surface swim eye (mode 4) sits over Duke's root at the water
+// plane. Looking steeply down beside a wall, the native rays to the eye plus
+// its forward distance met the wall and pulled the eye about 180 units down
+// and back toward the pivot, behind Duke's own hips (player UI slot 9). It
+// takes the requested eye as the hang does. Underwater keeps the native solve.
+// Developer A/B only: DNTTK_FP_SWIM_EYE=native.
+static bool swim_eye_owner() {
+    static const bool native=[]{const char* t=std::getenv("DNTTK_FP_SWIM_EYE");return t && !std::strcmp(t,"native");}();
+    return !native && fp_blend>=1 && fp_policy.effective && fp_policy.action==PerspectiveAction::Swimming &&
+        psx_mod_read_byte(player+0x22c)==4;
+}
+static bool unsolved_eye_owner() {return hang_eye_owner() || swim_eye_owner();}
 static void first_person_unsolved_eye(CPUState* cpu,uint32_t ra,uint32_t sp) {
-    if(!hang_eye_request || !orbit_valid || sp!=orbit_sp-0xb8 || !hang_eye_owner())return;
+    if(!hang_eye_request || !orbit_valid || sp!=orbit_sp-0xb8 || !unsolved_eye_owner())return;
     const int axis=ra==0x8003af40?0:ra==0x8003af60?1:ra==0x8003af80?2:-1;
     if(axis<0)return;
     double view=0;
@@ -1609,17 +1621,60 @@ static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t ma
 // heading. At maximum downward pitch the running thighs otherwise expose
 // their open hip ends. One rigid translation preserves the gait, proportions,
 // foot height and thigh attachment; gameplay and kick matrices stay native.
+// D36J5 r5: the horizontal setback (along the view heading) that puts both
+// semantic hip roots `margin` below the fixed H=256 picture, from the native
+// hip matrices and the current draw camera. Unbounded; 0 when already clear,
+// infinite when moving back cannot lower them (looking up).
+static double leg_hip_clearance(uint32_t desc,uint32_t mats,double margin) {
+    const double x=int16_t(psx_mod_read_half(camera+12)),z=int16_t(psx_mod_read_half(camera+16));
+    const double length=std::hypot(x,z);
+    if(length<1)return 0;
+    const double down=-(x*int16_t(psx_mod_read_half(camera+6))+z*int16_t(psx_mod_read_half(camera+10)))/(4096*length);
+    const double gain=down+.5*length/4096;
+    double need=0;
+    for(unsigned part:{1u,5u}) {
+        const int joint=duke_part_joint(desc,part);
+        if(joint<0)continue;
+        double y=0,zcam=0;
+        for(unsigned k=0;k<3;++k) {
+            const double delta=double(int32_t(psx_mod_read_word(mats+32*joint+20+4*k)))-int32_t(psx_mod_read_word(camera+20+4*k));
+            y+=delta*int16_t(psx_mod_read_half(camera+6+2*k))/4096;
+            zcam+=delta*int16_t(psx_mod_read_half(camera+12+2*k))/4096;
+        }
+        const double short_by=margin-(y-.5*zcam);
+        if(short_by<=0)continue;
+        need=std::max(need,gain>.001?short_by/gain:HUGE_VAL);
+    }
+    return need;
+}
+static constexpr double leg_setback_max=192;
 // D14G1: while Duke swims underwater (native mode 5) the root-anchored swim
 // eye cannot frame his legs. Horizontal strokes keep them out of view, but
 // Space / Ctrl stand the body up or dive it, and the thighs then rose into
 // the picture without a torso, or around the eye (backwards near walls).
-// Underwater swim legs are hidden; surface treading (mode 4) keeps them.
-// Developer A/B only: DNTTK_FP_SWIM_LEGS=native keeps them underwater.
+// Underwater swim legs are hidden. Surface treading (mode 4) keeps them with
+// the ladder clearance below and a larger margin (the shorts' mesh rises well
+// above the hip joints); a stroke (backstroke kicks) that the bounded setback
+// cannot clear hides them for that draw instead of showing open shorts.
+// Developer A/B only: DNTTK_FP_SWIM_LEGS=native (the plain D36J5 legs);
+// DNTTK_FP_SWIM_LEG_MARGIN=<units> tunes the surface margin.
 static uint64_t swim_legs_hidden=0;
-static bool first_person_swim_legs_hidden() {
-    if(fp_policy.action!=PerspectiveAction::Swimming || psx_mod_read_byte(player+0x22c)!=5)return false;
+static bool swim_legs_native() {
     static const bool native=[]{const char* t=std::getenv("DNTTK_FP_SWIM_LEGS");return t && !std::strcmp(t,"native");}();
-    return !native;
+    return native;
+}
+static double swim_surface_leg_margin() {
+    static const double m=[]{const char* t=std::getenv("DNTTK_FP_SWIM_LEG_MARGIN");return t?std::atof(t):240.0;}();
+    return m;
+}
+static bool swim_surface_legs() {
+    return fp_policy.action==PerspectiveAction::Swimming && psx_mod_read_byte(player+0x22c)==4 && !swim_legs_native();
+}
+static bool first_person_swim_legs_hidden(uint32_t desc,uint32_t mats) {
+    if(fp_policy.action!=PerspectiveAction::Swimming || swim_legs_native())return false;
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    if(mode==5)return true;
+    return mode==4 && leg_hip_clearance(desc,mats,swim_surface_leg_margin())>leg_setback_max;
 }
 static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) {
     const double x=int16_t(psx_mod_read_half(camera+12));
@@ -1636,26 +1691,15 @@ static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) 
         static const double back=[]{const char* t=std::getenv("DNTTK_FP_HANG_LEGS_BACK");return t?std::atof(t):88.0;}();
         setback+=back;
     }
-    if(fp_policy.action==PerspectiveAction::Ladder) {
-        // Ladder-end hangs swing both open thigh roots into the eye view.
-        // Move the entire rig only as far as needed to put both roots below
-        // the fixed H=256 picture, with room for their mesh cross-sections.
-        // Both chains and the attachment share this draw-only translation.
-        const double down=-(x*int16_t(psx_mod_read_half(camera+6))+z*int16_t(psx_mod_read_half(camera+10)))/(4096*length);
-        const double depth=-length/4096;
-        const double gain=down-.5*depth;
-        if(gain>.001)for(unsigned part:{1u,5u}) {
-            const int joint=duke_part_joint(desc,part);
-            if(joint<0)continue;
-            double y=0,zcam=0;
-            for(unsigned k=0;k<3;++k) {
-                const double delta=double(int32_t(psx_mod_read_word(mats+32*joint+20+4*k)))-int32_t(psx_mod_read_word(camera+20+4*k));
-                y+=delta*int16_t(psx_mod_read_half(camera+6+2*k))/4096;
-                zcam+=delta*int16_t(psx_mod_read_half(camera+12+2*k))/4096;
-            }
-            setback=std::max(setback,(48-(y-.5*zcam))/gain);
-        }
-        setback=std::min(setback,192.0);
+    // Ladder-end hangs swing both open thigh roots into the eye view, as
+    // surface swimming does looking down (D14G1). Move the entire rig only as
+    // far as needed to put both roots below the fixed H=256 picture, with room
+    // for their mesh cross-sections. Both chains and the attachment share this
+    // draw-only translation.
+    if(fp_policy.action==PerspectiveAction::Ladder || swim_surface_legs()) {
+        const double need=leg_hip_clearance(desc,mats,swim_surface_legs()?swim_surface_leg_margin():48);
+        // Looking up, moving back cannot lower them: keep the setback (as r5).
+        if(std::isfinite(need))setback=std::min(std::max(setback,need),leg_setback_max);
     }
     if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
     if(!hidden_matrix)return;
@@ -2044,7 +2088,7 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         const char* body=std::getenv("DNTTK_FP_BODY");
         if(((part>=1 && part<=8) || part==21) && (!body || !*body) &&
            mats>=0x80010000 && mats<=0x801ffd80 && cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
-            if(first_person_swim_legs_hidden()) {
+            if(first_person_swim_legs_hidden(desc,mats)) {
                 // Hidden at the eye without the polygon-depth bridge (as the body).
                 limb_claim(cpu,LimbOwner::HiddenBody,part);
                 cpu->gpr[5]=camera;++swim_legs_hidden;

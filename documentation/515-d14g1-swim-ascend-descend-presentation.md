@@ -1,7 +1,7 @@
 # D14G1 - Swim ascend/descend: arms judder and legs in first person
 
 Job: [D14G1](../jobs/first-person.md#d14g1---swim-ascenddescend-arms-judder-and-legs-show-in-first-person).
-Status: Needs playtest (2026-11-19). Evidence labels as note 257: S source/tests, L lab runtime, U user.
+Status: Done (user-accepted 2026-11-19: "lock it in and close it out. great work"). Evidence labels as note 257: S source/tests, L lab runtime, U user.
 
 ## 1. The report (U)
 
@@ -75,3 +75,40 @@ change and not built by CI; no new native test was added for that reason.
 
 Limits: one moat (level 6), default costume, offscreen only (no real-display
 look), the wall case near one moat wall. Human review of the motion needed.
+
+## 5. Revision 2 - surface swimming beside a wall (player UI slot 9)
+
+U (after accepting revision 1, video 2026-11-19 16:12): the issue is worse
+when surface swimming; "he ends up behind his own disembodied legs".
+Revision 1 is committed as a local checkpoint.
+
+L (private copy of the player's cards, UI slot 9 = runtime 8: level 6, surface
+idle 122 at mode 4, armed, beside the channel wall): looking down to about 60
+degrees, the eye jumped in one update from 290 above the root to 108 above it
+and about 55 back (84 below the 8192 surface) and stayed there at rest; Duke's
+shorts then sat in the centre of the view. The native camera solver casts rays
+from Duke's pivot to the requested eye plus its forward distance; beside the
+wall they hit and the nearest hit pulled the eye toward the pivot (the D36H9
+hang problem). Even with the eye in place, looking down showed the open tops of
+the shorts at the bottom of the picture, most on the backstroke 126.
+
+S, change:
+- `swim_eye_owner()`: a fully blended surface swim eye (mode 4) takes its
+  requested position after the native solve, through the D36H9 path
+  (`unsolved_eye_owner()`). The eye stays over Duke's root, inside his hull.
+  Underwater keeps the native solve. A/B: `DNTTK_FP_SWIM_EYE=native`.
+- Surface legs use the D36J5 r5 ladder clearance (`leg_hip_clearance()`,
+  factored out, ladder behaviour unchanged) with a 240-unit margin: the shorts'
+  mesh rises far above the hip joints. A stroke the 192-unit setback cannot
+  clear hides the legs for that draw (HiddenBody, as underwater). Tuning A/B:
+  `DNTTK_FP_SWIM_LEG_MARGIN=<units>` (160 left a shorts edge on the backstroke;
+  320 hid about 20 times as many draws for no visible gain).
+
+L, evidence (slot 9 copy, 180 and 60 Hz, offscreen): eye displaced in 0 of 274
+/ 267 samples (base: the whole look-down rest); matched stills (`runs/s9c-ab.png`,
+`runs/s9m-ab.png`) show no shorts in view at rest, forward, back and side
+strokes or at rest after them; about 110 hidden leg draws per run (backstroke).
+The underwater moat route still hides legs and eases pitch, no fallbacks. Player
+cards were only copied, never written (hash check).
+
+Limits: one surface spot (slot 9) and the level 6 moat; no real-display check.

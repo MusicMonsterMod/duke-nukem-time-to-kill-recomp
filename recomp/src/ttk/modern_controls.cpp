@@ -632,6 +632,7 @@ static void view_matrix(uint32_t destination) {
 static bool hang_eye_request;
 static double hang_eye_delta[3];
 static bool hang_eye_owner();
+static bool unsolved_eye_owner();
 static void orbit_constraint(uint32_t delta) {
     double target[3]; if (!pivot(target)) {orbit_valid=false;return;}
     double sy=std::sin(inspection_yaw()),cy=std::cos(inspection_yaw()),sp=std::sin(inspection_pitch()),cp=std::cos(inspection_pitch());
@@ -655,7 +656,7 @@ static void orbit_constraint(uint32_t delta) {
         psx_mod_write_word(delta+4*i,desired-current);
         hang_eye_delta[i]=desired-current;
     }
-    hang_eye_request=eye_view && hang_eye_owner();
+    hang_eye_request=eye_view && unsolved_eye_owner();
     constraint_update=cameras;
     ++orbits;
 }

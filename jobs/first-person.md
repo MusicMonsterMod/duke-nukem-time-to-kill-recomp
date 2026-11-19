@@ -229,6 +229,53 @@ finishing a level (and the other starts above) begins in first person with no
 input needed; third person is kept when it is selected; Vanilla unchanged;
 the user confirms from slot 11.
 
+### D11E1 - First person drops while swimming underwater (level 6 moat)
+
+**Status:** Done (user-accepted 2026-11-19: "great work. it's very clean playing ... we lock this in"). **Dependencies:** D11E.
+
+**Report (2026-11-19 closeout, field laptop playtest):** first person dropped
+to the third-person camera a few times while Duke swam underwater in the
+level 6 moat with Double Duke (logged as seen, not changed). User selection:
+"work on the level 6 moat underwater first-person drop - you can
+autonomously use and test on the field laptop, citadel, and ripspace, using
+the screen".
+
+**Scope:** game-wide swim presentation (the shared lease and eye), not the
+moat. **Acceptance:** first person stays in the eye view through underwater
+and surface swimming where the player saw drops; third person, the water
+exit, the other D11E transitions and Vanilla unchanged; the user confirms in
+play.
+
+**Work log (2026-11-19, implemented; [note 514](../documentation/514-d11e1-swim-water-plane-lapse.md)).**
+The laptop's session log has ten `unsupported-camera` refusals in about 5 s,
+all native underwater swim (5/5, 127/128) with Duke owning the camera. The
+water plane `+0x834` is a per-room query (`0x8005b85c` from the room byte
+`+0x2e`) that can return no water while the native swim continues;
+`state()` admitted swim poses only through `in_water_early()`, so the
+presentation lease refused. A natural lapse did not reproduce in about 25
+minutes of private moat swimming; a dry room written into `+0x2e` gave the
+player's exact line, and the developer test word `nowater` (held, in
+`DNTTK_TEST_INPUT`) gives a deterministic lapse. Change: the presentation
+lease and the first-person swim eye follow the native swim states (mode 4/5,
+122-133) through a lapse; the surface eye uses the body offset without a
+plane; movement leases unchanged. Diagnostics: a `[TTK swim] water plane
+lapsed` line per episode, `fp.swim_plane_lapses`, and the `[TTK lease]
+inactive` line now names word 0, back-pointer, room, plane, y and mask.
+A/B with held `nowater`: base build first person in 3 of 224 lapse samples
+(4 refusals), fix 226 of 226 (0 refusals); third person refusals 5 to 1 (the
+one left is a pre-existing jetpack landing on land). No-lapse free swim and a
+first-person water exit identical on both builds. Field laptop real screen (fix built there): first person 213/213 lapse samples, no refusal; free swim clean. Local unit tests 266 OK,
+`ttk-input-test` passes. Remaining: the natural trigger in the moat is not
+found (the next one names its room and position in the log); the swim
+movement lease still needs a plane; the user's playtest decides acceptance.
+
+**Playtest (2026-11-19, field laptop, `play-20261119-150713.log`): accepted.**
+Three natural lapses, each "view kept": room 20 (the south-east moat room),
+anim 128 at 5/5, root y 11932-12694 (3700-4500 below the 8192 surface,
+deeper than any lab run reached), water mask 0: the native query finds no
+water near the bottom of that room. One unrelated refusal: anim 191 at 8/0
+(a pole or chain step-off clip from ground mode) in dry room 42.
+
 ### D12 — First-person weapons and state polish
 
 **Done - user accepted 2026-09-30:** "finally, we can mark this as accepted!!"

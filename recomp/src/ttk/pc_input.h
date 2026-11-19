@@ -63,6 +63,9 @@ bool input_split_keyboard();
 // Host frame counter advanced by input_frame() (main loop, once per presented
 // frame). Identity verdicts are memoised per value of this.
 uint64_t input_host_frame();
+// D11E1 developer test (DNTTK_TEST_INPUT word nowater): while held, the camera
+// update sees no water plane, as after a native per-room water query lapse.
+bool input_test_no_water();
 Cheat input_take_cheat();
 void input_notice(const char* message);
 // D08A18: start the normal E interaction (stow, then the original action), as

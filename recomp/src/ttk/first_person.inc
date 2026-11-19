@@ -145,8 +145,10 @@ static void first_person_release(PerspectiveReason reason) {
 }
 // Presentation only: never use the action lease here (pause/focus retain the
 // selected view). The normal-camera owner/identity has already been checked.
+// D11E1: a native swim state keeps its swimming eye through a lapse of the
+// water plane (native_swim_pose_early).
 static bool first_person_swimming() {
-    return in_water_early() && !shallow_land_water_early();
+    return (in_water_early() && !shallow_land_water_early()) || native_swim_pose_early();
 }
 // D35E: ladder-exclusive exits can already be attached to the landing.
 // Shared grab/transfer clips require the actual plain-ladder owner; a pole,
@@ -357,7 +359,8 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};
     if(swimming) {
         target[0]=target[2]=0;
-        target[1]=psx_mod_read_byte(player+0x22c)==4 ?
+        // D11E1: without a water plane (a lapse) the surface eye keeps the body offset.
+        target[1]=psx_mod_read_byte(player+0x22c)==4 && water_present_early() ?
             (int32_t)psx_mod_read_word(player+0x834)-eye_height-root[1] : -swim_eye_above_root;
     }
     if(jetting) {

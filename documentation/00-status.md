@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-19 - D11E1 closed out (Done): first person kept through a water-plane lapse while swimming
+
+The level 6 moat drops were the camera lease refusing native underwater swim when the per-room water query (`0x8005b85c`, room byte `+0x2e`) returned no water ([note 514](514-d11e1-swim-water-plane-lapse.md)). The presentation lease and the first-person swim eye now follow the native swim states (mode 4/5, 122-133) through such a lapse; movement leases are unchanged. Developer test word `nowater` (held, `DNTTK_TEST_INPUT`) gives a deterministic lapse: first person 3/224 samples before, 226/226 after on ripspace, 213/213 on the field laptop's real screen. Not reproduced naturally; the next lapse logs `[TTK swim] water plane lapsed` with its room and position, and `[TTK lease] inactive` lines now name their inputs.
+
+Playtest accepted on the field laptop ("great work. it's very clean playing"): three natural lapses, all kept, in room 20 near the moat bottom (y 11932-12694). One unrelated refusal: a pole/chain step-off clip (191 at 8/0) in dry room 42.
+
+State: committed (user: "i would say we lock this in"). The field laptop's checkout holds the same sources and a matching build.
+
 ## 2026-11-19 - D23AO closed out (Done): main back to the 18 November build, the frame rate never changes
 
 D23AL and D23AN were reverted by the user after the field laptop tests (kept on the local branch `shelved/d23al-d23an`). Main is a139fa3's code (D23AK) plus D23AP (the slot 12 ammo box no longer vanishes, `object_room.inc`) and D23AO: Modernized launches keep the frame rate fixed (`DNTTK_REPLAY_FLOOR=0`, `DNTTK_REPLAY_SHED=0`); where the computer cannot keep up the game runs a little slow instead. The laptop playtest held 60.0 presents a second every minute; the game fell behind to 88-95% speed at nine level 3 spots, which are D23AQ ([note 513](513-d23ao-baseline-revert-fixed-frame-rate.md)). Next: D23AQ.

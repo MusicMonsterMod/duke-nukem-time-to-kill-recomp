@@ -776,6 +776,8 @@ void input_event(const SDL_Event& e) {
     }
 }
 uint64_t input_host_frame() { return sequence; }
+static std::atomic<bool> test_no_water{false};
+bool input_test_no_water() { return test_no_water.load(); }
 static std::atomic<bool> interaction_request{false};
 void input_request_interaction() {interaction_request.store(true);}
 static std::atomic<int> open_presses{0};
@@ -1093,6 +1095,7 @@ void input_frame() {
     // pgup pgdn home end delete; D26J: grave opens/closes the console, 1;
     // D39E: 0, the Freezer's key; D10H1: 2-9, the other weapon keys),
     // mouse1 (held left button, D08K6),
+    // nowater (held: the camera update sees no water plane, D11E1),
     // cheat=<word>, act=<action> (D07E) and quick=<save/load/savemenu/loadmenu>
     // (D20; once per change of word) and
     // dx=<counts> dy=<counts>
@@ -1119,6 +1122,7 @@ void input_frame() {
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         mouse[1]=false;mouse[2]=false;
+        bool no_water=false;
         if(FILE* f=std::fopen(test_input,"r")) {
             char word[64];
             while(std::fscanf(f,"%63s",word)==1) {
@@ -1172,6 +1176,8 @@ void input_frame() {
                 }
                 // D19G: "play" is captured gameplay for this frame (menus run uncaptured).
                 else if(!std::strcmp(word,"play")) captured=captured || !console_hold;
+                // D11E1: nowater, held (input_test_no_water).
+                else if(!std::strcmp(word,"nowater")) no_water=true;
                 else if(!std::strcmp(word,"mouse1")) mouse[1]=true;
                 else if(!std::strcmp(word,"mouse3")) mouse[2]=true;
                 else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
@@ -1181,6 +1187,7 @@ void input_frame() {
             std::fclose(f);
             if(!quick_seen) quick_last[0]=0;
         }
+        test_no_water.store(no_water);
         // DNTTK_TEST_EDGES: keys change only when the file does, as a real
         // keyboard's do (a held key that the input layer clears stays clear).
         {

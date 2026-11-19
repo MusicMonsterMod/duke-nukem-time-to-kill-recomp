@@ -211,6 +211,8 @@ for the next launch):
   for the computer to keep up, pictures drop evenly to every second or third
   refresh (180 Hz -> 90 or 60) instead of slowing the game, and return to the
   full rate once the view is lighter. Unknown refresh falls back to 60.
+  Modernized launches keep the chosen rate fixed during play (D23AO, see
+  below), so that drop does not happen there.
   On a computer with fewer processor threads AUTO also stays within what
   they can redraw (D23P): with 4 to 7 logical CPUs at most 120 pictures a
   second (180 Hz -> 90, 120 or 240 Hz -> 120), with fewer than 4 the original
@@ -241,6 +243,15 @@ for the next launch):
   faster display you get the full 120. Your setting is not changed.
 - `unlimited`: the fastest paced redraw rate the scene can sustain; useful
   for stress testing, with no promise of one new image per monitor refresh.
+
+**Modernized: the frame rate never changes (D23AO).** The rate you choose (or
+AUTO's choice at launch) stays the same all through play: there is no drop to
+the original presentation and no step to every second or third refresh. Where
+a scene is too heavy for the computer, the game itself runs a little slower
+there instead (on the 2-core field laptop, 88-95% speed for a moment in the
+heaviest spots of a playtest), and those spots are the optimisation work. The
+paragraph below describes the earlier behaviour, still available for testing
+with `DNTTK_REPLAY_FLOOR=1 DNTTK_REPLAY_SHED=1` (a developer A/B).
 
 If the extra pictures (FRAME RATE 60 and up) slow the game itself down on your computer
 (on a 120 Hz or faster display it first shows a picture at every second,

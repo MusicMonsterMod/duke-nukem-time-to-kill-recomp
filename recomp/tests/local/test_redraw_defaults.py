@@ -6,7 +6,7 @@ RUN = Path(__file__).resolve().parents[2] / 'tools/local/run.py'
 
 
 class RedrawDefaultsTest(unittest.TestCase):
-    """D23AK: the accepted redraw bundle is a Modernized launch default."""
+    """D23AK: the accepted redraw bundle is a Modernized launch default; D23AO: the frame rate never changes."""
 
     def test_bundle(self):
         text = RUN.read_text()
@@ -15,7 +15,8 @@ class RedrawDefaultsTest(unittest.TestCase):
         pairs = dict(re.findall(r"'([A-Z_]+)': '([^']*)'", m.group(1)))
         self.assertEqual(pairs, {'PSX_RW_LEAN': '1', 'PSX_RW_RESTORE': '1', 'PSX_PUBLISH_TRACK': '1',
                                  'PSX_PLACEMENT_RENDER': 'all', 'DNTTK_REDRAW_ONLY_OBJECTS': '1',
-                                 'DNTTK_REPLAY_FLOOR_WAIT': '15'})
+                                 'DNTTK_REPLAY_FLOOR_WAIT': '15', 'DNTTK_REPLAY_FLOOR': '0',
+                                 'DNTTK_REPLAY_SHED': '0'})
 
     def test_modernized_only_and_overridable(self):
         text = RUN.read_text()

@@ -141,8 +141,8 @@ struct HostVisCamera {double m[9];double eye[3];double h;};
 // D17AZ: the live frame's camera and guard-banded view (view-rect coordinates
 // centred on the GTE offset), for the object reach test at the object pass.
 static HostVisCamera host_vis_frame_cam;static double host_vis_frame_guard[4];
-static uint32_t host_vis_frame_cam_addr=0;   // D23AL: the camera record it came from
-// D23AL: each shown room's screen rectangle (view-rect coordinates, as sel[].r) for the frame.
+static uint32_t host_vis_frame_cam_addr=0;   // the camera record it came from (object_room.inc)
+// Each shown room's screen rectangle (view-rect coordinates, as sel[].r) for the frame (object_room.inc).
 static std::vector<std::array<double,4>> host_vis_room_rect;
 // View-space position (x right, y down, z forward) of a world point.
 static void host_vis_view(const HostVisCamera& c,const double p[3],double v[3]) {

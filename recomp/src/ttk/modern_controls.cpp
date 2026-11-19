@@ -1256,6 +1256,7 @@ static bool facing_ready() {
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
 #include "sleeping_enemies.inc"
+#include "object_room.inc"
 #include "night_vision_look.inc"
 #include "keycard_colours.inc"
 #include "jewel_colours.inc"
@@ -2366,6 +2367,7 @@ void render_state_prepare() {
     if(!tp_spark_point) tp_spark_point=psx_mod_alloc_guest_memory(16,16);
     if(!presentation_vector) presentation_vector=psx_mod_alloc_guest_memory(16,16);
     if(!ignored_pickup) ignored_pickup=psx_mod_alloc_guest_memory(0x40,16);
+    if(!object_room_scratch) object_room_scratch=psx_mod_alloc_guest_memory(16,16);
 }
 bool late_view(double& out_yaw,double& out_pitch,double at_ms) {
     // Only while the modern camera owns the view (the live frame's lease at
@@ -2762,13 +2764,6 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);ttk::sleeping_draw(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006cefc,[](CPUState*,uint32_t){ttk::reach_restore();});
-    if(const char* e=std::getenv("DNTTK_OBJ_RECT_STATS"); e && e[0]=='1') {   // D23AL developer
-        psx_mod_register_function_entry_plugin("ttk.obj.rect",0x800632b0,[](CPUState* c,uint32_t){ttk::obj_rect_stats(c,0);});
-        psx_mod_register_function_entry_plugin("ttk.obj.rect",0x80031d10,[](CPUState* c,uint32_t){ttk::obj_rect_stats(c,1);});
-        psx_mod_register_function_entry_plugin("ttk.obj.rect",0x80032e78,[](CPUState* c,uint32_t){ttk::obj_rect_stats(c,2);});
-        psx_mod_register_function_entry_plugin("ttk.obj.rect",0x800348d8,[](CPUState* c,uint32_t){ttk::obj_rect_stats(c,3);});
-        psx_mod_register_function_entry_plugin("ttk.obj.rect",0x80031c14,[](CPUState* c,uint32_t){ttk::obj_rect_stats(c,4);});
-    }
     // D08O2A: a shared matrix routine; its own hook keeps the per-joint cost to a few compares.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);ttk::climb_aim_arm(cpu);});
     // D08AA: a shared rotation; only the swim tail's call (ra 0x80046ec8) goes further.

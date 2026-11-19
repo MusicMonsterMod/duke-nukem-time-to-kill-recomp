@@ -171,6 +171,8 @@ void replay_load_bake(bool baking);
 // step now. Returns 1 after a shed, else 0 (nothing to shed, shedding off).
 int replay_audio_low();
 void render_state_prepare();
+// Objects in the room they stand in (object_room.inc): 0x80031d10, 0x80032e78.
+void object_room_entry(struct CPUState* cpu,uint32_t address);
 bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);
 double late_fp_blend();

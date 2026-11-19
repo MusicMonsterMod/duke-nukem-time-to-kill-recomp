@@ -4395,6 +4395,12 @@ itself with the console open (D23AM, not reproduced); level 6 in first
 person fell back to the original presentation for 15 s and 30 s, worker
 bound (D23AL). Neither is a GPU pass.
 
+
+Note, 2026-11-19: the developer timing code added with this job's closeout
+(592a75f: `PSX_GPU_PHASES`, `DNTTK_SLEEP_VIEW_TEST`, `DNTTK_OBJ_RECT_STATS`)
+is not on main since D23AO returned main to a139fa3's code; it is on the local
+branch `shelved/d23al-d23an`. The measurements in note 511 stand.
+
 ### D23AJ - Field laptop campaign census at 30 and 60 new pictures
 
 **Status: Done (2026-11-18, closed with D23AG; [note 509](../documentation/509-d23ag-overnight-chain.md) section 5). Dependencies: D23AG, D23AI.**
@@ -4548,7 +4554,7 @@ schedule (15 s first). Done.
 
 ### D23AL - Level 6 worker-bound dips on the field laptop
 
-**Status: Todo (2026-11-18, [note 511](../documentation/511-d23ai-balanced-gpu-passes-hd5500.md) section 8). Dependencies: D23AK.**
+**Status: Cancelled (2026-11-19, reverted; [note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md)). Dependencies: D23AK.**
 
 User, 2026-11-18: "absolutely! i want you to add it" (the hidden-object rule
 as the named first step). Work, in order:
@@ -4626,7 +4632,7 @@ second 55.8, longest frame gap 86 ms. Reopen with a recurrence's log
 
 ### D23AN - Reprojected in-between pictures
 
-**Status: Todo (2026-11-18). Dependencies: D23AL.**
+**Status: Cancelled (2026-11-19, reverted; [note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md)). Dependencies: D23AK.**
 
 User, 2026-11-18: "absolutely! i want you to add it". In heavy views on the
 field laptop the redraw worker finishes 50-55 pictures a second but only
@@ -4643,6 +4649,70 @@ level 6 show close to 60 distinct pictures a second; turning judged smooth
 by the user on the real display; warp cost per present measured (GPU
 timeline); artefacts (disocclusion, moving enemies one picture behind)
 documented and accepted by the user before any default.
+
+
+Work log, 2026-11-19: D23AL and D23AN were built and tested on the field
+laptop the same day (the hidden-draw rule exact but no laptop gain; the warp
+raised the pictures a second, then each user test found a new visible
+problem: the level 6 sky, smeared edges when turning, judder and edge
+artefacts on slot 12's run and jump). After five fix attempts the user
+reverted both: "maybe we revert and just see how it's looking for now. And
+then carefully add features back in". The code and its notes (note 512) are
+on the local branch `shelved/d23al-d23an`; the slot 12 ammo fix found on the
+way is D23AP. See [note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md).
+
+### D23AO - The frame rate never changes
+
+**Status: Done (2026-11-19, user: "let's acually lock this work in and close out this sesh"). Dependencies: D23AK.**
+
+User, 2026-11-19: "it should just never change framerate", then "we
+maintain frame rate. let the game struggle if it needs to. we should be
+focussed on optimizing those struggle points". Modernized launches set
+`DNTTK_REPLAY_FLOOR=0` (no fallback to the original presentation) and
+`DNTTK_REPLAY_SHED=0` (no 2nd/3rd-refresh steps), overridable from the
+environment; Vanilla unchanged. Main returned to the 18 November build: the
+code of a139fa3 (D23AK) plus D23AP; 592a75f's developer measurement code
+(D23AI) is not on main.
+
+Work log, 2026-11-19 ([note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md)):
+built beside the main checkout on the field laptop as ef6c866, then + D23AP,
+then + D23AK and the fixed frame rate, each played by the user. Playtest
+(level 3, about four minutes, BALANCED 60, real screen): every whole minute
+60.0 presents a second, no governor change, no first-person drop; the game
+fell behind 11 times to 52.7-57.2 frames a second (D23AQ). User: "honestly
+look at that. i didnt wanna stop playing. how good was that session!!!".
+Desktop: Vanilla VRAM unchanged (69cd1d7f3e), Modernized VRAM 3da3a9be7c;
+local tests 266 OK.
+
+### D23AP - Objects in the room they stand in
+
+**Status: Done (2026-11-19, user-tested on the field laptop). Dependencies: none.**
+
+User, 2026-11-19: "if you load slot 12 ... the ammo disappears when you take
+a step towards it". Found during D23AL (in every build, not caused by it):
+the ammo box by the mine door has room byte 1 (beyond the doorway) while it
+lies on this side; the renderer culls it against room 1's rectangle, which
+shrinks to the doorway above the box as Duke steps closer. Fix
+(`recomp/src/ttk/object_room.inc`, Modernized with EXTENDED draw distance,
+developer `DNTTK_OBJECT_ROOM=0` off): when the object lies inside the box of
+other shown rooms, the renderer gets a copy of its room entry whose rectangle
+also covers theirs; host depth still hides what is behind their walls. Ported
+on its own onto the 18 November build ([note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md) section 4).
+User: "the obvious glitch is the disappearing ammo fix we already added in,
+so i simply want you to add that back first".
+
+### D23AQ - The field laptop's struggle points
+
+**Status: Todo (2026-11-19). Dependencies: D23AO.**
+
+With the frame rate held (D23AO), the field laptop's game itself falls
+behind real time for a few seconds in heavy spots: 88-95% speed at nine level
+3 spots in the user's playtest ([note 513](../documentation/513-d23ao-baseline-revert-fixed-frame-rate.md)
+section 5, with Duke's positions; the worst 52.7 frames a second at 6222 4613
+2305, with an audio underrun). Work: recreate each spot on the desktop (spawn
+or teleport, the laptop's settings), profile the emulation thread and the
+redraw worker there, and cut the cost exactly (identical pictures); confirm
+on the laptop's real screen with the user's actions. Vanilla unchanged.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

@@ -414,6 +414,11 @@ def main(argv=None):
 #     objects (Duke's own layers still draw);
 #   DNTTK_REPLAY_FLOOR_WAIT=15: the first wait after the governor's fallback
 #     (was 120 s; a retry that falls behind returns at once, repeats double it).
+# D23AO (user, 2026-11-19: "we maintain frame rate. let the game struggle if it
+# needs to. we should be focussed on optimizing those struggle points"): the
+# frame rate never changes during play. DNTTK_REPLAY_FLOOR=0: no fallback to
+# the original presentation; DNTTK_REPLAY_SHED=0: no 2nd/3rd-refresh steps.
+# Where the computer cannot keep up, the game itself runs a little slow there.
 MODERNIZED_REDRAW_DEFAULTS = {
     'PSX_RW_LEAN': '1',
     'PSX_RW_RESTORE': '1',
@@ -421,6 +426,8 @@ MODERNIZED_REDRAW_DEFAULTS = {
     'PSX_PLACEMENT_RENDER': 'all',
     'DNTTK_REDRAW_ONLY_OBJECTS': '1',
     'DNTTK_REPLAY_FLOOR_WAIT': '15',
+    'DNTTK_REPLAY_FLOOR': '0',
+    'DNTTK_REPLAY_SHED': '0',
 }
 
 

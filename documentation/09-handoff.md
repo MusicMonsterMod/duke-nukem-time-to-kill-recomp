@@ -1,5 +1,11 @@
 # Next-session handoff
 
+## 2026-11-19 - D23AO closed out (Done): main back to the 18 November build, the frame rate never changes
+
+D23AL and D23AN were reverted by the user after the field laptop tests (kept on the local branch `shelved/d23al-d23an`). Main is a139fa3's code (D23AK) plus D23AP (the slot 12 ammo box no longer vanishes, `object_room.inc`) and D23AO: Modernized launches keep the frame rate fixed (`DNTTK_REPLAY_FLOOR=0`, `DNTTK_REPLAY_SHED=0`); where the computer cannot keep up the game runs a little slow instead. The laptop playtest held 60.0 presents a second every minute; the game fell behind to 88-95% speed at nine level 3 spots, which are D23AQ ([note 513](513-d23ao-baseline-revert-fixed-frame-rate.md)). Next: D23AQ.
+
+State: committed (user: "let's acually lock this work in and close out this sesh").
+
 ## 2026-11-18 (night) - D23AI closed out (Done): BALANCED's GPU passes measured; D23AL, D23AM, D23AN added
 
 Each pass of a BALANCED redraw is timed on the GPU (developer `PSX_GPU_PHASES=2`, [note 511](511-d23ai-balanced-gpu-passes-hd5500.md)). Field laptop (HD 5500, real 60 Hz screen, FRAME RATE 60, D23AK defaults): a redraw is 6.0-7.6 ms of GPU, 75-80% lit textured batches; the lighting layer is 1.2-2.0 ms, shadows and exact edges within the spread, the present 0.7 ms. Two exact cuts (a SIMPLE-edges program, D23U's prepass) gained nothing and were not kept. The user's laptop tests: the one 21 fps second (console open before `level 6`) did not reproduce in 11 attempts (D23AM, Monitoring); level 6 and GOLD AND GUNS at UI slot 9 (24 new pictures a second standing, first person) are worker-bound heavy views. The slot 9 view is a narrow tunnel: about 30% of the prop draws and 2 of 5 sleeping stand-ins a frame lie behind walls (outside their room's screen rectangle), so D23AL is now a game-wide hidden-draw rule with exact mesh bounds; D23AN would warp the newest picture for a missed present instead of repeating it.

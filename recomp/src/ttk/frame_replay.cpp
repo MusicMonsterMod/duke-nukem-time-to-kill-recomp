@@ -3240,6 +3240,8 @@ PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
     psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::logo_draw,ttk::logo_entry);
     for(uint32_t a:{0x800632b0u,0x80031d10u,0x80032e78u,0x800348d8u,0x80031c14u})
         psx_mod_register_function_entry_plugin("ttk.frame.replay",a,ttk::actor_draw);
+    // After actor_draw: objects in the room they stand in (object_room.inc).
+    for(uint32_t a:{0x80031d10u,0x80032e78u}) psx_mod_register_function_entry_plugin("ttk.object.room",a,ttk::object_room_entry);
     psx_mod_register_function_entry_plugin("ttk.frame.replay.profile",0x8001ca4cu,ttk::quality_actor_end);
     // D49E: after the transform's record/substitute step, so the bolt's drawn
     // streak is changed in this draw's own copy only.

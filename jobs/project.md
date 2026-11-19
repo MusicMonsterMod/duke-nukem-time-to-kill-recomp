@@ -735,6 +735,72 @@ sentence that pointed to "the job's work log below". Of 639 added non-blank line
 are the linked table rows, the rest the file headers and this status.
 `check_repo.py` passes.
 
+### D59 - Native test suite links and passes again
+
+**Status: Done (user-accepted 2026-11-19: "lock it in close it out").** Dependencies: none.
+
+User: "restore ttk-controls-test and ttk-near-test linking
+(g_psx_rw_lean_suspend, gpu_vram_peek)". The two native tests had stopped
+linking as gameplay and runtime code grew new external symbols that the test
+stubs did not provide (noted as pre-existing in the D08J6G and D14G1 logs).
+Scope: make every native `ttk-*-test` target build again and run the ones
+that can run locally; where a test fails because a later accepted job changed
+the behavior on purpose, update the expectation to the accepted behavior, never
+the code to the old test. No gameplay, renderer or framework changes.
+
+Acceptance: `ttk-controls-test` and `ttk-near-test` link and pass; the other
+native targets build; failures that remain are listed with their cause.
+
+#### 2026-11-19 - Linking restored, whole native suite passing (Needs review)
+
+Missing symbols (no framework edits; test-side stubs that model the runtime):
+
+- Both tests: `g_psx_rw_lean_suspend`, `psx_mod_write_words` and
+  `psx_mod_read_words` (D23AK words API, `memory.c`). The stubs follow the
+  runtime with `PSX_RW_LEAN` off, the default: writes go word by word and
+  return 0, reads return 0 so callers fall back to single-word reads.
+- `ttk-near-test`: `ttk::live_frame_redraw_only()` (false, a live frame).
+- `ttk-controls-test`: `psx_host_physical_cores` (4), and no-op
+  `ttk::input_test_no_water`, `mission_keycard_colours`,
+  `mission_jewel_colours`, `replay_load_bake`. `gpu_vram_peek` already had a
+  stub from D08J6G.
+
+`ttk-controls-test` then linked but stopped at three expectations that
+predate accepted jobs (the D08J6G log described it as an overlay identity
+failure; with the original fixture it was the D14 HUD assert):
+
+- D20J: while the status bar draws, the air box (layout pair 6) moves into the
+  right column at the jetpack's x and `0x8001fc44` restores it. The D14 HUD
+  checks now expect that move (4:3 and 16:9) and still require every other
+  pair unchanged and the full layout restored.
+- D14G1: swimming has its own leg rule. The D36J5 shared leg admission now
+  reads the live action: underwater (mode 5) legs must be hidden at the eye,
+  surface (mode 4) legs may be shown or hidden (pose-dependent thigh
+  clearance), each with its own invariants; other actions are unchanged.
+  Underwater thrust follows the view's target pitch (host pitch from the
+  debug JSON, original +-900 clamp), not the caller's stack pitch.
+- D23W: a walk switched to the run gait (76/78) by the step probe jumps with
+  the standing preparation 96. The 76/78 cases now run with Shift held
+  (original running selection kept) and a new D23W case checks the walk.
+
+Other native targets found broken and fixed in the same pass:
+`ttk-aim-test` (no `psx_mod_replay_active` stub), `ttk-xa-test` (`cdrom.c`
+now registers its trace buffers through `psx_obs_register`, stubbed), and
+`ttk-live-env-test` (`live_env.cpp` owns the SDL3 draw clock since D23N1; the
+target now defines `PSX_SDL3` and links SDL3 like its siblings).
+
+Evidence (desktop, build-local, run commands in
+[10-tooling](../documentation/10-tooling.md#running-the-whole-native-suite)):
+all 15 native targets build. PASS: `ttk-controls-test` (exit 0, 154 groups,
+original LEVEL00 fixture `analysis/pc-input/d08-camera-final/`),
+`ttk-near-test`, `ttk-input-test`, `ttk-flash-test`, `ttk-aim-test`,
+`ttk-sky-test`, `ttk-gas-test`, `ttk-music-test`, `ttk-loading-test`,
+`ttk-xa-test`, `ttk-live-env-test`, `ttk-audio-test`, `ttk-font-test`,
+`ttk-inventory-test`. Not run: `ttk-scene-test` (needs a captured exit RAM).
+The `d08p-turret` LEVEL00 fixture is Modernized-patched and fails the first
+Vanilla check by design; use an original one. No game executable change, so
+no playtest is needed.
+
 ### PRIV01 - Remove local usernames from repository content
 
 **Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**

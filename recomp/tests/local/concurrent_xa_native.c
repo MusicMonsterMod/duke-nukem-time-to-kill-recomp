@@ -2,6 +2,9 @@
  * actual independent-reader/decoder functions are linked from the runtime. */
 #include "../../psxrecomp/runtime/src/cdrom.c"
 #include <assert.h>
+/* cdrom.c registers its trace buffers with the redraw observability table
+ * (render_worker.c); this reader test has no redraws. */
+void psx_obs_register(const void* p,size_t bytes,const char* name){(void)p;(void)bytes;(void)name;}
 static uint8_t test_sector[2352];
 static int read_failure;
 int iso_read_raw_sector(void* h,uint32_t lba,uint8_t* buffer,int size) {

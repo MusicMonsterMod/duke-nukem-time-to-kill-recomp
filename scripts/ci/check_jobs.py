@@ -42,7 +42,7 @@ CATEGORIES = {
     "lighting": ("Lighting", "D41 and its children, D54-D57"),
     "menus-ui": ("Menus and UI", "D19-D21, D26, D29, D42 and D43"),
     "campaign-performance": ("Campaign, audio and performance", "D18, D22, D23, D37, D45 and D50"),
-    "project": ("Release and project", "D01, D02, D24, D25, D30-D34, D58 and later project jobs, R01, PRIV01"),
+    "project": ("Release and project", "D01, D02, D24, D25, D30-D34, D58, D59 and later project jobs, R01, PRIV01"),
 }
 
 FAMILY = {}
@@ -54,7 +54,7 @@ for _cat, _nums in {
     "lighting": [41, 54, 55, 56, 57],
     "menus-ui": [19, 20, 21, 26, 29, 42, 43],
     "campaign-performance": [18, 22, 23, 37, 45, 50],
-    "project": [1, 2, 24, 25, 30, 31, 32, 33, 34, 58],
+    "project": [1, 2, 24, 25, 30, 31, 32, 33, 34, 58, 59],
 }.items():
     for _n in _nums:
         FAMILY[_n] = _cat

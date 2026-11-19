@@ -105,6 +105,12 @@ extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;
 extern "C" uint32_t psx_mod_savestate_loads(void){return test_loads;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
+// Runtime words API with PSX_RW_LEAN off (memory.c): writes go word by word,
+// reads report "no fast path" so callers read each word themselves.
+extern "C" {int g_psx_rw_lean_suspend=0;}
+extern "C" int psx_mod_write_words(uint32_t a,const uint32_t* w,uint32_t n){for(uint32_t i=0;i<n;++i)psx_mod_write_word(a+4*i,w[i]);return 0;}
+extern "C" int psx_mod_read_words(uint32_t,uint32_t*,uint32_t){return 0;}
+namespace ttk {bool live_frame_redraw_only(){return false;}}
 static bool lower_body=false;
 static bool shown_room=false;
 namespace ttk {bool host_visibility_room_shown(uint32_t){return shown_room;}}

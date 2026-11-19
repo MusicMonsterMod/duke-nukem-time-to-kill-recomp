@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <cstdio>
+extern "C" int psx_mod_replay_active(void){return 0;}   // live game, no redraw worker
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static unsigned char ram[0x200000],scratch[1024];
 static PSXModFunctionEntryCallback callback;

@@ -722,3 +722,25 @@ in-game pose blending. Output contains retail-derived textures and stays under
 ignored `recomp/analysis/`; only the generator is tracked. The accepted asset,
 parameters, pack ownership and verification are described in
 [note 286](286-d08k13-d08k14-crouch-movement.md).
+
+## Running the whole native suite
+
+D59 (2026-11-19). From `recomp/` after a local build; every target is
+`EXCLUDE_FROM_ALL`:
+
+```
+cmake --build build-local --target ttk-input-test ttk-controls-test ttk-flash-test ttk-near-test ttk-aim-test ttk-sky-test ttk-gas-test ttk-scene-test ttk-font-test ttk-live-env-test ttk-inventory-test ttk-audio-test ttk-music-test ttk-xa-test ttk-loading-test
+for t in input flash near live-env audio xa; do ./build-local/ttk-$t-test; done
+for t in aim sky gas music loading; do ./build-local/ttk-$t-test disc/SLUS_005.83; done
+./build-local/ttk-controls-test disc/SLUS_005.83 analysis/pc-input/d08-camera-final/level00-guard-fixture.bin
+./build-local/ttk-font-test build-local/ttk-fonts.pack
+./build-local/ttk-inventory-test build-local/ttk-fonts.pack build-local/ttk-inv-icons.pack build-local/ttk-inv-digits.pack
+```
+
+`ttk-controls-test` needs an original (unpatched) LEVEL00 overlay fixture; the
+`d08p-turret` copy is Modernized-patched and fails its first Vanilla check.
+Its PASS lines are lost to stdout buffering when an assert aborts; run it under
+`stdbuf -o0` to see how far it got. `ttk-scene-test OWNED_EXIT_RAM` needs a
+captured exit RAM (above). The native tests stub the runtime: when gameplay
+code starts calling a new runtime or host symbol, add a stub that models the
+runtime's default behavior to each test that links that source file.

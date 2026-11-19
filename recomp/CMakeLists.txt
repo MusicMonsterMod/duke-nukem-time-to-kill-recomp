@@ -309,10 +309,15 @@ if(TARGET SDL3::SDL3)
     target_link_libraries(ttk-font-test PRIVATE SDL3::SDL3)
 endif()
 
+# live_env.cpp owns the SDL draw clock (D23N1), so it needs the player's SDL3.
+if(TARGET SDL3::SDL3)
 add_executable(ttk-live-env-test EXCLUDE_FROM_ALL tests/local/live_env_native.cpp src/ttk/live_env.cpp)
 target_include_directories(ttk-live-env-test PRIVATE src/ttk)
 target_compile_options(ttk-live-env-test PRIVATE -UNDEBUG)
 target_compile_features(ttk-live-env-test PRIVATE cxx_std_17)
+target_compile_definitions(ttk-live-env-test PRIVATE PSX_SDL3=1)
+target_link_libraries(ttk-live-env-test PRIVATE SDL3::SDL3)
+endif()
 
 if(TARGET SDL3::SDL3)
     add_executable(ttk-inventory-test EXCLUDE_FROM_ALL tests/local/inventory_hud_native.cpp

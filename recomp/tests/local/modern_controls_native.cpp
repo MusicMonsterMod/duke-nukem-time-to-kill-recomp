@@ -376,6 +376,16 @@ Cheat input_take_cheat(){auto c=pending_cheat;pending_cheat=Cheat::None;return c
 void input_notice(const char*){}
 extern "C" void host_osd_push_centered(const char*,int){}
 extern "C" uint16_t gpu_vram_peek(int,int){return 0;}
+// Runtime words API with PSX_RW_LEAN off (memory.c): writes go word by word,
+// reads report "no fast path" so callers read each word themselves.
+extern "C" {int g_psx_rw_lean_suspend=0;}
+extern "C" int psx_mod_write_words(uint32_t a,const uint32_t* w,uint32_t n){for(uint32_t i=0;i<n;++i)psx_mod_write_word(a+4*i,w[i]);return 0;}
+extern "C" int psx_mod_read_words(uint32_t,uint32_t*,uint32_t){return 0;}
+extern "C" int psx_host_physical_cores(void){return 4;}
+bool input_test_no_water(){return false;}
+void mission_keycard_colours(bool){}
+void mission_jewel_colours(bool){}
+void replay_load_bake(bool){}
 void input_request_interaction(){}
 unsigned inventory_announcements;
 void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool announce){inventory_announcements+=announce;}
@@ -1836,15 +1846,19 @@ int main(int argc,char** argv) {
         for(unsigned i=0;i<16;++i){psx_mod_write_half(hud+4*i,i<13?uint16_t(layout[i][0]):0);psx_mod_write_half(hud+4*i+2,i<13?uint16_t(layout[i][1]):0);}
         auto hx=[&](unsigned i){return int16_t(psx_mod_read_half(hud+4*i));};
         auto hud_intact=[&]{for(unsigned i=0;i<13;++i) if(hx(i)!=layout[i][0]) return false;return true;};
+        // D20J: during the status bar draw the air box (pair 6) joins the right
+        // column at the jetpack's x (gadget_hud.inc); 0x8001fc44 restores it.
+        auto hud_intact_but_air=[&]{for(unsigned i=0;i<13;++i) if(i!=6 && hx(i)!=layout[i][0]) return false;return hx(6)==hx(8);};
         psx_mod_write_word(0x800c27bc,1);
         ws_margin=0;set_rect();call(0x800b4d9c,386,0,0x8002e4d0);assert(rx()==-256 && rw()==512);   // 4:3
-        call(0x8008ba30,0,0,0x80026590);assert(hud_intact());
+        call(0x8008ba30,0,0,0x80026590);assert(hud_intact_but_air());
+        call(0x8001fc44,2,0,0x800265ac);assert(hud_intact());
         ws_margin=85;call(0x800b4d9c,386,0,0x80012345);assert(rx()==-256 && rw()==512);         // other caller
         ttk::modern=false;call(0x800b4d9c,386,0,0x8002e4d0);assert(rx()==-256);ttk::modern=true; // Vanilla
         call(0x800b4d9c,386,0,0x8002e4d0);assert(rx()==-341 && rw()==682);
         call(0x800b4d9c,386,0,0x8002e4d0);assert(rx()==-341 && rw()==682);                       // never twice
         call(0x8008ba30,0,0,0x80026590);
-        assert(hx(0)==-331 && hx(2)==254 && hx(4)==-250 && hx(6)==-331 && hx(7)==0 && hx(10)==167 && hx(12)==254);
+        assert(hx(0)==-331 && hx(2)==254 && hx(4)==-250 && hx(6)==hx(8) && hx(7)==0 && hx(10)==167 && hx(12)==254);
         assert(int16_t(psx_mod_read_half(hud+2))==89);
         call(0x8001fc44,2,0,0x800265ac);assert(hud_intact());
         call(0x8008ba30,0,0,0x80026590);assert(!hud_intact());call(0x800b4d9c,386,0,0x8002e4d0);assert(hud_intact());
@@ -6209,7 +6223,12 @@ int main(int argc,char** argv) {
             // D36I: native contact arms cross the joint-origin cutoff as a
             // connected chain, but retain matrices, world depth and lighting.
             // D36J5: shared leg admission for all authenticated action eyes.
+            // D14G1: swimming keeps its own leg rule. Underwater (mode 5) hides
+            // every leg at the eye; surface swimming (mode 4) hides them only when
+            // the thigh roots would enter the view, which depends on the pose.
             auto action_legs=[&]() {
+                const int swim_mode=std::strstr(ttk::controls_debug_json(),"\"action\":\"swimming\"")?
+                    int(psx_mod_read_byte(p+0x22c)):-1;
                 const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                 for(bool on:{false,true}) for(unsigned h:{160u,256u}) for(unsigned part:{0u,1u,2u,3u,4u,5u,6u,7u,8u,9u,20u,21u}) {
                     setenv("DNTTK_FP_LEGS",on?"on":"off",1);
@@ -6221,7 +6240,9 @@ int main(int argc,char** argv) {
                     const auto owner=ttk::first_person_limb_presentation();
                     // The native door attachment remains under its kick owner.
                     if(owner.owner!=ttk::LimbOwner::Kick) {
-                        const bool leg=on && ((part>=1 && part<=8) || part==21);
+                        const bool leg_part=on && ((part>=1 && part<=8) || part==21);
+                        const bool leg=leg_part && swim_mode!=5 &&
+                            !(swim_mode==4 && owner.owner==ttk::LimbOwner::HiddenBody);
                         assert(owner.owner==(leg?ttk::LimbOwner::Legs:ttk::LimbOwner::HiddenBody));
                         assert(owner.fixed_projection()==leg && owner.world_clip()==leg && !owner.viewmodel());
                         if(leg) {
@@ -7625,7 +7646,9 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x60,96);
     };
     for(unsigned animation:{63u,72u,73u,74u,75u,76u,78u}) {
+        // 76/78 is the run gait: a real run keeps the original running selection.
         ground();psx_mod_write_half(p+0x60,animation);ttk::input.move_x=1;ttk::input.move_y=0;
+        ttk::running=animation>=76;
         psx_mod_write_half(p+0x358,0);ttk::jump_pending=true;
         call(0x8005a210,p,0x800c2754,0x80041b34);
         if(animation<76) {
@@ -7633,6 +7656,15 @@ int main(int argc,char** argv) {
             assert(psx_mod_read_half(p+0x68)==0 && psx_mod_read_half(p+0x6a)==0);
         } else assert(psx_mod_read_half(p+0x60)==animation && ttk::jump_pending);
     }
+    // D23W: a walk the step probe switched to the run gait is still a walk;
+    // its jump is the standing preparation 96, not the running jump 104.
+    for(unsigned animation:{76u,78u}) {
+        ground();psx_mod_write_half(p+0x60,animation);ttk::input.move_x=1;ttk::input.move_y=0;
+        ttk::running=false;psx_mod_write_half(p+0x358,0);ttk::jump_pending=true;
+        call(0x8005a210,p,0x800c2754,0x80041b34);
+        assert(psx_mod_read_half(p+0x60)==96 && !ttk::jump_pending);
+    }
+    ttk::running=false;
     // D08Z6 first press during grounded wall-stop preparation. These poses
     // have a camera-only lease; waiting for idle would expire a short tap.
     for(unsigned animation:{94u,95u}) for(int reject=0;reject<7;++reject) {
@@ -8764,7 +8796,13 @@ int main(int argc,char** argv) {
         ttk::input.move_y=-1;stroke(4,126,0,-0xaaa);assert(vz()==-9520); // back
         ttk::input.move_x=-1;ttk::input.move_y=0;stroke(4,123,-0x444,0);assert(vx()==-9520 && vz()==0); // strafe
         ttk::input.move_x=0;ttk::input.move_y=1;
-        stroke(5,128,0,0x149f,-300);assert(vz()==9520 && (int16_t)psx_mod_read_half(angles+2)==-300); // view-pitched thrust
+        // D14G1: underwater thrust travels along the view's target pitch (host
+        // pitch +down, body +up, original +-900 clamp), not the stack copy's.
+        stroke(5,128,0,0x149f,-300);
+        {
+            const int32_t target=(int32_t)std::lround(std::clamp(-metric("\"pitch\":")*4096/ttk::tau,-900.0,900.0));
+            assert(vz()==9520 && (int16_t)psx_mod_read_half(angles+2)==target); // view-pitched thrust
+        }
         ttk::running=false;stroke(5,129,0,0x149f);assert(vz()==2030);
         ttk::running=true;ttk::input.held[ttk::jump]=true;
         stroke(5,128,0,0x149f,640); // Space: vertical kept, horizontal = pace

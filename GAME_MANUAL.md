@@ -3073,7 +3073,9 @@ The selector frame is the project's own metal frame. See
 **Mission items (D08A5).** **, / .** (comma and period, the < and > keys) open
 the mission inventory in levels with mission items. It shows in place of the
 gadget switcher: one framed slot per key, crystal, paper or jewel the level asks
-for (the same list as the original Select inventory), with items you have not
+for (the same list as the original Select inventory, without names the level
+never uses: GOLD AND GUNS's skeleton key, a second skeleton key in MINER 69ER
+and in FAMILY JEWELS, D08A48), with items you have not
 found yet as dim grey silhouettes, and "MISSION" and found/total at the bottom
 (green when everything is found). The selected slot's frame is blue, and a card
 at the top of the screen shows its name, type and FOUND or NOT FOUND YET. The
@@ -3091,7 +3093,9 @@ the card, the card says USED (in gold), it still counts toward found/total, and
 Enter on it says "ALREADY USED". Saves and savestates keep this; a new level
 starts clean. **[ / ]** switch to the gadgets. The
 gadget switcher itself shows gadgets only; its selected frame is now orange.
-Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
+In a level without mission items (HOLY TERROR, GOLD AND GUNS and others),
+**, / .** show an empty slot with "MISSION NONE" and the card "NO MISSION ITEMS"
+(D08A48), and close the same way. Keyboard only for now. Vanilla is
 unchanged; the original L1/R1 sidesteps that comma/period used to send are
 unbound in Modernized (A/D strafe everywhere) and can be rebound.
 

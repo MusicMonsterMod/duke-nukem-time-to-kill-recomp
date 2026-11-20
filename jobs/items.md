@@ -2192,6 +2192,56 @@ used or adapted for the active grenade; for new mesh work follow note 265
 pickup, held and thrown grenade read as the same object, correct scale,
 animation and light.
 
+### D08A48 - Mission inventory lists only items the level can give
+
+**Status: Done (user-accepted 2026-11-20: "lock it in and close it out"). Dependencies: D22P.** [Note 517](../documentation/517-d22p-gold-and-guns-skeleton-key.md).
+
+D22P found that GOLD AND GUNS (level 3) names a Skeleton Key (item 6) in the
+game's own item-name table, but nothing in the level gives it and nothing
+takes it. The retail Select screen lists a mission item only once Duke has
+it, so players never saw it there; our mission inventory (D08A5) lists every
+named item, so it shows "NOT FOUND YET" and MISSION 0/1 for good.
+
+Work: a game-wide rule, no per-level data. At level start, keep a named item
+in the Modernized mission inventory only if the level can give it (placed
+pickups of types the dispatcher maps to it, object or enemy contents, crystal
+holders; map in note 517) or Duke has it or used it. First settle the two
+suspects from the D22P survey: level 2 item 7 and level 6 item 8 (no giver
+at the start; check for later givers and the lock handlers that might want
+them). Acceptance: level 3 shows no mission panel; every level with real
+mission items is unchanged (tests over all levels' fresh starts); Vanilla
+unchanged.
+
+User, 2026-11-20: "yes we implement the fix", and in HOLY TERROR, "using ,
+and . left me confused for a minute because nothing appears ... no
+feedback". Agreed design (user: "i like your recommendation ... build it all
+out"): in a level with no listable items, , / . open the panel empty.
+
+Work log, 2026-11-20 (note 517, "Fix (D08A48, built)"):
+- Suspects settled: outside the pickup dispatcher no main-executable code
+  writes items 6/7/8/10 at a fixed offset, so pickups (and crystal holders)
+  are the only givers; level 2 item 7 and level 6 item 8 have none.
+- `inventory_hud.h`: `mission_item_for_type` (dispatcher map),
+  `mission_givable`. `inventory_hud.cpp`: an item is listed when the scanned
+  level can give it or its flag has bit 0 or the used marker; unscanned
+  levels list every named item; `mission_tally` (statistics screen) follows.
+  Empty panel: one empty grey slot, MISSION / NONE; card NO MISSION ITEMS
+  (heading only, user 2026-11-20); Enter only closes it.
+- `shortcuts.inc`: `mission_givable_scan` before `mission_update`: room lists,
+  object contents, enemy records; union per level, reset on level change and
+  savestate load, every 30 updates, reports only after a fully valid walk.
+- Tests: `ttk-inventory-test` (empty panel and card, type map, level 3
+  filtered, found/used listed again, levels 2/6 counts, unscanned fallback),
+  `ttk-controls-test` (stub), Python 266 OK (2 skipped).
+- Private offscreen Modernized run (fresh `level N`, `.` pressed): levels 3
+  and 8 show NO MISSION ITEMS / MISSION NONE; level 0 0/5; level 2 0/1;
+  level 6 0/4. Player files unchanged.
+- Not checked in game: Vanilla (same `input_modernized` gate as before, by
+  code), the statistics screen's MISSION ITEMS line (unit test only).
+- User review: "This level has none" dropped; the card keeps its shape with
+  the heading alone, level with the empty frame (rebuilt, seen in HOLY
+  TERROR). Accepted 2026-11-20: "lock it in and close it out".
+
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 
 **Status: Done (user-accepted 2026-11-20: "lock it in and close us out"). Dependencies: D08A45.** [Note 516](../documentation/516-d60-family-jewels-any-order.md).

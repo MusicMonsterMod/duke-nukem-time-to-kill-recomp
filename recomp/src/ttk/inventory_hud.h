@@ -22,6 +22,30 @@ int mission_browsed_item();
 // D20D: the level's mission items, and how many were collected (found or
 // used) from the same flags as mission_update; total 0 where it has none.
 void mission_tally(unsigned level,const uint16_t* flags,int& got,int& total);
+// D08A48: the mission item (6..16) an object of this type gives, or 0. Pickup
+// types are the cases of the pickup dispatcher 0x80081a48 that set bit 0 of a
+// mission item's flag (the only code that sets one at a fixed offset); crystal
+// holders 176-178 give 11-13 through 0x80091cec. Note 517.
+constexpr unsigned mission_item_for_type(unsigned type) {
+    switch(type) {
+    case 153: case 542: case 744: case 862: return 6;
+    case 154: case 745: case 863: return 7;
+    case 155: case 746: return 8;
+    case 157: return 10;
+    case 176: return 11; case 177: return 12; case 178: return 13;
+    case 547: case 761: case 854: return 14;
+    case 548: case 855: return 15;
+    case 549: case 856: return 16;
+    default: return 0;
+    }
+}
+// D08A48: the items (bit i) the level can give, from a scan of its placed
+// objects, their contents and its enemy records (emulation thread). Until a
+// scan of that level is reported, every named item is listed (as D08A5).
+// mission_update and mission_tally list a named item only when the level can
+// give it or Duke has it or used it; a level left with none shows the empty
+// panel ("NO MISSION ITEMS") on Comma/Period.
+void mission_givable(unsigned level,uint32_t items);
 // D08A19: host marker in a mission item's flag halfword for "used". The
 // original only ever tests, sets and clears bit 0 of items 6..16 (pickup |= 1,
 // use at animation 47 &= ~1, level reset = 0), so the marker rides along in

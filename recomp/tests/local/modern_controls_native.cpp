@@ -391,6 +391,7 @@ void input_request_interaction(){}
 unsigned inventory_announcements;
 void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool announce){inventory_announcements+=announce;}
 void mission_update(unsigned,const uint16_t*){}
+void mission_givable(unsigned,uint32_t){}
 bool mission_open;bool mission_visible(){return mission_open;}void mission_close(){mission_open=false;}int mission_browsed_item(){return -1;}
 static bool modern;
 static bool running, jump_pending, auto_stow;

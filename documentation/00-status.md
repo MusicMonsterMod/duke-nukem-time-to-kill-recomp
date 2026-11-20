@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-20 - D22P and D08A48 closed out (Done): mission inventory lists only what the level can give
+
+Modernized: a mission item is listed only when the level can give it (a scan of its placed objects, their contents and its enemy records) or Duke has or used it. GOLD AND GUNS's phantom key and the second keys of MINER 69ER and FAMILY JEWELS are gone, also from the statistics screen. Levels without items (HOLY TERROR, GOLD AND GUNS) answer , / . with an empty slot, MISSION NONE and the card NO MISSION ITEMS, heading only (user request). User-accepted and closed out with D22P. [Note 517](517-d22p-gold-and-guns-skeleton-key.md).
+
+## 2026-11-20 - D22P: GOLD AND GUNS skeleton key answered (Needs review)
+
+The mission inventory's SKELETON KEY in GOLD AND GUNS has no pickup and no lock: the game's own name table names it, but nothing in the level gives or takes item 6 and LEVEL03.OVR has no lock code (a leftover). The retail Select screen never shows it; our D08A5 mission inventory does (MISSION 0/1 for good). Fix job D08A48 (game-wide rule: list only items the level can give). Research only, no code changed. [Note 517](517-d22p-gold-and-guns-skeleton-key.md).
+
 ## 2026-11-20 - D60 closed out (Done): Family Jewels in any order
 
 [Note 516](516-d60-family-jewels-any-order.md). User: "lock it in and close us out". In Modernized the wheel takes the jewels in any order (a held jewel's flag is lent to the item the wheel wants and traded back once in hand; places drive the sockets and the hand). The playtest found that `dnstuff` handed back a jewel already in the wheel (its socket turned blue): the inventory cheats now keep used mission items used, a standing rule (`AGENTS.md`, manual). Vanilla unchanged.

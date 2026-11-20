@@ -57,6 +57,15 @@ bool found(const MissionDef& d){return mission_flags[d.item]&1;}
 // D08A19: used up at its lock (see ttk::mission_used_bit); it stays collected.
 bool used(const MissionDef& d){return (mission_flags[d.item]&(ttk::mission_used_bit|1))==ttk::mission_used_bit;}
 bool collected(const MissionDef& d){return found(d) || used(d);}
+// D08A48: the items the level can give (bit i), once its objects were scanned.
+unsigned givable_level=~0u;
+uint32_t givable_items;
+// Listed: the level can give it, or Duke has or used it (the flags given), or
+// the level was not scanned yet. GOLD AND GUNS's named key has no giver and no
+// lock (note 517), so it is not listed.
+bool listed(const MissionDef& d,const uint16_t* f){
+    return givable_level!=d.level || ((givable_items>>d.item)&1) || (f[d.item]&(1|ttk::mission_used_bit));
+}
 const char* mission_kind(const char* name){
     if(std::strstr(name,"CRYSTAL"))return "CRYSTAL";
     if(std::strstr(name,"JEWEL"))return "JEWEL";
@@ -266,17 +275,27 @@ unsigned found_count(){unsigned n=0;for(int i=0;i<slot_count;++i)n+=collected(*s
 // stay centred in it.
 int mission_panel_width(int max_width){
     char widest[16];std::snprintf(widest,sizeof widest,"%d/%d",slot_count,slot_count);
+    if(!slot_count)std::snprintf(widest,sizeof widest,"NONE"); // D08A48: empty panel
     const int lw=std::max(0,ttk_font_text_width(TTK_FONT_MISSION_LABEL,"MISSION"));
     const int cw=std::max({0,ttk_font_text_width(TTK_FONT_MISSION_COUNT,widest),
                            ttk_font_text_width(TTK_FONT_MISSION_COMPLETE,widest)});
     constexpr int margin=8,gap=10;
-    return std::min(max_width,std::max(slot_count*46+12,margin+lw+gap+cw+margin));
+    return std::min(max_width,std::max(std::max(slot_count,1)*46+12,margin+lw+gap+cw+margin));
 }
 void draw_mission_row(uint32_t* px,int w,int h,int y0){
     Canvas c{px,w,h};
     const int pw=mission_panel_width(w),ph=70,x0=(w-pw)/2;
     c.panel(x0,y0,pw,ph);
     const bool art=load_mission();
+    if(!slot_count) {
+        // D08A48: a level without mission items answers Comma/Period with one
+        // empty grey slot and MISSION / NONE, so the press is never silent.
+        if(art)c.stretch(frame_grey,x0+(pw-42)/2,y0+6,42,39);
+        ttk_font_draw(TTK_FONT_MISSION_LABEL,"MISSION",px,w,h,x0+8,y0+52);
+        const int tw=ttk_font_text_width(TTK_FONT_MISSION_COUNT,"NONE");
+        if(tw>0)ttk_font_draw(TTK_FONT_MISSION_COUNT,"NONE",px,w,h,x0+pw-tw-8,y0+52);
+        return;
+    }
     const int icons_x=x0+(pw-(slot_count*46-4))/2;
     for(int i=0;i<slot_count;++i)if(art)
         framed_icon(c,i==browse?frame_steel:frame_grey,*slots[i],icons_x+i*46,y0+6);
@@ -316,7 +335,7 @@ bool overlay_ready() {
 namespace ttk {
 bool inventory_visible() {return overlay_ready() && SDL_GetTicks()<expires;}
 // D08A5 mission inventory: its own view on Comma/Period, never with the gadgets.
-bool mission_visible() {return overlay_ready() && slot_count && SDL_GetTicks()<mission_expires;}
+bool mission_visible() {return overlay_ready() && SDL_GetTicks()<mission_expires;}
 void mission_close() {mission_expires=0;}
 int mission_browsed_item() {return mission_visible() && browse<slot_count?int(slots[browse]->item):-1;}
 void inventory_update(unsigned item,const uint16_t* f,const int16_t* a,const uint16_t* capacity_values,bool announce) {
@@ -341,36 +360,48 @@ void mission_update(unsigned level,const uint16_t* mission) {
     mission_level=level;
     std::memcpy(mission_flags,mission,sizeof mission_flags);
     slot_count=0;
-    for(const auto& d:mission_table)if(d.level==level && slot_count<max_slots)slots[slot_count++]=&d;
+    for(const auto& d:mission_table)if(d.level==level && listed(d,mission_flags) && slot_count<max_slots)slots[slot_count++]=&d;
+    if(browse>=slot_count)browse=0;
     const unsigned presses=browse_presses.exchange(0);
     const int steps=browse_steps.exchange(0);
-    if(!presses || !slot_count || !input_snapshot(Context::Gameplay).active)return;
-    // The first press opens on the item last shown; later presses step (wrapping).
-    if(mission_visible())browse=((browse+steps)%slot_count+slot_count)%slot_count;
-    else if(browse>=slot_count)browse=0;
+    if(!presses || !input_snapshot(Context::Gameplay).active)return;
+    // The first press opens on the item last shown; later presses step
+    // (wrapping). D08A48: with no items it opens the empty panel.
+    if(slot_count && mission_visible())browse=((browse+steps)%slot_count+slot_count)%slot_count;
     mission_expires=SDL_GetTicks()+2500;
     expires=0;
 }
 void mission_tally(unsigned level,const uint16_t* flags,int& got,int& total) {
     got=total=0;
     for(const auto& d:mission_table) {
-        if(d.level!=level)continue;
+        if(d.level!=level || !listed(d,flags))continue;
         ++total;
         const unsigned v=flags[d.item];
         if((v&1) || (v&mission_used_bit))++got;
     }
 }
 void mission_browse_press(int direction) {browse_steps.fetch_add(direction);browse_presses.fetch_add(1);}
+void mission_givable(unsigned level,uint32_t items) {givable_level=level;givable_items=items;}
 }
 extern "C" int ttk_inventory_pixels(const uint32_t* p){return p==pixels || p==card_pixels;}
 // D08A5 item card: fixed 592x52 at the top of the screen with the mission inventory.
 extern "C" int ttk_mission_card_image(const uint32_t** out,int* width,int* height,int available_width) {
     *out=nullptr;*width=*height=0;
     constexpr int w=592,h=52;
-    if(!ttk::mission_visible() || browse>=slot_count || available_width<w || !load_mission())return 0;
+    if(!ttk::mission_visible() || available_width<w || !load_mission())return 0;
+    Canvas c{card_pixels,w,h};
+    if(!slot_count) {
+        // D08A48: the empty panel's card: an empty steel frame and the heading.
+        std::fill(card_pixels,card_pixels+w*h,0u);
+        c.panel(0,0,w,h);
+        c.stretch(frame_steel,10,6,42,39);
+        // The heading alone, centred on the frame (user, 2026-11-20: no second line).
+        ttk_font_draw(TTK_FONT_PANEL_SLOT_SELECTED,"NO MISSION ITEMS",card_pixels,w,h,64,19);
+        *out=card_pixels;*width=w;*height=h;return 1;
+    }
+    if(browse>=slot_count)return 0;
     const MissionDef& d=*slots[browse];
     const bool got=collected(d);
-    Canvas c{card_pixels,w,h};
     std::fill(card_pixels,card_pixels+w*h,0u);
     c.panel(0,0,w,h);
     framed_icon(c,frame_steel,d,10,6);

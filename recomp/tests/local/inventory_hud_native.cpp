@@ -114,9 +114,16 @@ int main(int argc,char**argv) {
     ttk::inventory_update(2,flags,amount,capacities,false);ttk::mission_update(6,mission);
     assert(!ttk::mission_visible());
     ttk::mission_browse_press(1);ttk::mission_update(6,mission);assert(ttk::mission_visible());
-    // Levels without mission items: Comma/Period do nothing.
-    ttk::mission_update(8,mission);
-    ttk::mission_browse_press(1);ttk::mission_update(8,mission);assert(!ttk::mission_visible() && !ttk_mission_card_image(&card,&cw,&ch,624));
+    // D08A48: levels without mission items answer Comma/Period with the empty
+    // panel (one empty slot, MISSION / NONE) and the "NO MISSION ITEMS" card;
+    // nothing is browsed, so Enter has no item.
+    ttk::mission_close();ttk::mission_update(8,mission);assert(!ttk::mission_visible());
+    ttk::mission_browse_press(1);ttk::mission_update(8,mission);
+    assert(ttk::mission_visible() && visible() && h==72 && ttk::mission_browsed_item()==-1);
+    save("mission-empty",pixels,w,h);
+    assert(ttk_mission_card_image(&card,&cw,&ch,624) && cw==592 && ch==52);save("card-empty",card,cw,ch);
+    ttk::mission_browse_press(-1);ttk::mission_update(8,mission);assert(ttk::mission_visible() && ttk::mission_browsed_item()==-1);
+    ttk::mission_close();
     // All found turns the count green; works without gadgets.
     uint16_t all[17]{};for(unsigned i:{6u,7u,11u,12u,13u})all[i]=1;
     uint16_t none[6]{};
@@ -153,6 +160,28 @@ int main(int argc,char**argv) {
         if(level==3){char n[32];std::snprintf(n,sizeof n,"mission-level3-%s",found?"found":"missing");save(n,pixels,w,h);}
         assert(ttk_font_text_width(TTK_FONT_MISSION_LABEL,"MISSION")>0 && panel_width()>=need);
     }
+    // D08A48: the type map is the dispatcher's (note 517).
+    static_assert(ttk::mission_item_for_type(153)==6 && ttk::mission_item_for_type(862)==6 && ttk::mission_item_for_type(154)==7 &&
+                  ttk::mission_item_for_type(746)==8 && ttk::mission_item_for_type(157)==10 && ttk::mission_item_for_type(177)==12 &&
+                  ttk::mission_item_for_type(855)==15 && ttk::mission_item_for_type(549)==16 && ttk::mission_item_for_type(33)==0);
+    {
+        int got=0,total=0;uint16_t f[17]{};
+        // Level 3 scanned with nothing to give: its named key is not listed, the
+        // panel is the empty one and the tally has no items.
+        ttk::mission_givable(3,0);ttk::mission_tally(3,f,got,total);assert(total==0);
+        ttk::mission_close();ttk::mission_update(3,f);ttk::mission_browse_press(1);ttk::mission_update(3,f);
+        assert(ttk::mission_visible() && ttk::mission_browsed_item()==-1);visible();save("mission-level3-scanned",pixels,w,h);
+        // Found or used (a cheat, an old save): listed again.
+        f[6]=1;ttk::mission_update(3,f);assert(ttk::mission_browsed_item()==6);
+        ttk::mission_tally(3,f,got,total);assert(got==1 && total==1);
+        f[6]=ttk::mission_used_bit;ttk::mission_tally(3,f,got,total);assert(got==1 && total==1);
+        // Level 2 gives only item 6: one slot; level 6 gives 7 and the jewels: four.
+        f[6]=0;ttk::mission_givable(2,1u<<6);ttk::mission_tally(2,f,got,total);assert(total==1);
+        ttk::mission_givable(6,(1u<<7)|(7u<<14));ttk::mission_tally(6,f,got,total);assert(total==4);
+        // A level not scanned (another level's scan is held) lists every named item.
+        ttk::mission_tally(0,f,got,total);assert(total==5);
+        ttk::mission_givable(0,(3u<<6)|(7u<<11));ttk::mission_tally(0,f,got,total);assert(total==5);
+    }
     SDL_Delay(2510);ttk::mission_update(0,all);assert(!visible() && !ttk_mission_card_image(&card,&cw,&ch,624));
-    std::puts("PASS: inventory strip, D08A5 mission inventory, browsing, card, D08A19 used, timeout");
+    std::puts("PASS: inventory strip, D08A5 mission inventory, browsing, card, D08A19 used, D08A48 listing and empty panel, timeout");
 }

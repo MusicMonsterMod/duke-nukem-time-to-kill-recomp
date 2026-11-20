@@ -4743,7 +4743,7 @@ walk (`CASES=rates`, the player's profile).
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 
-**Status: Todo (backlog, research; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-20: "lock it in and close it out"; fixed by D08A48). Dependencies: -.** [Note 517](../documentation/517-d22p-gold-and-guns-skeleton-key.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14, UI slot 10 (the 13:42 save, GOLD AND GUNS): the mission
@@ -4764,3 +4764,51 @@ copied). Test on this copy; the player is free to save over their slot.
 Do not invent a route or change progression. Acceptance: a written answer
 (how they work, or that they are unused or shown wrongly); a fix job only if
 a real bug is confirmed.
+
+User update, 2026-11-20: the room behind the gate is solved, and the key is
+not for it. "you drop down through the entrance in the lava pit and then
+through the room at the end of the corridor, you can access the other side of
+the gate, pull the lever and open it - thus proving this mystery key isnt used
+for that." The open question is now the key alone: "why there is a mystery
+key in the inventory that seemingly has no need to collect? i dont know where
+the lock is for this key."
+
+Refocused research (the gate route above is the user's, not to re-derive):
+1. The level's mission list: which item the key is (number, name, icon), why
+   the mission inventory lists it for GOLD AND GUNS (the game's own per-level
+   item table, or our D08A5 mapping), and whether it shows as "NOT FOUND YET"
+   or found in the user's save.
+2. Where the key is: any pickup object of its type in the level (position,
+   room, reachable or hidden), or none at all.
+3. What uses it: every object whose handler wants that item (mode 2, as the
+   jewel wheel and the card readers, D08A18), in the level overlay and the
+   shared lock helper; or none.
+4. The original: the same checks on the original game (DuckStation portable
+   copy only) to tell a recomp regression or our listing from the retail
+   design (a leftover from cut content is a valid answer).
+Acceptance unchanged: a written answer with evidence labels; a fix job only
+if a real bug (ours) is confirmed, for example our mission list showing an
+item the level never uses.
+
+Work log, 2026-11-20 (research only, no code changed; note 517):
+- Answer: GOLD AND GUNS has no skeleton key and no lock for one. The game's
+  item-name table names item 6 "Skeleton Key" for level 3, but nothing gives
+  it and nothing takes it: a leftover, most likely cut or unbuilt content.
+  No hidden room or pickup behind it.
+- Disc: the pickup dispatcher gives item 6 only for types 153/542/744/862;
+  LEVEL03.OVR has no lock-helper call, no CreateObject call, no key type and
+  never touches item 6, the hand or the use item; every other level with a
+  working key calls the lock helper.
+- Run (private offscreen, `level 3` fresh start and the user's slot 10 copy;
+  player files unchanged): 378 placed objects, their contents and 52 enemy
+  records hold no key; no object has the lock flag `0x01000000`. The item-6
+  lock call seen in RAM is stale LEVEL02.OVR code past LEVEL03's end.
+- Ours: the retail Select screen shows a mission item only once found, so
+  it never shows this key; D08A5's mission inventory lists every named item
+  and shows 0/1 forever. Fix job D08A48 (game-wide rule, no level data).
+- Survey of all mission-item levels: level 3 is the only one with no lock;
+  level 2 item 7 and level 6 item 8 have no giver at the start (suspected
+  leftovers, for D08A48 to settle).
+- Not done: the original in DuckStation (no debug port; the static evidence
+  is from the disc's own bytes, and object placement was observed through the
+  original loader in the recomp only).

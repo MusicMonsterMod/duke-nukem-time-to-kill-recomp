@@ -91,6 +91,44 @@ static bool usable_item(unsigned item) {
     unsigned v=psx_mod_read_half(player+0x354+item*4);
     return (v&1) && !(v&0x8000) && ((v&2) || (int16_t)psx_mod_read_half(player+0x356+item*4)>0);
 }
+// D08A48: the mission items this level can give (note 517): placed pickups,
+// the contents (+0x36) of every object in the room lists (0x800da454, 88-byte
+// rooms, list at +0x48, as spawn.inc walks them) and of every enemy record
+// (*0x800de720, 48 bytes, count 0x800c56a0, contents +0x2c), and crystal
+// holders. The union is kept for the level (a pickup taken or a key dropped
+// later still counts) and restarts on level change and savestate load. A
+// scan reports only when every pointer checked out; until then the mission
+// inventory lists every named item, as before. Every 30 updates: about 450
+// reads.
+static unsigned givable_scan_level=~0u,givable_scan_tick;
+static uint32_t givable_scan_loads,givable_scan_items;
+static void mission_givable_scan() {
+    const unsigned level=psx_mod_read_word(0x800be570);
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(level!=givable_scan_level || loads!=givable_scan_loads) {
+        givable_scan_level=level;givable_scan_loads=loads;givable_scan_items=0;givable_scan_tick=0;
+    } else if(++givable_scan_tick<30)return;
+    givable_scan_tick=0;
+    auto valid=[](uint32_t address,uint32_t size){return address>=0x80010000u && address<=0x80200000u-size && !(address&3);};
+    auto gives=[](int type){const unsigned item=type>0?mission_item_for_type(unsigned(type)):0;return item?1u<<item:0u;};
+    uint32_t items=givable_scan_items;
+    const uint32_t rooms=psx_mod_read_word(0x800da454),count=psx_mod_read_word(0x800da47c);
+    if(!count || count>128 || !valid(rooms,count*88))return;
+    for(unsigned room=0;room<count;++room) {
+        uint32_t node=psx_mod_read_word(rooms+88*room+0x48);
+        for(unsigned n=0;node && n<1024;++n) {
+            if(!valid(node,12))return;
+            const uint32_t object=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+            if(!valid(object,0x60))return;
+            items|=gives(psx_mod_read_half(object+0x2c))|gives((int16_t)psx_mod_read_half(object+0x36));
+        }
+    }
+    const uint32_t enemies=psx_mod_read_word(0x800de720),records=psx_mod_read_word(0x800c56a0);
+    if(records>256 || (records && !valid(enemies,48*records)))return;
+    for(unsigned i=0;i<records;++i)items|=gives((int16_t)psx_mod_read_half(enemies+48*i+0x2c));
+    givable_scan_items=items;
+    mission_givable(level,items);
+}
 // Share the original menu's remembered ID. Its list rebuild maps this ID to
 // the cursor at885e0; browsing writes it at893c8. Never rewrite its list/cursor.
 static void inventory_feedback(bool announce) {
@@ -114,6 +152,7 @@ static void inventory_feedback(bool announce) {
     jewel_mission_view(mission);   // D60: a jewel lent to the lock shows as itself
     mission_keycard_colours(keycard_colours_on());   // D08A46: icons match the cards
     mission_jewel_colours(jewel_colours_on());   // D08A45: jewel icons match the jewels
+    mission_givable_scan();   // D08A48: list only what the level can give
     mission_update(psx_mod_read_word(0x800be570),mission);
 }
 // D08A19: mark a mission item used. The original uses it up at animation 47

@@ -197,6 +197,13 @@ lightning bolt on blue.
 Lab: matched shots at the user's save, before/after and a pulse strip in
 `research/before-after/D53/power-*.png`; the console keypad still glows.
 
+D17BM (2026-11-20, [note 524](524-d17bm-power-panel-stays-lit.md)): the
+matched-mesh slots were host state that every second rescan emptied, and
+redraw workers keep the state they were forked with, so the panel sometimes
+showed unlit for long periods. Keypads and power signs are now recognised by
+their models when drawn; the sign is steady at 255 and its light steady at
+strength 1.8 (no pulse); the glow block is allocated on the first live frame.
+
 ## Revision 6: brighter screens
 
 User, slot 9: "increase the light emission of the screens themselves ...

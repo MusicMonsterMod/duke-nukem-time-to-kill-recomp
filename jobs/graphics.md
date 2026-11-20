@@ -3140,7 +3140,7 @@ decides otherwise). Acceptance: no idle lines during a long camera view.
 
 ### D17BM - A wall panel sometimes shows dimmed instead of lit (UI slot 12)
 
-**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-20: "i can confirm thats now fixed!", then "lock us in and close us out"). Dependencies: -.** [Note 524](../documentation/524-d17bm-power-panel-stays-lit.md).
 
 User, 2026-11-20: "in slot 12, this panel sometimes shows weirdly dimmed
 like this, rather than lit. switching it on then turns the panel on, and i
@@ -3152,6 +3152,71 @@ state, our lighting or bake, D53-style screen art, or a renderer fault), and
 why only sometimes. Then give it a clean off look and a short power-on
 light-up when it is switched on. Acceptance: the panel never shows the odd
 dimmed look; switching it on lights it up cleanly; Vanilla unchanged.
+
+User, selecting the job (2026-11-20): "i cant always replicate this one
+unfortunately, but how about we just make sure that interactive wall panel
+stays on ... it doesnt need to be animated or anything, lets just focus on
+actually owning that panel so it presents well". The power-on light-up is
+dropped; acceptance: the panel is always lit, steady, before and after use.
+
+Work log, 2026-11-20 (Needs playtest):
+- The panel: LEVEL00's wall power switch, keypad type 477 (object slot 38;
+  E sets +0x35 and swaps model 0x80142980 for 0x801429e0) under the
+  lightning sign type 481. Since D53 both are drawn self-lit in Modernized
+  with a blue-white wall light; unlit, that light turns the bolt dark olive.
+- Cause, reproduced: D53's scan kept the glowing models in host-side slots
+  that every second rescan emptied, and redraw workers keep the host state
+  they were forked with, so the panel was unlit for long stretches depending
+  on when the workers were forked. Live frames only, old executable, the
+  user's save: bolt lit, then 0 bright pixels for 23 shots (about 460
+  frames), then lit; the unlit frames match the save's thumbnail.
+- Fix (`security_monitor.cpp`): keypads and power signs are recognised by
+  their models when drawn, in every process; the sign is steady at 255 and
+  its light steady at its former peak (no pulse); the glow block is
+  allocated on the first live frame, before workers fork.
+- Evidence: new executable lit in 60 of 60 live-frame shots and at 180 Hz
+  in 10 of 10 before and 30 of 30 after using the switch; Vanilla
+  pixel-identical; local tests 268 OK. Shots in
+  `research/before-after/D17BM/` (local).
+- Remaining: the user's playtest (UI slot 12, and the room on entering).
+
+User, 2026-11-20: "i can confirm thats now fixed!", then "lock us in and
+close us out". Done; the lab is trimmed to its scripts.
+
+### D17BN - Floor blood splatter flickers again (UI slot 12)
+
+**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: -.**
+
+User, 2026-11-20, after accepting D17BM: "copy over my slot 12, its
+identical as to the slot 12 we just looked at but im looking at the blood
+splatter on the ground. it's flickering again. i'd like the blood splatters
+to not flicker like i thought we fixed this, this must be aggressively
+fixed."
+
+Test save: UI slot 12 (saved 2026-11-20 22:18, level 0, TIME TO KILL,
+looking down at a large blood splatter on the tiled floor), copied to
+`research/savestates/d17bn/` (local, never committed). Load private copies,
+never the player's card.
+
+Known history: D17K (coplanar ground blood, slot 12) and D17AT (ground
+decals and small props stable on any surface; blood pools drawn as host
+decals, [note 348](../documentation/348-d17at-decal-stability-report.md))
+fixed it before; D17AU (no shimmer at all) was cancelled when D17AT
+satisfied the user. Suspect first: D57F revision 4 (2026-11-20, [note
+523](../documentation/523-d57f-crystal-slot-glow.md)) now draws flat
+semi-transparent mode 1 small-model faces (blood) opaque, which sends them
+down D17AT's decal path with depth and rank; check whether that changed the
+blood's depth handling or overlap between pools (`DNTTK_BLOOD_OPAQUE=0`
+restores the old draw for an A/B). Also check D57F revision 7's 8-unit bake
+snap and D17BI's flat-prop contact lift (4 units, `DNTTK_FLAT_PROP_CONTACT`).
+
+Work: reproduce at the save at 180 Hz (and 120), measure the flicker
+(matched frame strips, while still and while turning or walking), find the
+owner, and fix it game-wide so blood never flickers against the floor or
+against other blood, without moving blood off the floor (no sliding) and
+keeping D57F's solid colour. Verify on the real display (Polymorph, user
+display at 180 Hz). Acceptance: no blood flicker in UI slot 12 while still,
+turning or moving; other levels' blood also steady; Vanilla unchanged.
 
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 

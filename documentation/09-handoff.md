@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-20 - D17BM power switch panel closed out (Done)
+
+- D17BM ([note 524](524-d17bm-power-panel-stays-lit.md)): LEVEL00's wall power switch (a lightning sign over a type 477 keypad) is always drawn self-lit in Modernized Polymorph, steady at full glow, before and after it is used. Cause: D53's glowing-model slots were host state that every second rescan emptied, and redraw workers keep the state they were forked with, so the panel showed unlit (bolt dark olive in the blue power light) for long stretches. Now recognised by the models when drawn (`security_monitor.cpp`); the sign's pulse and its light's pulse are gone; the glow block is allocated on the first live frame. Vanilla pixel-identical. User-accepted ("i can confirm thats now fixed!"). Test save: UI slot 12 (copy in `research/savestates/d17bm/`). Backlog: D17BN, the floor blood in the user's newer UI slot 12 save (`research/savestates/d17bn/`) flickers again.
+
 ## 2026-11-20 - D17BI flat props closed out (Done)
 
 - D17BI ([note 522](522-d17bi-flat-props.md)): the two magazines on the desk in OBEY OR DIE's upstairs apartment (room 8) no longer flicker. They lie exactly on the desk top, and as separate props both had the same contact lift; a flat prop (every vertex on one plane) now takes 4 units instead of 2 (`near_clip.cpp`, developer `DNTTK_FLAT_PROP_CONTACT=2` for the old rule). Verified offscreen at 180 Hz; user-accepted ("accepted!! lock it in and close it out"). Test save: UI slot 12, facing the desk from the far corner (the ladder save it replaced: `research/savestates/d17bl-2/`).

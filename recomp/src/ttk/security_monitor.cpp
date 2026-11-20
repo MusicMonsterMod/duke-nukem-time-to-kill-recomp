@@ -261,37 +261,40 @@ bool monitor_mesh(uint32_t mesh) {
 uint64_t swaps=0,lamps_published=0;
 uint32_t last_template=0;
 
-// Controls that glow (scan_props, game thread; read by redraw workers too,
-// so fixed atomic slots): interactive keypads (type 477's one-quad panel,
-// on consoles and on walls) and the lightning power sign beside a keypad.
-std::atomic<uint32_t> keypad_meshes[4],sign_meshes[4];
-bool listed(const std::atomic<uint32_t>* slots,uint32_t mesh) {
-    for(unsigned i=0;i<4;++i) if(mesh && slots[i].load(std::memory_order_relaxed)==mesh) return true;
-    return false;
-}
+// Controls that glow: interactive keypads (type 477's one-quad panel, on
+// consoles and on walls; its switched-on model too) and the lightning power
+// sign above a wall keypad. D17BM: recognised by their models when drawn, so
+// a redraw worker (a forked copy that keeps the host state it was forked
+// with) decides as the game thread does. The scan's mesh lists they replaced
+// were host state, and a rescan emptied them every other time (a mesh still
+// listed from the last scan was skipped, then its slot cleared): a worker
+// forked in such a period drew the panel unlit, blue in the power light.
+bool keypad_mesh(uint32_t mesh);
+bool sign_mesh(uint32_t mesh);
 uint64_t glow_swaps=0;
 uint32_t keypad_level=255;
-// The power sign's electric pulse, 0..1 from the clock (the same in redraw
-// workers): a slow 1.8 s breath with a quick crackle now and then (about one
-// 50 ms step in 14 jumps to full or drops low).
-float power_pulse() {
-    const uint32_t ms=ttk_draw_clock_ms();
-    float v=0.5f+0.5f*std::sin(ms*(2*3.14159265f/1800.0f));
-    uint32_t h=ms/50*2654435761u;h^=h>>13;h*=0x5bd1e995u;h^=h>>15;
-    if(h%14==0) v=(h>>8)&1?1.0f:0.15f;
-    return v;
-}
+// D17BM: the power sign is steady, lit at the most a vertex colour gives
+// (255, twice the neutral 128), like the keypads; it once breathed 170..255
+// with a crackle (D53). Developer: DNTTK_POWER_SIGN_GLOW=64..255.
+uint32_t sign_level=255;
 // A one-quad prop drawn self-lit: a copy of its header, vertices and its face
 // as a gouraud quad whose corners take one fixed colour (palette entry 0), in
 // its own 0x80 slot of the glow block. Retail textures; no dynamic light.
+constexpr uint32_t glow_slot_bytes=0x80,glow_slots=2;
+// Live frames only. D17BM: called from the composition hook on the first live
+// frame, so every redraw worker forked later has the block (mod memory
+// travels in the published image); a worker cannot allocate it.
+bool glow_allocate() {
+    if(security_glow_copy) return true;
+    if(psx_mod_replay_active()) return false;
+    const uint32_t base=psx_mod_alloc_guest_memory(glow_slot_bytes*glow_slots,16);
+    if(!base) return false;
+    security_glow_copy=base;security_glow_copy_end=base+glow_slot_bytes*glow_slots;
+    return true;
+}
 uint32_t glow_copy(unsigned slot,uint32_t mesh,uint32_t level) {
-    constexpr uint32_t slot_bytes=0x80,slots=2;
-    if(!security_glow_copy) {
-        if(psx_mod_replay_active()) return 0;
-        const uint32_t base=psx_mod_alloc_guest_memory(slot_bytes*slots,16);
-        if(!base) return 0;
-        security_glow_copy=base;security_glow_copy_end=base+slot_bytes*slots;
-    }
+    constexpr uint32_t slot_bytes=glow_slot_bytes;
+    if(!glow_allocate()) return 0;
     const uint32_t base=security_glow_copy+slot*slot_bytes,verts=base+0x18,palette=verts+32,list=palette+4;
     const uint32_t vp=psx_mod_read_word(mesh+0x10),src=psx_mod_read_word(mesh+0x14);
     for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(base+i,psx_mod_read_word(mesh+i));
@@ -307,9 +310,9 @@ uint32_t glow_copy(unsigned slot,uint32_t mesh,uint32_t level) {
 uint32_t swap(uint32_t mesh) {
     if(input_modernized() && !ttk_world_classic()) {
         // Keypads at DNTTK_KEYPAD_GLOW (255: twice the neutral 128, the most
-        // a vertex colour gives); the power sign breathes 170..255.
-        if(listed(keypad_meshes,mesh)) return glow_copy(0,mesh,keypad_level);
-        if(listed(sign_meshes,mesh)) return glow_copy(1,mesh,170+(uint32_t)(85*power_pulse()));
+        // a vertex colour gives); the power sign steady at sign_level.
+        if(keypad_mesh(mesh)) return glow_copy(0,mesh,keypad_level);
+        if(sign_mesh(mesh)) return glow_copy(1,mesh,sign_level);
     }
     if(!duke_look() || !monitor_mesh(mesh) || !allocate()) return 0;
     last_template=mesh;
@@ -341,7 +344,7 @@ bool keypad_mesh(uint32_t mesh) {
 }
 // D54: ref is the prop (the TV, or the power sign); when it breaks
 // (prop_state.h) the light sputters out from broke_ms (standing 0).
-struct Emitter {double p[3];float rgb[3];float strength,radius;bool tv,pulse;PropRef ref;int standing=1;uint32_t broke_ms=0;};
+struct Emitter {double p[3];float rgb[3];float strength,radius;bool tv;PropRef ref;int standing=1;uint32_t broke_ms=0;};
 std::vector<Emitter> emitters;
 std::vector<uint32_t> monitor_props;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,scan_loads=~0u;
@@ -371,7 +374,7 @@ void scan_props() {
             const uint32_t mesh=psx_mod_read_word(o+0x44);
             const bool tv=monitor_mesh(mesh),sign=!tv && sign_mesh(mesh);
             // A keypad counts when the game makes it usable (subtype +0x34).
-            const bool keypad=!tv && !sign && keypad_mesh(mesh) && psx_mod_read_byte(o+0x34)!=0;
+            const bool keypad=!tv && !sign && keypad_mesh(mesh) && psx_mod_read_byte(o+0x34)!=0;   // the power light's anchor
             if(!tv && !sign && !keypad) continue;
             Place pl{};pl.mesh=mesh;pl.o=o;for(int k=0;k<3;++k) pl.p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             pl.yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*3.14159265358979/4096);
@@ -386,24 +389,19 @@ void scan_props() {
             emitters.push_back(e);
         }
     }
-    for(const Place& k:keypads) if(found<4 && !listed(keypad_meshes,k.mesh)) keypad_meshes[found++].store(k.mesh,std::memory_order_relaxed);
-    for(unsigned i=found;i<4;++i) keypad_meshes[i].store(0,std::memory_order_relaxed);
-    // A power sign glows when a usable keypad is right by it (the power
-    // switch); it throws a pulsing electric light on the wall in front of it.
-    unsigned signs_found=0;
+    // A power sign with a usable keypad right by it (the power switch) throws
+    // a steady electric light on the wall in front of it (D17BM: it pulsed).
     for(const Place& g:signs) for(const Place& k:keypads) {
         double d=0;for(int i=0;i<3;++i) d+=(g.p[i]-k.p[i])*(g.p[i]-k.p[i]);
         if(d>600.0*600.0) continue;
-        if(signs_found<4 && !listed(sign_meshes,g.mesh)) sign_meshes[signs_found++].store(g.mesh,std::memory_order_relaxed);
         const double ca=std::cos(g.yaw),sa=std::sin(g.yaw);
         Emitter e{};const double c[3]={-260*sa,110,-260*ca};  // in front of the panel (model -z), between sign and keypad
         for(int i=0;i<3;++i) e.p[i]=g.p[i]+c[i];
-        e.rgb[0]=0.38f;e.rgb[1]=0.62f;e.rgb[2]=1.0f;e.strength=power_strength;e.radius=power_radius;e.pulse=true;   // electric blue-white
+        e.rgb[0]=0.38f;e.rgb[1]=0.62f;e.rgb[2]=1.0f;e.strength=power_strength;e.radius=power_radius;   // electric blue-white
         e.ref=prop_ref(g.o);
         emitters.push_back(e);
         break;
     }
-    for(unsigned i=signs_found;i<4;++i) sign_meshes[i].store(0,std::memory_order_relaxed);
 }
 // The game culls a prop by the bounds it keeps (+0x4c: min x,y,z, a fourth
 // half, max x,y,z, radius at +0x5a, copied from its mesh). A monitor's are
@@ -432,6 +430,7 @@ void apply_bounds(bool duke) {
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
     ++frames;
+    if(input_modernized()) glow_allocate();   // D17BM: before any redraw worker is forked
     const uint32_t level=psx_mod_read_word(0x800be570u);
     const bool modern=input_modernized();
     const uint32_t loads=psx_mod_savestate_loads();   // D54: a load rescans (props broken or standing again)
@@ -465,7 +464,7 @@ unsigned lights(PSXModLight* out,unsigned room) {
     unsigned n=0;
     for(const Near& q:near) {
         if(n>=room || n>=6) break;
-        const Emitter& e=*q.e;float k=e.strength*(e.tv?flick:e.pulse?0.45f+0.55f*power_pulse():1.0f);
+        const Emitter& e=*q.e;float k=e.strength*(e.tv?flick:1.0f);
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.ref.o);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.radius;
@@ -510,6 +509,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_security_monitor) {
     if(const char* t=std::getenv("DNTTK_SCREEN_LEVEL")) ttk::screen_base=(uint32_t)std::clamp(std::atoi(t),64,251);
     if(const char* t=std::getenv("DNTTK_POWER_LIGHT")) std::sscanf(t,"%f %f",&ttk::power_strength,&ttk::power_radius);
     if(const char* t=std::getenv("DNTTK_KEYPAD_GLOW")) ttk::keypad_level=(uint32_t)std::clamp(std::atoi(t),64,255);
+    if(const char* t=std::getenv("DNTTK_POWER_SIGN_GLOW")) ttk::sign_level=(uint32_t)std::clamp(std::atoi(t),64,255);
     psx_mod_register_function_entry_plugin("ttk.security.monitor",0x80026164u,ttk::composition_hook);
     ttk::security_tv_swap=ttk::swap;
     ttk::security_tv_lights=ttk::lights;

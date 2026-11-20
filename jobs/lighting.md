@@ -1491,7 +1491,7 @@ Acceptance: the lamp lights the room around it.
 
 ### D57F - Time-portal machine crystal slots glow when filled (OBEY OR DIE)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57, D08A43.**
+**Status: Done (user-accepted 2026-11-20: "lock it in and close it out"). Dependencies: D57, D08A43.** [Note 523](../documentation/523-d57f-crystal-slot-glow.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: when the crystals are put into the final time-portal
@@ -1499,6 +1499,85 @@ machine, the slots should glow, in the visual language of the original
 crystal holders. Work: a glow and light per filled slot, in the crystal's
 colour; correct after loads. Acceptance: an elegant glow per inserted
 crystal, nothing on empty slots.
+
+Work log, 2026-11-20 (Needs playtest; [note 523](../documentation/523-d57f-crystal-slot-glow.md)):
+- Found: the start holders' coloured light is ours, the D41D1 sign lamp at
+  each crystal (`level00/05/09.lights`), bound to the crystal by type and
+  place (D54). A crystal set into the time machine (level 5 holders 7, 10,
+  11, the same generic holder as its first) sits at a new place, so it had
+  no lamp: dark grey holders.
+- Fix (`prop_lights.cpp`, Modernized Polymorph, game-wide): a crystal seated
+  in a crystal holder where no level lamp is bound to it gets a steady live
+  light with the colour, reach, strength and offset of its type's level lamp
+  (`level_lamp_bound`, new in `level_lights.inc`); it goes when taken.
+  Start holders unchanged. Devices left alone: the first build also lit the
+  D08A43 conveyor slot's crystal, which turned the red brick wall behind it
+  muddy orange; rejected. Console `lamp crystals off|on` for A/B.
+- Lab (fresh `level 5`, private cards, offscreen): blue and green set into
+  holders 10 and 11, then red into 7 (another run): each lit in its colour,
+  empty holders dark; kept through a savestate save and load; green taken
+  back out with E: its light goes (trace 1 -> 0). Conveyor slot: crystal
+  in, no light. Shots `research/before-after/D57F/` (local). Unit tests OK.
+- Not done: no extra halo (the light on the holder is the start holders'
+  look; a D41S-style halo is the next step if wanted); levels 0 and 9 not
+  exercised; the user's play through OBEY OR DIE is the playtest.
+
+Work log, 2026-11-20, revision 2 (user: the top part of the machine should
+not look like an emitter; only the floor panel and filled slots; if
+anything, its dead centre): the hanging top (type 192, levels 0 and 5) has
+no lamp; the game lights its Gouraud faces nearly white. In Modernized
+Polymorph its vertex colours are now scaled to 0.45 (dark metal under the
+room's and the pad's light) and a soft cool halo breathes at its centre disc
+over the pad; it gives no light. Checked at the user's UI slot 9 save (level
+0's machine, green and blue in): region mean (72, 90, 126) -> (51, 70, 106);
+the green and blue crystals lit there too. Note 523 revision 2.
+
+Work log, 2026-11-20, revision 3 (user: "dont have that as an emitter.
+instead, just emit light from the centre part between it's claws"; the
+blood looked self-lit): the top still glowed because since D41P a model
+takes the bake of the floor under it, here the pad under its blue lamp. The
+top now takes no floor bake (live lamps at their real distance), keeps 0.6
+of the game's light, and a live blue light with the halo sits at its centre
+between the claws. UI slot 9: top bright pixels (101, 126, 184) -> (70, 84,
+113); level 5 the same. The blood is that bright with all our lamps off (its
+own look). A general "hanging props skip the floor bake" rule touched 33
+props in a level tour, so it is not in this job. Note 523 revision 3.
+
+Work log, 2026-11-20, revision 4 (user accepted the top: "without a doubt,
+thats the one!"; the blood in UI slot 9 still glowed): revision 3's blood
+reading was wrong. The game draws a blood pool (flat, additive semi mode 1)
+onto black before the floor (solid crimson, Vanilla (72, 6, 4)); our D17AT
+host draw came after the floor and added it: (125, 28, 27), with or without
+any light. Such faces are now drawn opaque: (62, 5, 2), the game's (74, 7,
+3). Game-wide, `model_depth.inc`; `DNTTK_BLOOD_OPAQUE=0` restores. A shader
+emitter-rule change was tried, made no difference and was reverted
+(framework byte-identical). Note 523 revision 4.
+
+Work log, 2026-11-20, revision 5 (user, UI slot 6: with `dnstuff` crystals
+the machine did not open and red did not show): D08A43's slot rule took red
+from machine holder 7 to an LA switch (type 477, +0x35 1 = on, red's
+number) and emptied the holder. Fixed in `crystal_slots.inc` (devices need
+the slot's and holders' type flags 0x01008000; a holder-seated crystal never
+moves; crystals already moved return to Duke). UI slot 6: red returned,
+inserted, the portal opens; level 5 conveyor cases pass. Note 523 revision
+5, note 519.
+
+Work log, 2026-11-20, revision 6 (user: the open portal looks black):
+revision 4's opaque rule also caught the portal's sparkle, an additive
+glow whose palettes are mostly near black. Only palettes with no near-black
+blended entries (stains such as blood) are drawn opaque now, read from the
+neon scan's async VRAM snapshot (or one of our own with LIGHTING ORIGINAL)
+into a table shared with the redraw workers. UI slots 6 and 9, RELIT and
+ORIGINAL: portal as Vanilla, blood solid. Note 523 revision 6.
+
+Work log, 2026-11-20, revision 7 (user: the pad under the portal sprite
+flickers; "use the real display"): reproduced on the real display. The pad
+stands exactly on a corner of the bake's 128-unit floor grid, and the floor
+lookup (D41P, from the view with sub-unit rounding) jumped between four
+floors and none as the eye moved. Lookup points snapped to 8 units: one
+floor every frame, the pad steady on the real display. Note 523 revision 7.
+
+Accepted 2026-11-20. User: "lock it in and close it out". Done.
 
 ### D57G - Iron-ring chandeliers give light (RESISTANCE IS FEUDAL)
 

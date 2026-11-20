@@ -1272,7 +1272,39 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     }
     level_lamp_snapshot();
 }
+// D57F (prop_lights.h level_lamp_bound): is a lamp bound to this prop here,
+// and else what does the level's lamp for this prop type look like.
+static int level_lamp_bound_to(uint16_t type,const int32_t p[3],BoundLamp* like) {
+    if(level_lamps_level!=psx_mod_read_word(0x800be570)) return -1;
+    int found=0;
+    for(const LevelLamp& l:level_lamps) for(const PropRef& r:l.props) {
+        if(r.type!=type) continue;
+        if(r.p[0]==p[0] && r.p[1]==p[1] && r.p[2]==p[2]) return 2;
+        if(!found && like) {
+            for(int c=0;c<3;++c) {like->rgb[c]=l.rgb[c];like->off[c]=(float)(l.p[c]-r.p[c]);}
+            like->radius=(float)l.radius;like->k=l.k;
+        }
+        found=1;
+    }
+    return found;
+}
 static bool lamp_bake_is_active();   // lamp_bake.inc
+// D57F: with LIGHTING ORIGINAL the neon scan (and its VRAM snapshot) never
+// runs, so its async snapshot slot is free: one of our own a level, for the
+// renderer's palette checks (near_clip_set_vram). Game thread.
+static void level_vram_share_update() {
+    static std::shared_ptr<std::vector<uint16_t>> pending;static uint32_t pending_level=~0u,seen_level=~0u,seen_loads=~0u,since=0,ticks=0;
+    ++ticks;
+    if(lights_enabled() || !gameplay_context()) {pending.reset();return;}
+    const unsigned level=psx_mod_read_word(0x800be570),loads=psx_mod_savestate_loads();
+    if(level!=seen_level || loads!=seen_loads) {seen_level=level;seen_loads=loads;since=ticks;pending.reset();}
+    if(!pending) {
+        if(near_clip_has_vram(level) || ticks-since<45) return;   // a moment after the load, as the neon scan
+        pending=std::make_shared<std::vector<uint16_t>>(1024*512);pending_level=level;
+        if(!gpu_vram_copy_async(pending->data(),1)) return;
+    } else if(!gpu_vram_copy_async(pending->data(),0)) return;
+    near_clip_set_vram(std::move(pending),level);pending.reset();
+}
 // Game thread, beside spawn_update (same guards for the aim query).
 static void level_lamps_update(CPUState* cpu) {
     if(!lights_enabled() || !gameplay_context()) return;
@@ -1347,6 +1379,7 @@ static void level_lamps_update(CPUState* cpu) {
     if(neon_pending && (neon_pending_gen!=neon_gen || neon_job_level!=level)) {neon_pending.reset();neon_vram_wait=false;}
     if(neon_pending && !neon_vram_wait) {
         auto snap=std::move(neon_pending);neon_pending.reset();
+        near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>>(snap,&snap->vram),level);   // D57F
         neon_job=std::async(std::launch::async,[snap]{return neon_scan(*snap);});
     }
     if(neon_job.valid() && neon_job.wait_for(std::chrono::seconds(0))==std::future_status::ready) {
@@ -1380,7 +1413,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!*arg || !std::strcmp(arg,"help")) {
         say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
-        say("  save | reload | clear | off | on | gate on|off | props on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
+        say("  save | reload | clear | off | on | gate on|off | props on|off | crystals on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
         say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
         say("  ambient [P [unlit|outdoor|room N|here]] | ambient clear [room N|here]: how far RELIT dims this level's painted light");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
@@ -1389,6 +1422,8 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     }
     if(!std::strcmp(arg,"off")) {level_lamps_shown.store(0);say("Lamp: level lights hidden (session)");return true;}
     if(!std::strcmp(arg,"on")) {level_lamps_shown.store(1);say("Lamp: level lights shown");return true;}
+    if(!std::strcmp(arg,"crystals off")) {prop_crystals_enabled.store(false);say("Lamp: moved crystals dark (session)");return true;}   // D57F
+    if(!std::strcmp(arg,"crystals on") || !std::strcmp(arg,"crystals")) {prop_crystals_enabled.store(true);say("Lamp: moved crystals lit");return true;}
     if(!std::strcmp(arg,"pickups off")) {prop_pickups_enabled.store(false);say("Lamp: glowing pickups dark (session)");return true;}
     if(!std::strcmp(arg,"pickups on") || !std::strcmp(arg,"pickups")) {prop_pickups_enabled.store(true);say("Lamp: glowing pickups lit");return true;}
     if(!std::strcmp(arg,"props off")) {prop_lights_enabled.store(false);say("Lamp: woodburners and chandeliers dark (session)");return true;}

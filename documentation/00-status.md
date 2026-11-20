@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-20 - D57F time machine crystals closed out (Done)
+
+- D57F ([note 523](523-d57f-crystal-slot-glow.md)): a crystal set into a crystal holder other than its first (the LA and OBEY OR DIE time machines) shines in its colour, as its first holder's lamp (`prop_lights.cpp`, `level_lamp_bound`). The machine's hanging top is dark metal with its light (a live light and a soft glow) between the claws, and takes no floor bake. Follow-ups found in the playtest, all game-wide: flat additive small models that are stains (blood) are drawn solid as the game does, glows (the open portal) stay additive, judged from the level's VRAM snapshot through a table shared with the redraw workers (`model_depth.inc`); D08A43's slot rule needs real crystal devices (type flags 0x01008000) and never takes a holder-seated crystal, so LA's switches no longer steal red, and a crystal already lost returns to Duke on load (`crystal_slots.inc`, note 519); the bake's floor lookups snap to 8 units, so a model on a grid corner (the portal pad) no longer flickers (`near_clip.cpp`, checked on the real display). User-accepted ("lock it in and close it out").
+
 ## 2026-11-20 - D17BI flat props closed out (Done)
 
 - D17BI ([note 522](522-d17bi-flat-props.md)): the two magazines on the desk in OBEY OR DIE's upstairs apartment (room 8) no longer flicker. They lie exactly on the desk top, and as separate props both had the same contact lift; a flat prop (every vertex on one plane) now takes 4 units instead of 2 (`near_clip.cpp`, developer `DNTTK_FLAT_PROP_CONTACT=2` for the old rule). Verified offscreen at 180 Hz; user-accepted ("accepted!! lock it in and close it out"). Test save: UI slot 12, facing the desk from the far corner (the ladder save it replaced: `research/savestates/d17bl-2/`).

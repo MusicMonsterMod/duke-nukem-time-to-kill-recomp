@@ -14,7 +14,9 @@
 
 namespace ttk {
 // D57G: prop_light_ring, the five-candle iron-ring chandelier (prop type 372).
-enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3};
+// D57F: prop_light_portal_top, the time machine's hanging top (prop type 192,
+// levels 0 and 5): no light of its own, darker metal, a glow at its centre.
+enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,
@@ -36,8 +38,22 @@ inline unsigned (*prop_light_publish)(PSXModLight* out,unsigned room,bool (*show
 // h then foreshortens when looked at along the axis (not below 40%).
 struct PropGlow {bool billboard;float p[4][3];float w,h,anchor_y,sway;int u,v,tw,th;uint8_t rgb[3];bool upright;};
 inline unsigned (*prop_light_glows)(uint32_t mesh,int kind,PropGlow* out,unsigned max)=nullptr;
+// D57F: the vertex colour scale for a mesh of this kind (1: as the game
+// lit it), when the drawn extras are on.
+inline float (*prop_light_tone)(int kind)=nullptr;
 // Paints the flame, halo and ember textures into the second bank.
 inline void (*prop_light_paint_bank)(uint16_t* bank)=nullptr;
+
+// D57F: the level lamp bound to a prop (D41D1 sign lamps: each energy crystal
+// has one at the holder it starts in). Returns 2 when a lamp is bound to a
+// prop of this type at exactly p (it lights the prop there), 1 when the level
+// has a lamp bound to this type elsewhere (*like filled from it: colour,
+// radius, strength and its offset from its prop), 0 when none, -1 when the
+// level's lamps are not loaded. Game thread. Set by modern_controls.cpp.
+struct BoundLamp {float rgb[3],radius,k,off[3];};
+inline int (*level_lamp_bound)(uint16_t type,const int32_t p[3],BoundLamp* like)=nullptr;
+// D57F: console "lamp crystals off|on" (moved crystals' lights, session).
+inline std::atomic<bool> prop_crystals_enabled{true};
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};

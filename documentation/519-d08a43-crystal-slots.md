@@ -135,6 +135,40 @@ time; after 10 s of waiting the first press worked. The lab places Duke by
 warp, so contact differs from walking up; whether Vanilla behaves the same
 was not checked (the warp is Modernized only). Answered: see Cheated crystals above.
 
+## LA's switches took the red crystal (found in D57F, 2026-11-20)
+
+User (D57F playtest, UI slot 6, level 0's time machine with `dnstuff`
+crystals): "the thing didnt open ... the red crystal doesnt show in the
+slot". The red crystal had been set into machine holder 7 and was then
+moved by this rule into object 21, a type 477 switch (kind 1, LEVEL00
+overlay handler 0x800cc14c), whose +0x35 is 1 when on, red's number. Its
+revision 3 step emptied holder 7 (+0x35 0) as if the crystal had been left
+over from the level's start, so the machine missed red and never opened.
+Green (2) and blue (3) are named only by holders and were safe.
+
+Fix (`crystal_slots.inc`, see note 523 revision 5):
+
+- A device's type must carry the type-flag bits the conveyor slot (728,
+  0x01009002) and the holders (0x01109002) share, 0x01008000; the LA
+  objects with +0x35 1 (types 477 0x0040100a, 478 0x01001002, 206
+  0x00409002, 582 0x00009022, 169 0x80109022) lack one or both. (Object
+  kind or an overlay handler does not tell them apart: every level's own
+  devices run overlay code, LA's switches too.)
+- A crystal a holder seated (exactly 194 above it, centred: the holder's
+  own use) never leaves it; only a crystal still at the level's start spot
+  (a cheat's flag) does, as revision 3 meant.
+- Repair: a used crystal lying exactly where this rule shows one in an
+  object that fails the test goes back to Duke, found. The user's UI slot 6
+  recovers on load.
+
+Evidence: UI slot 6 (private copy): on load "crystal 801d5e24 (type 176) was
+left in 801d63c4 (type 477), not a crystal device: back to Duke"; red set
+into holder 7 stays seated (22537, -7263, 46634) and the pad turns into the
+active portal (`research/before-after/D57F/machine-opens-after-red.png`).
+Level 5 regression (this note's `cycle` and `cheat` cases): green shown in
+the conveyor slot and taken back; a `dnstuff` red shown, its holder emptied,
+taken back.
+
 ## Limits
 
 - Tested with the green crystal; the red holder was not reached by the lab's

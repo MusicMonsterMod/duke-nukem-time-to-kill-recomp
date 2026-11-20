@@ -2076,6 +2076,13 @@ browsed crystal in the mission inventory at a crystal device now uses that
 crystal (the others set aside in their own flag words for the use). Lab:
 `dnstuff`, green chosen at the slot, red and blue kept.
 
+Follow-up, 2026-11-20 (found in the D57F playtest, UI slot 6): the rule took
+the red crystal out of LA's time machine into a switch whose +0x35 (1, on)
+named red, so the machine never opened. Devices now need the conveyor
+slot's and the holders' type flags (0x01008000); a crystal a holder seated
+never moves; a crystal already moved returns to Duke. Note 519 section "LA's
+switches took the red crystal".
+
 ### D08A44 - Duke 3D-style night vision look
 
 **Status: Done, user-accepted 2026-11-16 ("you are right. we will leave it just like this. the duke3d style night vis becomes the default setting in duke ttk. lock it in and close it out"). Dependencies: D08A23 (Done).** [Note 499](documentation/499-d08a44-duke3d-night-vision.md).

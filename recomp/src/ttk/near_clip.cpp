@@ -75,6 +75,9 @@
 #include <process.h>
 #else
 #include <unistd.h>
+#if defined(__linux__) || defined(__APPLE__)
+#include <sys/mman.h>
+#endif
 #endif
 
 extern "C" uint8_t* g_psx_ram;
@@ -473,6 +476,7 @@ struct Frame {
     bool nv_glow=false;   // D08A44: a night-vision creature (renderer remap)
     bool glow=false; // D41D1: a neon sign prop: gives light, never lit
     int64_t floor_surf=-1;   // D41P: the baked floor under this mesh's origin (-1 not looked up)
+    bool hanging=false;      // D57F: a prop hanging far over its floor: no floor bake
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -704,6 +708,13 @@ void shadow_probe_corner(float x,float y,float z) {
 // their view-space corners are where they appear before the eye, so world
 // lights reach them where the player sees them. The first-person layer's
 // translucent faces (the muzzle flash itself) keep their own colour.
+// D57F: a point for the bake's floor lookup, from the view back to the world,
+// carries the view's rounding (under a unit). A model on a 128-unit cell
+// line (the LA time portal's pad at x 23552, z 48128, a cell corner) took a
+// different floor's light from frame to frame as the eye moved, and its
+// lighting flickered. Snapped to 8 units, the same point always finds the
+// same cell.
+inline float bake_snap(double v) {return (float)(std::floor(v/8.0+0.5)*8.0);}
 bool lit_frame(const Frame& f,const Poly& poly) {
     if(!light_frame || f.sky || f.biomask || poly.depth_only || f.glow || poly.glow) return false;
     if(f.duke_lit) return unified() && !(f.viewmodel && (poly.command&0x02000000u));
@@ -888,7 +899,14 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                     if(light_eye_valid) {
                         const double t[3]={(double)f.g.tr[0],(double)f.g.tr[1],(double)f.g.tr[2]};
                         double o[3];for(int k=0;k<3;++k) o[k]=m[3*k]*t[0]+m[3*k+1]*t[1]+m[3*k+2]*t[2]+light_eye[k];
-                        f.floor_surf=lamp_bake_floor((float)o[0],(float)o[1],(float)o[2]);
+                        // D57F: the time machine's top hangs 2450-4200 units
+                        // over its pad, whose lamp lit it from the floor as if
+                        // beside it: it takes the live lamps (f.hanging).
+                        if(!f.hanging)
+                        f.floor_surf=lamp_bake_floor(bake_snap(o[0]),(float)o[1],bake_snap(o[2]));
+                        // Developer: DNTTK_FLOOR_TRACE_MESH=<hex mesh> logs its lookups.
+                        if(static const uint32_t tm=[]{const char* e=std::getenv("DNTTK_FLOOR_TRACE_MESH");return e?(uint32_t)std::strtoul(e,nullptr,16):0u;}();tm && light_probe_cur==tm)
+                            std::fprintf(stderr,"[TTK floor] mesh %08x origin %.2f %.2f %.2f floor %lld\n",tm,o[0],o[1],o[2],(long long)f.floor_surf);
                         if(!f.floor_surf && std::getenv("DNTTK_BAKE_CENSUS")) {static thread_local unsigned k;if(k++%400==0) std::fprintf(stderr,"[TTK bake census] no floor: mesh %08x object %d viewmodel %d duke %d at %.0f %.0f %.0f\n",f.mesh,(int)f.object,(int)f.viewmodel,(int)f.duke_lit,o[0],o[1],o[2]);}
                     }
                 }
@@ -900,12 +918,12 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                 const bool smooth=nv[0]!=0 || nv[1]!=0 || nv[2]!=0;
                 if(i==0) {
                     poly_floor=0;
-                    if(model_bake_floors && light_eye_valid && !poly.surface && (!smooth || f.floor_surf==0)) {
+                    if(model_bake_floors && light_eye_valid && !poly.surface && !f.hanging && (!smooth || f.floor_surf==0)) {
                         if(!smooth && f.floor_surf>0) poly_floor=(uint32_t)f.floor_surf;   // a prop: its own floor first
                         else {
                             double c[3]={0,0,0};
                             for(unsigned j=0;j<n;++j) for(int k=0;k<3;++k) c[k]+=(m[3*k]*v[j].p[0]+m[3*k+1]*v[j].p[1]+m[3*k+2]*v[j].p[2])/n;
-                            poly_floor=lamp_bake_floor((float)(c[0]+light_eye[0]),(float)(c[1]+light_eye[1]),(float)(c[2]+light_eye[2]));
+                            poly_floor=lamp_bake_floor(bake_snap(c[0]+light_eye[0]),(float)(c[1]+light_eye[1]),bake_snap(c[2]+light_eye[2]));
                         }
                         if(poly_floor && !smooth && n>=3) {
                             double q[3][3];
@@ -2800,6 +2818,10 @@ void object(CPUState* cpu) {
     const bool jewel_on=jewel_frame(mesh,viewmodel || first_person_duke_drawing() || third_person_duke_drawing(),jewel);
     const bool game_view=game_camera_view();   // D52
     light_probe_cur=mesh;
+    // D57F: a prop whose game light is too bright (the time machine's top).
+    const int prop_kind=prop_light_kind && !viewmodel ? prop_light_kind(mesh) : 0;
+    const float prop_tone=prop_kind && prop_light_tone ? prop_light_tone(prop_kind) : 1.0f;
+    f.hanging=prop_kind==prop_light_portal_top && prop_tone!=1.0f;   // the extras on
     f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
@@ -3027,6 +3049,11 @@ void object(CPUState* cpu) {
             if(gouraud) c=psx_mod_read_word(palette+4*psx_mod_read_byte(record+color_bytes+j));
             else if(textured) c=psx_mod_read_word(context+((bits&2)?0x5c:0x54));
             else c=psx_mod_read_word(palette+4*psx_mod_read_byte(record+4));
+            if(prop_tone!=1.0f) {
+                uint32_t t=0;
+                for(int k=0;k<3;++k) t|=(uint32_t)std::lround(((c>>(8*k))&0xff)*prop_tone)<<(8*k);
+                c=t;
+            }
             p.colors[j]=c&0xffffff;
         }
         if(folded) {
@@ -3243,6 +3270,11 @@ void near_clip_host_world_unlit(uint32_t mesh) {
 uint32_t near_clip_object_animation() {return last_object_animation;}
 int near_clip_object_null(int mode) {const int old=object_null_mode;if(mode>=0) object_null_mode=mode;return old;}
 uint64_t near_clip_object_null_count() {return object_stats.skipped;}
+void near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>> vram,uint32_t level) {
+    if(std::getenv("DNTTK_STAIN_TRACE")) std::fprintf(stderr,"[TTK stain] VRAM snapshot for level %u (%zu words)\n",level,vram?vram->size():0);
+    model_vram=std::move(vram);model_vram_level=level;
+}
+bool near_clip_has_vram(uint32_t level) {return model_vram && model_vram_level==level;}
 void near_clip_set_glow_faces(std::vector<uint32_t> faces) {
     std::sort(faces.begin(),faces.end());faces.erase(std::unique(faces.begin(),faces.end()),faces.end());glow_faces.swap(faces);
 }

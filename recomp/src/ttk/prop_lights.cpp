@@ -13,6 +13,12 @@
 //   halo, a warm light among the candles for the ceiling and arms, and a
 //   broad soft fill that reaches the room below.
 //
+// D57F: an energy crystal (types 176-178) set into a crystal holder other
+// than the one it starts in (the time machine's three holders in OBEY OR
+// DIE) shines there as in its first holder: a light in the
+// colour, reach and strength of the level lamp bound to it there (D41D1 sign
+// lamp), at the same offset; it goes when the crystal is taken.
+//
 // Both are found by their model data, so every copy in every level takes
 // part. The lights join the D41A list (DYNAMIC LIGHTS on) after the level
 // lamps and the D53 screens, nearest to Duke first, gated by the room
@@ -30,6 +36,7 @@
 #include <SDL.h>
 #endif
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -70,7 +77,17 @@ bool ring_mesh(uint32_t mesh) {
     return mesh_header(mesh,51,vp,list) && psx_mod_read_word(list)==0x0014002cu && psx_mod_read_word(vp)==0x03b4fffcu &&
            psx_mod_read_half(vp+4)==0x033cu && psx_mod_read_word(vp+8*50)==0xfc450000u && psx_mod_read_half(vp+8*50+4)==0xffbdu;
 }
+// D57F: the time machine's hanging top (prop type 192; levels 0 and 5): 40
+// vertices, an octagonal body (y -763..-87) on four prongs down to y 666.
+// List header 0x0018002c, first vertex (-590, -763, -244), the last
+// (162, 666, -518).
+bool portal_top_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
+           psx_mod_read_half(vp+4)==0xff0cu && psx_mod_read_word(vp+8*39)==0x029a00a2u && psx_mod_read_half(vp+8*39+4)==0xfdfau;
+}
 int kind_of(uint32_t mesh) {
+    if(portal_top_mesh(mesh)) return prop_light_portal_top;
     if(stove_mesh(mesh)) return prop_light_stove;
     if(chandelier_mesh(mesh)) return prop_light_chandelier;
     if(ring_mesh(mesh)) return prop_light_ring;
@@ -95,6 +112,9 @@ Tune ring_fill{{1.0f,0.74f,0.46f},0.6f,6000};
 // in every level, dropped or spawned, takes part. The atomic health (581):
 // a red and blue atom in cyan orbits; a cool cyan-blue light, a slow throb.
 Tune atomic_light{{0.42f,0.82f,1.30f},0.85f,1700};
+// D57F: an energy crystal away from its first holder, when the level binds
+// no lamp of its type (a custom level): the D41D1 sign scan's colours.
+Tune crystal_red{{1.00f,0.09f,0.36f},1.0f,1791},crystal_blue{{0.26f,0.19f,1.00f},1.0f,1758},crystal_green{{0.31f,1.00f,0.25f},1.0f,1710};
 struct PickupLight {uint16_t type;const Tune* tune;float lift;};
 const PickupLight pickup_lights[]={{581,&atomic_light,260}};
 void tune(const char* name,Tune& t) {
@@ -108,6 +128,17 @@ float flame_w=40,flame_h=84,flame_rgb=175,halo_size=240,halo_rgb=80;
 // candle block); a soft halo round each (developer: DNTTK_PROP_RING_HALO=
 // "size level y") reads as candlelight from the hall below.
 float ring_halo_size=420,ring_halo_rgb=70,ring_halo_y=500;
+// D57F: the machine's top. The game lights it nearly white over a dark room,
+// so the whole metal read as a lamp; its colours are scaled to
+// portal_top_tone, and the light comes from its centre between the claws,
+// over the pad: a live light there (portal_light) and a soft glow at that
+// point (developer: DNTTK_PROP_PORTAL_TOP="tone size level y").
+float portal_top_tone=0.6f,portal_top_halo=520,portal_top_level=95,portal_top_y=260;
+// Its light, in the pad lamp's colour (the D41D1 sign lamp of type 179),
+// from the centre between the claws onto them and down to the pad
+// (developer: DNTTK_PROP_LIGHT_PORTAL).
+Tune portal_light{{0.35f,0.63f,1.00f},0.9f,1900};
+float portal_breath(uint32_t ms) {return 0.925f+0.075f*std::sin((float)(ms/1000.0*2*pi/3.0));}
 // Model points (y down; the stove's door faces model +z).
 // D41Q: each arm plane maps texture u 96 at its outer corner to u 127 at the
 // column; the candle is texel column u 100 (centre 100.5), its tip the top
@@ -125,7 +156,8 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 // ---- props and their lights (game thread) --------------------------------
 // D54: ref is the prop; when it breaks (prop_state.h) the light sputters out
 // from broke_ms (standing 0) and the scans no longer find it.
-struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;};
+struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;
+               bool crystal=false;Tune own{};bool portal=false;};   // D57F: own = the crystal's light (its level lamp's look)
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
@@ -134,6 +166,8 @@ size_t stoves=0,chandeliers=0,rings=0;
 // appear within a sixth of a second); one taken goes dark at once.
 std::vector<Emitter> pickups;
 uint32_t pickup_frame=0;
+// D57F: crystals away from their first holder, rescanned with the pickups.
+std::vector<Emitter> crystals;
 // D56: a pickup's slow throb, about 0.8..1.0 (1.4 s a breath).
 float pickup_level(uint32_t ms,uint32_t seed) {
     return 0.90f+0.10f*std::sin((float)(ms/1000.0*2*pi/1.4+(seed&255)*0.1));
@@ -162,7 +196,11 @@ void scan_props() {
             double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             const double yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*pi/4096);
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
-            if(kind==prop_light_stove) {
+            if(kind==prop_light_portal_top) {
+                // D57F: the light is the centre between the claws, not the metal.
+                const float at[3]={0,portal_top_y,0};
+                place(e.p,p,yaw,at);e.tune=&portal_light;e.portal=true;emitters.push_back(e);
+            } else if(kind==prop_light_stove) {
                 place(e.p,p,yaw,fire_at);e.tune=&fire_light;e.fire=true;emitters.push_back(e);++stoves;
             } else if(kind==prop_light_ring) {
                 place(e.p,p,yaw,ring_at);e.tune=&ring_light;emitters.push_back(e);
@@ -204,6 +242,56 @@ void scan_pickups() {
         std::fprintf(stderr,"[TTK prop light] level %u: %zu glowing pickups\n",scan_level,found.size());
     pickups.swap(found);
 }
+// D57F: every crystal seated in a crystal holder (linked in a room; one in
+// Duke's hand is in no room) where no level lamp is bound to it.
+void scan_crystals() {
+    std::vector<Emitter> found;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    // The crystal holders (level object table 0x800d2550, kind +0x19 = 17,
+    // the generic holder 0x80092e98): a seated crystal sits 194 units above
+    // one. Devices (the conveyor slot) show their power their own way.
+    std::vector<std::array<int32_t,3>> holders;
+    for(uint32_t i=0;i<64;++i) {
+        const uint32_t o=psx_mod_read_word(0x800d2550u+4*i);
+        if(o<0x80010000u || o>0x801fff00u || (o&3) || psx_mod_read_byte(o+0x19)!=17) continue;
+        holders.push_back({(int32_t)psx_mod_read_word(o+4),(int32_t)psx_mod_read_word(o+8),(int32_t)psx_mod_read_word(o+12)});
+    }
+    auto seated=[&](const int32_t p[3]) {
+        for(const auto& h:holders) if(std::abs(p[0]-h[0])<=64 && std::abs(p[2]-h[2])<=64 && h[1]-p[1]>=120 && h[1]-p[1]<=400) return true;
+        return false;
+    };
+    // The level's lamps not loaded yet (a level change): none until they are.
+    static const int32_t nowhere[3]={0,0,0};
+    const bool ok=level_lamp_bound && level_lamp_bound(0,nowhere,nullptr)>=0 && rooms && rooms<=256 && table>=0x80010000u && table<=0x80200000u-rooms*88 && !(table&3);
+    for(uint32_t r=0;ok && r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
+        uint32_t node=psx_mod_read_word(table+88*r+head_at);
+        for(unsigned guard=0;node && guard<1024;++guard) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+            const uint32_t o=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+            if(o<0x80010000u || o>0x801fff00u || (o&3) || prop_broken_flag(o)) continue;
+            const uint16_t type=(uint16_t)psx_mod_read_half(o+0x2c);
+            if(type<176 || type>178) continue;
+            bool dup=false;for(const Emitter& e:found) dup|=e.ref.o==o;
+            if(dup) continue;
+            Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);e.crystal=true;
+            BoundLamp like{};
+            const int bound=level_lamp_bound(type,e.ref.p,&like);
+            if(bound==2 || !seated(e.ref.p)) continue;   // its own lamp lights it here; or not in a holder
+            const Tune& fallback=type==176?crystal_red:type==177?crystal_blue:crystal_green;
+            float off[3]={0,20,0};
+            if(bound==1) {e.own=Tune{{like.rgb[0],like.rgb[1],like.rgb[2]},like.k,like.radius};for(int c=0;c<3;++c) off[c]=like.off[c];}
+            else e.own=fallback;
+            e.tune=&e.own;
+            for(int c=0;c<3;++c) e.p[c]=e.ref.p[c]+off[c];
+            for(const Emitter& old:crystals) if(old.ref.o==o && old.ref.type==type) e.vis=old.vis;
+            found.push_back(e);
+        }
+    }
+    if(std::getenv("DNTTK_PROP_LIGHT_TRACE") && found.size()!=crystals.size())
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu crystals away from their first holder lit\n",scan_level,found.size());
+    crystals.swap(found);
+    for(Emitter& e:crystals) e.tune=&e.own;   // after the move
+}
 // A pickup still lies there: linked in a room, still a pickup of the same
 // type. Its light follows it (a dropped one falls to the floor).
 bool pickup_present(const PropSnapshot& snap,Emitter& e) {
@@ -215,17 +303,17 @@ bool pickup_present(const PropSnapshot& snap,Emitter& e) {
 }
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
-    if(!input_modernized()) {emitters.clear();pickups.clear();scan_level=~0u;return;}   // Vanilla: nothing
+    if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();scan_level=~0u;return;}   // Vanilla: nothing
     ++frames;
     const uint32_t level=psx_mod_read_word(0x800be570u);
     // D54: a savestate load rescans too (a prop broken since, or standing again).
     const uint32_t loads=psx_mod_savestate_loads();
     const bool rescan=level!=scan_level || loads!=scan_loads;
     if(rescan || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
-    if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) pickups.clear();scan_pickups();}
+    if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) {pickups.clear();crystals.clear();}scan_pickups();scan_crystals();}
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
-    if(!room || (emitters.empty() && pickups.empty()) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
+    if(!room || (emitters.empty() && pickups.empty() && crystals.empty()) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const uint32_t ms=now_ms();
@@ -233,7 +321,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const PropSnapshot& snap=prop_snapshot_take();
     if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
         e.standing=0;e.broke_ms=ms;
-        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":"candle",e.ref.o);
+        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":"candle",e.ref.o);
     }
     // Room gate (level_lamp_room_lit): a light comes on at once, fades out over 0.25 s.
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
@@ -244,6 +332,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const bool snap_ok=snap.valid || !snap.linked.empty();
     auto consider=[&](Emitter& e) {
         if(e.pickup && snap_ok && !pickup_present(snap,e)) return;
+        if(e.crystal && snap_ok && !prop_standing(snap,e.ref)) return;   // D57F: taken (or moved) since the scan
         const float target=!shown || shown(e.room)?1.0f:0.0f;
         e.vis=e.vis<target?target:std::max(target,e.vis-step);   // D41E: on at once, out over 0.25 s
         const double dx=e.p[0]-duke[0],dy=e.p[1]-duke[1],dz=e.p[2]-duke[2];
@@ -254,6 +343,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     };
     for(Emitter& e:emitters) consider(e);
     if(prop_pickups_enabled.load(std::memory_order_relaxed)) for(Emitter& e:pickups) consider(e);
+    if(prop_crystals_enabled.load(std::memory_order_relaxed)) for(Emitter& e:crystals) consider(e);
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
     unsigned n=0;
     const unsigned cap=std::min(room,6u);const double cut=near.size()>cap ? near[cap].d : 32000.0;
@@ -261,7 +351,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         if(n>=cap) break;
         const Emitter& e=*q.e;
         float k=e.tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
-        k*=e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);
+        k*=e.portal?portal_breath(ms):e.crystal?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.tune->radius;
@@ -307,6 +397,10 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
             out[n++].upright=true;   // D41Q: stands on its candle seen from below or above too
             out[n++]=billboard(x,candle_y-30,z,halo_size,halo_size,0.5f,0,prop_halo_u,0,prop_halo_w,prop_halo_h,halo_rgb*k,halo_rgb*k,halo_rgb*k);
         }
+    } else if(kind==prop_light_portal_top) {
+        // A slow breath, about 0.85..1.0 (3 s), in the pad lamp's colour.
+        const float l=portal_top_level*portal_breath(ms);   // in step with its light
+        if(n<max) out[n++]=billboard(0,portal_top_y,0,portal_top_halo,portal_top_halo,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,l*0.55f,l*0.80f,l);
     } else if(kind==prop_light_ring) {
         uint32_t vp,list;
         if(!mesh_header(mesh,51,vp,list)) return 0;
@@ -321,6 +415,8 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
     }
     return n;
 }
+
+float tone(int kind) {return kind==prop_light_portal_top && visuals() ? portal_top_tone : 1.0f;}
 
 // ---- textures -------------------------------------------------------------
 uint16_t texel(float r,float g,float b) {
@@ -375,6 +471,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING_FILL",ttk::ring_fill);
+    ttk::tune("DNTTK_PROP_LIGHT_PORTAL",ttk::portal_light);
+    ttk::tune("DNTTK_PROP_LIGHT_CRYSTAL_RED",ttk::crystal_red);
+    ttk::tune("DNTTK_PROP_LIGHT_CRYSTAL_BLUE",ttk::crystal_blue);
+    ttk::tune("DNTTK_PROP_LIGHT_CRYSTAL_GREEN",ttk::crystal_green);
     if(const char* e=std::getenv("DNTTK_PROP_RING_HALO")) std::sscanf(e,"%f %f %f",&ttk::ring_halo_size,&ttk::ring_halo_rgb,&ttk::ring_halo_y);
     if(const char* e=std::getenv("DNTTK_PROP_RING_AT")) std::sscanf(e,"%f %f",&ttk::ring_at[1],&ttk::ring_fill_at[1]);
     if(const char* e=std::getenv("DNTTK_PROP_FLAMES")) std::sscanf(e,"%f %f %f %f %f %f %f",&ttk::flame_w,&ttk::flame_h,&ttk::flame_rgb,&ttk::halo_size,&ttk::halo_rgb,&ttk::candle_at_u,&ttk::candle_y);
@@ -383,5 +483,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::prop_light_visuals=ttk::visuals;
     ttk::prop_light_publish=ttk::publish;
     ttk::prop_light_glows=ttk::glows;
+    ttk::prop_light_tone=ttk::tone;
+    if(const char* e=std::getenv("DNTTK_PROP_PORTAL_TOP")) std::sscanf(e,"%f %f %f %f",&ttk::portal_top_tone,&ttk::portal_top_halo,&ttk::portal_top_level,&ttk::portal_top_y);
     ttk::prop_light_paint_bank=ttk::paint;
 }

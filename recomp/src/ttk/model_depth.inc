@@ -249,6 +249,46 @@ void object_room_lift(CPUState* cpu) {
     if(value&bit) return;
     psx_mod_write_word(word,value|bit);object_room_word=word;object_room_bit=bit;++object_room_lifts;
 }
+// D57F: a 4-bit palette (CLUT word) whose blended (STP) entries are all
+// coloured, none near black (every channel 3 or less of 31): a stain such as
+// blood, not a glow. Judged on the game thread from the level's VRAM
+// snapshot (near_clip_set_vram: the neon scan's, no GPU readback here) into a
+// table the redraw workers share (mapped before they fork, as the D41P floor
+// map; they never get the snapshot itself). Unknown (before the snapshot, or
+// a palette the game thread has not drawn yet): the game's blend.
+std::shared_ptr<const std::vector<uint16_t>> model_vram;uint32_t model_vram_level=~0u;
+struct StainTable {std::atomic<uint32_t> level;uint8_t v[65536];};   // level + 1 (0: none); 1 stain, 2 glow
+StainTable* stain_table=[]() -> StainTable* {
+#if defined(__linux__) || defined(__APPLE__)
+    void* m=mmap(nullptr,sizeof(StainTable),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+    if(m!=MAP_FAILED) return new(m) StainTable;   // the mapping is zero
+#endif
+    return new StainTable{};
+}();
+bool model_stain_palette(uint32_t clut) {
+    StainTable& t=*stain_table;
+    const uint32_t lv=psx_mod_read_word(0x800be570)+1;
+    const std::vector<uint16_t>* v=model_vram && model_vram_level+1==lv && model_vram->size()>=1024u*512u ? model_vram.get() : nullptr;
+    static const std::vector<uint16_t>* from=nullptr;
+    if(v && (t.level.load(std::memory_order_acquire)!=lv || v!=from)) {   // a new snapshot (this process has it: the game thread)
+        t.level.store(0,std::memory_order_release);std::memset(t.v,0,sizeof t.v);from=v;t.level.store(lv,std::memory_order_release);
+    }
+    if(t.level.load(std::memory_order_acquire)!=lv) return false;
+    clut&=0xffff;
+    if(const uint8_t k=t.v[clut]) return k==1;
+    if(!v) return false;   // a worker: the game thread judges it
+    const unsigned x=(clut&0x3f)*16,y=(clut>>6)&0x1ff;
+    bool stain=true;
+    for(unsigned i=0;i<16 && stain;++i) {
+        const uint16_t e=(*v)[y*1024+((x+i)&1023)];
+        if(!(e&0x8000)) continue;   // not blended (0: transparent)
+        const int r=e&31,g=(e>>5)&31,b=(e>>10)&31;
+        if(std::max(r,std::max(g,b))<=3) stain=false;
+    }
+    t.v[clut]=stain?1:2;
+    if(std::getenv("DNTTK_STAIN_TRACE")) std::fprintf(stderr,"[TTK stain] palette %04x: %s\n",clut,stain?"a stain (drawn solid)":"a glow (kept additive)");
+    return stain;
+}
 // 0x8002bd48 (a0 = SZ key, a1 = packet) from one of the face emitters.
 void model_link(CPUState* cpu) {
     const uint32_t ra=cpu->gpr[31];
@@ -262,7 +302,7 @@ void model_link(CPUState* cpu) {
     const uint32_t packet=cpu->gpr[5];
     if(packet<0x80010000u || packet>0x80200000u-0x40 || (packet&3)) return;
     ++model_faces;
-    const uint32_t command=psx_mod_read_word(packet+4);
+    uint32_t command=psx_mod_read_word(packet+4);   // D57F: blood may drop its semi bit
     const unsigned size=psx_mod_read_word(packet)>>24;
     const bool polygon=(command>>29)==1;
     const bool gouraud=command&0x10000000u,quad=command&0x08000000u,textured=command&0x04000000u;
@@ -346,6 +386,20 @@ void model_link(CPUState* cpu) {
     if(budget(f)<takeover_reserve) {++model_faces_budget;leave();return;}
     Poly p{};p.source=packet;p.count=corners;p.textured=textured;p.actor=false;
     p.native_order=true;p.native_slot=clamp((int32_t)cpu->gpr[4]>>3,0,0x7ff);
+    // D57F: a blood pool is additive (semi mode 1, its palette's texels STP)
+    // and the game draws it before the floor, onto black, the PS1 mask bit
+    // keeping the floor off it: solid dark crimson splats (Vanilla: blood
+    // (72, 6, 4) on a floor of 31). Host-drawn after the host floor, the same
+    // blend added the floor under it and the blood glowed (125, 28, 27).
+    // Added onto black is the texel times its colour: the face drawn opaque
+    // (palette entry 0 stays transparent). 4-bit pages only (blood's).
+    // Developer DNTTK_BLOOD_OPAQUE=0.
+    static const bool blood_opaque=env_int("DNTTK_BLOOD_OPAQUE",1,0,1)!=0;
+    // Only a stain: a glow whose palette has near-black blended entries (the
+    // LA time portal's sparkle, 0x8421: black adds nothing over its pad) stays
+    // additive; drawn opaque its black texels showed as black speckles.
+    if(blood_opaque && model_draw.flat && textured && (command&0x02000000u) && ((tpage>>5)&3)==1 &&
+       ((tpage>>7)&3)==0 && model_stain_palette(clut)) command&=~0x02000000u;
     p.command=0x30000000u|(textured?0x04000000u:0)|(command&0x03000000u);
     p.clut=clut;p.tpage=tpage;
     for(unsigned i=0;i<corners;++i) {p.idx[i]=idx[i];p.colors[i]=colors[i];p.uv[i]=uv[i];}

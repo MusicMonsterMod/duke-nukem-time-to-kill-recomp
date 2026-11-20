@@ -3137,3 +3137,33 @@ Work: find what starts the idle timer's lines and hold it while a camera
 view is active; normal idle lines return after leaving the camera. Check
 both Modernized and Vanilla (Vanilla keeps the original unless the user
 decides otherwise). Acceptance: no idle lines during a long camera view.
+
+### D17BM - A wall panel sometimes shows dimmed instead of lit (UI slot 12)
+
+**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: -.**
+
+User, 2026-11-20: "in slot 12, this panel sometimes shows weirdly dimmed
+like this, rather than lit. switching it on then turns the panel on, and i
+agree it should have a turning on animation or light up or something, but
+this look is just off." The screenshot did not reach the agent's session;
+first step: ask for it or find the panel in UI slot 12 (private card copy).
+Work: find which panel and what draws the dimmed look (the game's own off
+state, our lighting or bake, D53-style screen art, or a renderer fault), and
+why only sometimes. Then give it a clean off look and a short power-on
+light-up when it is switched on. Acceptance: the panel never shows the odd
+dimmed look; switching it on lights it up cleanly; Vanilla unchanged.
+
+### D53C - Duke's hand goes into the security screen (UI slot 10)
+
+**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: D53.**
+
+User, 2026-11-20: "slot 10 - the security screens are strange when duke
+interacts with them as he physically puts his hand into the screen. we can
+either make it so he doesnt do any hand animation at all, or make it so his
+hand doesnt physically enter the screen (the touch is presented above the
+screen level entirely)." Work: check the use pose against the screen in
+first and third person (owner: the interaction presentation; read the D36
+audit, note 257, and the D36H5 arm notes first); then either skip the hand
+animation for security screens or keep the touch in front of the screen
+surface. Acceptance: Duke's hand never goes into a security screen; the
+screen still switches to the camera as before; Vanilla unchanged.

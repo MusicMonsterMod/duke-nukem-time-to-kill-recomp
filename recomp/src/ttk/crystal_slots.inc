@@ -32,7 +32,10 @@
 // older saves carry on; a crystal this rule placed whose device let go of it
 // without the take is unlinked again. A crystal still in the holder it
 // started in (an inventory cheat gave its flag) leaves that holder for the
-// device, the holder emptied as by the take. Developer: DNTTK_CRYSTAL_SLOTS=0 off,
+// device, the holder emptied as by the take; one a holder seated (194 above
+// it, from its use) never does. D57F: a device's type carries the flags the
+// slot and the holders share (0x01008000), so LA's switches, whose +0x35 1
+// means on, are not taken for red's device. Developer: DNTTK_CRYSTAL_SLOTS=0 off,
 // DNTTK_CRYSTAL_OUT=N how much of a plate's crystal shows (default 60).
 static uint64_t crystal_slot_links=0,crystal_slot_unlinks=0,crystal_slot_released=0;
 static uint32_t crystal_slot_map_level=0xffffffffu,crystal_slot_map_loads=0,crystal_slot_map_table=0;
@@ -40,6 +43,9 @@ static uint32_t crystal_slot_map[3]={};
 struct CrystalShown {uint32_t object=0;int32_t p[3]={};};
 static CrystalShown crystal_shown[3];
 static constexpr uint32_t crystal_rooms_table=0x800da454,crystal_generic_holder=0x80092e98;
+static constexpr uint32_t crystal_device_flags=0x01008000u;   // D57F (type flag word)
+static constexpr int32_t crystal_holder_lift=194;              // a holder seats its crystal 194 above it
+static uint64_t crystal_slot_repaired=0;
 // The game routine with both arguments set (cheat_call leaves a1 alone when 0).
 static bool crystal_call(CPUState* cpu,uint32_t address,uint32_t a0,uint32_t a1,uint32_t* result) {
     CPUState copy=*cpu;
@@ -218,6 +224,10 @@ static void crystal_slots_update(CPUState* cpu) {
                 if(t>=1062 || (t>=176 && t<=178))continue;
                 const uint32_t handler=psx_mod_read_word(handlers+4*psx_mod_read_byte(o+0x19));
                 if(handler==crystal_generic_holder || !psx_mod_read_half(types+28*t+0x12))continue;
+                // D57F: a crystal device's type carries the flags the conveyor
+                // slot and the holders share (0x01000000, 0x8000); LA's
+                // switches (+0x35 1 = on, red's number) do not.
+                if((psx_mod_read_word(types+28*t)&crystal_device_flags)!=crystal_device_flags)continue;
                 const uint32_t model0=psx_mod_read_word(models+4*psx_mod_read_half(types+28*t+0x10));
                 if(pass==0 && psx_mod_read_word(o+0x44)==model0)continue;
                 device=o;
@@ -226,6 +236,29 @@ static void crystal_slots_update(CPUState* cpu) {
         if(!device) {
             // A crystal this rule placed whose device let go of it without the take.
             if(ours && !found && !held) {crystal_unlink(cpu,crystal,rooms);shown=CrystalShown{};}
+            // D57F repair: before the device flags, a crystal could be taken
+            // from the time machine to an LA switch whose +0x35 named it (1,
+            // on). A used crystal lying exactly where this rule shows one in
+            // such an object goes back to Duke (found), as the take gives it.
+            else if(linked && !found && !held) {
+                for(uint32_t i=0;i<64;++i) {
+                    const uint32_t o=psx_mod_read_word(table+4*i);
+                    if(o==crystal || !crystal_ram(o,0x60) || psx_mod_read_byte(o+0x35)!=s+1)continue;
+                    const unsigned t=psx_mod_read_half(o+0x2c);
+                    if(t>=1062 || (t>=176 && t<=178))continue;
+                    if(psx_mod_read_word(handlers+4*psx_mod_read_byte(o+0x19))==crystal_generic_holder)continue;
+                    int32_t q[3];int16_t qa[3];
+                    if(!crystal_slot_spot(o,crystal,rooms,q,qa))continue;
+                    if(q[0]!=(int32_t)psx_mod_read_word(crystal+4) || q[1]!=(int32_t)psx_mod_read_word(crystal+8) || q[2]!=(int32_t)psx_mod_read_word(crystal+12))continue;
+                    crystal_unlink(cpu,crystal,rooms);
+                    for(int k=1;k<3;++k){psx_mod_write_half(crystal+0x1c+2*k,0);psx_mod_write_half(crystal+0x24+2*k,0);}
+                    const uint32_t fl=player+0x354+4*item;
+                    psx_mod_write_half(fl,uint16_t((psx_mod_read_half(fl)&~0x4000u)|1u));
+                    ++crystal_slot_repaired;shown=CrystalShown{};
+                    std::fprintf(stderr,"[TTK crystal slot] crystal %08x (type %u) was left in %08x (type %u), not a crystal device: back to Duke\n",crystal,type,o,t);
+                    break;
+                }
+            }
             else if(!linked || found || held) shown=CrystalShown{};
             continue;
         }
@@ -233,7 +266,7 @@ static void crystal_slots_update(CPUState* cpu) {
             // Still in the holder it started in (an inventory cheat such as
             // dnstuff sets the found flag without taking it): it is in the
             // device now, so the holder lets it go as the take would (+0x35 0).
-            uint32_t holder=0;
+            uint32_t holder=0;bool seated=false;
             for(uint32_t i=0;i<64 && !holder;++i) {
                 const uint32_t o=psx_mod_read_word(table+4*i);
                 if(o==device || !crystal_ram(o,0x60) || psx_mod_read_byte(o+0x35)!=s+1)continue;
@@ -241,8 +274,12 @@ static void crystal_slots_update(CPUState* cpu) {
                 const double dx=(int32_t)psx_mod_read_word(o+4)-(int32_t)psx_mod_read_word(crystal+4);
                 const double dz=(int32_t)psx_mod_read_word(o+12)-(int32_t)psx_mod_read_word(crystal+12);
                 if(dx*dx+dz*dz<600.0*600.0)holder=o;
+                // D57F: put there by the holder itself (its use: 194 above it,
+                // centred), not left from the level's start (a cheat).
+                seated=holder && dx==0 && dz==0 &&
+                    (int32_t)psx_mod_read_word(o+8)-(int32_t)psx_mod_read_word(crystal+8)==crystal_holder_lift;
             }
-            if(!holder)continue;   // the game has it somewhere else: leave it
+            if(!holder || seated)continue;   // the game has it somewhere else, or seated in a holder: leave it
             psx_mod_write_byte(holder+0x35,0);++crystal_slot_released;
         }
         int32_t p[3];int16_t ang[3];

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include <memory>
 #include <array>
 struct CPUState;
 namespace ttk {
@@ -78,6 +79,11 @@ uint64_t near_clip_object_null_count();
 // but none falls on its letters, while the rest of the prop takes light.
 // Emulation thread.
 void near_clip_set_glow_faces(std::vector<uint32_t> faces);
+// D57F: all of VRAM (1024 x 512) as of this level's start, from the neon
+// scan's snapshot (level_lights.inc), for palette checks on the emulation
+// thread without a GPU readback; null until it arrives. Emulation thread.
+void near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>> vram,uint32_t level);
+bool near_clip_has_vram(uint32_t level);
 // The one RAM effect drawing a world piece in a non-flat room has (the
 // colour-index nibble clear), for a redraw-only live frame that draws none.
 void near_clip_host_world_unlit(uint32_t mesh);

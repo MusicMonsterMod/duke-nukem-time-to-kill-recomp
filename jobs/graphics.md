@@ -2912,7 +2912,7 @@ was fixed: the unified fixture's prop draws now pass distinct object pointers
 
 ### D17BI - OBEY OR DIE magazines on a desk flicker
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-20, [note 522](../documentation/522-d17bi-flat-props.md)). Dependencies: -.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: two magazines on a desk at the far end of an apartment
@@ -2921,6 +2921,28 @@ the magazines and the desk top (coplanar). Work: find the objects, check
 their depth against the desk in Polymorph's host-depth path, fix the class
 (coplanar decals on props) rather than this desk. Acceptance: both magazines
 steady from every angle, not floating; Vanilla unchanged.
+
+Work log, 2026-11-20 (Needs playtest). Found in OBEY OR DIE room 8, the
+upstairs apartment off the alley: desk object `0x801d82e8` (type 196) and
+two magazines `0x801dccd8`/`0x801dcc78` (type 932, one flat textured quad
+each). Primitive trace: every magazine corner lies exactly on the desk top
+plane; they are separate static props, so the D17W coplanar ranking (one
+mesh) never compares them and the D17D contact allowance lifts both by the
+same 2 units, a depth tie decided by rounding as the view moves. The game's
+own packets (`DNTTK_NEAR_CLIP=0`) are steady. Fix (game-wide,
+`near_clip.cpp`): a scene mesh whose vertices all lie within half a unit of
+one plane is a flat prop and takes 4 units of contact instead of 2 (host
+pieces and scene-depth packets); depth only, so nothing floats. Developer
+`DNTTK_FLAT_PROP_CONTACT=2` restores the old rule. Same route from the test
+save: magazine area in the desk crop steady and growing with the fix (drops
+at most 4 pixels), erratic before (down to 3 pixels, drops of 16); matched
+loads of 12 lab saves differ only in animation; Vanilla loads; local tests
+268 OK. Test save: UI slot 12 (the ladder save it replaced is in
+`research/savestates/d17bl-2/`). Needs the user's look on their display.
+
+Closed out, 2026-11-20: the user accepted it and authorized the closeout
+("accepted!! lock it in and close it out"). Before/after shots (local) in
+`research/before-after/D17BI/`.
 
 ### D17BJ - GOLD AND GUNS cabin ceiling should show the sky (UI slot 9)
 

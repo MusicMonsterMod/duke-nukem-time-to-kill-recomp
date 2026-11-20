@@ -462,6 +462,8 @@ struct Frame {
     // sky, first-person layer, fixed-projection limbs, Bio Mask or water).
     bool scene=false;
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
+    // D17BI: a static prop whose vertices all lie on one plane (flat_mesh).
+    bool flat_prop=false;
     double coverage=1.0;
     bool far=false; // scene mesh with every vertex at least far_z away
     NearGte g;bool object,viewmodel;bool sky=false;bool borrowed=false;uint32_t far_limit,zsf3,zsf4;
@@ -1059,11 +1061,21 @@ double det(const double* a,const double* b,const double* c) {
 // open side only. It still loses to nearer occluders.
 // D17AL: host pieces and scene-depth native packets share this rule, so a
 // prop's depth does not change where it moves between the two paths.
+// D17BI: a flat prop (every vertex on one plane: the OBEY OR DIE apartment
+// magazines on their desk, papers, posters) is a decal on whatever it lies
+// on, often another prop with the same allowance. The magazines' corners are
+// exactly on the desk top, so the two tied and the depth test picked by
+// rounding as the view moved: they broke up and flickered. The original
+// paints the small prop after the surface it lies on; a flat prop takes
+// twice the allowance, so it wins over its surface (prop or world) by two
+// units, and anything nearer still hides it. Developer:
+// DNTTK_FLAT_PROP_CONTACT=2 restores the plain prop rule.
 // Returns the amount to subtract from a view-space plane distance d.
-double prop_contact_shift(double d,bool phone_back) {
+double prop_contact_shift(double d,bool phone_back,bool flat=false) {
     static const int contact=env_int("DNTTK_PROP_CONTACT",2,0,2);
+    static const int flat_contact=env_int("DNTTK_FLAT_PROP_CONTACT",4,0,16);
     static const bool phone_depth=env_int("DNTTK_PHONE_BACK_DEPTH",1,0,1)!=0;
-    const int allowance=phone_back && phone_depth && d>0 ? 16:contact;
+    const int allowance=phone_back && phone_depth && d>0 ? 16:flat && contact ? flat_contact:contact;
     return std::copysign(std::min((double)allowance,std::abs(d)*0.5),d);
 }
 // D17AV: smooth quad shading (draw). The break shows as a change of slope
@@ -1292,7 +1304,7 @@ template<class Shape> void draw_shape(Frame& f,const Poly& poly) {
     if(warped) local.depth_plane={};
     if(f.object && !poly.actor && !f.viewmodel) {
         auto& p=local.depth_plane;
-        p.d-=prop_contact_shift(p.d,poly.phone_back);
+        p.d-=prop_contact_shift(p.d,poly.phone_back,f.flat_prop);
     }
     // D17W: push a face the original paints over slightly behind its plane
     // (about 0.8 units at 3400), so the depth test keeps the original's winner.
@@ -1376,7 +1388,7 @@ bool front_facing(const Frame& f,const Poly& poly,uint32_t flags,bool second_tri
 // the near path takes it over. DNTTK_SCENE_PROP_CONTACT=0 (developer)
 // gives prop packets exact depth for comparison.
 bool scene_depth() {static const bool v=env_int("DNTTK_SCENE_DEPTH",1,0,1)!=0;return v;}
-struct SceneDepthMesh { bool live=false,prop=false,phone=false;uint32_t cursor=0;std::vector<NearProjected> verts;std::vector<std::pair<uint32_t,uint16_t>> keys; };
+struct SceneDepthMesh { bool live=false,prop=false,phone=false,flat=false;uint32_t cursor=0;std::vector<NearProjected> verts;std::vector<std::pair<uint32_t,uint16_t>> keys; };
 SceneDepthMesh scene_pending;
 void scene_depth_cancel() {scene_pending.live=false;}
 uint64_t scene_depth_meshes,scene_depth_packets,scene_depth_ambiguous,scene_depth_wraps,scene_depth_polygons,scene_depth_unmatched,scene_depth_breaks;
@@ -1423,7 +1435,7 @@ void scene_depth_flush() {
             if(quad) {const double* q=verts[index[2]].view;warped=std::abs(plane.n[0]*q[0]+plane.n[1]*q[1]+plane.n[2]*q[2]-plane.d)>1e-5;}
             const bool phone_back=scene_pending.phone && quad && textured && !gouraud &&
                 index[0]==0 && index[1]==4 && index[2]==2 && index[3]==6;
-            if(!warped && std::abs(plane.d)>1e-9) scale=1-prop_contact_shift(plane.d,phone_back)/plane.d;
+            if(!warped && std::abs(plane.d)>1e-9) scale=1-prop_contact_shift(plane.d,phone_back,scene_pending.flat)/plane.d;
         }
         for(unsigned k=0;k<corners;++k) {
             const NearProjected& v=verts[index[k]];
@@ -1441,7 +1453,7 @@ void scene_depth_begin(const Frame& f,bool prop=false,bool phone=false) {
     if(!scene_depth() || !input_modernized()) return;
     auto& m=scene_pending;
     static const bool prop_contact=env_int("DNTTK_SCENE_PROP_CONTACT",1,0,1)!=0;
-    m.verts=f.verts;m.keys.clear();m.prop=prop && prop_contact;m.phone=phone;
+    m.verts=f.verts;m.keys.clear();m.prop=prop && prop_contact;m.phone=phone;m.flat=f.flat_prop;
     for(size_t i=0;i<f.verts.size();++i)
         if(f.verts[i].safe && f.verts[i].view[2]>16) m.keys.push_back({f.verts[i].sxy,(uint16_t)i});
     std::sort(m.keys.begin(),m.keys.end());
@@ -2728,6 +2740,28 @@ void object_null_poison(CPUState* cpu,uint32_t mesh) {
     for(uint32_t i=4;i<=0x38;i+=4) psx_mod_write_word(cpu->gpr[29]-i,poison());
 }
 uint64_t hidden_objects=0;   // D23AK: objects a hidden live frame did not emit
+// D17BI: every vertex of the mesh (model space, exact integers) within half a
+// unit of the plane of its first three non-collinear vertices.
+bool flat_mesh(uint32_t vertices,unsigned count) {
+    if(count<3 || count>256) return false;
+    int64_t v[256][3];
+    for(unsigned i=0;i<count;++i) {
+        const uint32_t xy=psx_mod_read_word(vertices+8*i);
+        v[i][0]=(int16_t)xy;v[i][1]=(int16_t)(xy>>16);v[i][2]=(int16_t)psx_mod_read_half(vertices+8*i+4);
+    }
+    for(unsigned b=1;b<count;++b) for(unsigned c=b+1;c<count;++c) {
+        const int64_t e1[3]={v[b][0]-v[0][0],v[b][1]-v[0][1],v[b][2]-v[0][2]},e2[3]={v[c][0]-v[0][0],v[c][1]-v[0][1],v[c][2]-v[0][2]};
+        const int64_t n[3]={e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]};
+        const double length=std::sqrt((double)n[0]*n[0]+(double)n[1]*n[1]+(double)n[2]*n[2]);
+        if(length<1) continue;
+        for(unsigned i=0;i<count;++i) {
+            const double d=((double)n[0]*(v[i][0]-v[0][0])+(double)n[1]*(v[i][1]-v[0][1])+(double)n[2]*(v[i][2]-v[0][2]))/length;
+            if(std::abs(d)>0.5) return false;
+        }
+        return true;
+    }
+    return false;
+}
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const LimbPresentation limb=first_person_limb_presentation();
@@ -2801,6 +2835,8 @@ void object(CPUState* cpu) {
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4));
         any|=!f.verts[i].safe || f.verts[i].sz<std::max<uint32_t>(object_perspective_z,2048);
     }
+    // D17BI: flat props take the decal allowance (prop_contact_shift).
+    f.flat_prop=f.scene && !actor && !body && flat_mesh(vertices,count);
     bool forced=(unified() && f.scene) || f.borrowed;
     f.far=f.scene;for(const auto& v:f.verts) f.far&=v.sz>=far_z;
     trace_vertices(f);

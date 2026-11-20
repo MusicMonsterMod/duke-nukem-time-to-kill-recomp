@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-20 - D17BI flat props closed out (Done)
+
+- D17BI ([note 522](522-d17bi-flat-props.md)): the two magazines on the desk in OBEY OR DIE's upstairs apartment (room 8) no longer flicker. They lie exactly on the desk top, and as separate props both had the same contact lift; a flat prop (every vertex on one plane) now takes 4 units instead of 2 (`near_clip.cpp`, developer `DNTTK_FLAT_PROP_CONTACT=2` for the old rule). Verified offscreen at 180 Hz; user-accepted ("accepted!! lock it in and close it out"). Test save: UI slot 12, facing the desk from the far corner (the ladder save it replaced: `research/savestates/d17bl-2/`).
+
 ## 2026-11-20 - D17BL, D08A43, D08A47, D08O6 closed out (Done)
 
 - D17BL ([note 518](518-d17bl-eye-room.md)): the sky no longer replaces the world while climbing the UI slot 12 ladder through a ceiling hatch. The portal walk starts in the room the first-person eye is in (`eye_room.inc`, through the camera room's portal planes, then room boxes); the game's room word is untouched. The user's ladder save is back in UI slot 12 (the save it replaced is in `research/savestates/slot11-before-d17bl-restore-20261119/`).

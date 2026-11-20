@@ -216,7 +216,17 @@ static void cheats_update(CPUState* cpu) {
             if((int16_t)psx_mod_read_half(player+0x234)<10000) psx_mod_write_half(player+0x234,10000);
         }
     }
-    if(ok && (command==Cheat::Stuff || command==Cheat::Keys || command==Cheat::Items))ok=original_call(cpu,0x8003d840,0);
+    if(ok && (command==Cheat::Stuff || command==Cheat::Keys || command==Cheat::Items)) {
+        // D60: the original key grant (0x8003d840) sets bit 0 on every mission
+        // item 6..16, used ones too, which handed a jewel already in the
+        // FAMILY JEWELS wheel back (its socket then lost its colour, and it
+        // could go in twice). An item used up at its lock (D08A19) stays used.
+        uint16_t before[17]{};
+        for(unsigned i=6;i<17;++i)before[i]=psx_mod_read_half(player+0x354+4*i);
+        ok=original_call(cpu,0x8003d840,0);
+        for(unsigned i=6;i<17;++i)
+            if(!(before[i]&1) && (before[i]&mission_used_bit))psx_mod_write_half(player+0x354+4*i,before[i]);
+    }
     if(command==Cheat::Ammo)for(unsigned i=0;i<36;++i)
         if(psx_mod_read_half(player+0x2c4+4*i)&1)psx_mod_write_half(player+0x2c6+4*i,psx_mod_read_half(0x800c4594+44*i));
     if(command==Cheat::Health)psx_mod_write_half(player+0x32,10000);

@@ -2692,6 +2692,8 @@ its normal job straight away.
 
 The three inventory cheats (`dnstuff`, `dninventory`, `dnitems`) treat steroids the same way: a running dose stops and comes back as a full held dose (Modernized portable steroids). Armor and steroids are separate, so the armor grant never changes the steroids.
 
+The key-granting cheats (`dnstuff`, `dnkeys`, `dnitems`) never give back a mission item you have already used at its lock (D60): a key used at its door, or a jewel already set into the FAMILY JEWELS wheel, stays marked USED in the mission inventory, and only the items you have not found yet are given. Vanilla keeps the original cheat.
+
 These use Time to Kill's inventory equivalents. Use a test save and show enemies
 again before saving or loading: hidden-enemy state is session/scene-local, and its
 save/load round trip is not supported. Codes are unavailable in Vanilla, menus,
@@ -3107,8 +3109,17 @@ renderer, the three jewels of FAMILY JEWELS take the energy crystals'
 colours instead of all being pink: the first is blue, the second green and
 the third red, on the ground, in the mission inventory, in Duke's hand as
 he sets them into the nuke-symbol wheel and in the wheel itself. Picking them up
-and using them work exactly as before. The Classic renderer and Vanilla keep
-them pink.
+works exactly as before. The Classic renderer and Vanilla keep them pink.
+
+**Family Jewels in any order (D60).** In Modernized the nuke-symbol wheel in
+FAMILY JEWELS takes the jewels in whatever order you find them: stand in front
+of it and press **E** with any jewel, and Duke sets it in. Each jewel fills the
+next socket, and the third one opens the way exactly as before. With more than
+one jewel in hand, **E** picks one for you; to choose which, browse to it in
+the mission inventory (**,** / **.**) and press **Enter**. The sockets and Duke's hand show the jewel that actually went in, and
+savestates keep the order. You still need all three to open it. Vanilla keeps
+the original rule: the wheel takes only the blue jewel, then the green one,
+then the red one.
 
 **Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
 will use always has its own box in the bottom right corner, just above

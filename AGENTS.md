@@ -30,6 +30,7 @@ Original media under `game/`, research, generated game code, builds, captures, p
 - Never hand-edit generated recompilation C, overwrite original media, or use the player's memory cards.
 - If the player's game is open when work needs to build, test or launch, close it (debug `quit` on port 9123, or end the process) and continue. The user gave standing permission on 2026-10-01. Never touch their saves or memory cards.
 - During selected coding work, agents may launch the game as needed for testing without asking again. Prefer background/offscreen diagnostic runs with private settings and test save/card copies. Use a foreground window only when visual verification genuinely requires it. The user gave standing permission on 2026-10-04.
+- Inventory cheats never give back a mission item already used at its lock (Modernized; user rule 2026-11-20, D60): `dnstuff`, `dnkeys` and `dnitems` keep used items used, so the mission inventory's USED marker and level devices (the FAMILY JEWELS wheel) stay consistent. Keep this in any future cheat or inventory work.
 - After a selected job, give a launch command such as `python3 recomp/tools/local/run.py` from this workspace.
 
 ## Writing

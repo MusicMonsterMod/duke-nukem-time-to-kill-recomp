@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-20 - D60 closed out (Done): Family Jewels in any order
+
+[Note 516](516-d60-family-jewels-any-order.md). User: "lock it in and close us out". In Modernized the wheel takes the jewels in any order (a held jewel's flag is lent to the item the wheel wants and traded back once in hand; places drive the sockets and the hand). The playtest found that `dnstuff` handed back a jewel already in the wheel (its socket turned blue): the inventory cheats now keep used mission items used, a standing rule (`AGENTS.md`, manual). Vanilla unchanged.
+
+## 2026-11-19 - D60: Family Jewels in any order (Needs playtest)
+
+[Note 516](516-d60-family-jewels-any-order.md). The wheel's order rule is the game's own (LEVEL06 handler `0x800cc338`: item 14 + count). The user's ripspace save held only green; the field-laptop save never picked up red. In Modernized a held jewel's flag is lent to the item the wheel wants and traded back once Duke takes it in hand (`jewel_device_rules.h`, `jewel_device.inc`), so the original use runs unchanged; places drive D08A45's sockets and hand. Verified in private offscreen runs (all six orders, Enter's choice, savestates mid-lend and between jewels, Vanilla unchanged); waits for the user's playtest at UI slot 12.
+
 ## 2026-11-19 - D23Z closed out (Done); D60 added
 
 [Note 465](465-d23z-emulation-thread-spikes.md) section 7: on the field laptop with main after D23AO (BALANCED 60), no one-off spike is left on the emulation thread; the remaining slow seconds (UI slot 8, UI slot 9 after the load) are sustained heavy views, now D23AQ's. User: "this work is accepted ... lock it in and close it out". New backlog job D60: the FAMILY JEWELS device should take the jewels in any order (user report from UI slot 12 on the field laptop).

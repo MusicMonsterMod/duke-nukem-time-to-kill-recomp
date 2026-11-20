@@ -26,6 +26,7 @@
 #include "live_env.h"
 #include "code_identity.h"
 #include "near_clip.h"
+#include "jewel_device_rules.h"
 #include "lamp_bake.h"
 #include "lamp_bake_map.h"
 #include "security_monitor.h"
@@ -1260,6 +1261,10 @@ static bool facing_ready() {
     return (presentation_ready() || view_facing_input_ready(false)) &&
         !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);
 }
+// D60 (jewel_device.inc, after door_use.inc): used by shortcuts.inc.
+static bool jewel_mission_usable(CPUState* cpu,uint32_t handler,uint32_t object,int wanted,int item);
+static void jewel_device_update();
+static void jewel_mission_view(uint16_t* mission);
 #include "shortcuts.inc"
 #include "steroids.inc"
 #include "steroids_beat.inc"
@@ -1280,6 +1285,7 @@ static bool facing_ready() {
 #include "wall_climb.inc"
 #include "climb_fire.inc"
 #include "door_use.inc"
+#include "jewel_device.inc"
 #include "jump_walls.inc"
 #include "landing.inc"
 #include "wall_backflip.inc"
@@ -1639,7 +1645,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if(address==0x80076330) {apartment_switch_query(cpu);mirror_use_query(cpu);return;}
     if(address==0x80081a48) {pickup_flash_begin();pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {sidearm_obstacle_action(cpu,ra);push_obstacle_action(cpu,ra);return;}
-    if(address==0x80051890) {push_idle_action(cpu,ra);door_click_action(cpu,ra);return;}
+    if(address==0x80051890) {push_idle_action(cpu,ra);door_click_action(cpu,ra);jewel_device_action(cpu);return;}
     if(address==0x800455bc) {
         swim_plunge_begin(cpu);
         // D08O1: the ground weapon-selection point (0x80058120) is not reached

@@ -20,9 +20,9 @@
 // other mesh with 4-bit faces on those palettes is such a holder: its jewel
 // faces are grouped into sockets by shared vertices, and the sockets are put
 // in fill order by comparing with the model before it (the holder with one
-// jewel fewer). The k-th socket takes the k-th used jewel's colour in item
-// order (the game sets the jewels in item order at the wheel), so the wheel
-// always shows the jewels that went in. Pickups, mission flags and the level's
+// jewel fewer). The k-th socket takes the colour of the k-th jewel set in
+// (D60 records the order, since Modernized takes them in any order), so the
+// wheel always shows the jewels that went in. Pickups, mission flags and the level's
 // logic are untouched; Classic and Vanilla keep pink.
 namespace {
 constexpr int jewel_clut_x=256,jewel_clut_y=481;   // 12 palettes, x 256-447
@@ -196,14 +196,22 @@ bool jewel_frame(uint32_t mesh,bool duke_frame,JewelRecolour& out) {
         const uint32_t o=nv_object;
         if(duke_frame || (o && o==player)) {
             const unsigned item=psx_mod_read_byte(player+0x3b9);
-            if((psx_mod_read_byte(player+0x3b8)==1 || psx_mod_read_half(player+0x74)==266) && item>=14 && item<=16) colour=(int)item-14;
+            if((psx_mod_read_byte(player+0x3b8)==1 || psx_mod_read_half(player+0x74)==266) && item>=14 && item<=16) {
+                // D60: a jewel lent to the lock's item is the one in his hand.
+                const int lent=jewel_lent_from(item);
+                colour=(lent>=0?lent:(int)item)-14;
+            }
         }
         out.colour=(int8_t)colour;++jewel_frames[colour];return true;
     }
-    // Holder: the k-th socket in fill order shows the k-th used jewel (item
-    // order); sockets past the used ones take the colours not yet shown.
+    // Holder: the k-th socket in fill order shows the k-th used jewel, in the
+    // order they went in (D60, jewel_device.inc; item order for a used jewel
+    // with no recorded place); sockets past the used ones take the colours
+    // not yet shown.
     int colours[3],n=0;bool shown[3]={};
-    for(int c=0;c<3;++c) if(psx_mod_read_half(0x800d7198u+0x354+4*(14+c))&0x4000) {colours[n++]=c;shown[c]=true;}
+    auto used=[](int c){const uint16_t v=psx_mod_read_half(0x800d7198u+0x354+4*(14+c));return !(v&1) && (v&0x4000);};
+    for(unsigned k=1;k<=3;++k) for(int c=0;c<3;++c) if(!shown[c] && used(c) && jewel_order(14+c)==k) {colours[n++]=c;shown[c]=true;}
+    for(int c=0;c<3;++c) if(!shown[c] && used(c)) {colours[n++]=c;shown[c]=true;}
     for(int c=0;c<3 && n<3;++c) if(!shown[c]) colours[n++]=c;
     int8_t socket_colour[3];
     for(int k=0;k<info.sockets.count;++k) socket_colour[info.order[k]]=(int8_t)colours[k];

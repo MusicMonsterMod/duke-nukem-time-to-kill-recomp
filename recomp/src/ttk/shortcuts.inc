@@ -111,6 +111,7 @@ static void inventory_feedback(bool announce) {
     // D08A5: mission items are inventory items 6..16 (the Select list's flags).
     uint16_t mission[17]{};
     for(unsigned i=6;i<17;++i)mission[i]=psx_mod_read_half(player+0x354+4*i);
+    jewel_mission_view(mission);   // D60: a jewel lent to the lock shows as itself
     mission_keycard_colours(keycard_colours_on());   // D08A46: icons match the cards
     mission_jewel_colours(jewel_colours_on());   // D08A45: jewel icons match the jewels
     mission_update(psx_mod_read_word(0x800be570),mission);
@@ -158,8 +159,11 @@ static void mission_use(CPUState* cpu,int item) {
         const uint32_t handler=psx_mod_read_word(psx_mod_read_word(0x800dd84c)+4*psx_mod_read_byte(object+0x19));
         int32_t wanted=-1,blocked=1;
         if((type_flags&0x01000000) && !(type_flags&0x08c00000) && handler>=0x80010000 && handler<0x80200000 &&
-           original_call(cpu,handler,object,&wanted,2) && wanted==item &&
-           original_call(cpu,handler,object,&blocked,0) && blocked==0)usable=true;
+           original_call(cpu,handler,object,&wanted,2)) {
+            if(wanted==item && original_call(cpu,handler,object,&blocked,0) && blocked==0)usable=true;
+            // D60: a lock wanting a FAMILY JEWEL takes any jewel Duke holds.
+            else if(wanted!=item && jewel_mission_usable(cpu,handler,object,wanted,item)) {usable=true;blocked=0;}
+        }
         std::fprintf(stderr,"[TTK mission] item %d at object %08x type %u wants %d blocked %d -> %s\n",
                      item,object,type,wanted,blocked,usable?"use":"refuse");
     }
@@ -399,6 +403,7 @@ static void select_weapon(CPUState* cpu) {
     // Only primary single-player ownership; no writes into player two's menu.
     if(psx_mod_read_byte(player+0x233)!=0)return;
     mission_used_track(); // D08A19: also while input is released (no capture)
+    jewel_device_update(); // D60: jewels in any order
     if(!f.active || !gameplay_context())return;
     // D08Q2: Continue can reset the jetpack model/transition while retaining
     // its pending item bit. The original completion at 8004010c clears that

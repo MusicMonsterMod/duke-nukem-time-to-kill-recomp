@@ -122,9 +122,10 @@ Suites: `ttk-near-test`, `ttk-inventory-test`, `ttk-input-test`, Python 260 OK
 ## Limits
 
 - Polymorph only, as D08A46: Classic draws the original packets (pink).
-- The wheel cannot know the order the jewels went in beyond the used bits;
-  E sets them in item order, so the sockets match. A jewel used out of order
-  (the mission inventory's Enter) colours the sockets in item order.
+- Superseded by D60 ([note 516](516-d60-family-jewels-any-order.md)): in
+  Modernized the wheel takes the jewels in any order and each used jewel
+  records its place, which the sockets follow; the hand shows the jewel
+  actually set in.
 - Not established: the colours under every light of level 6; a full
   playthrough of the level.
 - In warm corridor light the blue reads slightly cyan; clearly apart from the

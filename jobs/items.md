@@ -2194,7 +2194,7 @@ animation and light.
 
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 
-**Status: Todo (backlog, user 2026-11-19). Dependencies: D08A45.**
+**Status: Done (user-accepted 2026-11-20: "lock it in and close us out"). Dependencies: D08A45.** [Note 516](../documentation/516-d60-family-jewels-any-order.md).
 
 User, 2026-11-19, on the field laptop (FAMILY JEWELS, level 6, savestate UI
 slot 12): "i cant put the third jewel in the device. that being said, i would
@@ -2202,10 +2202,14 @@ prefer for this device to just simply accept the gems in any order. i realise
 if you dont have all 3 and put them in in a different order (lets say you got
 the green one first or something), it fails."
 
-The user's save is copied to `research/savestates/d60/` (local, never
-committed: `state_800AB6FC_slot11.pst` with its `.ttk` and `.thumb`, UI
-slot 12, level 6, saved 2026-11-19 21:24). Load a private copy, never the
-player's card.
+User, later the same evening on ripspace: "i saved that area in slot 12,
+unfortunately i cannot put the green jewel in".
+
+The user's saves are copied to `research/savestates/d60/` (local, never
+committed; each `state_800AB6FC_slot11.pst` with its `.ttk` and `.thumb`, UI
+slot 12, level 6): `field-laptop/` (saved 2026-11-19 21:24, the third jewel
+will not go in) and `ripspace/` (saved 2026-11-19 22:54 at the device, the
+green jewel will not go in). Load private copies, never the player's card.
 
 Known from D08A45 ([note 501](../documentation/501-d08a45-family-jewel-colours.md)):
 the jewels are items 14 (type 854, blue), 15 (855, green) and 16 (856, red);
@@ -2236,3 +2240,39 @@ starts, all six orders (and pickups collected in different orders) complete
 the device with the right colours in the wheel and in Duke's hand; a save
 loaded mid-sequence continues correctly; Vanilla unchanged (`run.py
 --vanilla`, the original order rule kept).
+
+Work log, 2026-11-19 (user: "work on D60"):
+
+- Cause: the game's own rule. The wheel (type 857, LEVEL06 handler
+  `0x800cc338`) wants item 14 + its count (`+0x35`) and accepts only that
+  item's found bit. ripspace save: only green held, the wheel wants blue.
+  field-laptop save: the red jewel was never picked up (still in the level)
+  and Duke stood about 880 units out of reach; with red given it goes in
+  and completes. Vanilla on the same save refuses green alone, as measured.
+- Built (Modernized; `jewel_device_rules.h`, `jewel_device.inc`): at the
+  action press the host lends a held jewel's flag to the item the lock wants,
+  so the original use runs unchanged; once Duke takes it in hand the flags
+  trade back, the jewel is used in the next place and the hand holds it; a
+  refused press trades straight back. Enter on a browsed jewel prefers it.
+  Places drive D08A45's sockets and hand colour. All in Duke's flag words,
+  so savestates carry it. No level data, no overlay patch, no framework edit.
+- Evidence (private offscreen runs, `recomp/analysis/d60/`, local): the
+  user's ripspace save puts green in first; all six orders complete (count 3,
+  the game's completion objects), with places and hand items right and the
+  sockets showing the jewels used; Enter's choice; savestates mid-lend and
+  between jewels continue; field-laptop save completes with red; a refused
+  lend undone; Vanilla keeps the order rule. `ttk-controls-test` D60 group
+  (155 groups), the native suite and Python 266 OK (2 skipped).
+- Not done: a hand playtest on the player's display; red's reachability in the
+  field-laptop save.
+
+Work log, 2026-11-20 (user playtest: "insert the green gem ... then i did
+dnstuff, and the gem in the slot on the wheel turned blue!"): the original
+key grant `0x8003d840` sets bit 0 on every mission item, used ones too, so
+green counted as found again and lost its place. The inventory cheats now
+keep used mission items used (`cheats.inc`). Reproduced and verified on the
+ripspace save (green stays in its socket after `dnstuff`; blue and red then
+complete the wheel). `ttk-controls-test` 155 groups, Python 266 OK.
+User, 2026-11-20: made it a standing rule ("yeah go for it"): inventory
+cheats never give back a mission item already used. Recorded in
+`GAME_MANUAL.md` (cheats) and `AGENTS.md` (game work).

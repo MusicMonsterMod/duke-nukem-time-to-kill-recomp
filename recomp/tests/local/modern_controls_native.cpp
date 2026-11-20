@@ -25,6 +25,7 @@ extern "C" {uint64_t s_frame_count=0;void (*g_psx_mod_hook_observer)(struct CPUS
 #include "control_math.h"
 #include "first_person_fov.h"
 #include "contact_arm_ik.h"
+#include "jewel_device_rules.h"
 #include "pc_input.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -422,7 +423,45 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     CPUState cpu{};cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;cpu.gpr[31]=ra;cpu.gpr[29]=sp;
     hooks().at(address)(&cpu,address);
 }
+// D60: FAMILY JEWEL flags. A lock wanting W lent J; trade back once W is
+// used up (J used, its place, the hand on J), undo when the use did not start,
+// places for older saves in item order, and the mission view.
+static void test_jewel_rules() {
+    namespace jr=ttk::jewel_rules;
+    // Green (15) only, the lock wants blue (14).
+    uint16_t f[3]={0,jr::found_bit,0};
+    assert(jr::choice(f,14,-1)==15 && jr::choice(f,15,-1)==15);
+    jr::trade(f,14,15,true);
+    assert(f[0]==jr::found_bit && jr::lent_to(f[1])==14 && jr::lent_from(f,14)==15 && jr::lend_active(f));
+    uint8_t held=0,request=14;
+    assert(jr::update(f,true,held,request)==0 && f[0]==jr::found_bit);            // waiting in the use
+    {   // refused: undone, nothing changed
+        uint16_t g[3];std::copy(f,f+3,g);uint8_t h=0,r=14;
+        assert(jr::update(g,false,h,r)==jr::undone && g[0]==0 && g[1]==jr::found_bit && r==14);
+    }
+    uint16_t mission[17]{};for(int i=0;i<3;++i)mission[14+i]=f[i];
+    jr::mission_view(mission);
+    assert(mission[14]==0 && mission[15]==jr::found_bit);                          // shown as they are
+    f[0]=jr::used_bit;held=14;                                                     // anim 47 took W, D08A19 marked it
+    assert(jr::update(f,true,held,request)==jr::returned);
+    assert(f[0]==0 && jr::used(f[1]) && jr::order(f[1])==1 && held==15 && request==15 && !jr::lend_active(f));
+    // Red next for 15, then blue for 16: places 2 and 3.
+    f[2]=jr::found_bit;f[0]=jr::found_bit;
+    assert(jr::choice(f,15,-1)==14 && jr::choice(f,15,16)==16);                    // Enter's choice first
+    jr::trade(f,15,16,true);f[1]=(uint16_t)((f[1]&~jr::found_bit)|jr::used_bit);held=15;
+    assert(jr::update(f,true,held,request)==jr::returned && jr::order(f[2])==2 && jr::used(f[1]) && jr::order(f[1])==1 && held==16);
+    jr::trade(f,16,14,true);f[2]=(uint16_t)((f[2]&~jr::found_bit)|jr::used_bit);held=16;
+    assert(jr::update(f,true,held,request)==jr::returned && jr::order(f[0])==3 && jr::order(f[2])==2 && jr::order(f[1])==1);
+    // An older save: blue and green used, no places -> item order.
+    uint16_t o[3]={jr::used_bit,jr::used_bit,0};held=request=0;
+    assert(jr::update(o,false,held,request)==jr::placed && jr::order(o[0])==1 && jr::order(o[1])==2);
+    // Found again (a use given back): the place goes.
+    o[1]=(uint16_t)(o[1]|jr::found_bit);o[1]&=~jr::used_bit;
+    jr::update(o,false,held,request);assert(!jr::order(o[1]));
+    std::printf("PASS: D60 FAMILY JEWEL lend, return, undo, places and mission view\n");
+}
 int main(int argc,char** argv) {
+    test_jewel_rules();
     // D14F: a clean launch really uses the new default. Keep the historical
     // fixture suite explicitly at 64 after checking this in a fresh child.
     {

@@ -1265,6 +1265,8 @@ static bool facing_ready() {
 static bool jewel_mission_usable(CPUState* cpu,uint32_t handler,uint32_t object,int wanted,int item);
 static void jewel_device_update();
 static void jewel_mission_view(uint16_t* mission);
+// D08A43 (crystal_slots.inc): a crystal device takes the browsed crystal.
+static bool crystal_mission_usable(CPUState* cpu,uint32_t handler,uint32_t object,int wanted,int item);
 #include "shortcuts.inc"
 #include "steroids.inc"
 #include "steroids_beat.inc"
@@ -1308,6 +1310,8 @@ static void jewel_mission_view(uint16_t* mission);
 #include "keycard_colours.inc"
 #include "jewel_colours.inc"
 #include "spawn.inc"
+#include "crystal_slots.inc" // D08A43
+#include "hhg_look.inc" // D08A47
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
 #include "relit.inc"
@@ -1725,6 +1729,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             weapon_update_sp=sp;weapon_transition_boost=false;quick_takeoff_boost=false;
             cheats_update(cpu);
             spawn_update(cpu);
+            crystal_slots_update(cpu); // D08A43
+            hhg_look_update(); // D08A47
+            breathing_update(); // D08O6
             pickup_nudge_update(cpu); // D08A41
             level_lamps_update(cpu); // D41D
             steroids_beat(cpu); // D08A10

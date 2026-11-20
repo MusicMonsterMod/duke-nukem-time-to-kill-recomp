@@ -62,6 +62,7 @@ static const HostVisGuard host_vis_guards[]={
     {0x80031d10,0x654,"8ed8575e0fd05c6291209498ae990fb0048fd0cfb15990e8cc7914cfa9fe96b2"},
 };
 static std::array<std::vector<uint32_t>,5> host_vis_words;
+static uint64_t host_vis_near_openings=0;
 static uint64_t host_vis_frames=0,host_vis_refusals=0,host_vis_rooms=0,host_vis_extra=0,host_vis_tested=0,host_vis_selected=0,host_vis_left=0;
 static uint64_t host_vis_redraw_only=0;
 static uint64_t host_vis_missed=0,host_vis_widened=0,host_vis_select_us=0,host_vis_draw_us=0;
@@ -345,7 +346,7 @@ static bool host_vis_walk(CPUState* cpu) {
     const uint32_t cam=cpu->gpr[4];
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(cam<0x80010000u || cam>0x801fff00u || (cam&3)) {++host_vis_refusals;return false;}
-    const uint32_t source=psx_mod_read_word(cam+0x90);
+    const uint32_t game_room=psx_mod_read_word(cam+0x90),source=eye_room_for(cam,game_room); // D17BL
     if(!rooms || rooms>256 || source>=rooms || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) {++host_vis_refusals;return false;}
     const uint32_t count=psx_mod_read_word(0x800d68a8);
     if(count>32) {++host_vis_refusals;return false;}
@@ -374,6 +375,22 @@ static bool host_vis_walk(CPUState* cpu) {
     const auto t0=std::chrono::steady_clock::now();
     host_vis_select(c,table,rooms,source,guard,sel,order);
     const auto t1=std::chrono::steady_clock::now();
+    // D17BL: an eye moved out of the game's room but still inside its box
+    // (in the slab of a ceiling hatch both boxes hold it) sees that room's
+    // walls around it, not only through the opening: the whole view.
+    // Also every room behind an opening the eye is right at (either side).
+    {
+        int32_t e[3];for(int k=0;k<3;++k) e[k]=(int32_t)c.eye[k];
+        static const bool near_on=[]{const char* t=std::getenv("DNTTK_NEAR_OPENINGS");return !t || std::strcmp(t,"0");}();
+        uint32_t wide[9];unsigned nw=near_on?eye_room_near_openings(table,rooms,source,e,48.0,wide,8):0;
+        if(source!=game_room && game_room<rooms && eye_room_inside(table+game_room*88,e)) wide[nw++]=game_room;
+        for(unsigned i=0;i<nw;++i) {
+            const uint32_t r=wide[i];
+            if(sel[r].on) host_vis_union(sel[r].r,guard);
+            else {std::copy(guard,guard+4,sel[r].r);sel[r].on=true;order.push_back(r);}
+            ++host_vis_near_openings;
+        }
+    }
     // Every room the portal walk listed is drawn at least through its own
     // rectangle, so the host never shows less than the game would.
     for(uint32_t i=0;i<count;++i) {
@@ -392,6 +409,13 @@ static bool host_vis_walk(CPUState* cpu) {
             ++host_vis_missed;host_vis_last_missed=room;
             host_vis_last_missed_from=source;
         }
+    }
+    // Developer DNTTK_HOST_VIS_TRACE=1: each frame's eye, start room and rooms (rectangles).
+    static const bool vis_trace=[]{const char* t=std::getenv("DNTTK_HOST_VIS_TRACE");return t && !std::strcmp(t,"1");}();
+    if(vis_trace) {
+        std::fprintf(stderr,"[TTK hostvis trace] eye %.0f %.0f %.0f game %u start %u:",c.eye[0],c.eye[1],c.eye[2],game_room,source);
+        for(uint32_t r:order) std::fprintf(stderr," %u[%.0f %.0f %.0f %.0f]",r,sel[r].r[0],sel[r].r[1],sel[r].r[2],sel[r].r[3]);
+        std::fprintf(stderr,"\n");
     }
     host_vis_room_rect.assign(rooms,{0,0,-1,-1});
     for(uint32_t room=0;room<rooms;++room) if(sel[room].on) std::copy(sel[room].r,sel[room].r+4,host_vis_room_rect[room].begin());
@@ -451,6 +475,8 @@ static bool host_vis_walk(CPUState* cpu) {
         const bool a=host_vis_developer[x.room],b=host_vis_developer[y.room];
         return a!=b ? b : x.distance<y.distance;});
     static std::vector<bool> picked;picked.assign(rooms,false);for(const Pick& k:picks) picked[k.room]=true;
+    static unsigned trace_picked[256],trace_drawn[256],trace_left[256];
+    if(vis_trace) {std::fill(trace_picked,trace_picked+256,0u);std::fill(trace_drawn,trace_drawn+256,0u);std::fill(trace_left,trace_left+256,0u);for(const Pick& k:picks) if(k.room<256) ++trace_picked[k.room];}
     unsigned pieces_drawn=0;uint32_t current=~0u,flags=0x300;
     // D17AR3: a redraw-only live frame is never shown (frame_replay.cpp); its
     // selection stands (rooms for the props and object passes), no piece is
@@ -487,9 +513,14 @@ static bool host_vis_walk(CPUState* cpu) {
         psx_mod_write_word(view_limits+0x50,flags|0x80);
         cpu->gpr[4]=k.piece;cpu->gpr[5]=0x800d27a0u;cpu->gpr[6]=view_limits;cpu->gpr[7]=0x800d26a0u;cpu->gpr[31]=0x80062db8u;
         ++host_vis_selected;
-        if(near_clip_host_world_piece(cpu)) ++pieces_drawn;
+        if(near_clip_host_world_piece(cpu)) {++pieces_drawn;if(vis_trace && k.room<256) ++trace_drawn[k.room];}
         else if(host_vis_developer[k.room]) ++host_vis_developer_dropped;
-        else {left.push_back(k.piece);left_room[k.room]=true;++host_vis_left;}
+        else {left.push_back(k.piece);left_room[k.room]=true;++host_vis_left;if(vis_trace && k.room<256) ++trace_left[k.room];}
+    }
+    if(vis_trace) {
+        std::fprintf(stderr,"[TTK hostvis drawn] eye %.0f:",c.eye[1]);
+        for(uint32_t r:order) if(r<256) std::fprintf(stderr," %u=%u/%u/%u",r,trace_picked[r],trace_drawn[r],trace_left[r]);
+        std::fprintf(stderr,"\n");
     }
     std::memcpy(cpu->gte_ctrl,saved_ctrl,sizeof saved_ctrl);std::memcpy(cpu->gpr,saved_gpr,sizeof saved_gpr);
     const auto t2=std::chrono::steady_clock::now();

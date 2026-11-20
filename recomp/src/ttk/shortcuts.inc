@@ -202,6 +202,8 @@ static void mission_use(CPUState* cpu,int item) {
             if(wanted==item && original_call(cpu,handler,object,&blocked,0) && blocked==0)usable=true;
             // D60: a lock wanting a FAMILY JEWEL takes any jewel Duke holds.
             else if(wanted!=item && jewel_mission_usable(cpu,handler,object,wanted,item)) {usable=true;blocked=0;}
+            // D08A43: a device wanting a crystal takes any crystal Duke has.
+            else if(wanted!=item && crystal_mission_usable(cpu,handler,object,wanted,item)) {usable=true;blocked=0;}
         }
         std::fprintf(stderr,"[TTK mission] item %d at object %08x type %u wants %d blocked %d -> %s\n",
                      item,object,type,wanted,blocked,usable?"use":"refuse");

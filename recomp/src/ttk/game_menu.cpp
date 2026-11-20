@@ -504,6 +504,9 @@ std::vector<Screen> make_screens() {
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"SWIMMING",Section::Controls,"swimming","DNTTK_SWIMMING",true,"MODERN: SHIFT WALKS OR RUNS IN WATER AS ON LAND",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
+        // D08O6: air on surfacing (swim.inc).
+        {"BREATH RESTORE",Section::Controls,"breath_restore","DNTTK_BREATH_RESTORE",true,"INSTANT: FULL AIR THE MOMENT DUKE SURFACES",
+         {{"INSTANT","instant","\"instant\""},{"CLASSIC","classic","\"classic\""}},0},
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"EDUKE32: INSTANT J FLIGHT, 61 SECONDS OF FUEL",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""},{"EDUKE32","eduke32","\"eduke32\""}},0},
         // D12E1: the third-person quick kick (tp_kick.inc); ORIGINAL keeps 112..115.

@@ -40,6 +40,7 @@ static const DistanceGuard distance_guards[]={
 static std::array<std::vector<uint32_t>,2> distance_words;
 static uint64_t distance_frames=0,distance_refusals=0,portal_widened=0;
 static int32_t distance_original=0,distance_extended=0;
+#include "eye_room.inc"
 static bool draw_distance_extended() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_DRAW_DISTANCE");return t && !std::strcmp(t,"extended");}();
     return v;
@@ -98,7 +99,7 @@ static bool upper_edge_open(uint32_t a,uint32_t b,uint32_t p) {
 static bool open_upper_portal(uint32_t target) {
     static const bool enabled=[] {const char* e=std::getenv("DNTTK_OPEN_PORTAL_TOP");return !e || std::strcmp(e,"0");}();
     if(!enabled) return false;
-    const uint32_t table=psx_mod_read_word(0x800da454),source=psx_mod_read_word(camera+0x90);
+    const uint32_t table=psx_mod_read_word(0x800da454),source=eye_room_for(camera,psx_mod_read_word(camera+0x90));
     if(source>=256 || target>=256 || source==target || table<0x80010000u || table>0x801fa800u || (table&3)) return false;
     const uint32_t a=table+source*88,b=table+target*88;
     const unsigned count=psx_mod_read_byte(a+0x30);
@@ -265,7 +266,7 @@ static void open_sky_write(uint32_t e,const int32_t r[4]) {
 static void open_sky_rooms() {
     const int over_walls=host_vis_over_walls();
     if(!open_sky_enabled() || !over_walls) return;
-    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c),source=psx_mod_read_word(camera+0x90);
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c),source=eye_room_for(camera,psx_mod_read_word(camera+0x90));
     if(!rooms || rooms>128 || source>=rooms || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     if(!(psx_mod_read_word(table+source*88+12)&8)) return;
     uint32_t count=psx_mod_read_word(0x800d68a8);
@@ -335,6 +336,7 @@ static void draw_distance_apply(CPUState* cpu,uint32_t address,uint32_t ra) {
     const bool walk=address==0x80062b48 && ra==0x8002e688;
     const bool scene=address==0x8002ffec && ra==0x8002e6dc;
     if(scene) host_vis_scene();
+    if(rooms) eye_room_portal_walk(cpu); // D17BL, both draw distances
     if((!rooms && !walk && !scene) || !draw_distance_extended()) return;
     if(!code_identity(distance_guards,distance_words)) {++distance_refusals;return;}
     // Developer: DNTTK_PRECISE_CULLING=0 keeps native NCLIP decisions.
@@ -369,9 +371,9 @@ static const char* draw_distance_debug_json() {
     uint64_t checks=0,flips=0;gte_nclip_culling_stats(&checks,&flips);
     std::snprintf(buffer,sizeof buffer,"{\"mode\":\"%s\",\"frames\":%llu,\"refusals\":%llu,\"original\":%d,\"extended\":%d,"
         "\"portals_widened\":%llu,\"nclip_checks\":%llu,\"nclip_flips\":%llu,"
-        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu,\"region_skipped\":%llu},\"host_visibility\":%s,\"enemies\":%s}",
+        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu,\"region_skipped\":%llu},\"host_visibility\":%s,\"enemies\":%s,\"eye_room\":%s}",
         draw_distance_extended()?"extended":"original",(unsigned long long)distance_frames,(unsigned long long)distance_refusals,
         distance_original,distance_extended,(unsigned long long)portal_widened,(unsigned long long)checks,(unsigned long long)flips,
-        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,(unsigned long long)open_sky_region_skipped,host_visibility_debug_json(),enemy_reach_debug_json());
+        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,(unsigned long long)open_sky_region_skipped,host_visibility_debug_json(),enemy_reach_debug_json(),eye_room_debug_json());
     return buffer;
 }

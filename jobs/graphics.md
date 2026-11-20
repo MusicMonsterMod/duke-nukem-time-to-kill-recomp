@@ -3038,7 +3038,7 @@ and close it out". Done with no code change.
 
 ### D17BL - The sky flashes while climbing a ladder (UI slot 12)
 
-**Status: Todo (reported 2026-11-18, not investigated). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-20: "fix accepted! great work king", then "close it out big boy!"). Dependencies: none.** [Note 518](../documentation/518-d17bl-eye-room.md).
 
 User, 2026-11-18 (desktop): "when you climb up this ladder, the skybox
 appears briefly." Evidence: the user's UI slot 12 savestate at the ladder,
@@ -3053,6 +3053,56 @@ near-clip or budget fallback, or the sky drawn over the world), and fix it
 in the game-wide rule, not for this ladder. Acceptance: no sky visible
 during the climb in matched frame captures at 60 and at the player's
 frame rate, the rest of the view unchanged, Vanilla unchanged.
+
+Work log, 2026-11-20 ([note 518](../documentation/518-d17bl-eye-room.md)):
+reproduced from the save on the first private run (7 of 60 shots were the sky
+fill with only the ladder; also with Classic, DRAW DISTANCE ORIGINAL and at
+60; never in third person or Vanilla). Cause: the ladder climbs through a
+ceiling hatch, and the camera's room word (camera +0x90), from which the
+portal walk finds every visible room, stayed in the lower room for about 20
+game frames after the first-person eye had passed above the hatch. New
+game-wide rule `recomp/src/ttk/eye_room.inc` (Modernized only): the walk starts
+in the room the eye is in, found through the camera room's portal planes
+(room boxes overlap, so a box test alone cannot tell) or, outside the box,
+the joined room whose box holds it; only the walk's start room changes, never
+the game's state. The host world pass also draws the game's room through the
+whole view while the eye is inside the hatch slab. Result: 0 sky shots at
+180 (two runs), 120, 60, Classic, ORIGINAL draw distance and the climb back
+down; the trace (1659 walks, workers included) shows no walk left in the
+lower room with the eye above the hatch. The player's other 11 saves: no
+moves in first person, identical load pictures with the rule on and off.
+Limit: Classic can still show a thin sky strip beside the opening in the
+frames inside the hatch slab (Classic frozen). The user's save was restored
+to UI slot 12 at their request; the save it replaced is kept in
+`research/savestates/slot11-before-d17bl-restore-20261119/`. Needs playtest:
+climb the ladder on the real display at the player's frame rate.
+
+Work log, 2026-11-20 (user: "i can see a kind of small ladder in the
+distance"): the far end of the shaft room's corridor (brick panels between
+wooden posts, the level's own frames 11000-15000 units on) reads as a small
+ladder; identical with the rule off, ORIGINAL draw distance and Classic. No
+change; note 518.
+
+Work log, 2026-11-20, revision 2 (user video): with the eye level with the
+hatch the lower half showed the sky fill and the ladder below. The walk
+starts in the shaft room with the eye on the hatch plane, where the opening
+is inside the near plane; the host pass now also draws every room behind an
+opening the eye is within 48 units of. Not reproduced in the lab with or
+without it; savestate asked for.
+
+Work log, 2026-11-20, revision 3: reproduced on the user's new UI slot 12
+save. The opening sits below the lower room's real ceiling, so with the eye
+between them the lower room (60) was never listed. The host pass now also
+draws the room behind an opening whose box holds the eye within 256 of the
+opening's plane. Fixed at the spot; climb and other saves unchanged.
+
+Work log, 2026-11-20, revision 4 (user: W/S at the spot still shows the
+ladder through a gap): caught on the real display during the user's play
+with a screenshot watcher and the new `DNTTK_HOST_VIS_TRACE=1`. From the
+shaft, room 60's top band (above the opening's plane) is in view while the
+opening is off screen; room 60 is now drawn whenever the eye is over the
+opening within 768 of its box. Real-display W/S run: no gap, nothing left
+undrawn.
 
 ### D53B - No impatient idle lines while watching a security camera
 

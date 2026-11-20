@@ -2028,7 +2028,7 @@ checked: framed HUD and other scales separately (same draw path), 180 Hz.
 
 ### D08A43 - Inserted crystal stays visible in the conveyor power slot (OBEY OR DIE)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-20: "fix accepted! great work king", then "close it out big boy!"). Dependencies: -.** [Note 519](../documentation/519-d08a43-crystal-slots.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: after putting the green energy crystal into the
@@ -2037,6 +2037,44 @@ The player has to come back and take it later, and nothing shows it is
 still installed. Work: show the crystal in the slot while it is installed,
 removed when taken; correct across loads; check the other crystal holders
 behave the same. Acceptance: the crystal visible in the slot until taken.
+
+Work log, 2026-11-20 ([note 519](../documentation/519-d08a43-crystal-slots.md)):
+the conveyor power slot (level 5 object 1, LEVEL05 overlay subtype 1) stores
+the crystal's state in its +0x35 and switches its own model (the ring turns
+green), but never links the crystal object into a room, unlike the generic
+crystal holder, which relinks a returned crystal itself. New Modernized rule
+`recomp/src/ttk/crystal_slots.inc`: a crystal that is neither found nor held,
+named by a non-holder device with several models, is linked into the
+device's room at the device (centre of its bounds, on the face that looks
+into its room), with the game's own list routine; the game's take unlinks it
+as before. Lab (fresh `level 5`, green crystal taken from its holder):
+inserted, the crystal sits in the cog; kept through a savestate save and
+load; taken back with E, the slot is empty and the crystal is found again.
+Levels 0 and 9 place nothing at their start. New developer console command
+`warp x y z` / `warp object N [distance] [degrees]` for setting up such
+tests (manual). Limits: red and blue not exercised (colour-independent
+rule); level 9's devices not exercised. Needs playtest in OBEY OR DIE.
+
+Work log, 2026-11-20, revision 2 (user: "the crystal should insert into the
+central hole horizontally"; "this didnt work first time round"): the crystal
+now lies along the slot's normal, pushed into the central hole with 60 units
+showing (angles +0x1e/+0x20, measured in the lab; upright again once taken);
+insert, savestate save and load, and take back pass. The first-press miss is
+not explained: the game's finder needs contact with the slot and in the lab a
+press soon after taking the crystal missed twice; asked the user which part
+failed. Note 519 updated.
+
+Work log, 2026-11-20, revision 3 (user: crystals from `dnstuff` do not show in
+the slot; natural red and green do): `dnstuff` sets the flags but leaves the
+crystals in their starting holders, which the rule left alone. A crystal a
+device holds that is still in the generic holder naming it now leaves that
+holder (its +0x35 cleared, as the take does) for the device. Lab: `dnstuff`
+red crystal shows in the slot, holder empty, take back works.
+
+Work log, 2026-11-20, revision 4 (user: use any of the 3 crystals): Enter on a
+browsed crystal in the mission inventory at a crystal device now uses that
+crystal (the others set aside in their own flag words for the use). Lab:
+`dnstuff`, green chosen at the slot, red and blue kept.
 
 ### D08A44 - Duke 3D-style night vision look
 
@@ -2182,7 +2220,7 @@ Work log, 2026-11-16 (implemented, Needs playtest):
 
 ### D08A47 - Holy Hand Grenade looks like its pickup
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-20: "fix accepted! great work king", then "close it out big boy!"). Dependencies: -.** [Note 520](../documentation/520-d08a47-holy-hand-grenade-look.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the Holy Hand Grenade's held or thrown model does not
@@ -2191,6 +2229,19 @@ used or adapted for the active grenade; for new mesh work follow note 265
 (D08A28 revision 5) and for the first-person view note 257. Acceptance:
 pickup, held and thrown grenade read as the same object, correct scale,
 animation and light.
+
+Work log, 2026-11-20 ([note 520](../documentation/520-d08a47-holy-hand-grenade-look.md)):
+the held (945) and thrown (944) grenade are one dark low-poly mesh in two
+frames; the pickup (1129) is a different gold mesh on the same texture page.
+New Modernized rule `recomp/src/ttk/hhg_look.inc` rewrites the held and
+thrown meshes in place with the pickup's faces and vertices: scaled to the
+thrown mesh's height, and carried into the hand by the thrown-to-held
+transform the game's own meshes give (least-squares fit, 4.3 units at worst).
+Model ids from the game's weapon, projectile and type tables; it refuses on
+any unexpected shape. Lab (level 6, spawned grenade, first and third
+person): held and in flight now the gold pickup shape. Limits: a Modernized
+savestate loaded in Vanilla shows the converted meshes until the next level
+load; checked in level 6 only. Needs playtest for size and light in hand.
 
 ### D08A48 - Mission inventory lists only items the level can give
 

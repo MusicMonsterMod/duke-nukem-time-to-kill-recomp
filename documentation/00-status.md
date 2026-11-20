@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-20 - D17BL, D08A43, D08A47, D08O6 closed out (Done)
+
+- D17BL ([note 518](518-d17bl-eye-room.md)): the sky no longer replaces the world while climbing the UI slot 12 ladder through a ceiling hatch. The portal walk starts in the room the first-person eye is in (`eye_room.inc`, through the camera room's portal planes, then room boxes); the game's room word is untouched. The user's ladder save is back in UI slot 12 (the save it replaced is in `research/savestates/slot11-before-d17bl-restore-20261119/`).
+- D08A43 ([note 519](519-d08a43-crystal-slots.md)): a crystal put into OBEY OR DIE's conveyor power slot stays visible in it until taken back (`crystal_slots.inc`, the game's own room lists). New developer console command `warp`.
+- D08A47 ([note 520](520-d08a47-holy-hand-grenade-look.md)): the held and thrown Holy Hand Grenade use the gold pickup mesh at the game's own sizes (`hhg_look.inc`).
+- D08O6 ([note 521](521-d08o6-breath-restore.md)): OPTIONS > ADVANCED BREATH RESTORE, INSTANT (default) or CLASSIC; profile schema 80.
+- Follow-ups accepted the same day: the crystal lies horizontally in the hole, cheated crystals show, Enter on a browsed crystal picks it; the room under the ladder hatch is drawn while the eye is over or beside the opening (caught on the real display with `DNTTK_HOST_VIS_TRACE=1`). All four user-accepted and closed out.
+
 ## 2026-11-20 - D20K closed out (Done): greyed options no longer blink
 
 Greyed OPTIONS rows (LIGHTING, LIVE SHADOWS and the others a setting disables) blinked for one frame whenever the shared packet ring (`0x800d67a8`) wrapped inside their text: the dim gave up on such a string. `game_menu.cpp` now dims (and recolours amber headings) across the wrap, with the original glyph routine's own rule. Offscreen 60/120 and a matched 300-frame burst showed the lit frames gone; the user confirmed on the real display: "fixed. lock it in and close it out". Modernized only; Vanilla menus unchanged. [D20K](../jobs/menus-ui.md#d20k---greyed-out-options-flicker-while-navigating-the-menu).

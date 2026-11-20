@@ -908,3 +908,24 @@ static void swim_update(CPUState* cpu,bool late) {
         return;
     }
 }
+
+// D08O6 - BREATH RESTORE (Modernized; DNTTK_BREATH_RESTORE instant,
+// the default, or classic; Vanilla always classic). The player update
+// (0x80041fd0) drains air player+0x236 by the frame step while +0x22c is 5
+// (under water; drowning at 0) and otherwise refills it by 8 frame steps a
+// frame up to 12000 (the air box, D20J, shows while under water or below
+// 12000). INSTANT, Duke 3D's rule: the first frame Duke is not under water
+// the air is full, so the air box goes at once and a quick dip starts full
+// again. Air use under water is untouched.
+static uint64_t breathing_refills=0;
+static bool breathing_instant() {
+    const char* v=ttk_live_env("DNTTK_BREATH_RESTORE");
+    return v && !std::strcmp(v,"instant");
+}
+static void breathing_update() {
+    if(!breathing_instant() || !player_identity_ready())return;
+    if(psx_mod_read_byte(player+0x22c)==5)return;
+    const int16_t air=(int16_t)psx_mod_read_half(player+0x236);
+    if(air>=12000 || air<0)return;
+    psx_mod_write_half(player+0x236,12000);++breathing_refills;
+}

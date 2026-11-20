@@ -82,6 +82,7 @@ def main(argv=None):
     p.add_argument('--level-stats', choices=('on', 'off'), help='save Modernized LEVEL STATS: on (default; time, kills and secrets in the bottom-left corner) or off; Vanilla never shows them')
     p.add_argument('--fps', choices=('on', 'off'), help='save the Modernized FPS display (the console fps statistics block): on or off (default)')
     p.add_argument('--night-vision', choices=profiles.NIGHT_VISION_MODES, help='save night vision: modern (instant toggle, uninterrupted fire) or original (equip animation)')
+    p.add_argument('--breath-restore', choices=profiles.BREATH_RESTORES, help='save Modernized air on surfacing: instant (default; full air the moment Duke surfaces, Duke 3D) or classic (the original gradual refill); Vanilla always uses classic')
     p.add_argument('--night-vision-look', choices=profiles.NIGHT_VISION_LOOKS, help='save the Modernized night-vision picture: duke3d (default; Duke 3D\'s green world with enemies glowing, Polymorph) or original (TTK\'s flat green); Vanilla always original')
     p.add_argument('--dynamite', choices=profiles.DYNAMITE_MODES, help='save Modernized dynamite: modern (default; a drawn stick stays unlit until fire, so you can switch away) or original (drawing it lights the fuse); Vanilla always uses original')
     p.add_argument('--jump', choices=profiles.JUMP_STYLES, help='save Modernized jump style: assisted (original lip launch, fixed arc) or manual (leaves on the press, edge grace, air steering)')
@@ -133,7 +134,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.vsync is not None or a.graphics is not None or a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.dynamic_lights is not None or a.lighting is not None or a.security_monitors is not None or a.shadow_edges is not None or a.model_shadows is not None or a.glows is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.night_vision_look is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.breath_restore is not None or a.vsync is not None or a.graphics is not None or a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.weapon_feel is not None or a.earthquakes is not None or a.dynamic_lights is not None or a.lighting is not None or a.security_monitors is not None or a.shadow_edges is not None or a.model_shadows is not None or a.glows is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.night_vision_look is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -163,6 +164,7 @@ def main(argv=None):
             if a.fps is not None: controls['fps'] = a.fps == 'on'
             if a.night_vision is not None: controls['night_vision'] = a.night_vision
             if a.night_vision_look is not None: controls['night_vision_look'] = a.night_vision_look
+            if a.breath_restore is not None: controls['breath_restore'] = a.breath_restore
             if a.dynamite is not None: controls['dynamite'] = a.dynamite
             if a.swim_view is not None: controls['swim_view'] = a.swim_view
             if a.ladder_view is not None: controls['ladder_view'] = a.ladder_view
@@ -353,6 +355,7 @@ def main(argv=None):
     if modernized and controls['fps']: env['PSX_FPS_TELEMETRY'] = '1'
     env['DNTTK_NIGHT_VISION'] = controls['night_vision'] if modernized else 'original'
     env['DNTTK_NIGHT_VISION_LOOK'] = controls['night_vision_look'] if modernized else 'original'   # D08A44
+    env['DNTTK_BREATH_RESTORE'] = controls['breath_restore'] if modernized else 'classic'   # D08O6
     env['DNTTK_DYNAMITE'] = controls['dynamite'] if modernized else 'original'
     env['DNTTK_SWIM_VIEW'] = controls['swim_view'] if modernized else 'legacy-third'
     env['DNTTK_LADDER_VIEW'] = controls['ladder_view'] if modernized else 'legacy-third'

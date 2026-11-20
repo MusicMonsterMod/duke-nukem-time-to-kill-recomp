@@ -861,6 +861,14 @@ python3 recomp/tools/local/run.py --swimming modern --show-settings
 
 See [notes](documentation/157-d08ab-swimming-option.md).
 
+**BREATH RESTORE** in OPTIONS > ADVANCED (Modernized, D08O6, beside
+SWIMMING) chooses how air comes back after a dive. **INSTANT** (the default,
+as in Duke Nukem 3D): the air is full again the moment Duke surfaces, and the
+air box goes at once; a quick dip starts full every time. **CLASSIC**: Time to
+Kill's original, the air refills gradually after surfacing. Air use under
+water is the same in both. Launcher: `--breath-restore instant|classic`
+(saved). Vanilla always uses CLASSIC.
+
 **SWIMMING VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE is independent
 of swimming pace. With global VIEW set to FIRST PERSON, Modern controls and
 Independent camera, choose FIRST PERSON (default) to keep the eye view or
@@ -1473,6 +1481,10 @@ Number keys now select familiar weapon groups when owned and usable:
 | 8 | Flamethrower |
 | 9 | Buffalo Rifle / Crossbow |
 | 0 | Freezer |
+
+**Holy Hand Grenade look (Modernized).** The grenade in Duke's hand and in
+flight is the same gold grenade you pick up (D08A47); Vanilla keeps the
+original darker held model.
 
 Upgrades stay on the base weapon's key. **Wheel up** selects the next usable
 weapon; **wheel down** selects the previous one. **Semicolon/apostrophe** still
@@ -2379,6 +2391,12 @@ Security Key in level 0 and the Warehouse Key in level 5). Vanilla refuses it.
 the level's own red, blue or green crystal. Walk over it to collect it: the
 original pickup message and sound play, and it counts as found everywhere (the
 Select inventory, the `,` / `.` mission inventory and the crystal receptacles).
+In Modernized, a crystal you put into a level's own crystal device (OBEY OR
+DIE's conveyor power slot) stays visible in it until you take it back, as
+the crystal holders already show theirs (D08A43).
+With more than one crystal (for example after `dnstuff`) the device takes
+red first when you press **E**; to choose, browse to the crystal with **, / .**
+and press **Enter** at the device: it takes that one (Modernized).
 In the normal game you take crystals from their holders with the action button;
 these numbers exist only in the console. If you already have that crystal, the
 console says "(already found)". Other levels refuse them. `spawn 761` is a
@@ -2393,6 +2411,13 @@ level's own spawner: an enemy of that type not yet in play is moved there and
 created the original way (one already in play is moved instead), and if the
 level's limit of live enemies is reached the farthest one is removed first.
 Only types the level places can be spawned.
+
+**Debug warp (testing, Modernized).** `warp x y z` moves Duke to that point
+(the room is found from the level's room boxes), and `warp object N [distance]
+[degrees]` puts him `distance` units (default 600) from level object N, at
+that compass angle (0 = +Z, 90 = +X), facing it, with the view turned to it.
+For setting up tests only; it is not a cheat for play and can leave Duke
+inside a wall or in mid-air.
 
 **Debug sound audition (Modernized).** `sfx <id>` in the console plays a game
 sound at Duke, `id` = bank * 0x1000 + index (for example `sfx 0x1012`, a low

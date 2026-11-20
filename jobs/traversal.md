@@ -4915,12 +4915,23 @@ Acceptance: Modern has no sluggish start, Classic and Vanilla unchanged.
 
 ### D08O6 - Air refills at once on surfacing (option)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08M.**
+**Status: Done (user-accepted 2026-11-20: "fix accepted! great work king", then "close it out big boy!"). Dependencies: D08M.** [Note 521](../documentation/521-d08o6-breath-restore.md).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: a choice between Time to Kill's gradual air recovery and
-Duke 3D's instant refill. Proposed setting ADVANCED, UNDERWATER BREATHING:
+Duke 3D's instant refill. Proposed setting ADVANCED, BREATH RESTORE:
 CLASSIC (air refills gradually after surfacing) and INSTANT (100% the moment
 Duke surfaces). Air use underwater unchanged in both. Acceptance: consistent
 behaviour when surfacing, including quick dips in and out; the air box
 (D20J) follows.
+
+Work log, 2026-11-20 ([note 521](../documentation/521-d08o6-breath-restore.md)):
+the original drains air (player+0x236) only in movement mode 5 and refills
+it by 8 frame steps a frame in every other mode. New option UNDERWATER
+BREATHING (OPTIONS > ADVANCED under SWIMMING; `instant` default, `classic`;
+schema 80, `run.py --breath-restore`, Vanilla always classic): with
+INSTANT the first frame out of mode 5 sets the air to 12000, so the air box
+goes at once (`swim.inc` `breathing_update`). Lab (level 6 moat, warp and
+swim up): INSTANT 10420 -> 12000 on the surfacing frame, CLASSIC the
+original gradual refill; drain under water identical. Profile tests 150/150.
+Needs playtest: a real dive on the player's display.

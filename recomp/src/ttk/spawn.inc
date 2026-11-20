@@ -243,6 +243,47 @@ static bool spawn_clear_of_reach(CPUState* cpu,uint32_t object,double view) {
     std::fprintf(stderr,"[TTK spawn] reach %d: no clear spot within %d degrees, kept at %u\n",reach,spawn_turn_limit,spawn_distance);
     return false;
 }
+// D08A43 developer warp (backtick console, Modernized, lab use): "warp x y z"
+// or "warp object N [distance] [degrees]" (in front of level object N of the
+// table 800D2550, facing it). Applied on the game thread in one step: the
+// position, Duke's map cell (+0x2e, the smallest room box holding the point;
+// cells are the room indices) and his facing (+0x1c). Not a cheat for play.
+struct WarpRequest {bool on=false,object=false;int32_t x=0,y=0,z=0;int n=0,distance=600,degrees=0;};
+static std::mutex warp_mutex;static WarpRequest warp_request;
+static int warp_cell(int32_t x,int32_t y,int32_t z) {
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88)return -1;
+    int best=-1;double volume=0;
+    for(uint32_t r=0;r<rooms;++r) {
+        const uint32_t a=table+r*88;const int32_t p[3]={x,y,z};bool in=true;double v=1;
+        for(int k=0;k<3 && in;++k){const int32_t lo=(int32_t)psx_mod_read_word(a+4*k),hi=(int32_t)psx_mod_read_word(a+0x20+4*k);in=p[k]>=lo&&p[k]<=hi;v*=double(hi-lo)+1;}
+        if(in && (best<0 || v<volume)){best=int(r);volume=v;}
+    }
+    return best;
+}
+static void warp_update() {
+    WarpRequest w;
+    {std::lock_guard<std::mutex> lock(warp_mutex);if(!warp_request.on)return;w=warp_request;warp_request.on=false;}
+    if(!player_identity_ready() || psx_mod_read_word(0x800c27bc)!=1) {input_notice("Warp unavailable here");std::fprintf(stderr,"[TTK warp] %s\n","Warp unavailable here");return;}
+    int32_t tx=w.x,tz=w.z;
+    if(w.object) {
+        const uint32_t o=(w.n>=0 && w.n<64)?psx_mod_read_word(0x800d2550+4*w.n):0;
+        if(o<0x80010000u || o>=0x801fff00u) {input_notice("Warp: no such object");std::fprintf(stderr,"[TTK warp] %s\n","Warp: no such object");return;}
+        tx=(int32_t)psx_mod_read_word(o+4);tz=(int32_t)psx_mod_read_word(o+12);
+        const double a=w.degrees*3.14159265358979/180.0;
+        w.x=tx+int32_t(std::lround(std::sin(a)*w.distance));w.z=tz+int32_t(std::lround(std::cos(a)*w.distance));
+        w.y=(int32_t)psx_mod_read_word(o+8);
+    }
+    const int cell=warp_cell(w.x,w.y,w.z);
+    if(cell<0) {input_notice("Warp: outside every room");std::fprintf(stderr,"[TTK warp] %s\n","Warp: outside every room");return;}
+    psx_mod_write_word(player+4,uint32_t(w.x));psx_mod_write_word(player+8,uint32_t(w.y));psx_mod_write_word(player+12,uint32_t(w.z));
+    psx_mod_write_byte(player+0x2e,uint8_t(cell));
+    if(w.object && (tx!=w.x || tz!=w.z)) yaw=std::atan2(double(tx-w.x),double(tz-w.z)); // the view faces it too
+    if(w.object && (tx!=w.x || tz!=w.z))
+        psx_mod_write_half(player+0x1c,uint16_t(int(std::lround(std::atan2(double(tx-w.x),double(tz-w.z))/(2*3.14159265358979)*4096))&4095));
+    std::fprintf(stderr,"[TTK warp] %d %d %d cell %d\n",w.x,w.y,w.z,cell);
+    input_notice("WARPED");
+}
 static int spawn_pending=-1;
 static uint64_t spawn_deadline;
 static void spawn_update(CPUState* cpu) {
@@ -250,6 +291,7 @@ static void spawn_update(CPUState* cpu) {
     // so it does not need captured input, only a verified Modernized gameplay
     // player. Wait up to ~5 s (300 host frames) for one, then give up.
     spawn_crystal_update(cpu);
+    warp_update();
     if(const int e=enemy_request.exchange(-1);e>=0) {
         if(player_identity_ready() && psx_mod_read_word(0x800c27bc)==1 && !guest_busy && cpu->gpr[29]>=0x801f4000 &&
            !g_precise_mode && !g_ls_mode && !g_psx_call_bail) spawn_enemy(cpu,e);
@@ -392,6 +434,16 @@ static void enemy_list(void (*say)(const char*)) {
 }
 bool spawn_console_command(const char* line,void (*say)(const char*),bool& close) {
     close=false;
+    if(!std::strncmp(line,"warp ",5)) {
+        if(!input_modernized()) {say("Warp: Modernized profile only");return true;}
+        WarpRequest w;w.on=true;
+        if(!std::strncmp(line+5,"object ",7)) {
+            w.object=true;const int got=std::sscanf(line+12,"%d %d %d",&w.n,&w.distance,&w.degrees);
+            if(got<1) {say("Warp: warp object N [distance] [degrees]");return true;}
+        } else if(std::sscanf(line+5,"%d %d %d",&w.x,&w.y,&w.z)!=3) {say("Warp: warp x y z, or warp object N [distance] [degrees]");return true;}
+        {std::lock_guard<std::mutex> lock(warp_mutex);warp_request=w;}
+        say("Warping...");close=true;return true;
+    }
     if(!std::strcmp(line,"enemies") || !std::strcmp(line,"spawn enemy") || !std::strcmp(line,"spawn enemies")) {
         enemy_list(say);return true;
     }

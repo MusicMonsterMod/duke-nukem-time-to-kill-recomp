@@ -1118,7 +1118,7 @@ void input_frame() {
             {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE},
             {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1},{"0",SDL_SCANCODE_0},
             {"2",SDL_SCANCODE_2},{"3",SDL_SCANCODE_3},{"4",SDL_SCANCODE_4},{"5",SDL_SCANCODE_5},{"6",SDL_SCANCODE_6},
-            {"7",SDL_SCANCODE_7},{"8",SDL_SCANCODE_8},{"9",SDL_SCANCODE_9}};
+            {"7",SDL_SCANCODE_7},{"8",SDL_SCANCODE_8},{"9",SDL_SCANCODE_9},{"comma",SDL_SCANCODE_COMMA},{"period",SDL_SCANCODE_PERIOD}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         mouse[1]=false;mouse[2]=false;

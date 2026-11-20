@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/workflows/ci.yml/badge.svg)](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/workflows/ci.yml)
 [![Listed on recomp.board](https://img.shields.io/badge/recomp.board-listed-c8102e?labelColor=1a1a1a)](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1)
+[![Listed on PlayPorted](https://playported.com/badge.svg)](https://playported.com/ports/961-duke-nukem-time-to-kill/)
 
 Modernized play by default (WASD, mouse aim, and quality-of-life), with the faithful original game one flag away (`--vanilla`). **No retail game data is included.** You need your own USA SLUS-00583 disc. Europe/PAL (SLES-01515) is a different SKU and will not work.
 
@@ -10,6 +11,7 @@ Modernized play by default (WASD, mouse aim, and quality-of-life), with the fait
 - [Current status](documentation/00-status.md)
 - [Modernization jobs](MODERNIZATION_JOBS.md) - the canonical backlog; job descriptions and the session log are in [`jobs/`](jobs/)
 - [recomp.board listing](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1) - our entry on the community board of who's recompiling what; it reads [`.recomp.json`](.recomp.json) daily
+- [PlayPorted listing](https://playported.com/ports/961-duke-nukem-time-to-kill/) - our page on PlayPorted, the port directory
 
 The implementation is tracked under **[recomp/](recomp/)**: title source,
 controls, renderer integration, runtime patches, build tools and tests. Pinned

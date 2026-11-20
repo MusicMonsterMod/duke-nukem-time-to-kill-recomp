@@ -1460,7 +1460,7 @@ sliders/lists; record platform coverage and any unverified cases.
 
 ### D19Z4 - A light square behind the mouse cursor (citadel, Wayland?)
 
-**Status: Todo (2026-11-16, user report). Dependencies: none.**
+**Status: Done (user-accepted and closeout authorized 2026-11-20). Dependencies: none.**
 
 User, 2026-11-16, after playing TIME TO KILL (level 0) on citadel, the TV
 PC (Ryzen 3 3200GE, Vega 8, CachyOS with a KDE session, possibly Wayland):
@@ -1935,7 +1935,7 @@ and Vanilla unchanged.
 
 ### D20K - Greyed-out options flicker while navigating the menu
 
-**Status: Todo (2026-11-16, user report). Dependencies: none.**
+**Status: Done (user-accepted and closeout authorized 2026-11-20). Dependencies: none.**
 
 User, 2026-11-16: "when we grey out lighting, live shadows etc, the options
 kinda blink/flicker as we navigate the menu options". The rows a setting
@@ -1951,6 +1951,50 @@ row only while the cursor is on it), drawn twice, or alternate between the
 original menu's palette and the host's grey CLUT. Acceptance: greyed rows
 stay steady while the cursor moves, the cursor row's highlight unchanged,
 at 60 and 120, Vanilla menus unchanged.
+
+#### Work log 2026-11-20 - cause found and fixed
+
+- **Cause.** `say_dim` (and `say_clut`, the amber headings) recolour the
+  glyph packets a text call just added, between the ring cursor before and
+  after the call. The glyph routine `0x8008b210` takes its 40-byte packets
+  from the render ring shared with the world draw (cursor `0x800d67a8`, start
+  +4, end +8, 139744 bytes) and moves the cursor to the start when a packet
+  would pass the end (disassembly: `end < cursor+0x28`). The ring does not
+  restart per frame. When the wrap fell inside a greyed string, the cursor
+  after the call was below the cursor before it; the old code treated that as
+  "leave it lit" and drew that row at full brightness for one frame. In
+  OPTIONS > DISPLAY the menu uses about 7.3 KB of ring a frame, so it wraps
+  about 3.3 times a second at a drifting point; cursor moves change the
+  description text and shift that point, hence "blinks as we navigate".
+- **Fix** (`recomp/src/ttk/game_menu.cpp`, `each_glyph`): walk the packets
+  across the wrap with the original's own rule - from the cursor before to the
+  last whole packet before the end, then from the start to the cursor after.
+  Both `say_dim` and `say_clut` use it. A diagnostic `glyph_wraps:[dim, clut]`
+  in the debug port's `game_menu` JSON counts strings that crossed the wrap.
+  Modernized only: the host menu is not used in Vanilla.
+- **Evidence** (offscreen, private fixture copy, draw distance ORIGINAL so
+  LIGHTING, LIVE SHADOWS, MODEL SHADOWS and GLOWS are greyed; local probe
+  `recomp/analysis/d20k/probe.py`):
+
+  | Run | Greyed strings across the wrap |
+  | --- | --- |
+  | 60, 30 s on DISPLAY, cursor still | 15 |
+  | 60, 48 cursor moves | 6 |
+  | 120, 30 s on DISPLAY, cursor still | 8 |
+  | 120, 48 cursor moves | 6 |
+
+  Each of those was a lit frame before the fix and is dimmed after it.
+  Matched bursts of 300 presented frames, LIGHTING-area brightness: old build
+  median 80.5, one frame 134.4 (MODEL SHADOWS label full orange, saved in
+  `research/before-after/d20k/`); fixed build 80.5 in all 300. Cursor row
+  highlight (blue label) unchanged.
+- **Remaining.** Player confirmation on the real display at 180, with a
+  setting that greys rows.
+
+#### Work log 2026-11-20 - accepted and closed out
+
+User playtest on the real display: "fixed. lock it in and close it out".
+Done.
 
 ### D21 - Reworked SOUND menu and configurable C held crouch
 

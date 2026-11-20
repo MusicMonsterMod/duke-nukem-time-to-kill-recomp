@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-20 - D20K closed out (Done): greyed options no longer blink
+
+Greyed OPTIONS rows (LIGHTING, LIVE SHADOWS and the others a setting disables) blinked for one frame whenever the shared packet ring (`0x800d67a8`) wrapped inside their text: the dim gave up on such a string. `game_menu.cpp` now dims (and recolours amber headings) across the wrap, with the original glyph routine's own rule. Offscreen 60/120 and a matched 300-frame burst showed the lit frames gone; the user confirmed on the real display: "fixed. lock it in and close it out". Modernized only; Vanilla menus unchanged. [D20K](../jobs/menus-ui.md#d20k---greyed-out-options-flicker-while-navigating-the-menu).
+
 ## 2026-11-20 - D22P and D08A48 closed out (Done): mission inventory lists only what the level can give
 
 Modernized: a mission item is listed only when the level can give it (a scan of its placed objects, their contents and its enemy records) or Duke has or used it. GOLD AND GUNS's phantom key and the second keys of MINER 69ER and FAMILY JEWELS are gone, also from the statistics screen. Levels without items (HOLY TERROR, GOLD AND GUNS) answer , / . with an empty slot, MISSION NONE and the card NO MISSION ITEMS, heading only (user request). User-accepted and closed out with D22P. [Note 517](517-d22p-gold-and-guns-skeleton-key.md).

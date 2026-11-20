@@ -195,6 +195,9 @@ constexpr GlyphRun small_percent[]={{0,0,6,17,80},{8,0,2,20,84},{0,1,6,17,81},{7
 // full; D08A6 dims an off gadget's digits the same way). The font's grey CLUT
 // row 224 has an opaque entry 0: it drew a box behind each glyph.
 constexpr uint8_t dim_level=0x48;
+// D20K: dimmed / recoloured strings that continued past the packet ring's
+// wrap (each one drew undimmed or gold for a frame before D20K).
+uint64_t glyph_wraps[2]={0,0};
 constexpr uint16_t ours_sub=8, death_sub=9;
 // D19N: the original GAME SETTINGS' values (0x800899cc): the settings word
 // (bit 0 AUTO AIM, bits 1-2 GORE 0-2, bit 3 STATUS BARS, bit 4 vibration,
@@ -1813,23 +1816,39 @@ struct Guest {
         }
         put(s);return (int)call(fn_width,text,font>>8,0,0);
     }
+    // D20K: each glyph packet the text call between `before` and `after` added.
+    // The ring (cursor glyph_next, start +4, end +8) is shared with the world
+    // draw and does not restart per frame: 0x8008b210 moves the cursor to the
+    // start when a packet would pass the end, so a string may continue at the
+    // start. Skipping such a string left it undimmed (or gold) for that frame:
+    // the greyed rows blinked as the wrap point drifted through them.
+    template<class F> static void each_glyph(uint32_t before,uint32_t after,int kind,F f) {
+        const uint32_t start=psx_mod_read_word(glyph_next+4),end=psx_mod_read_word(glyph_next+8);
+        uint32_t n=0;
+        if(after>=before) n=(after-before)/glyph_size;
+        else if(before<=end && after>=start) n=(end-before)/glyph_size+(after-start)/glyph_size;
+        if(n>128) return; // not one string's glyphs: leave them
+        if(after>=before) {for(uint32_t p=before;p<after;p+=glyph_size) f(p);return;}
+        ++glyph_wraps[kind];
+        for(uint32_t p=before;p+glyph_size<=end;p+=glyph_size) f(p);
+        for(uint32_t p=start;p<after;p+=glyph_size) f(p);
+    }
     // D19N: text drawn dimmer: the modulation of the glyph packets just added.
     void say_dim(const char* s,int x,int y,uint32_t flags) {
         const uint32_t before=psx_mod_read_word(glyph_next);
         say(s,x,y,flags);
-        const uint32_t after=psx_mod_read_word(glyph_next);
-        if(after<=before || after-before>glyph_size*128) return; // the buffer wrapped: leave it lit
-        for(uint32_t p=before;p<after;p+=glyph_size)
+        each_glyph(before,psx_mod_read_word(glyph_next),0,[](uint32_t p) {
             if(psx_mod_read_byte(p+7)==0x2c) for(uint32_t c=4;c<7;++c) psx_mod_write_byte(p+c,dim_level);
+        });
     }
     // D19G: text in another CLUT row of the font's column (the call offers
     // gold, blue and red): shift the CLUT of the glyph packets it just added.
     void say_clut(const char* s,int x,int y,uint32_t flags,int clut_delta) {
         const uint32_t before=psx_mod_read_word(glyph_next);
         say(s,x,y,flags);
-        const uint32_t after=psx_mod_read_word(glyph_next);
-        if(after<=before || after-before>glyph_size*128) return; // the buffer wrapped: leave it gold
-        for(uint32_t p=before;p<after;p+=glyph_size) psx_mod_write_half(p+14,(uint16_t)(psx_mod_read_half(p+14)+clut_delta));
+        each_glyph(before,psx_mod_read_word(glyph_next),1,[clut_delta](uint32_t p) {
+            psx_mod_write_half(p+14,(uint16_t)(psx_mod_read_half(p+14)+clut_delta));
+        });
     }
     // D19J: the prompt helper itself, with a text id, as the title pages call it.
     void prompt_id(Icon icon,int x,int y,int id) {call(fn_prompt,(uint32_t)icon,(uint32_t)x,(uint32_t)y,(uint32_t)id);}
@@ -3515,12 +3534,12 @@ extern "C" int ttk_load_ui_present_ready() {
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
     static char buffer[1280];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu],\"death\":[%d,%u,%llu,%llu,%llu],\"title\":[%llu,%.0f]}",
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu],\"death\":[%d,%u,%llu,%llu,%llu],\"title\":[%llu,%.0f],\"glyph_wraps\":[%llu,%llu]}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
         (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct,stats_open?1:0,stats_wait,(unsigned long long)stats_entries,(unsigned long long)stats_continues,
         death_scene?1:0,(unsigned)death_state,(unsigned long long)death_holds,(unsigned long long)death_opens,(unsigned long long)death_returns,
-        (unsigned long long)level_card.shown,level_card.left);
+        (unsigned long long)level_card.shown,level_card.left,(unsigned long long)glyph_wraps[0],(unsigned long long)glyph_wraps[1]);
     return buffer;
 }
 

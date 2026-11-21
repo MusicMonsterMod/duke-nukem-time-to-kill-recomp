@@ -3244,7 +3244,7 @@ Closed out, 2026-11-21: the user accepted it and authorized the closeout
 
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
-**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: D53.**
+**Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**
 
 User, 2026-11-20: "slot 10 - the security screens are strange when duke
 interacts with them as he physically puts his hand into the screen. we can
@@ -3256,3 +3256,46 @@ audit, note 257, and the D36H5 arm notes first); then either skip the hand
 animation for security screens or keep the touch in front of the screen
 surface. Acceptance: Duke's hand never goes into a security screen; the
 screen still switches to the camera as before; Vanilla unchanged.
+
+**Work log (2026-11-21, Needs playtest).** Lab `recomp/analysis/d53c/lab.py`
+(local), private copy of UI slot 10 (file 9, LEVEL00 by the three monitors).
+Cause: the monitor use plays the class-2 use 277 (the vending/NPC gesture),
+equipment 0, perspective `use` (D36H5 contact rig in first person, the native
+skeleton in third). The Action press lines Duke up with `0x8007ec4c(player,
+0x113)`: a ray to the monitor's collision face, then Duke is set 275 units
+from it in one update. That face is the TTK panel on the wall, and 277's hand
+joint reaches 283 in front of Duke: onto the panel. D53's Duke 3D TV stands
+140 out from the panel with the glass at 125, so the hand went about 130
+units through the glass, in both views (first person: the fist vanished into
+the screen for about 0.4 s). The monitor event 3 (camera, `0x8003b36c`) is
+keyed inside 277, about 0.47 s in. Keeping the touch in front of the glass was
+ruled out: from the lined-up spot Duke's shoulder joint is 46 units from the
+glass, and lining him up further back would snap him 130 units backwards. So
+the user's other option: no reach at a TV. `recomp/src/ttk/monitor_use.inc`,
+at the pose build `0x800411b8` (after every channel blend, as the D08J7C
+one-handed pull-up): while 277 plays during a committed use of a monitor drawn
+as the TV (`ttk::security_tv_object`, new in `security_monitor.h`: the Duke 3D
+look on and the TTK monitor mesh), the chest, neck and arms (joints 9, 16,
+10-15) take the unarmed idle's (63) first frame on their own channels, ramped
+in over 60 ms and out over 150 ms. Legs, root, the line-up, 277's timing, the
+camera event, weapon stow and return are the original's; both views, the
+contact rig, reflections and redraws read the same joints. TTK look, Classic,
+Vanilla and every other 277 use keep the reach. Developer A/B:
+`DNTTK_MONITOR_USE=native`; debug JSON `monitor_use`.
+Evidence (offscreen, private copies; player saves unchanged after every run):
+third and first person at 60 and third person at 180 show no hand at the
+screen, the camera bit set at the same point in 277 and the weapon back after;
+TTK look (`security_monitors` ttk): native reach onto the wall panel, override
+unused; A/B native: unused. Native group D53C (held pose, ramp-out, legs
+native, vending-style 277, no TV look, other caller, Vanilla, no use in
+progress); `ttk-controls-test` 161 groups, `ttk-input-test`,
+`ttk-aim-test`, `ttk-near-test` pass. Pairs in
+`research/before-after/D53C/` (local). Executable
+`cdef94b467b718da4ac71bc19ba79210c802a3b7ceb4b1a4747bb9237b5bdd18`.
+Observed, not changed: one frame at the switch draws the REC frame over
+Duke's own view before the feed (present in the build before this change).
+Limits: only the LEVEL00 monitors (the only ones the TV replaces); first person
+at 180 and the real display not checked; Vanilla checked in source and the
+native test, not on screen.
+
+**Closed out (2026-11-21).** User: "lock it in and close it out, perfect". Done; note 526.

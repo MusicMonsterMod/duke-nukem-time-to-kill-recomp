@@ -29,6 +29,7 @@ extern "C" {uint64_t s_frame_count=0;void (*g_psx_mod_hook_observer)(struct CPUS
 #include "pc_input.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
+#include "security_monitor.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -5359,6 +5360,76 @@ int main(int argc,char** argv) {
                     assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
                     std::copy(saved_ram.begin(),saved_ram.end(),ram);
                     std::puts("PASS: D36H3 run twist restrained, native-clock transitions, firing exclusion, connected base/upgrade arms and untouched grip/gameplay matrices");
+                }
+                // D53C: no reach into a Duke 3D TV. While the use 277 plays for a
+                // monitor drawn as the TV, the chest, neck and arms take the
+                // unarmed idle's (63) first frame at the pose build, ramped; the
+                // legs, every other 277 use, the TTK look and Vanilla stay native.
+                {
+                    const std::vector<uint8_t> saved_ram(ram,ram+sizeof ram);
+                    const uint32_t frm=0x801d7000,rot=0x801d7100,tv=0x801d7400,vending=0x801d7480;
+                    psx_mod_write_word(0x800d8324,frm);psx_mod_write_word(0x800d8320,rot);
+                    const unsigned ids[8]={9,16,10,11,12,13,14,15};
+                    unsigned key=0;
+                    for(unsigned ch=1;ch<=3;++ch) {
+                        psx_mod_write_half(0x800c2d64+8*63+2*ch,300+ch);
+                        psx_mod_write_word(0x800d8328+4*(300+ch),(1u<<16)|(40+ch));
+                        const unsigned begin=key;
+                        for(unsigned j:ids) {
+                            if((j>=13 && j<=15 ? 1u : j>=10 && j<=12 ? 2u : 3u)!=ch)continue;
+                            psx_mod_write_word(rot+8*key,2000u);                     // x 2000, y 0
+                            psx_mod_write_word(rot+8*key+4,(j<<27)|(3464u<<14));      // z 0, w 3464: 60 degrees about x
+                            ++key;
+                        }
+                        psx_mod_write_word(frm+8*(40+ch),100u<<16);
+                        psx_mod_write_word(frm+8*(40+ch)+4,((key-begin)<<16)|begin);
+                    }
+                    auto rec=[&](unsigned j){return desc+0x44+0x28*psx_mod_read_byte(desc+0x24+j)+4;};
+                    auto live=[&]{
+                        for(unsigned j:{1u,9u,16u,10u,11u,12u,13u,14u,15u}) {
+                            const uint32_t r=rec(j);
+                            for(int i=0;i<3;++i)psx_mod_write_word(r+4*i,0);
+                            psx_mod_write_word(r+12,4096);
+                        }
+                    };
+                    auto x=[&](unsigned j){return int32_t(psx_mod_read_word(rec(j)));};
+                    auto untouched=[&]{
+                        for(unsigned j:{1u,9u,16u,10u,11u,12u,13u,14u,15u})
+                            if(x(j)!=0 || int32_t(psx_mod_read_word(rec(j)+12))!=4096)return false;
+                        return true;
+                    };
+                    auto build=[&](double ms,uint32_t ra=0x80042634){live();ttk::clock_ms+=ms;call(0x800411b8,p,0,ra);};
+                    auto json=[&]{return std::string(ttk::controls_debug_json());};
+                    ttk::security_tv_object=[](uint32_t o){return o==0x801d7400u;};
+                    psx_mod_write_half(p+0x60,277);psx_mod_write_byte(p+0x27d,5);psx_mod_write_word(p+0x224,0x40);
+                    psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_word(p+0x290,tv);
+                    build(0);build(100);
+                    for(unsigned j:ids)assert(std::abs(x(j)-2048)<=2 && std::abs(int32_t(psx_mod_read_word(rec(j)+12))-3547)<=2);
+                    assert(x(1)==0 && int32_t(psx_mod_read_word(rec(1)+12))==4096);   // legs stay on 277
+                    assert(json().find("\"monitor_use\":{\"active\":true,\"weight\":1.000,\"uses\":1,")!=std::string::npos);
+                    // 277 ends: back to the live pose over the ramp, then nothing.
+                    psx_mod_write_half(p+0x60,63);
+                    build(50);
+                    for(unsigned j:ids)assert(x(j)>0 && x(j)<2040);
+                    build(100);assert(untouched());
+                    build(100);assert(untouched());
+                    // The same 277 at another object (a vending machine), the TTK
+                    // look (no TV), another caller and Vanilla: never.
+                    psx_mod_write_half(p+0x60,277);psx_mod_write_word(p+0x290,vending);
+                    build(100);build(100);assert(untouched());
+                    psx_mod_write_word(p+0x290,tv);ttk::security_tv_object=nullptr;
+                    build(100);build(100);assert(untouched());
+                    ttk::security_tv_object=[](uint32_t o){return o==0x801d7400u;};
+                    build(100,0x80042000);assert(untouched());
+                    ttk::modern=false;build(100);build(100);assert(untouched());ttk::modern=true;
+                    psx_mod_write_byte(p+0x27d,0);build(100);build(100);assert(untouched());   // no use in progress
+                    psx_mod_write_byte(p+0x27d,5);build(100);build(100);
+                    for(unsigned j:ids)assert(std::abs(x(j)-2048)<=2);
+                    assert(json().find("\"uses\":2,")!=std::string::npos);
+                    psx_mod_write_half(p+0x60,63);build(100);build(100);assert(untouched());
+                    ttk::security_tv_object=nullptr;
+                    std::copy(saved_ram.begin(),saved_ram.end(),ram);
+                    std::puts("PASS: D53C held idle upper body at a Duke 3D TV use, ramped out after 277, legs native; other 277 uses, TTK look, other callers and Vanilla untouched");
                 }
                 // D08K10: crouch display comes from the arm channel, never the
                 // hunch-adjusted world hand. A synthetic arm checks independence

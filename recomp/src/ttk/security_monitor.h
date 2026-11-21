@@ -20,6 +20,9 @@ inline bool security_glow_owns(uint32_t address) {return security_glow_copy && a
 // (no change). Former description: the TV mesh for a monitor mesh the object renderer is about to draw, or 0
 // (TTK look, Classic, Vanilla, no pack, not a monitor).
 inline uint32_t (*security_tv_swap)(uint32_t mesh)=nullptr;
+// D53C: true while the object (a prop) is drawn as the Duke 3D TV: the look
+// is on and its model is the TTK monitor panel the TV replaces.
+inline bool (*security_tv_object)(uint32_t object)=nullptr;
 // Paints the TV atlas into the 1024x512 second texture bank (x 0..255).
 inline void (*security_tv_paint_bank)(uint16_t* bank)=nullptr;
 // Screen lights for the TVs near Duke; returns how many were written.

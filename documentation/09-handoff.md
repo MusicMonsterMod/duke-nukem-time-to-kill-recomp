@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-21 - D53C no reach into the security TV closed out (Done)
+
+- D53C ([note 526](526-d53c-no-reach-at-tv.md)): in UI slot 10 Duke's use gesture put his hand through the Duke 3D TV's glass; the native line-up and reach land on the original wall panel 125 units behind it. At a TV he now makes no reach: while the use 277 plays, the chest, neck and arms hold the unarmed idle (`monitor_use.inc`, pose build `0x800411b8`); timing, camera switch and weapon return are the original's. TTK look, other uses and Vanilla keep the reach. Developer `DNTTK_MONITOR_USE=native`. User-accepted ("lock it in and close it out, perfect").
+
 ## 2026-11-21 - D17BN floor blood flicker closed out (Done)
 
 - D17BN ([note 525](525-d17bn-blood-lit-side.md)): the floor blood in UI slot 12 flickered between bright red and near black in straight-edged patches while the view moved. Cause: the shader lights a decal from its floor's bake on the side of the floor plane each fragment lies on (D41P), and blood lies on that plane. A D17AT decal's lighting position is now lifted 16 units toward the eye (`near_clip.cpp`, `model_depth.inc`); nothing moves. Developer `DNTTK_DECAL_LIGHT_LIFT=0`. Not D57F (this pool is opaque in the game's packets). Offscreen 180/120 Hz and one real-display run steady; colour as Vanilla; Vanilla loads. User-accepted ("it's now fixed! to an exceptionally high standard", "lock it in and close it out").

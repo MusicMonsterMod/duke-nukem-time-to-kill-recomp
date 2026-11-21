@@ -513,6 +513,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_security_monitor) {
     psx_mod_register_function_entry_plugin("ttk.security.monitor",0x80026164u,ttk::composition_hook);
     ttk::security_tv_swap=ttk::swap;
     ttk::security_tv_lights=ttk::lights;
+    ttk::security_tv_object=[](uint32_t o) {
+        return o>=0x80010000u && o<=0x801fff00u && !(o&3) && psx_mod_read_byte(o+0x14)==1 &&
+               ttk::duke_look() && ttk::monitor_mesh(psx_mod_read_word(o+0x44));
+    };
     ttk::security_tv_paint_bank=[](uint16_t* bank) {
         if(!ttk::pack_ok()) return;
         for(int y=0;y<ttk::pack.ah;++y)

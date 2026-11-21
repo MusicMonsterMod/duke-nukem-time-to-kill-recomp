@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-21 - D17BN floor blood flicker closed out (Done)
+
+- D17BN ([note 525](525-d17bn-blood-lit-side.md)): the floor blood in UI slot 12 flickered between bright red and near black in straight-edged patches while the view moved. Cause: the shader lights a decal from its floor's bake on the side of the floor plane each fragment lies on (D41P), and blood lies on that plane. A D17AT decal's lighting position is now lifted 16 units toward the eye (`near_clip.cpp`, `model_depth.inc`); nothing moves. Developer `DNTTK_DECAL_LIGHT_LIFT=0`. Not D57F (this pool is opaque in the game's packets). Offscreen 180/120 Hz and one real-display run steady; colour as Vanilla; Vanilla loads. User-accepted ("it's now fixed! to an exceptionally high standard", "lock it in and close it out").
+
 ## 2026-11-20 - D17BM power switch panel closed out (Done)
 
 - D17BM ([note 524](524-d17bm-power-panel-stays-lit.md)): LEVEL00's wall power switch (a lightning sign over a type 477 keypad) is always drawn self-lit in Modernized Polymorph, steady at full glow, before and after it is used. Cause: D53's glowing-model slots were host state that every second rescan emptied, and redraw workers keep the state they were forked with, so the panel showed unlit (bolt dark olive in the blue power light) for long stretches. Now recognised by the models when drawn (`security_monitor.cpp`); the sign's pulse and its light's pulse are gone; the glow block is allocated on the first live frame. Vanilla pixel-identical. User-accepted ("i can confirm thats now fixed!"). Test save: UI slot 12 (copy in `research/savestates/d17bm/`). Backlog: D17BN, the floor blood in the user's newer UI slot 12 save (`research/savestates/d17bn/`) flickers again.

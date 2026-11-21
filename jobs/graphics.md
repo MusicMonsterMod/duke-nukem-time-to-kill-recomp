@@ -3185,7 +3185,7 @@ close us out". Done; the lab is trimmed to its scripts.
 
 ### D17BN - Floor blood splatter flickers again (UI slot 12)
 
-**Status: Todo (backlog; reported 2026-11-20, not investigated). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-21, [note 525](../documentation/525-d17bn-blood-lit-side.md)). Dependencies: -.**
 
 User, 2026-11-20, after accepting D17BM: "copy over my slot 12, its
 identical as to the slot 12 we just looked at but im looking at the blood
@@ -3217,6 +3217,30 @@ against other blood, without moving blood off the floor (no sliding) and
 keeping D57F's solid colour. Verify on the real display (Polymorph, user
 display at 180 Hz). Acceptance: no blood flicker in UI slot 12 while still,
 turning or moving; other levels' blood also steady; Vanilla unchanged.
+
+Work log, 2026-11-21 (Needs playtest). Not D57F: this pool's packets are
+already opaque, so D57F's solid-blood and stain rules never apply; blob
+order, the D17AT blob depth rule, runtime depth and the chosen bake floor
+were all measured steady. Owner: the floor bake lighting
+(`DNTTK_MODEL_BAKE=0` removes it). The shader lights a model fragment from
+the lit or unlit side of the floor chart by which side of the floor plane it
+lies on (D41P); blood lies on the plane, so view-dependent rounding flipped
+straight-edged parts of the pool between bright red and near black. Fix
+(game-wide, `near_clip.cpp`, `model_depth.inc`): a D17AT decal's lighting
+position is lifted 16 units off its face toward the eye; the polygon and its
+depth do not move. Developer `DNTTK_DECAL_LIGHT_LIFT=0`. Slow turn at
+180 Hz: changed blood pixels per image 4215 -> 2731 and no spike images (the
+rest is texture crawl), 120 Hz and the real display the same; colour
+(68.6, 3.6, 1.3) as Vanilla (72, 6, 4); D17AT's slot 7 and 11 fixtures
+unchanged; Vanilla loads; `ttk-near-test` PASS; Python suite 268 OK. A
+deferred blob depth pass was tried, measured no difference and was reverted.
+The user offered a full blood reimplementation; not needed for this cause,
+kept as the next step if anything still flickers. Needs the user's look at
+UI slot 12 on their display.
+
+Closed out, 2026-11-21: the user accepted it and authorized the closeout
+("it's now fixed! to an exceptionally high standard", "lock it in and close it out"). Before/after sheets (local) in
+`research/before-after/D17BN/`.
 
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 

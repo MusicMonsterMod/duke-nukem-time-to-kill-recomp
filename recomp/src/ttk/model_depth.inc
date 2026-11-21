@@ -430,6 +430,7 @@ void model_link(CPUState* cpu) {
     const double distance=std::abs(plane.d);
     if(model_draw.flat && lift>write && !(command&0x02000000u) && distance>2.0*std::max<double>(lift,base+15*step)) {
         p.actor=true; // no prop contact shift: the decal offsets replace it
+        p.decal=true; // D17BN: lit from its visible side (emit)
         static const bool exact=env_int("DNTTK_DECAL_EXACT",0,0,1)!=0;
         p.exact_screen=exact;
         if(ranked) {

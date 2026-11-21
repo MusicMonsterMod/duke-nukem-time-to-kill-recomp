@@ -455,6 +455,9 @@ struct Poly {
     // 1 - s/|d|; doing it after the raster fallback keeps a decal's two
     // passes in their order even where a shifted plane would fall back.
     double depth_scale=1;
+    // D17BN: a decal (a flat model face lying on a surface): its lighting
+    // position is lifted off the surface toward the eye (emit).
+    bool decal=false;
     // D17AU: corners at the exact projection of their view positions, not
     // the game's GTE screen positions (see model_link).
     bool exact_screen=false;
@@ -849,6 +852,29 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     }
     {
         uint32_t poly_floor=0;float poly_fn[3]={0,0,0};   // D41P2
+        // D17BN: a decal lies on its surface (blood on a floor: within a few
+        // units, some slightly inside it), and the shader lights a model
+        // fragment from a floor's bake on the side of the floor plane the
+        // fragment is on (D41P). On the plane that test is decided by the
+        // rounding of world positions recomputed from the view every frame:
+        // straight-edged parts of a pool switched between the lit top and
+        // the unlit side while the view moved. The lighting position of a
+        // decal's corners (only that: the polygon and its depth stay where
+        // they are) is lifted decal_light_lift units off its face toward the
+        // eye, the visible side. Developer DNTTK_DECAL_LIGHT_LIFT=0.
+        double decal_lift[3]={0,0,0};
+        if(lit && poly.decal && n>=3) {
+            static const double lift_units=env_int("DNTTK_DECAL_LIGHT_LIFT",16,0,64);
+            const double* a=v[0].p;const double* b=v[1].p;const double* c=v[2].p;
+            const double e1[3]={b[0]-a[0],b[1]-a[1],b[2]-a[2]},e2[3]={c[0]-a[0],c[1]-a[1],c[2]-a[2]};
+            double fn[3]={e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]};
+            const double l=std::sqrt(fn[0]*fn[0]+fn[1]*fn[1]+fn[2]*fn[2]);
+            if(l>1e-9 && lift_units>0) {
+                const double s=(fn[0]*a[0]+fn[1]*a[1]+fn[2]*a[2])>0 ? -lift_units/l : lift_units/l;   // toward the eye (view origin)
+                const double* m=light_inv;
+                for(int k=0;k<3;++k) decal_lift[k]=(m[3*k]*fn[0]+m[3*k+1]*fn[1]+m[3*k+2]*fn[2])*s;
+            }
+        }
         for(unsigned i=0;i<n;++i) {
             const uint32_t addr=prim+8+stride*i,word=lean_written?lean_words[stride/4*i+1]:psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
@@ -880,7 +906,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
             if(lit) {
                 const double* p=v[i].p;const double* m=light_inv;
-                const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]);
+                const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]+decal_lift[0]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]+decal_lift[1]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]+decal_lift[2]);
                 const double* nv=v[i].n;
                 if(light_probe_on() && n>=3) {
                     double q[3][3];

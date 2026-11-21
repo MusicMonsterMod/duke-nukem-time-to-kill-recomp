@@ -851,3 +851,17 @@ upstream performance claims were not independently benchmarked.
 User direction (2026-10-04): retain Disruptor as research only. Learn techniques
 and write purpose-built TTK implementations; no 1:1 copying or mechanical
 translation of third-party source. This direction does not start an experiment.
+
+### D61 - Level atlas and teleport entry point for agents
+
+**Status: Todo (backlog; user request 2026-11-21; scope under discussion). Dependencies: D26E, D08A43 (Done).**
+User, 2026-11-21, after the D53D savestates loaded at the right place but
+without weapons ("kinda cursed"): "write a helper function or subroutine
+which can allow you to actually see every part of every level, and teleport
+right to it. this would be particularly helpful if we could actually own
+that. it doesnt really need human interaction at all ... i feel like it would
+open possibilities but not sure exactly what." Starting points: the developer
+`warp` (D08A43) keeps the given height (in D53D it put Duke inside LEVEL09's
+platform); `level N` loads leave the D53D states without weapons; the room
+table, prop lists and floor probes already read by the labs. Scope to be
+agreed with the user before any code.

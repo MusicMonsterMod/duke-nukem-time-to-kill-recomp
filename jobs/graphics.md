@@ -3325,3 +3325,56 @@ at 180 and the real display not checked; Vanilla checked in source and the
 native test, not on screen.
 
 **Closed out (2026-11-21).** User: "lock it in and close it out, perfect". Done; note 526.
+
+### D53D - Security monitors in LEVEL05 and LEVEL09 (UI slots 9 and 10)
+
+**Status: Done (user-accepted 2026-11-21: "they look aweseom! and work"; [note 528](../documentation/528-d53d-level05-09-monitors.md)). Dependencies: D53, D53A, D53C (Done). Follow-ups: D53E, D61.**
+User, 2026-11-21: "work on D53 TVs in LEVEL05 and LEVEL09. for testing you
+can place a statesave in slots 9 and 10 so i can easily get to those spots
+too". Note 432 left these levels' monitors unverified (D35K camera callbacks:
+LEVEL05 subtypes 17-19, LEVEL09 11-13). Acceptance: in both levels the
+monitors are the Duke 3D TV with the camera frame, the live picture after the
+view and no hand through the glass; the TTK look and Vanilla keep the
+originals; savestates at both spots in UI slots 9 and 10.
+
+Work log, 2026-11-21 (Needs playtest; [note 528](../documentation/528-d53d-level05-09-monitors.md)).
+Both levels use LEVEL00's monitor model exactly (16 vertices, nine quads,
+radius 320) under other prop types (818 in LEVEL05, 1000 in LEVEL09), and D53
+finds everything by model, so no code change was needed. Checked offscreen on
+private card copies: TV swap, TV lights, use and REC frame, D53A feed after
+the view, D53C third person, TTK look originals. LEVEL09's monitors stand on
+a raised platform beside the RE-ENTRY POINT. Savestates: UI slot 9 = LEVEL05
+(900 in front of the middle monitor), UI slot 10 = LEVEL09 (1100 in front of
+the middle monitor, on the platform), each reloaded and checked; the previous
+slot 9 and 10 states are in `research/savestate-backups/2026-11-21-d53d-before/`
+(local). Pairs in `research/before-after/D53D/` (local). Found, not changed:
+the TTK look turns LEVEL05's monitor room deep red (the three baked red sign
+lamps of the monitors, D41D1/D41P2; LEVEL09 too, LEVEL00 a pink cast), and a
+click held about 150 ms or longer to leave a camera starts a new use of the
+same TV (taps up to 100 ms are clean; every level). Remaining: the user's look
+in slots 9 and 10 on the real display; Vanilla was not run at these spots.
+
+Closed out, 2026-11-21: user playtest in UI slots 9 and 10: "they look
+aweseom! and work"; closeout authorized ("ok to lock in and close out").
+Done. Reported in the same playtest: switching SECURITY MONITORS to TTK while
+playing leaves the TVs (D53E); the D53D savestates show no weapons, "kinda
+cursed" (suspected: they were made after a developer `level N` load, not a
+real arrival), which led to D61.
+
+### D53E - Security monitors setting does not switch the look live
+
+**Status: Todo (backlog; user report 2026-11-21). Dependencies: D53D (Done).**
+User, 2026-11-21, UI slots 9 and 10: "changing the security monitor type back
+to ttk in settings does not seem to revert these, weirdly the original ones
+show in the pause menu! but when changing the setting, the monitors stay as
+they are and you see their original lamp color." Lead (not yet verified): the
+option is read with `ttk_live_env`, whose values live in the game process;
+the high-refresh frames are drawn by forked redraw workers that keep the
+values they were forked with, while paused frames are drawn live, so the
+pause menu shows the TTK monitors and play keeps the TV. Other live options
+pass through the redraw state for this reason. The red light seen after the
+switch is the monitors' own baked sign lamps (note 528). Acceptance: the
+option switches both ways at once in play, paused and at 180 Hz, in LEVEL00,
+LEVEL05 and LEVEL09 (TV, frame, feed, lights, bounds, no-reach use); Vanilla
+unchanged. Decide with the user whether the TTK look keeps the red monitor
+lamps (note 528).

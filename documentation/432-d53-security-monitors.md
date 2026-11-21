@@ -239,7 +239,8 @@ lab runs, so the dark case is for the user's playtest.
 ## Limits
 
 - Only the LEVEL00 monitor mesh shape is recognised; monitors in other levels
-  with another mesh keep the TTK look until they are added (check LEVEL05 and
-  LEVEL09, whose cameras use the same entry, D35K).
+  with another mesh keep the TTK look until they are added. LEVEL05 and
+  LEVEL09 use the same mesh (types 818 and 1000) and get the full look (D53D,
+  note 528).
 - The screen light strength is a first value, to tune with the user in game.
 - Classic and Vanilla keep the original monitors by design.

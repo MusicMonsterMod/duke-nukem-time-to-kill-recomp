@@ -1,5 +1,11 @@
 # Next-session handoff
 
+## 2026-11-21 - D53D security monitors in LEVEL05 and LEVEL09 closed out (Done)
+
+- User-accepted ("they look aweseom! and work"). New backlog: D53E (option does not switch live; lead: redraw workers keep the forked value) and D61 (level atlas and teleport; the D53D savestates show no weapons).
+
+- D53D ([note 528](528-d53d-level05-09-monitors.md)): LEVEL05 (type 818) and LEVEL09 (type 1000) monitors are LEVEL00's monitor model, so the Duke 3D TV, REC frame, D53A feed and D53C no-reach use apply there unchanged; verified offscreen, no code change. UI slot 9 is now LEVEL05 and UI slot 10 LEVEL09, Duke in front of the middle monitors (old states in `research/savestate-backups/2026-11-21-d53d-before/`, local). Open findings: the TTK look floods LEVEL05's monitor room red (the monitors' baked red sign lamps), and a click held 150 ms or more to leave a camera starts a new use.
+
 ## 2026-11-21 - D53A security monitors keep a live picture closed out (Done)
 
 - D53A ([note 527](527-d53a-security-feed.md)): in Modernized Polymorph with the DUKE 3D monitors, the TV the player used keeps a low-res (96x96) live picture of its camera after the view, until Duke is 8192 units away, a load or a new level; the other TVs keep SECURITY. A redraw-worker job through the saved camera (at most 15 a second, only while the TV is on screen), shrunk into the second texture bank (framework `gl_replay_cache_to_bank`). Cost at 180 Hz facing the TV: GPU clock-weighted about +0.75 points, presents unchanged. Not at FRAME RATE ORIGINAL; TTK look, Classic and Vanilla unchanged. User-accepted: "lock it in and close it out! this is insanely good work".

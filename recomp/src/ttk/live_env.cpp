@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <set>
+#include <string>
 
 namespace {
 struct Slot {std::atomic<const char*> name{nullptr},value{nullptr};};
@@ -56,6 +58,42 @@ extern "C" void ttk_live_env_set(const char* name,const char* value) {
         const char* n=s.name.load(std::memory_order_acquire);
         if(n && !std::strcmp(n,name)) {s.value.store(value,std::memory_order_release);return;}
         if(!n) {s.value.store(value,std::memory_order_release);s.name.store(name,std::memory_order_release);slot_gen.fetch_add(1,std::memory_order_acq_rel);return;}
+    }
+}
+
+extern "C" size_t ttk_live_env_pack(char* out,size_t cap) {
+    if(!out || !cap) return 0;
+    size_t n=0;
+    for(Slot& s:slots) {
+        const char* name=s.name.load(std::memory_order_acquire);
+        if(!name) break;
+        const char* value=s.value.load(std::memory_order_acquire);
+        if(!value) continue;
+        const size_t a=std::strlen(name)+1,b=std::strlen(value)+1;
+        if(n+a+b+1>cap) break;
+        std::memcpy(out+n,name,a);n+=a;
+        std::memcpy(out+n,value,b);n+=b;
+    }
+    out[n++]='\0';
+    return n;
+}
+extern "C" void ttk_live_env_unpack(const char* in,size_t len) {
+    // Names and values are kept for the life of the process, as
+    // ttk_live_env_set requires; a menu offers few values, so this stays small.
+    static std::set<std::string> kept;
+    auto keep=[](const char* t) {return kept.insert(t).first->c_str();};
+    size_t i=0;
+    while(in && i<len && in[i]) {
+        const char* name=in+i;
+        const size_t a=strnlen(name,len-i);
+        if(i+a+1>=len) return;
+        const char* value=name+a+1;
+        const size_t b=strnlen(value,len-i-a-1);
+        if(i+a+1+b>=len) return;
+        i+=a+1+b+1;
+        int slot;const char* now=live_env_full(name,slot);
+        if(slot>=0 && now && !std::strcmp(now,value)) continue;
+        ttk_live_env_set(keep(name),keep(value));
     }
 }
 

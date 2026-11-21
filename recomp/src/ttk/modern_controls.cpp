@@ -2412,7 +2412,10 @@ struct RenderState {
     int ammo_view;
     // D49F: the live frame's "boltlaunch" switch (the Laser Gatling's toe-in).
     bool laser_toe_in;
+    // D53E: the OPTIONS values confirmed in game (live_env.h).
+    char live_env[1536];
 };
+static_assert(sizeof(RenderState)<=16384,"RenderState must fit frame_replay's Frame::render");
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
     // These matrices are completely populated by their draw hooks before use.
@@ -2485,6 +2488,7 @@ void render_state_save(void* out) {
     r.lights=light_view;
     r.ammo_view=ammo_view;
     r.laser_toe_in=aim_bolt_launch_enabled();
+    ttk_live_env_pack(r.live_env,sizeof r.live_env);
     std::memcpy(out,&r,sizeof r);
 }
 void render_state_blend_mask(void* out,const void* next,double alpha) {
@@ -2578,6 +2582,9 @@ void render_state_load(const void* in) {
     light_view=r.lights;
     override_ammo_view=r.ammo_view;
     laser_toe_in_replay=r.laser_toe_in?1:0;
+    // DNTTK_REPLAY_LIVE_ENV=0 (developer A/B): the worker keeps its fork-time values.
+    static const bool live_env_carry=[]{const char* t=std::getenv("DNTTK_REPLAY_LIVE_ENV");return !(t && t[0]=='0' && !t[1]);}();
+    if(live_env_carry) ttk_live_env_unpack(r.live_env,sizeof r.live_env);
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;

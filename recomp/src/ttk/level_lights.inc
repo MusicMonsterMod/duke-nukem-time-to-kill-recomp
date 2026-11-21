@@ -55,7 +55,7 @@
 // (prop_state.h); when the last breaks it sputters out and stays dark.
 // standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
 struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
-                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;};
+                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;int monitor=-1;};
 enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_styles};
 static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
@@ -499,6 +499,15 @@ static void signal_lamp_now(unsigned i,float rgb[3],float& e) {
     e*=st[3];
 }
 
+// D53F: the TTK look's security monitors light their room through their
+// sign lamps (D41D1, pure red, strength 1): three side by side flood a pale
+// room red (note 528). While the TTK look is on those lamps are scaled by
+// DNTTK_TTK_MONITOR_LAMP (developer, 0-1; default 0.6), live and baked. The
+// Duke 3D look keeps them as they are.
+static float level_lamp_monitor_scale(const LevelLamp& l) {
+    static const float scale=[]{const char* t=std::getenv("DNTTK_TTK_MONITOR_LAMP");return t?std::clamp((float)std::atof(t),0.0f,1.0f):0.6f;}();
+    return l.monitor==1 && security_monitors_ttk && security_monitors_ttk() ? scale : 1.0f;
+}
 // Called from lights_publish (game tick): the nearest lamps for this image.
 static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
     level_lamp_rooms_update();   // before any return: the prop lamps use it too
@@ -559,6 +568,9 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         if(l.props.empty()) continue;
         bool stands=false;
         for(const PropRef& r:l.props) stands|=prop_standing_at(props,r.type,r.p);
+        // D53F: a security monitor's sign lamp (found by the prop's model).
+        if(l.monitor<0 && security_monitor_object) for(const PropRef& r:l.props)
+            if(const uint32_t o=prop_standing_object(props,r.type,r.p)) {l.monitor=security_monitor_object(o)?1:0;break;}
         if(stands) l.standing=1;
         else if(l.standing!=0) {
             l.broke_tick=l.standing<0 ? light_ticks-prop_dying_ticks : light_ticks;
@@ -601,6 +613,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
         // D55: a signal lamp shows its prop's frame (colour and brightness).
         if(l.style==lamp_signal) signal_lamp_now(near[j].i,rgb,e);
         e*=(float)level_lamp_cut_fade(near[j].d,cut,level_lamp_fade);
+        e*=level_lamp_monitor_scale(l);   // D53F
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,near[j].i);
         if((int)near[j].i!=level_lamp_selected) e*=level_lamp_vis[near[j].i];
         if((int)near[j].i==level_lamp_selected && light_ticks<level_lamp_flash_until)

@@ -139,6 +139,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     if(lights_console_command(line,say,close))return true;
     if(blast_audio_console_command(line,say,close))return true; // D41U
     if(lamp_console_command(line,say,close))return true; // D41D
+    if(option_console_command(line,say,close))return true; // D53E
     if(beat_console_command(line,say,close))return true;
     if(crouch_console_command(line,say,close))return true;
     if(fov_console_command(line,say,close))return true;

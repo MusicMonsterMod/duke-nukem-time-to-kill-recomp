@@ -23,6 +23,10 @@ inline uint32_t (*security_tv_swap)(uint32_t mesh)=nullptr;
 // D53C: true while the object (a prop) is drawn as the Duke 3D TV: the look
 // is on and its model is the TTK monitor panel the TV replaces.
 inline bool (*security_tv_object)(uint32_t object)=nullptr;
+// D53F: a prop drawn with the TTK monitor model (either look), and whether
+// the TTK look is on now (Modernized Polymorph, SECURITY MONITORS TTK).
+inline bool (*security_monitor_object)(uint32_t object)=nullptr;
+inline bool (*security_monitors_ttk)()=nullptr;
 // Paints the TV atlas into the 1024x512 second texture bank (x 0..255).
 inline void (*security_tv_paint_bank)(uint16_t* bank)=nullptr;
 // Screen lights for the TVs near Duke; returns how many were written.

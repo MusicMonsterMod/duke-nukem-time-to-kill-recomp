@@ -487,7 +487,7 @@ a FRAME RATE other than ORIGINAL. The monitors work the same as before; only
 their look changes. Keypads you can use are lit up
 too, so the part you use stands out, and the lightning power sign beside a
 power switch pulses with electric blue light on the wall (either setting). **TTK** keeps the original
-monitors and camera views. Change it in **OPTIONS > GAMEPLAY > SECURITY
+monitors and camera views, with their red lamps turned down. A change applies at once, also while you play. Change it in **OPTIONS > GAMEPLAY > SECURITY
 MONITORS** (it switches at once and saves) or with the launcher's
 `--security-monitors duke3d|ttk`. The Classic renderer and Vanilla always
 show the original monitors.
@@ -2422,6 +2422,11 @@ Only types the level places can be spawned.
 that compass angle (0 = +Z, 90 = +X), facing it, with the view turned to it.
 For setting up tests only; it is not a cheat for play and can leave Duke
 inside a wall or in mid-air.
+
+**Debug option (testing).** `option KEY VALUE` changes one OPTIONS choice
+that applies at once, as confirming it in the menu does, for this session
+only (nothing is saved). KEY and VALUE are the settings file's names, for
+example `option security_monitors ttk` or `option glows off`.
 
 **Debug sound audition (Modernized).** `sfx <id>` in the console plays a game
 sound at Duke, `id` = bank * 0x1000 + index (for example `sfx 0x1012`, a low

@@ -3509,6 +3509,32 @@ void game_menu_frame(CPUState* cpu) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     draw_page(cpu,c);
 }
+// D53E (developer): "option KEY VALUE" confirms one choice row as the
+// OPTIONS screen would (apply_live, and the redraw worker refresh for the
+// rows that need it) for this session; nothing is saved. Labs use it to
+// change a live setting in play without driving the menu.
+bool option_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strncmp(line,"option ",7)) return false;
+    char key[64]={},value[64]={};
+    if(std::sscanf(line+7,"%63s %63s",key,value)!=2) {say("Option: option KEY VALUE (a settings key, one of its values)");return true;}
+    if(screens.empty()) {say("Option: the menu is not ready yet");return true;}
+    for(size_t s=0;s<screens.size();++s) {
+        const int i=row_of((int)s,key);
+        if(i<0) continue;
+        Row& r=screens[s].rows[(size_t)i];
+        if(r.slider || r.link || r.heading || !row_live(r)) {say("Option: that row is not a live choice");return true;}
+        int v=-1;
+        for(size_t c=0;c<r.choices.size();++c) if(!std::strcmp(r.choices[c].env,value)) v=(int)c;
+        if(v<0) {say("Option: not one of that row's values");return true;}
+        committed[s][(size_t)i]=draft[s][(size_t)i]=v;
+        apply_live(r,v);
+        for(const char* k:{"model_shadows","glows","shadow_edges","dynamic_lights"})
+            if(!std::strcmp(key,k)) psx_mod_replay_workers_refresh();
+        char reply[160];std::snprintf(reply,sizeof reply,"Option %s: %s (this session, not saved)",key,r.choices[(size_t)v].label);
+        say(reply);close=false;return true;
+    }
+    say("Option: no such settings key");return true;
+}
 } // namespace ttk
 
 // Called synchronously after successful restore, before any restored present.

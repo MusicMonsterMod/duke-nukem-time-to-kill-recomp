@@ -3363,7 +3363,7 @@ real arrival), which led to D61.
 
 ### D53E - Security monitors setting does not switch the look live
 
-**Status: Todo (backlog; user report 2026-11-21). Dependencies: D53D (Done).**
+**Status: Done (user-accepted 2026-11-21: "it's working! looks great"; [note 529](../documentation/529-d53e-live-options-reach-redraws.md)). Dependencies: D53D (Done). Follow-up: D53F.**
 User, 2026-11-21, UI slots 9 and 10: "changing the security monitor type back
 to ttk in settings does not seem to revert these, weirdly the original ones
 show in the pause menu! but when changing the setting, the monitors stay as
@@ -3378,3 +3378,38 @@ option switches both ways at once in play, paused and at 180 Hz, in LEVEL00,
 LEVEL05 and LEVEL09 (TV, frame, feed, lights, bounds, no-reach use); Vanilla
 unchanged. Decide with the user whether the TTK look keeps the red monitor
 lamps (note 528).
+
+Work log, 2026-11-21: cause confirmed. OPTIONS rows store their value in a
+table of process statics (`live_env.cpp`); the in-game pictures come from
+forked redraw workers holding the table they were forked with, while paused
+frames are drawn live. `leave_screen` re-forks workers for four D41S rows,
+not SECURITY MONITORS. Fix for every live option: each published frame
+carries the confirmed table in `RenderState` (`ttk_live_env_pack`/`unpack`,
+1536 bytes), and the worker drawing it takes that frame's values. Developer
+`DNTTK_REPLAY_LIVE_ENV=0` (old behaviour) and console `option KEY VALUE`
+(the menu's apply path, not saved). Offscreen at 180 Hz in LEVEL00, LEVEL05
+and LEVEL09: both directions switch at once in play, paused and resumed;
+TV, REC frame, live feed and the TTK camera view follow; A/B reproduces the
+report with the old behaviour. 60 Hz checked in LEVEL05. The TTK red lamps
+stay for now (user: "lets leave for now and i'll check it when you're
+done"). Needs the user's check in the real OPTIONS screen.
+
+### D53F - TTK-look security monitor lamps turned down
+
+**Status: Done (user-accepted 2026-11-21: "its perfect. lock it in and close it out"; [note 530](../documentation/530-d53f-ttk-monitor-lamps.md)). Dependencies: D53E (Done).**
+User, 2026-11-21, after D53E: "let's start by turning down the vanilla monitor
+lamps", "so only the vanilla ones. our ones are perfect". ("Vanilla" here is
+the TTK look of SECURITY MONITORS in Modernized.) Acceptance: with SECURITY
+MONITORS TTK, the monitor rooms of LEVEL00, LEVEL05 and LEVEL09 are no longer
+flooded red; the DUKE 3D look, other lamps and the Vanilla profile unchanged;
+follows a live option switch.
+
+Work log, 2026-11-21: the D41D1 sign lamps of props drawn with the monitor
+model (found by model, `security_monitor_object`) are scaled while the TTK
+look is on, in the live lamp list and the bake's per-tick lamp colours
+(`level_lights.inc`, `lamp_bake.inc`); developer `DNTTK_TTK_MONITOR_LAMP` (0-1). First 0.15
+(frame red mean LEVEL00 100 to 47, LEVEL05 214 to 90, LEVEL09 80 to 22);
+user: "a little too dim... let's try 60%", now 0.6 (82, 188, 54); DUKE 3D look 152.8 / 152.5 (unchanged). Live switch
+at 180 Hz matches the launched look. Pairs in `research/before-after/D53F/`
+(local).
+

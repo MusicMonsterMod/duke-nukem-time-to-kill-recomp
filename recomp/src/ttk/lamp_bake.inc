@@ -299,6 +299,7 @@ static void lamp_bake_levels(LightStage& v,unsigned lamp0,unsigned lamp1) {
         float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,i));
         if(l.style==lamp_signal) signal_lamp_now(i,rgb,e);   // D55A: colour and brightness (it lost the brightness)
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,i);
+        e*=level_lamp_monitor_scale(l);   // D53F: the TTK look's monitor lamps
         for(int a=0;a<3;++a) v.bake_rgb[i*3+a]=rgb[a]*e*g;
     }
     v.bake_n=std::max(1u,n);

@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-11-21 - D53E and D53F closed out (Done)
+
+- D53E ([note 529](529-d53e-live-options-reach-redraws.md)): every published frame carries the confirmed OPTIONS values to the redraw worker that draws it, so live rows switch at once in play (SECURITY MONITORS was the report). User: "it's working! looks great".
+- D53F ([note 530](530-d53f-ttk-monitor-lamps.md)): the TTK look's monitor sign lamps at 60% (15% was too dim), live and baked, found by the monitor model; DUKE 3D look unchanged. User: "its perfect. lock it in and close it out".
+
+## 2026-11-21 - D53F TTK-look monitor lamps turned down (Needs playtest)
+
+- D53F ([note 530](530-d53f-ttk-monitor-lamps.md)): with SECURITY MONITORS TTK, the monitors' D41D1 red sign lamps (found by the monitor model) shine at 60% of their strength (15% was too dim), live and baked, following a live switch; developer `DNTTK_TTK_MONITOR_LAMP`. DUKE 3D look unchanged (user: "our ones are perfect").
+
+## 2026-11-21 - D53E security monitors option switches live (Needs playtest)
+
+- D53E ([note 529](529-d53e-live-options-reach-redraws.md)): live OPTIONS values now reach the redraw workers with every frame (`RenderState` carries the `live_env` table), so SECURITY MONITORS (and any other live row read at draw time) switches at once in play, not only on the pause screen. Developer `DNTTK_REPLAY_LIVE_ENV=0` and console `option KEY VALUE`. Offscreen 180 Hz in LEVEL00/05/09 both ways; needs the user's check in the real menu. TTK red lamps unchanged (user: leave for now).
+
 ## 2026-11-21 - D53D security monitors in LEVEL05 and LEVEL09 closed out (Done)
 
 - User-accepted ("they look aweseom! and work"). New backlog: D53E (option does not switch live; lead: redraw workers keep the forked value) and D61 (level atlas and teleport; the D53D savestates show no weapons).

@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-21 - D53B closed out (Done)
+
+- D53B ([note 531](531-d53b-no-idle-lines-at-camera.md)): user "thats excellent. lock it in and close it out. it works exactly as intended". Idle in walk mode with instant snap-out, idle holster always redrawn, no idle at cameras or in the console, IDLE ANIMATIONS on/voice/off (first person ON = lines only) and DUKE TALK (schema 81). Follow-up: D53G first-person idle poses.
+
+## 2026-11-21 - D53B IDLE ANIMATIONS and DUKE TALK (Needs playtest)
+
+- D53B part three ([note 531](531-d53b-no-idle-lines-at-camera.md)): OPTIONS > GAMEPLAY > IDLE ANIMATIONS on/voice/off (third person ON: holster, fidget a second later, weapon back by itself; first person ON and VOICE ONLY: weapon kept, the fidget-66 lines via the original say 0x8006cad8; OFF: none) and OPTIONS > SOUND > DUKE TALK (off: speech at zero CD gain in `concurrent_music.cpp`, guest SPEECH untouched; SPEECH shows MUTED grey, VOICE ONLY grey). Schema 81. The OPTIONS screens were not seen by the agent. Backlog D53G: first-person idle poses.
+
+## 2026-11-21 - D53B Duke's idle behaviour (Needs playtest)
+
+- D53B ([note 531](531-d53b-no-idle-lines-at-camera.md)): Modernized walk mode held the original Walk bit, so Duke never idled; it is now let go after 0.5 s idle (`idle_walk_release`, `pc_input.cpp`). The idle owner in `console_idle.inc` resets the idle on any player activity (keys, movement, mouse or stick look of 3+ counts; `input_activity_serial`), ends a fidget 64-69 in the same update, redraws an idle-holstered weapon at 2x on the next activity, and holds the countdown during camera views (+0x224 bit 0x20000000) and the console. Vanilla unchanged. Offscreen evidence and native groups; waits for the user's playtest (judge the snap-out pose change in third person).
+
 ## 2026-11-21 - D53E and D53F closed out (Done)
 
 - D53E ([note 529](529-d53e-live-options-reach-redraws.md)): every published frame carries the confirmed OPTIONS values to the redraw worker that draws it, so live rows switch at once in play (SECURITY MONITORS was the report). User: "it's working! looks great".

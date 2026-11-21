@@ -372,6 +372,10 @@ std::vector<Screen> make_screens() {
         {"SPEECH",Section::Sound,"sound_speech","DNTTK_SOUND_SPEECH",true,"THE ORIGINAL GAME SPEECH VOLUME",{},100,true,0,100,5},
         {"MODE",Section::Sound,"sound_mode","DNTTK_SOUND_MODE",true,"STEREO OR MONO SOUND",
          {{"STEREO","0","0"},{"MONO","1","1"}},0},
+        // D53B: EDuke32's Duke talk. A controls value (not one of the five
+        // sound slots, which stay rows 0-4); OFF plays his lines silently.
+        {"DUKE TALK",Section::Controls,"duke_talk","DNTTK_DUKE_TALK",true,"OFF: DUKE SAYS NOTHING, AS IN EDUKE32",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
     }};
     s[0]={"CONTROLS",{
         {"CONTROL SCHEME",Section::Controls,"scheme","DNTTK_CONTROL_SCHEME",true,
@@ -466,6 +470,9 @@ std::vector<Screen> make_screens() {
         // D53: Duke 3D-style security monitors (larger lit TVs, camera frame).
         {"SECURITY MONITORS",Section::Controls,"security_monitors","DNTTK_SECURITY_MONITORS",true,"DUKE 3D: BIG LIT SCREENS AND A REC FRAME. POLYMORPH ONLY",
          {{"DUKE 3D","duke3d","\"duke3d\""},{"TTK","ttk","\"ttk\""}},0},
+        // D53B: what Duke does when left alone (console_idle.inc).
+        {"IDLE ANIMATIONS",Section::Controls,"idle_animations","DNTTK_IDLE_ANIMATIONS",true,"DUKE LEFT ALONE. FIRST PERSON: HIS LINES ONLY",
+         {{"ON","on","\"on\""},{"VOICE ONLY","voice","\"voice\""},{"OFF","off","\"off\""}},0},
     }};
     s[3]={"ADVANCED",{
         heading("CAMERA AND AIM"),
@@ -1931,6 +1938,11 @@ const char* needs(const Row& r) {
     if((k=="dynamic_lights" || k=="shadow_edges" || k=="model_shadows" || k=="glows") && is("draw_distance","original")) return "NEEDS DRAW DISTANCE EXTENDED, IN ADVANCED";
     // D08A44: the look is drawn by Polymorph (present lookup, creature remap).
     if(k=="night_vision_look" && is("world_renderer","classic")) return "NEEDS RENDERER POLYMORPH, IN ADVANCED";
+    // D53B: with DUKE TALK OFF Duke never speaks: VOICE ONLY is an OFF, and
+    // SPEECH is muted (every speech line goes through the one say 0x8006cad8 /
+    // line table 0x800c0dac; no other speaker was found, note 531).
+    if(k=="idle_animations" && is("idle_animations","voice") && is("duke_talk","off")) return "DUKE TALK IS OFF, IN SOUND: NO IDLE";
+    if(k=="sound_speech" && is("duke_talk","off")) return "MUTED: DUKE TALK IS OFF";
     return nullptr;
 }
 void draw_settings(Guest& g,const Geometry& geo) {
@@ -1963,6 +1975,13 @@ void draw_settings(Guest& g,const Geometry& geo) {
             const uint32_t obj=slot==3 ? sound_slider : sliders+slider_size*slot;
             ++slot;
             if(!obj) continue;
+            if(needs(r) && !view_slider(r)) {
+                // D53B: a muted slider: dimmed label and MUTED for its bar.
+                if(hi) g.say(r.label,geo.x0+geo.w/3,y,font_small|right|hi);
+                else g.say_dim(r.label,geo.x0+geo.w/3,y,font_small|right);
+                g.say_dim("MUTED",geo.x0+geo.w/3+20,y,font_small);
+                continue;
+            }
             const char* label=tight && r.key && !std::strcmp(r.key,"mouse_sensitivity") ? "MOUSE LOOK" : r.label;
             if(view_slider(r)) g.say(label,geo.x0+16,y-14,font_small|hi);
             else g.say(label,geo.x0+geo.w/3,y,font_small|right|hi);

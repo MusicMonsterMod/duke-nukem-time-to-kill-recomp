@@ -145,6 +145,12 @@ void input_release();
 void input_console(bool open);
 // D26K: the console holds gameplay input (opened over captured Modernized play).
 bool input_console_holding();
+// D53B: the player's activity in captured Modernized play, for the idle owner.
+// The serial advances on every input frame with activity (any held action but
+// the Walk modifier, movement, arrows, queued commands, mouse or stick look of
+// at least a few counts) and when capture resumes; idle_ms is the time since.
+uint64_t input_activity_serial();
+double input_idle_ms();
 // Pause/death lists acknowledge the menu and release capture if held.
 void input_release_for_menu();
 void input_state_loaded();

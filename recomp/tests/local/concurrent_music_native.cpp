@@ -15,7 +15,8 @@ static uint32_t loads;
 static int reads,last_sector;
 static uint32_t cd_gain=16383;
 static int (*filter)(int,int,int);
-namespace ttk {bool input_modernized(){return modern;}}
+static bool talk_muted;
+namespace ttk {bool input_modernized(){return modern;} bool duke_talk_muted(){return modern && talk_muted;}}
 extern "C" uint32_t psx_mod_read_word(uint32_t a){uint32_t v;std::memcpy(&v,&ram[a&0x1fffff],4);return v;}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){uint16_t v;std::memcpy(&v,&ram[a&0x1fffff],2);return v;}
 extern "C" uint32_t psx_mod_savestate_loads(){return loads;}
@@ -50,6 +51,12 @@ int main(int argc,char** argv){
  put(0x800c39e8,0);ttk_music_update();assert(cd_gain==0);
  put(0x800c39e8,16383);ttk_music_update();assert(cd_gain==16383);
  modern=false;put(0x800c39e8,0);ttk_music_update();assert(cd_gain==16383);modern=true;
+ // D53B: DUKE TALK OFF plays the line at zero gain (SPEECH itself unchanged),
+ // also when the second music bus is not running; music states are not touched.
+ talk_muted=true;put(0x800c39e8,16383);ttk_music_update();assert(cd_gain==0 && psx_mod_read_word(0x800c39e8)==16383);
+ put(0x800c26a8,2);cd_gain=16383;ttk_music_update();assert(cd_gain==16383);
+ put(0x800c26a8,6);put(0x800d7178,0);ttk_music_update();assert(cd_gain==0);put(0x800d7178,23);
+ talk_muted=false;ttk_music_update();assert(cd_gain==16383);
  // All voice/seek states keep the independent cursor; stale native resume
  // position does not repeatedly rewind it. No special handling of speech gain.
  for(int state:{5,6,7,1,3,2}){put(0x800c26a8,state);mix(2500);assert(!silent());}

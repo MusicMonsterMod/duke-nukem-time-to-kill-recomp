@@ -304,6 +304,11 @@ void input_release() {
 // console), the mouse is freed. Closing recaptures and takes still-held
 // gameplay keys from the device state, as Escape/resume does.
 bool input_console_holding() { return console_hold; }
+static uint64_t activity_serial;
+static double activity_ms;
+static bool activity_was_active;
+uint64_t input_activity_serial() { return activity_serial; }
+double input_idle_ms() { return input_clock_ms()-activity_ms; }
 void input_console(bool open) {
     console_open=open;
     if(!open) {
@@ -1277,7 +1282,15 @@ void input_frame() {
         // Resolve the action before gameplay consumers see it; explicit original
         // aim/camera, unsupported states and Vanilla retain the precision input.
         if(view_aim_input_ready())frame.held[original_aim]=false;
-    }
+        // D53B: player activity. A mouse nudge under 3 counts in one input
+        // frame (a bumped desk) is not activity; the Walk modifier alone is not.
+        // Resuming capture (load, menu, console close) counts as activity.
+        bool any=!activity_was_active || frame.move_x || frame.move_y || frame.arrow_y || command_count ||
+            std::abs(dx)+std::abs(dy)>=3;
+        for(int i=0;i<action_count && !any;++i) any=i!=walk && frame.held[i];
+        if(any) {++activity_serial;activity_ms=input_clock_ms();}
+        activity_was_active=true;
+    } else activity_was_active=false;
     dx = dy = 0;
 }
 double input_clock_ms() {
@@ -1740,8 +1753,11 @@ uint16_t input_pad() {
        climb_stow_ready()) circle_request=true;
     // Keep the persisted action ID/binding. In supported Modernized locomotion
     // it is the speed modifier: default walk, Shift run, Caps Lock reverses it.
+    // D53B: the held Walk bit is pad activity to the original idle routine
+    // (0x8001e070 mode 2), so in walk mode Duke never idled. It is let go once
+    // the player has been idle 0.5 s with Duke standing (idle_walk_release).
     if (locomotion && !short_fall_input_ready() && !wade_full_speed_ready() &&
-        !(autorun != action_down(walk))) value &= ~pads[walk];
+        !(autorun != action_down(walk)) && !idle_walk_release()) value &= ~pads[walk];
     // Camera-relative ground locomotion injects Forward for any WASD so the
     // original gait runs; free swim must keep distinct D-pad bits (A/D/S).
     if(captured && directional_takeoff_ready())value &= ~16;

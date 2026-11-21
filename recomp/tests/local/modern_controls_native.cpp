@@ -409,6 +409,9 @@ bool input_wants_initial_capture() {return want_capture;}
 bool input_running(bool){return running;}
 static bool console_holding;
 bool input_console_holding(){return console_holding;}
+static uint64_t activity_serial;static double idle_ms=1e9;
+uint64_t input_activity_serial(){return activity_serial;}
+double input_idle_ms(){return idle_ms;}
 static bool grab_owns;
 bool input_push_grab_owns_cross(){return grab_owns;}
 static bool reach_held;
@@ -4476,7 +4479,7 @@ int main(int argc,char** argv) {
         auto set=[&](unsigned v){psx_mod_write_half(p+0x240,v);};
         auto update=[&]{++ttk::input.sequence;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
         auto native_step=[&]{const unsigned t=timer();set(t>10?t-10:0);};
-        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;
+        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;ttk::input.first_person=false; // third person: ON runs the original idle
         assert(ttk::player_identity_ready());
         set(1200);update();native_step();update();assert(timer()==1190);  // closed: the original's countdown
         ttk::console_holding=true;update();
@@ -4490,6 +4493,105 @@ int main(int argc,char** argv) {
         ttk::modern=true;ttk::console_holding=false;
         ttk::input=saved_input;set(saved_timer);update();
         std::puts("PASS: D26K console keeps the native idle countdown (no idle holster), resets apply, close resumes, epoch/Vanilla guards");
+    }
+    {
+        // D53B: a security camera view (Duke +0x224 bit 0x20000000) holds the
+        // same countdown, so no waiting fidget or line plays while watching.
+        // The input epoch advances every update during the view.
+        const uint16_t saved_timer=psx_mod_read_half(p+0x240);
+        const uint32_t saved_bits=psx_mod_read_word(p+0x224);
+        const auto saved_input=ttk::input;
+        auto timer=[&]{return unsigned(psx_mod_read_half(p+0x240));};
+        auto set=[&](unsigned v){psx_mod_write_half(p+0x240,v);};
+        auto view=[&](bool on){psx_mod_write_word(p+0x224,on?(saved_bits|0x20000000u):(saved_bits&~0x20000000u));};
+        auto update=[&]{++ttk::input.sequence;++ttk::input.epoch;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto native_step=[&]{const unsigned t=timer();set(t>10?t-10:0);};
+        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;ttk::input.first_person=false; // third person: ON runs the original idle
+        view(false);set(1500);update();native_step();update();assert(timer()==1490);  // not watching: the original's
+        view(true);update();
+        for(int i=0;i<600;++i){native_step();update();assert(timer()==1490);}       // held through the view
+        set(3000);update();native_step();update();assert(timer()==3000);            // a reset applies and is kept
+        view(false);update();native_step();update();assert(timer()==2990);          // leaving resumes the countdown
+        view(true);set(20);update();native_step();update();native_step();update();assert(timer()==20); // never expires in a view
+        view(false);
+        ttk::modern=false;view(true);set(500);update();native_step();update();assert(timer()==490); // Vanilla
+        ttk::modern=true;view(false);psx_mod_write_word(p+0x224,saved_bits);
+        ttk::input=saved_input;set(saved_timer);update();
+        std::puts("PASS: D53B security camera view keeps the native idle countdown (no waiting fidgets), resets apply, leaving resumes, Vanilla unchanged");
+    }
+    {
+        // D53B idle owner: player activity resets the countdown and ends a
+        // fidget at once; the original idle holster is followed, on the next
+        // activity, by the original weapon request for the weapon it put away.
+        auto H=[&](uint32_t o){return unsigned(psx_mod_read_half(p+o));};
+        const auto saved_input=ttk::input;
+        const uint16_t saved[]={psx_mod_read_half(p+0x240),psx_mod_read_half(p+0x60),psx_mod_read_half(p+0x68),psx_mod_read_half(p+0x74),psx_mod_read_half(p+0x7c),
+            psx_mod_read_half(p+0x2c4+16),psx_mod_read_half(p+0x2c6+16)};
+        const uint32_t saved_bits=psx_mod_read_word(p+0x224),saved_step=psx_mod_read_word(0x800d21fc);
+        const uint8_t saved_eq=psx_mod_read_byte(p+0x3b8),saved_w=psx_mod_read_byte(p+0x3ba),saved_mode=psx_mod_read_byte(p+0x22c);
+        auto update=[&]{++ttk::input.sequence;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;ttk::input.first_person=false; // third person: ON runs the original idle
+        psx_mod_write_word(p+0x224,saved_bits&~0x20000004u);psx_mod_write_byte(p+0x22c,0);psx_mod_write_word(0x800d21fc,10);
+        update(); // settle the activity serial
+        psx_mod_write_half(p+0x240,1200);update();assert(H(0x240)==1200);             // no activity: the original's countdown
+        ++ttk::activity_serial;update();assert(H(0x240)==3000);                           // activity resets it
+        psx_mod_write_half(p+0x60,65);psx_mod_write_half(p+0x68,7);psx_mod_write_half(p+0x74,65);psx_mod_write_half(p+0x7c,7);
+        update();assert(H(0x60)==65);                                                  // a fidget plays on while idle
+        ++ttk::activity_serial;update();assert(H(0x60)==63 && H(0x68)==0 && H(0x74)==63 && H(0x7c)==0); // and ends at once
+        // Armed idle: the countdown runs out, the original holsters, the next activity redraws.
+        psx_mod_write_half(p+0x2c4+16,1);psx_mod_write_half(p+0x2c6+16,20);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x240,10);
+        update();psx_mod_write_half(p+0x240,3000);psx_mod_write_half(p+0x74,6);update(); // holster under way
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,63);update();       // put away
+        psx_mod_write_byte(p+0x3ba,0);
+        assert(!(psx_mod_read_word(p+0x224)&4));
+        ++ttk::activity_serial;update();
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4);      // weapon request for weapon 4
+        // A holster the player asked for (no expiring countdown) is never redrawn.
+        psx_mod_write_word(p+0x224,saved_bits&~0x20000004u);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x240,2000);update();
+        psx_mod_write_byte(p+0x3b8,0);update();++ttk::activity_serial;update();assert(!(psx_mod_read_word(p+0x224)&4));
+        // OFF: no idle at all; a fidget under way ends, the countdown stays full.
+        psx_mod_write_word(p+0x224,saved_bits&~0x20000004u);psx_mod_write_byte(p+0x3b8,0);
+        ttk_live_env_set("DNTTK_IDLE_ANIMATIONS","off");
+        psx_mod_write_half(p+0x60,68);psx_mod_write_half(p+0x74,68);psx_mod_write_half(p+0x240,500);update();
+        assert(H(0x60)==63 && H(0x240)==3000);
+        for(int i=0;i<400;++i){psx_mod_write_half(p+0x240,H(0x240)-10);update();}
+        assert(H(0x240)==3000 && psx_mod_read_byte(p+0x232)<3);
+        // VOICE ONLY: the native countdown stays full and the idle beat runs
+        // here (counter +0x232 advances once per 3000 units standing idle);
+        // an armed Duke keeps his weapon.
+        ttk_live_env_set("DNTTK_IDLE_ANIMATIONS","voice");
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);psx_mod_write_byte(p+0x232,1);update();
+        for(int i=0;i<305;++i){psx_mod_write_half(p+0x240,H(0x240)-10);update();}
+        assert(psx_mod_read_byte(p+0x232)==2 && H(0x240)==3000 && psx_mod_read_byte(p+0x3b8)==2 && !(psx_mod_read_word(p+0x224)&4));
+        ++ttk::activity_serial;update();                                              // activity restarts the beat
+        for(int i=0;i<250;++i){psx_mod_write_half(p+0x240,H(0x240)-10);update();}
+        assert(psx_mod_read_byte(p+0x232)==2);
+        // DUKE TALK OFF makes VOICE ONLY an OFF (no beat).
+        ttk_live_env_set("DNTTK_DUKE_TALK","off");
+        for(int i=0;i<400;++i){psx_mod_write_half(p+0x240,H(0x240)-10);update();}
+        assert(psx_mod_read_byte(p+0x232)==2 && ttk::duke_talk_muted());
+        ttk_live_env_set("DNTTK_DUKE_TALK","on");ttk_live_env_set("DNTTK_IDLE_ANIMATIONS","on");
+        psx_mod_write_byte(p+0x3b8,0);
+        // ON, third person: after the idle holster and its fidget the weapon comes back by itself.
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x240,10);
+        update();psx_mod_write_half(p+0x240,3000);psx_mod_write_half(p+0x74,6);update();
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,63);update();
+        assert(H(0x240)<=300);                                                         // the fidget follows within a second
+        psx_mod_write_half(p+0x60,66);psx_mod_write_half(p+0x74,66);update();assert(!(psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,63);update();
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4);       // redrawn after the fidget
+        psx_mod_write_word(p+0x224,saved_bits&~0x20000004u);
+        // Vanilla: no owner.
+        ttk::modern=false;psx_mod_write_half(p+0x60,65);psx_mod_write_half(p+0x240,1200);++ttk::activity_serial;update();
+        assert(H(0x60)==65 && H(0x240)==1200);
+        ttk::modern=true;
+        psx_mod_write_half(p+0x240,saved[0]);psx_mod_write_half(p+0x60,saved[1]);psx_mod_write_half(p+0x68,saved[2]);psx_mod_write_half(p+0x74,saved[3]);psx_mod_write_half(p+0x7c,saved[4]);
+        psx_mod_write_half(p+0x2c4+16,saved[5]);psx_mod_write_half(p+0x2c6+16,saved[6]);
+        psx_mod_write_word(p+0x224,saved_bits);psx_mod_write_word(0x800d21fc,saved_step);
+        psx_mod_write_byte(p+0x3b8,saved_eq);psx_mod_write_byte(p+0x3ba,saved_w);psx_mod_write_byte(p+0x22c,saved_mode);
+        ttk::input=saved_input;update();
+        std::puts("PASS: D53B idle owner: activity resets the idle countdown and ends a fidget at once, idle holster redrawn on the next activity or after its fidget (not a chosen holster), IDLE ANIMATIONS OFF / VOICE ONLY, DUKE TALK OFF, Vanilla unchanged");
     }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets

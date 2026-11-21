@@ -492,6 +492,10 @@ MONITORS** (it switches at once and saves) or with the launcher's
 `--security-monitors duke3d|ttk`. The Classic renderer and Vanilla always
 show the original monitors.
 
+While you watch any camera view, Duke does not fidget or say his impatient
+waiting lines (Modernized, either setting and renderer, D53B); his idle
+behaviour comes back as usual after you step back.
+
 ### Dynamic lights (Modernized, Polymorph, D41A, D41B, D41I, D41K, D41E)
 
 **OPTIONS > DISPLAY > LIGHTING** has three settings (it switches at once and
@@ -1458,6 +1462,29 @@ Left/Right only turn him), and Vanilla keeps that.
 FIRST PERSON, idle gestures and holding the holster button for the original
 inventory keep the eye view. Inventory still suspends movement until release.
 
+**Idle behaviour (Modernized, D53B).** Leave Duke alone for about 10 seconds,
+in walk or run mode, and he does what he did on the PlayStation. Any key,
+button, movement or mouse look counts as playing and resets that wait (a tiny
+bump of the mouse does not). **IDLE ANIMATIONS** in OPTIONS > GAMEPLAY sets
+what he does:
+
+- **ON** (default): in third person he puts his weapon away, a second later
+  fidgets (cracks his knuckles, stretches, looks around) and sometimes talks,
+  then draws his weapon again by himself. In first person, where you cannot
+  see a fidget, he keeps his weapon up and only says his lines.
+- **VOICE ONLY**: he keeps his weapon up and only says his lines, in either
+  view (about every 30 seconds of standing still).
+- **OFF**: no idle at all.
+
+The moment you do something during a fidget, Duke snaps straight out of it and
+your input acts at once; a line he has started finishes. If the idle put his
+weapon away, your next input brings it straight back out, quicker than a
+normal draw. Holstering it yourself stays holstered. While you watch a camera
+or have the console open, he does not idle. With **DUKE TALK** off (SOUND),
+VOICE ONLY is shown grey and does nothing. Launcher: `--idle-animations
+on|voice|off` (saved). Vanilla keeps the original, where a fidget plays to its
+end first.
+
 Supported door/key actions (including the hinged-door right-leg kick), crystal
 pickup/return, toilet, statue, wheel, lever, NPC and mirror interactions follow
 the global VIEW selection. Duke keeps the action's normal timing and alignment,
@@ -2201,7 +2228,11 @@ OPTIONS, on the title menu and in the pause menu, lists five screens, all in
 the original's style:
 
 - **SOUND**: MASTER, SOUND EFFECTS, MUSIC and SPEECH volume sliders, plus
-  stereo / mono MODE. Left/Right changes the highlighted value; CONFIRM
+  stereo / mono MODE and **DUKE TALK** (Modernized, D53B, like EDuke32's):
+  OFF and Duke says nothing (his lines play silently, so nothing else in the
+  game changes); SPEECH then shows MUTED in grey and keeps its value for
+  when you turn him back on. Launcher:
+  `--duke-talk on|off` (saved). Left/Right changes the highlighted value; CONFIRM
   applies and saves the page, CANCEL discards edits, and DEFAULTS resets the
   draft to full volume and stereo. Confirmed settings survive game loads.
   MASTER uses the existing host volume, including its numpad shortcuts.

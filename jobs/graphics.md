@@ -3154,7 +3154,7 @@ undrawn.
 
 ### D53B - No impatient idle lines while watching a security camera
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D52.**
+**Status: Done (user-accepted 2026-11-21: "thats excellent. lock it in and close it out. it works exactly as intended"; [note 531](../documentation/531-d53b-no-idle-lines-at-camera.md)). Dependencies: D52 (Done). Follow-up: D53G.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: while watching a security-camera feed Duke sometimes
@@ -3163,6 +3163,60 @@ Work: find what starts the idle timer's lines and hold it while a camera
 view is active; normal idle lines return after leaving the camera. Check
 both Modernized and Vanilla (Vanilla keeps the original unless the user
 decides otherwise). Acceptance: no idle lines during a long camera view.
+
+Work log, 2026-11-21 (Needs playtest): reproduced offscreen on a private copy
+of UI slot 9 (LEVEL00 security room): during a camera view the original idle
+countdown (`player+0x240`, routine `0x80053038`) ran on with a neutral pad and
+started a waiting fidget about every 10 s (65, 68, 66 in 30 s); fidget 66
+carries a voice-length sound about 1 s in. `console_idle.inc` (the D26K
+console hold) now also holds the countdown while Duke `+0x224` has the view
+bit `0x20000000`, latched for the continuous view (the input epoch advances
+every update there), with its own readiness check since the view moves the
+camera off Duke. Leaving resumes the original countdown. Modernized only.
+Evidence: 40 and 45 s views with the timer held at 2980-2990 and no fidget;
+idle resumes after the view; new `ttk-controls-test` D53B group fails without
+the change and passes with it (157 groups); unit tests 268 OK. Remaining: the
+user's playtest; the hold covers every alternate-camera view, not only
+security cameras.
+
+Work log, 2026-11-21, part two (Needs playtest). User: "i'm not sure if any
+of duke's idle animations are playing? ... even when not at a sec cam ... i
+meant idle behavior"; then "fix it in D53B, mouse look counts as activity",
+"make sure he actually snaps out of the idle state the second the user
+interacts", and the choices: a playing line finishes, keep the holster but
+redraw at once, keep the ~10 s delay. Cause: Modernized walk mode held the
+original Walk bit, which the idle routine counts as activity, so Duke never
+idled in walk mode with capture on (25 s, timer 3000); the camera view was the
+one place without the bit. The original also holds input until a fidget ends
+(61 frames for W, first shot about 1.4 s after fire). Change: a player
+activity clock in `pc_input.cpp`; the Walk bit is let go after 0.5 s idle with
+Duke standing; activity (keys, movement, mouse or stick look of 3+ counts, not
+the Walk modifier) resets the countdown, ends a fidget in the same update, and
+after an idle holster requests the weapon again at the 2x draw rate. Evidence:
+idle in walk mode (holster about 8 s, fidget 65 at 16.4 s); W in a fidget:
+walking at frame 7, weapon ready at 13; mouse: fidget over by frame 4; fire
+after the holster: first shot at frame 18; camera views still idle-free with
+capture on; run mode unchanged; native D53B idle-owner and input groups (158
+and both input groups pass), unit tests 268 OK. Remaining: the user's
+playtest, in particular the snap-out pose change in third person; crouched
+idle not covered.
+
+Work log, 2026-11-21, part three (Needs playtest). User: "he should always
+reholster the weapon if he lowers it ... in first person, so just randomly
+lowering the weapon just feels off", "a switch in options for idle animations
+on, voice only, or off", "a duketalk toggle in sound like eduke32", "the
+speech slider can grey out too", then "work autonoomously on it". Built:
+IDLE ANIMATIONS (GAMEPLAY) ON / VOICE ONLY / OFF and DUKE TALK (SOUND), schema
+81, `--idle-animations`, `--duke-talk`. ON: third person holster, fidget a
+second later, weapon back by itself after the fidget; first person plays as
+VOICE ONLY. VOICE ONLY: weapon kept, the fidget-66 lines (143, 329, 330, 331)
+said through the original say on the same idle cadence. DUKE TALK OFF: every
+speech line plays at zero gain (timing kept, SPEECH value untouched); SPEECH
+shows MUTED in grey, and VOICE ONLY is grey and inert. Speech findings: one
+XA line table and say wrapper, no second speaker found (not every line heard).
+Evidence offscreen with capture on for each mode, output peak 1503 muted
+against 7251; native, music and profile tests pass. Not seen: the OPTIONS
+screens themselves. New backlog D53G (first-person idle poses).
 
 ### D17BM - A wall panel sometimes shows dimmed instead of lit (UI slot 12)
 
@@ -3412,4 +3466,18 @@ look is on, in the live lamp list and the bake's per-tick lamp colours
 user: "a little too dim... let's try 60%", now 0.6 (82, 188, 54); DUKE 3D look 152.8 / 152.5 (unchanged). Live switch
 at 180 Hz matches the launched look. Pairs in `research/before-after/D53F/`
 (local).
+
+### D53G - First-person idle poses
+
+**Status: Todo (backlog; user idea 2026-11-21, during D53B). Dependencies: D53B, D36.**
+
+User, 2026-11-21: "you cant actually see him crack his knuckles or whatever in
+first person, so just randomly lowering the weapon just feels off. ... if we
+could provide first person specific poses for the idle animations". D53B makes
+IDLE ANIMATIONS ON play as VOICE ONLY in first person (no holster, lines only).
+Work: idle gestures that read in first person (weapon inspect, hand and arm
+moves in the view; read the D36 audit, note 257, and the D36H5 arm rig, note
+305, first), so ON can animate in first person too. Acceptance: a visible,
+interruptible first-person idle that snaps out at once like the D53B fidgets;
+third person and Vanilla unchanged.
 

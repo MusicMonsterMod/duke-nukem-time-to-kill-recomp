@@ -21,6 +21,11 @@ bool view_aim_input_ready();
 bool free_look_active();
 bool free_look_aim(double* eye,double* forward);
 bool locomotion_input_ready();
+// D53B: the player has been idle 0.5 s with Duke standing (Modernized): the
+// pad lets go of the Walk bit so the original idle countdown runs.
+bool idle_walk_release();
+// D53B: DUKE TALK OFF in Modernized (speech plays silently).
+bool duke_talk_muted();
 /* D08K4: the Modernized crouch walk owns the stance; withhold the directions. */
 bool crouch_walk_input_ready();
 bool airborne_input_ready();

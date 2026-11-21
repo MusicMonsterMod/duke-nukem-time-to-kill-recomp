@@ -1,5 +1,6 @@
 #include "concurrent_music.h"
 #include "pc_input.h"
+#include "modern_controls.h"
 #include "code_identity.h"
 #include "cdrom.h"
 #include "spu.h"
@@ -81,9 +82,19 @@ int suppress(int lba,int file,int channel) {
 extern "C" void ttk_music_update() {
     suspended=false;
     cdrom_set_host_xa_filter(suppress);
-    if(!prepare())return;
+    // D53B: DUKE TALK OFF plays every speech line (states 5-7) at zero CD gain,
+    // with or without the second music bus; the guest's SPEECH value and the
+    // original timing are left alone.
+    const bool muted=ttk::duke_talk_muted();
+    const bool ready=prepare();
+    if(!ready && !muted)return;
     const int state=psx_mod_read_half(0x800c26a8);
     if(state!=5 && state!=6 && state!=7)return;
+    if(muted) {
+        for(uint32_t addr:{0x1f801db0u,0x1f801db2u})
+            if((spu_read(addr)&0xffffu)!=0)spu_write(addr,0);
+        return;
+    }
     // The original MUSIC slider previews onto the shared CD gain, even during
     // speech. With two buses the native voice must retain SPEECH instead. This
     // also applies a speech-slider edit to an already playing line on resume.

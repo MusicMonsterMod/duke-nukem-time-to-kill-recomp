@@ -2839,7 +2839,7 @@ third person fine. Also stood up D41K (props in dynamic light).
 
 ### D53A - Security monitors keep a low-res live picture as you walk away
 
-**Status: Todo (split from D53 at intake, 2026-11-09). Dependencies: D53 (Done).**
+**Status: Done (user-accepted 2026-11-21: "lock it in and close it out! this is insanely good work"; [note 527](../documentation/527-d53a-security-feed.md)). Dependencies: D53 (Done).**
 User: "in duke3d, when you arent watching the screen anymore, it shows a low
 res image on the screen still as you walk away until it resets. i'd love
 this, so much". EDuke32: after the use key, the VIEWSCREEN sprite stays
@@ -2852,6 +2852,32 @@ camera view, draw that camera's view at low resolution into the monitor's
 screen face until Duke walks out of range, then back to the D53 idle
 screen. Needs a second scene pass to an offscreen target in Polymorph.
 Duke 3D toggle value only. Acceptance: user playtest in slot 9.
+
+Work log, 2026-11-21 (Needs playtest; [note 527](../documentation/527-d53a-security-feed.md)).
+User at selection: it has to be as cheap as possible; stop if it becomes
+unrealistic. It stayed cheap: no new renderer. The camera view is one more
+redraw job in the existing workers (the saved alternate camera written into
+the worker's image with Duke's view bit), drawn into a reserved renderer
+cache entry, then shrunk by a small framework pass into a 96x96 rectangle of
+the second texture bank (double buffered, gamma 0.75), which the used TV's
+screen face samples at self-lit 220. At most 15 pictures a second, only
+while that TV is on screen and Duke is within 8192 of it; a load, a level
+change, the TTK look or leaving the range resets the screen to SECURITY.
+Render threads now share the emulation thread's second bank texture.
+Evidence (offscreen, real GPU, private copy of the D52 slot 9 save): the
+feed at 180/60 Hz, first and third person, render threads off; none at
+FRAME RATE ORIGINAL, in the TTK look or Vanilla; 15/s with the TV in view,
+0 without; range, reuse and load resets; cost at 180 Hz facing the TV: GPU
+clock-weighted 9.3 % to 10.05 %, presents 180 either way. Native near, aim
+and controls tests, 268 local tests and the CI runtime tests pass; the
+exported framework patch applies to the pinned framework. Before/after in
+`research/before-after/D53A/` (local). Limits: a panning camera keeps the
+direction it had when the player looked away; needs a FRAME RATE other than
+ORIGINAL. Remaining: the user's look in slot 9 on the real display.
+
+Closed out, 2026-11-21: the user accepted it and authorized the closeout
+("lock it in and close it out! this is insanely good work"). Done. Before/after pairs (local) in
+`research/before-after/D53A/`.
 
 ### D17BH - Translucent horizontal bands over the bottom of the screen
 

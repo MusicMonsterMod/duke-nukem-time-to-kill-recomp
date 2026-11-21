@@ -479,8 +479,12 @@ SECURITY in olive letters, the feed's status and a blinking cursor. The
 screen gives off a soft olive light onto the wall around it. Use a monitor
 (the action button) and the camera view gets Duke 3D's camera frame: four
 corner marks, REC and a blinking red record light, so you always know you are
-looking through a security camera. Use it again to step back. The monitors
-work the same as before; only their look changes. Keypads you can use are lit up
+looking through a security camera. Use it again to step back. As in Duke 3D,
+the TV you used keeps showing that camera's live picture, small and blocky,
+while you walk away; it goes back to SECURITY once you are far enough away (or
+after a load or a new level), until you use it again. The live picture needs
+a FRAME RATE other than ORIGINAL. The monitors work the same as before; only
+their look changes. Keypads you can use are lit up
 too, so the part you use stands out, and the lightning power sign beside a
 power switch pulses with electric blue light on the wall (either setting). **TTK** keeps the original
 monitors and camera views. Change it in **OPTIONS > GAMEPLAY > SECURITY

@@ -27,6 +27,7 @@
 #include "modern_controls.h"
 #include "weapon_aim.h"
 #include "near_clip.h"
+#include "security_monitor.h"
 #include "screen_flash.h"
 #include "live_env.h"
 #include "sky_render.h"
@@ -456,6 +457,10 @@ struct Params {
     float beam_t;            // D49C: redraw time in game frames past the drawn frame's list (flag 32)
     uint32_t nposes;         // D17AY: in-between object poses
     ObjectPose pose[max_poses];
+    // D53A (flag 128): a security camera feed, drawn through the alternate
+    // camera of player feed_player as it was when the player last watched it.
+    uint32_t feed_player;
+    uint8_t feed_cam[security_feed_camera_bytes];
 };
 struct MatPatch {uint32_t addr; Mat mat;};
 constexpr uint32_t params_max=60000;
@@ -761,6 +766,8 @@ Frame* timeline_pair(double present_ms, Frame*& next, double& alpha) {
 }
 bool timeline_clock_reset=true;
 void reset_timeline(bool keep_shown=false);
+void feed_forget(uint64_t serial);   // D53A
+void feed_capture(const Frame& f);
 void release_jobs(Frame& f) {
     for(int i=0;i<f.njobs;++i) if(f.jobs[i]>=0) psx_mod_replay_release(f.jobs[i]);
     f.njobs=0;
@@ -1398,6 +1405,7 @@ void capture(CPUState* cpu,int kind) {
     }
     if(f->valid && continuous_timeline()) for(int i=0;i<f->njobs;++i)
         if(f->target[i]>host_now) {++response_future_evictions;break;}
+    if(f->valid) feed_forget(f->serial);   // D53A: the slot's image is replaced
     release_jobs(*f);
     f->valid=false;
     const int slot=(int)(f-frames);
@@ -1455,6 +1463,7 @@ void capture(CPUState* cpu,int kind) {
     // when this composition ends (composition_end), with both sets complete.
     f->nxf=0; f->xf_done=false;
     rec_frame=f;
+    if(kind==gameplay_image) feed_capture(*f);   // D53A
 }
 
 // Worker process: draw a published frame (memory and CPU already loaded).
@@ -1830,6 +1839,20 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // D52: the camera the base frame was drawn from (a game-owned view keeps
     // the player's camera untouched); only the player's gets the body camera
     // and the room walk from Duke.
+    // D53A: a security camera feed. The image is the newest live frame; the
+    // view composition draws through the alternate camera while Duke's
+    // script bit 0x20000000 is set (D52), so the camera as the player last
+    // watched it and that bit are put in this worker's copy only.
+    if(p.flags&128) {
+        if(p.feed_player>1) return 0;
+        for(uint32_t i=0;i<security_feed_camera_bytes;i+=4) {
+            uint32_t w;std::memcpy(&w,p.feed_cam+i,4);
+            psx_mod_write_word(security_feed_camera+security_feed_camera_bytes*p.feed_player+i,w);
+        }
+        const uint32_t bits=duke+0x8a4u*p.feed_player+0x224;
+        psx_mod_write_word(bits,psx_mod_read_word(bits)|0x20000000u);
+        p.flags&=128u;
+    }
     const uint32_t cb=p.camera.base;
     if((p.flags&1) && !known_camera(cb)) p.flags&=~1u;
     const bool own=cb==camera_base;
@@ -2056,7 +2079,9 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
 // Runtime image cache entries (RP_CACHE): room for the shown frame's and the
 // next frame's in-betweens at 240 Hz (7 each), so preparing the next frame
 // never evicts an image still to be shown (that thrash redrew images twice).
-constexpr int cache_entries=16;
+// D53A: the last of the renderer's 16 image entries holds the security
+// camera feed (feed_cache); presentation uses the others.
+constexpr int cache_entries=15;
 uint64_t shown_serial=0;    // frame on screen at the last due present
 struct Cached {uint64_t serial=0; int index=-1; uint64_t used=0;};
 Cached cache[cache_entries];
@@ -2076,7 +2101,7 @@ bool menu_alone_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_ME
 void reset_timeline(bool keep_shown) {
     if(!continuous_timeline()) return;
     timeline_clock_reset=true;
-    for(auto& f:frames) {release_jobs(f);f.valid=false;}
+    for(auto& f:frames) {if(f.valid) feed_forget(f.serial);release_jobs(f);f.valid=false;}
     for(auto& c:cache) c=Cached{};
     rec_frame=nullptr;
     // The cache entry's image stays valid (cache_victim never reuses it).
@@ -2192,6 +2217,48 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     psx_mod_replay_release(f.jobs[index]); f.jobs[index]=-1;
     ++presented;
     return true;
+}
+
+// D53A: a security camera's live picture on its Duke 3D TV after the player
+// stops watching (security_monitor.cpp decides when and where). One redraw
+// job through the camera is queued with a live frame at most every few game
+// frames, drawn like any redraw into cache entry feed_cache (on the render
+// thread when it runs), then shrunk into the second bank, which the TV's
+// screen samples. Nothing runs while no feed TV is in view.
+constexpr int feed_cache=cache_entries;
+int feed_job=-1; uint64_t feed_serial=0; bool feed_drawing=false;
+uint64_t feed_submits=0,feed_images=0,feed_lost=0;
+void feed_capture(const Frame& f) {
+    if(feed_job>=0 || feed_drawing || f.frontend || !security_feed_request) return;
+    SecurityFeedRequest want{};
+    if(!security_feed_request(want)) return;
+    Params p{}; p.magic=0x54544b32u; p.flags=128; p.near=f.near; p.serial=f.serial;
+    p.feed_player=want.player; std::memcpy(p.feed_cam,want.camera,sizeof p.feed_cam);
+    std::memcpy(param_buffer,&p,sizeof p);
+    const uint32_t len=append_render(f,param_buffer,sizeof p);
+    const int job=psx_mod_replay_submit(f.slot,param_buffer,len,f.serial);
+    if(job<0) return;
+    feed_job=job; feed_serial=f.serial; ++feed_submits;
+}
+void feed_forget(uint64_t serial) {
+    if(feed_job>=0 && feed_serial==serial) {psx_mod_replay_release(feed_job);feed_job=-1;++feed_lost;}
+}
+void feed_poll() {
+    if(feed_job>=0) {
+        uint64_t tag=0;
+        const int st=psx_mod_replay_job_state(feed_job,&tag);
+        if(st==3 && tag==feed_serial) {
+            if(psx_mod_replay_cache_pending(feed_cache)) return;
+            const bool ok=psx_mod_replay_render_job(feed_job,feed_cache)!=0;
+            psx_mod_replay_release(feed_job); feed_job=-1;
+            feed_drawing=ok; if(!ok) ++feed_lost;
+        } else if(st!=1 && st!=2) {psx_mod_replay_release(feed_job); feed_job=-1; ++feed_lost;}
+    }
+    if(feed_drawing && !psx_mod_replay_cache_pending(feed_cache)) {
+        feed_drawing=false;
+        if(psx_mod_replay_cache_valid(feed_cache) && security_feed_store && security_feed_store(feed_cache)) ++feed_images;
+        else ++feed_lost;
+    }
 }
 
 bool late_camera();
@@ -2464,6 +2531,7 @@ int provider(const PSXModPresentInfo* info,void*) {
     if(info->flip_interval>0.02 && info->flip_interval<0.15) seen_interval+=(info->flip_interval-seen_interval)*0.05;
     static const bool nofeed=std::getenv("DNTTK_REPLAY_NOFEED")!=nullptr;
     if(nofeed) return 0;
+    feed_poll();   // D53A
     if(continuous_timeline()) return timeline_provider(info);
     submit_due(info,shown_frame(info->flips));
     if(!info->due) {prefetch(info);return 0;}
@@ -3196,6 +3264,8 @@ const char* frame_replay_debug_json() {
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
         n+=std::snprintf(buffer+n,sizeof buffer-n,",\"redraw_only\":%s",redraw_only_json());
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"security_feed\":{\"submits\":%llu,\"images\":%llu,\"lost\":%llu,\"job\":%d,\"drawing\":%s,\"monitor\":%s}",
+            (unsigned long long)feed_submits,(unsigned long long)feed_images,(unsigned long long)feed_lost,feed_job,feed_drawing?"true":"false",security_monitor_debug_json());   // D53A
         n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu,\"world_delay_ms\":%.1f,\"world_delay_wanted_ms\":%.1f,\"world_delay_fixed\":%s,\"pair_age_p99_ms\":%.1f,\"presents\":%llu,\"starved\":%llu,\"margin_scale\":%.2f,\"submit_samples\":%u,\"ahead_ms\":[%.2f,%.2f,%.2f,%.2f],\"need_ms\":[%.2f,%.2f,%.2f,%.2f],\"world_draw\":%d,\"extrap_ms\":%.1f,\"extrapolated\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,world_delay_ms,world_delay_wanted,world_delay_fixed?"true":"false",pair_age_p99,(unsigned long long)timeline_presents,(unsigned long long)timeline_starved,
             world_delay_margin_scale,submit_sample_count,
             sample_pct(submit_ahead_samples,submit_sample_count,0),sample_pct(submit_ahead_samples,submit_sample_count,500),sample_pct(submit_ahead_samples,submit_sample_count,990),sample_pct(submit_ahead_samples,submit_sample_count,1000),

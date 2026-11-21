@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-21 - D53A security monitors keep a live picture closed out (Done)
+
+- D53A ([note 527](527-d53a-security-feed.md)): in Modernized Polymorph with the DUKE 3D monitors, the TV the player used keeps a low-res (96x96) live picture of its camera after the view, until Duke is 8192 units away, a load or a new level; the other TVs keep SECURITY. A redraw-worker job through the saved camera (at most 15 a second, only while the TV is on screen), shrunk into the second texture bank (framework `gl_replay_cache_to_bank`). Cost at 180 Hz facing the TV: GPU clock-weighted about +0.75 points, presents unchanged. Not at FRAME RATE ORIGINAL; TTK look, Classic and Vanilla unchanged. User-accepted: "lock it in and close it out! this is insanely good work".
+
 ## 2026-11-21 - D53C no reach into the security TV closed out (Done)
 
 - D53C ([note 526](526-d53c-no-reach-at-tv.md)): in UI slot 10 Duke's use gesture put his hand through the Duke 3D TV's glass; the native line-up and reach land on the original wall panel 125 units behind it. At a TV he now makes no reach: while the use 277 plays, the chest, neck and arms hold the unarmed idle (`monitor_use.inc`, pose build `0x800411b8`); timing, camera switch and weapon return are the original's. TTK look, other uses and Vanilla keep the reach. Developer `DNTTK_MONITOR_USE=native`. User-accepted ("lock it in and close it out, perfect").

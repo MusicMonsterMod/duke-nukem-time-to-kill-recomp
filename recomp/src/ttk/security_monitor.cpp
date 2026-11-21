@@ -27,6 +27,13 @@
 //   3D's camera frame over the 4:3 picture: four corners, REC and the record
 //   light blinking 133 ms on, 133 ms off (EDuke32 G_DrawCameraText).
 //
+// - D53A: after the player stops watching a camera, the TV they used keeps a
+//   low-res live picture of that camera (Duke 3D's VIEWSCREEN) until Duke
+//   walks out of range: frame_replay.cpp draws the camera as one more redraw
+//   job (at most 15 a second, only while that TV is in view), the renderer
+//   shrinks it to 96x96 texels in the second bank, and the TV's screen face
+//   samples it. Needs the redraw workers (not the "original" frame rate).
+//
 // Art: assets/ui/security-monitor (Photon Studio), packed by
 // tools/local/build_ttk_security_monitor.py into ttk-security-monitor.pack.
 // TTK, Classic and Vanilla: nothing changes.
@@ -197,7 +204,12 @@ uint32_t flicker_level() {
     uint32_t h=ttk_draw_clock_ms()/33*2654435761u;h^=h>>15;
     return std::min<uint32_t>(255,screen_base-4+((h>>7)&7));   // a faint flicker around screen_base
 }
-void write_mesh(uint32_t mesh_template) {
+// D53A: the feed's two 96x96 rectangles in the second bank (the newest
+// picture in one, the next drawn into the other), in the 15-bit page at x 256.
+constexpr int feed_w=96,feed_h=96,feed_x[2]={256,352},feed_y=64;
+constexpr uint32_t feed_tpage=0x100u|256u/64u;
+uint32_t feed_level=220;   // the picture's self-lit level (128 is as drawn; DNTTK_SECURITY_FEED_LEVEL)
+void write_mesh(uint32_t mesh_template,int feed_rect=-1) {
     const uint32_t base=security_tv_copy;
     // Header: the monitor's own first words (ids and flags), then our parts.
     psx_mod_write_word(base,psx_mod_read_word(mesh_template));
@@ -216,7 +228,7 @@ void write_mesh(uint32_t mesh_template) {
         psx_mod_write_word(built.vertices+8*i,uint32_t(uint16_t(v.x))|uint32_t(uint16_t(v.y))<<16);
         psx_mod_write_word(built.vertices+8*i+4,uint32_t(uint16_t(v.z))|vertex_tag);
     }
-    const uint32_t level=flicker_level(),lit=level|level<<8|level<<16;
+    const uint32_t level=feed_rect>=0?std::min<uint32_t>(255,feed_level*flicker_level()/screen_base):flicker_level(),lit=level|level<<8|level<<16;
     // Palette entry 0 lights the screen; entry 1 the glow ring, at the
     // texture's own strength (128) times the screen's flicker.
     const uint32_t hl=std::min<uint32_t>(255,128*level/screen_base),haze_lit=hl|hl<<8|hl<<16;
@@ -231,7 +243,15 @@ void write_mesh(uint32_t mesh_template) {
             if((r.kind!=0)!=screen) continue;
             uint32_t uv[4];for(int k=0;k<4;++k) uv[k]=r.uv[k];
             const bool haze=r.kind==haze_face;
-            if(r.kind==screen_face) {
+            uint32_t page=tpage;
+            if(r.kind==screen_face && feed_rect>=0) {
+                // D53A: the screen's 96x96 texels (u 128..223, v 0..95) moved
+                // onto the feed rectangle.
+                const int du=feed_x[feed_rect]-256-128;
+                for(auto& x:uv) x=uint32_t(int(x&0xff)+du)|((x>>8)+feed_y)<<8;
+                page=feed_tpage;
+                built.screen_rec=at;
+            } else if(r.kind==screen_face) {
                 const uint32_t dv=screen_uv_v[cursor_on()?1:0]<<8;
                 for(auto& x:uv) x+=dv;
                 built.screen_rec=at;
@@ -240,7 +260,7 @@ void write_mesh(uint32_t mesh_template) {
             psx_mod_write_word(at+4,uv[0]);                    // CLUT 0 (direct colour)
             // The ring: semi-transparent (bit 0x10 of the flags above the
             // page) with blend mode 1 in the page (B + F, additive).
-            psx_mod_write_word(at+8,uv[1]|(haze?(tpage|0x20u)<<16|0x10u<<25:tpage<<16));
+            psx_mod_write_word(at+8,uv[1]|(haze?(tpage|0x20u)<<16|0x10u<<25:page<<16));
             psx_mod_write_word(at+12,uv[2]|uv[3]<<16);
             if(screen) psx_mod_write_word(at+16,haze?0x01010101u:0);   // palette entry 1 (ring) or 0 (screen) at each corner
             at+=screen?20:16;
@@ -307,6 +327,53 @@ uint32_t glow_copy(unsigned slot,uint32_t mesh,uint32_t level) {
     ++glow_swaps;
     return base;
 }
+uint32_t frames_now();
+// ---- D53A: the camera feed ------------------------------------------------
+// The object the object-list loop is drawing (its kinds' draw routines are
+// called (camera, object, ...)); in a redraw worker too.
+uint32_t drawing_object=0;
+// Guest block (mod memory, so a redraw worker reads the frame's own values):
+// +0 the TV showing the feed (0: none), +4 the bank rectangle with the newest
+// picture (0 or 1) | 0x100 once one is there.
+uint32_t feed_block=0;
+bool feed_allocate() {
+    if(feed_block) return true;
+    if(psx_mod_replay_active()) return false;
+    feed_block=psx_mod_alloc_guest_memory(16,16);
+    if(feed_block) {psx_mod_write_word(feed_block,0);psx_mod_write_word(feed_block+4,0);}
+    return feed_block!=0;
+}
+// Live state (game thread).
+struct FeedLive {
+    bool watching=false,have_camera=false;
+    uint32_t tv=0,player=0,seen=0,requested=0,level=~0u,loads=~0u;
+    uint8_t camera[security_feed_camera_bytes]={};
+    uint64_t starts=0,stops=0,requests=0,stores=0,out_of_range=0;
+    double distance=0;
+} feed;
+// DNTTK_SECURITY_FEED=0 (developer) turns it off; _RANGE (units from the TV,
+// Duke 3D's VIEWSCREEN_ACTIVE_DISTANCE is 8192) and _EVERY (game frames per
+// picture: 2 = 15 a second) tune it.
+bool feed_switch() {static const bool v=[]{const char* t=std::getenv("DNTTK_SECURITY_FEED");return !(t && t[0]=='0');}();return v;}
+double feed_range=8192;
+uint32_t feed_every=2;
+float feed_gamma=0.75f;   // dark camera rooms read on the small screen (DNTTK_SECURITY_FEED_GAMMA, 1 = as drawn)
+int feed_rect_for(uint32_t object) {
+    if(!feed_block || !object) return -1;
+    const uint32_t tv=psx_mod_read_word(feed_block),front=psx_mod_read_word(feed_block+4);
+    if(tv!=object || !(front&0x100u)) return -1;
+    if(!psx_mod_replay_active()) feed.seen=frames_now();
+    return int(front&1u);
+}
+void feed_publish(uint32_t tv) {
+    if(!feed_block) return;
+    if(psx_mod_read_word(feed_block)!=tv) {psx_mod_write_word(feed_block,tv);psx_mod_write_word(feed_block+4,0);}
+}
+void feed_stop() {
+    if(feed.tv) ++feed.stops;
+    feed.tv=0;feed.have_camera=false;feed.watching=false;
+    feed_publish(0);
+}
 uint32_t swap(uint32_t mesh) {
     if(input_modernized() && !ttk_world_classic()) {
         // Keypads at DNTTK_KEYPAD_GLOW (255: twice the neutral 128, the most
@@ -316,7 +383,7 @@ uint32_t swap(uint32_t mesh) {
     }
     if(!duke_look() || !monitor_mesh(mesh) || !allocate()) return 0;
     last_template=mesh;
-    write_mesh(mesh);
+    write_mesh(mesh,feed_rect_for(drawing_object));
     ++swaps;
     return security_tv_copy;
 }
@@ -425,6 +492,64 @@ void apply_bounds(bool duke) {
         for(int i=0;i<4;++i) if(psx_mod_read_word(o+0x4c+4*i)!=w[i]) {psx_mod_write_word(o+0x4c+4*i,w[i]);++bounds_writes;}
     }
 }
+uint32_t frames_now() {return frames;}
+// D53A, live frames: while the player watches a camera, keep that camera and
+// the TV they used; afterwards the TV shows the feed until Duke is out of
+// range, the level changes, a savestate loads or the look is switched off.
+void feed_tick(uint32_t level,uint32_t loads) {
+    if(!input_modernized() || !duke_look() || !feed_switch() || !feed_allocate()) {if(feed.tv || feed.watching) feed_stop();return;}
+    if(level!=feed.level || loads!=feed.loads) {feed_stop();feed.level=level;feed.loads=loads;}
+    const uint32_t index=psx_mod_read_word(player_index);
+    if(psx_mod_read_half(game_mode)!=1 || index>1 || psx_mod_read_half(0x800c3c4cu)) {if(feed.tv) feed_stop();return;}
+    const uint32_t pl=players+index*0x8a4u;
+    const bool watching=(psx_mod_read_word(pl+0x224)&0x20000000u)!=0;
+    if(watching) {
+        // The TV in use (+0x290, D53C) and the camera as the composition has it.
+        const uint32_t o=psx_mod_read_word(pl+0x290);
+        const bool tv=security_tv_object && security_tv_object(o);
+        // +0x290 is cleared during the view: the TV is the one in use as it begins.
+        if(!feed.watching) {feed.tv=0;if(tv) ++feed.starts;}
+        if(tv && !feed.tv) feed.tv=o;
+        feed.watching=true;feed.player=index;
+        for(uint32_t i=0;i<security_feed_camera_bytes;i+=4) {
+            const uint32_t w=psx_mod_read_word(security_feed_camera+security_feed_camera_bytes*index+i);
+            std::memcpy(feed.camera+i,&w,4);
+        }
+        feed.have_camera=feed.tv!=0;
+        feed_publish(0);   // the picture starts fresh when the player looks away
+        return;
+    }
+    feed.watching=false;
+    if(!feed.tv || !feed.have_camera) return;
+    // Out of range, or the TV gone (broken, unlinked): the screen resets.
+    if(!security_tv_object(feed.tv)) {feed_stop();return;}
+    double d=0;
+    for(int k=0;k<3;++k) {const double a=(int32_t)psx_mod_read_word(pl+4+4*k),b=(int32_t)psx_mod_read_word(feed.tv+4+4*k);d+=(a-b)*(a-b);}
+    feed.distance=std::sqrt(d);
+    if(d>feed_range*feed_range) {++feed.out_of_range;feed_stop();return;}
+    feed_publish(feed.tv);
+}
+bool feed_request(SecurityFeedRequest& out) {
+    if(!feed.tv || feed.watching || !feed.have_camera || !feed_block) return false;
+    // Only while the TV is in view: the first picture right away (the player
+    // was just looking at it), then while the live frames still draw it.
+    const bool fresh=!(psx_mod_read_word(feed_block+4)&0x100u);
+    if(!fresh && frames-feed.seen>2) return false;
+    if(feed.requested && frames-feed.requested<feed_every) return false;
+    feed.requested=frames;++feed.requests;
+    out.player=feed.player;std::memcpy(out.camera,feed.camera,sizeof out.camera);
+    return true;
+}
+bool feed_store(int cache) {
+    if(!feed.tv || feed.watching || !feed_block || psx_mod_read_word(feed_block)!=feed.tv) return false;
+    const uint32_t front=psx_mod_read_word(feed_block+4),back=(front&0x100u)?(front&1u)^1u:0u;
+    // The middle of the 4:3 picture, square like the screen.
+    static const float crop[4]={0.125f,0.0f,0.875f,1.0f};
+    if(!psx_mod_replay_cache_to_bank(cache,feed_x[back],feed_y,feed_w,feed_h,crop,feed_gamma)) return false;
+    psx_mod_write_word(feed_block+4,back|0x100u);
+    ++feed.stores;
+    return true;
+}
 // Scene composition, live frames only: find the TVs and consoles once a level
 // (and every 300 frames), and keep the monitors' bounds matching the look.
 void composition_hook(CPUState*,uint32_t) {
@@ -438,6 +563,7 @@ void composition_hook(CPUState*,uint32_t) {
     static const bool bounds_off=[]{const char* t=std::getenv("DNTTK_SECURITY_BOUNDS");return t && t[0]=='0';}();   // developer A/B
     const int look=modern && duke_look() && !bounds_off?1:0;
     if(look!=bounds_look || frames%60==0) {apply_bounds(look==1);bounds_look=look;}
+    feed_tick(level,loads);
 }
 unsigned lights(PSXModLight* out,unsigned room) {
     if(!room || !input_modernized() || emitters.empty()) return 0;
@@ -479,9 +605,12 @@ unsigned lights(PSXModLight* out,unsigned room) {
 }  // namespace
 
 const char* security_monitor_debug_json() {
-    static char b[256];
-    std::snprintf(b,sizeof b,"{\"duke_look\":%s,\"pack\":%s,\"swaps\":%llu,\"tvs\":%zu,\"lamps\":%llu,\"copy\":\"%08x\",\"template\":\"%08x\"}",
-                  duke_look()?"true":"false",pack.ok?"true":"false",(unsigned long long)swaps,emitters.size(),(unsigned long long)lamps_published,security_tv_copy,last_template);
+    static char b[640];
+    std::snprintf(b,sizeof b,"{\"duke_look\":%s,\"pack\":%s,\"swaps\":%llu,\"tvs\":%zu,\"lamps\":%llu,\"copy\":\"%08x\",\"template\":\"%08x\","
+                  "\"feed\":{\"tv\":\"%08x\",\"watching\":%s,\"front\":%u,\"starts\":%llu,\"stops\":%llu,\"out_of_range\":%llu,\"requests\":%llu,\"stores\":%llu,\"distance\":%.0f}}",
+                  duke_look()?"true":"false",pack.ok?"true":"false",(unsigned long long)swaps,emitters.size(),(unsigned long long)lamps_published,security_tv_copy,last_template,
+                  feed.tv,feed.watching?"true":"false",feed_block?psx_mod_read_word(feed_block+4):0u,(unsigned long long)feed.starts,(unsigned long long)feed.stops,
+                  (unsigned long long)feed.out_of_range,(unsigned long long)feed.requests,(unsigned long long)feed.stores,feed.distance);
     return b;
 }
 }  // namespace ttk
@@ -511,6 +640,15 @@ PSX_MOD_CONSTRUCTOR(register_ttk_security_monitor) {
     if(const char* t=std::getenv("DNTTK_KEYPAD_GLOW")) ttk::keypad_level=(uint32_t)std::clamp(std::atoi(t),64,255);
     if(const char* t=std::getenv("DNTTK_POWER_SIGN_GLOW")) ttk::sign_level=(uint32_t)std::clamp(std::atoi(t),64,255);
     psx_mod_register_function_entry_plugin("ttk.security.monitor",0x80026164u,ttk::composition_hook);
+    // D53A: which object the object-list loop is drawing (0x800c0bf8 kinds).
+    for(uint32_t a:{0x800632b0u,0x80031d10u,0x80032e78u,0x800348d8u,0x80031c14u})
+        psx_mod_register_function_entry_plugin("ttk.security.feed",a,[](CPUState* cpu,uint32_t){ttk::drawing_object=cpu->gpr[5];});
+    if(const char* t=std::getenv("DNTTK_SECURITY_FEED_RANGE")) ttk::feed_range=std::clamp(std::atof(t),1000.0,60000.0);
+    if(const char* t=std::getenv("DNTTK_SECURITY_FEED_EVERY")) ttk::feed_every=(uint32_t)std::clamp(std::atoi(t),1,30);
+    if(const char* t=std::getenv("DNTTK_SECURITY_FEED_LEVEL")) ttk::feed_level=(uint32_t)std::clamp(std::atoi(t),64,255);
+    if(const char* t=std::getenv("DNTTK_SECURITY_FEED_GAMMA")) ttk::feed_gamma=(float)std::clamp(std::atof(t),0.3,1.0);
+    ttk::security_feed_request=ttk::feed_request;
+    ttk::security_feed_store=ttk::feed_store;
     ttk::security_tv_swap=ttk::swap;
     ttk::security_tv_lights=ttk::lights;
     ttk::security_tv_object=[](uint32_t o) {

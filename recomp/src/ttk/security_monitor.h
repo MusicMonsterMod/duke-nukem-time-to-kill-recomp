@@ -27,4 +27,15 @@ inline bool (*security_tv_object)(uint32_t object)=nullptr;
 inline void (*security_tv_paint_bank)(uint16_t* bank)=nullptr;
 // Screen lights for the TVs near Duke; returns how many were written.
 inline unsigned (*security_tv_lights)(PSXModLight* out,unsigned room)=nullptr;
+// Debug JSON object (looks, swaps, lights, D53A feed state).
+const char* security_monitor_debug_json();
+// D53A: the security camera feed (frame_replay.cpp draws it). The alternate
+// camera the view composition draws through while Duke +0x224 has bit
+// 0x20000000 (D52), one per player.
+constexpr uint32_t security_feed_camera=0x800d7010u,security_feed_camera_bytes=0xb0u;
+struct SecurityFeedRequest {uint32_t player;uint8_t camera[security_feed_camera_bytes];};
+// Live frame: true when a feed picture should be drawn now (fills the camera).
+inline bool (*security_feed_request)(SecurityFeedRequest& out)=nullptr;
+// A finished feed picture is in the renderer's cache entry: put it on the TV.
+inline bool (*security_feed_store)(int cache)=nullptr;
 }

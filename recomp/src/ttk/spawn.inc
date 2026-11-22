@@ -244,11 +244,12 @@ static bool spawn_clear_of_reach(CPUState* cpu,uint32_t object,double view) {
     return false;
 }
 // D08A43 developer warp (backtick console, Modernized, lab use): "warp x y z"
+// [degrees]" (D57C: facing that compass angle, 0 = +Z, 90 = +X, view too)
 // or "warp object N [distance] [degrees]" (in front of level object N of the
 // table 800D2550, facing it). Applied on the game thread in one step: the
 // position, Duke's map cell (+0x2e, the smallest room box holding the point;
 // cells are the room indices) and his facing (+0x1c). Not a cheat for play.
-struct WarpRequest {bool on=false,object=false;int32_t x=0,y=0,z=0;int n=0,distance=600,degrees=0;};
+struct WarpRequest {bool on=false,object=false,face=false;int32_t x=0,y=0,z=0;int n=0,distance=600,degrees=0;};
 static std::mutex warp_mutex;static WarpRequest warp_request;
 static int warp_cell(int32_t x,int32_t y,int32_t z) {
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
@@ -281,6 +282,10 @@ static void warp_update() {
     if(w.object && (tx!=w.x || tz!=w.z)) yaw=std::atan2(double(tx-w.x),double(tz-w.z)); // the view faces it too
     if(w.object && (tx!=w.x || tz!=w.z))
         psx_mod_write_half(player+0x1c,uint16_t(int(std::lround(std::atan2(double(tx-w.x),double(tz-w.z))/(2*3.14159265358979)*4096))&4095));
+    if(w.face) {   // D57C: plain warp with a facing
+        const double a=w.degrees*3.14159265358979/180.0;yaw=a;
+        psx_mod_write_half(player+0x1c,uint16_t(int(std::lround(a/(2*3.14159265358979)*4096))&4095));
+    }
     std::fprintf(stderr,"[TTK warp] %d %d %d cell %d\n",w.x,w.y,w.z,cell);
     input_notice("WARPED");
 }
@@ -440,7 +445,11 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
         if(!std::strncmp(line+5,"object ",7)) {
             w.object=true;const int got=std::sscanf(line+12,"%d %d %d",&w.n,&w.distance,&w.degrees);
             if(got<1) {say("Warp: warp object N [distance] [degrees]");return true;}
-        } else if(std::sscanf(line+5,"%d %d %d",&w.x,&w.y,&w.z)!=3) {say("Warp: warp x y z, or warp object N [distance] [degrees]");return true;}
+        } else {
+            const int got=std::sscanf(line+5,"%d %d %d %d",&w.x,&w.y,&w.z,&w.degrees);
+            if(got<3) {say("Warp: warp x y z [degrees], or warp object N [distance] [degrees]");return true;}
+            w.face=got==4;
+        }
         {std::lock_guard<std::mutex> lock(warp_mutex);warp_request=w;}
         say("Warping...");close=true;return true;
     }

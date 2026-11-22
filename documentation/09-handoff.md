@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D57C closed out (Done)
+
+- D57C ([note 539](539-d57c-subway-entrance-globes.md)): user "lock it in and close it out". The LA subway entrance globes (prop type 315, by model; levels 0, 5 and 9) cast a steady warm light with a soft halo in ENHANCED and RELIT. Next up by user request: D57I (the LA street lamp posts give sodium-vapour light, a 90s street at night; first step a prop survey for the lamp post models, D57C lab `recomp/analysis/d57c/`).
+
+## 2026-11-22 - D57C subway entrance globe lights (Needs playtest)
+
+- D57C ([note 539](539-d57c-subway-entrance-globes.md)): the LA subway entrance globes (prop type 315, a 25-vertex sphere with a bright yellow glass texture; two on the posts at the top of the "Subway" stairs, room 5) cast a steady warm light and a soft halo in ENHANCED and RELIT, found by model (`prop_light_globe`, `prop_lights.cpp`). Survey of all 21 levels: only levels 0, 5 and 9 have them (the same street block). Relit, building beside the entrance 26.8 -> 33.8; 180 Hz pacing unchanged; executable `073b22fe...`. Lab `warp x y z [degrees]` takes a facing. Waits on the user's look on the real display: the lab could see the entrance only from the stair foot.
+
 ## 2026-11-22 - D41AB closed out (Done)
 
 - D41AB ([note 538](538-d41ab-duke3d-random-lights.md)): user "lock it in and close it out. ten out of ten". The subway train's cyan roof beacon flickers with Duke Nukem 3D's random-light look (SE 4 reimplemented from EDuke32), light and halo together, in ENHANCED and RELIT; the style is reusable (`duke[:H[:ON[:OFF]]]` level lamps, prop light option). No new backlog from this job.

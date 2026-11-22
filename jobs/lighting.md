@@ -1462,13 +1462,37 @@ Acceptance: the car reads clearly in the user's playtest, still atmospheric.
 
 ### D57C - LA subway entrance globe lights give light
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+**Status: Done ([note 539](../documentation/539-d57c-subway-entrance-globes.md)), user-accepted 2026-11-22 ("lock it in and close it out"). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the round globe lights outside the subway entrances
 should give light. Work: find every such fixture in the LA levels and make
 them consistent lamps (per-level light files or by texture), baked where
 fixed. Acceptance: each globe lights its surroundings; cost measured.
+
+Work log, 2026-11-22 (Needs playtest):
+
+- Found by a level 0 prop survey (136 models, textures read from VRAM): the
+  globes are prop type 315, a 25-vertex sphere with a bright yellow glass
+  texture, two on the posts at the top of the "Subway" stairs (room 5). All
+  21 levels surveyed: they exist only on levels 0, 5 and 9, the same street
+  block each time. Ruled out type 170 (red domes, already lit by D41D1 sign
+  lamps) and type 195 (velvet-rope stanchions).
+- `prop_lights.cpp`: `prop_light_globe`, found by model and a lit texture; a
+  steady warm light at each globe (colour from its glass, strength 1.0,
+  radius 3600) and a soft halo, ENHANCED and RELIT; no per-level data.
+  Developer `DNTTK_PROP_LIGHT_GLOBE`, `DNTTK_PROP_GLOBE_HALO`; lab `warp x y
+  z [degrees]`.
+- Evidence: posts, railings and the building beside the entrance brighten
+  (Relit 26.8 -> 33.8 on the building); 180 Hz pacing unchanged (p95 6 ms);
+  270 local tests OK.
+- Limit: the lab sees the entrance only from the stair foot (warp cannot
+  stand Duke on that street); the light on the pavement waits on the user's
+  look on the real display.
+
+Closed out, 2026-11-22: user "lock it in and close it out". Done; lab trimmed to its scripts and
+results. Follow-up backlog: [D57I](#d57i---street-lamp-posts-give-sodium-vapour-light-la-levels)
+(the street lamp posts give sodium-vapour light).
 
 ### D57D - SOMEONE'S GONNA PAY strip club secret-room lamp gives light
 
@@ -1688,6 +1712,36 @@ every level gives a small warm candle light at the flame, breaking with the
 prop (D54) and correct after loads (D41W). Acceptance: the candle in the
 slot 9 view lights the wall and floor around it in a matched before/after
 pair, other copies on the level light too, Vanilla unchanged.
+
+### D57I - Street lamp posts give sodium-vapour light (LA levels)
+
+**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D57C.**
+
+User, 2026-11-22, accepting D57C: "the next job is a job that needs going
+into the backlog which is now to add lighting to these lamp post models. im
+really thinking these have got to be sodium vapor lamps. really go for that
+90s street at night feel."
+
+- The lamps: the street lamp posts of the LA streets (one stands beside the
+  "Subway" entrance in D57C's shots, `research/before-after/D57C/`, local; the
+  tall pole with a lamp head at the left). First step: find the lamp post
+  model(s) by a prop survey (the D57C lab `recomp/analysis/d57c/`, `props`
+  and `faces` cases), every copy and every level that has them (D57C found
+  levels 0, 5 and 9 share the LA street block); confirm with the user if a
+  candidate is unclear.
+- Look: high-pressure sodium street lighting, as on a 90s city street at
+  night: a warm orange-amber light (low-pressure sodium is near
+  monochromatic orange-yellow, about 589 nm; high-pressure a broader
+  orange-pink-amber) thrown down from the lamp head in a pool on the
+  pavement and road, a soft glow on the lamp head; research the colour and
+  falloff with sources before tuning. Optionally the slow warm-up or an
+  occasional failing-lamp cycle on one or two posts, only if it reads as
+  atmosphere, not a fault (D41AA's lesson).
+- Scope: by model, game-wide, no per-level data (D41Z/D57C pattern in
+  `prop_lights.cpp`); LIGHTING ENHANCED and RELIT; Original, Vanilla and
+  Classic unchanged; cost measured at 180 Hz. Test on the real street: warp
+  cannot stand Duke on some LA streets (D57C), so use a save state if needed
+  (ask the user).
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

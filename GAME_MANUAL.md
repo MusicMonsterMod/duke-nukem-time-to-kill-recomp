@@ -644,7 +644,10 @@ of level 29 pulses its light the same way. The amber warning lamp on every
 construction barricade lights its rails and the ground round it as it blinks,
 with a soft glow on the lamp while it is lit. The small caged lamps on the
 tunnel and corridor walls (levels 0, 5 and 9) light the wall and floor round
-them in their own colour, with a soft glow on the bulb. The subway train in
+them in their own colour, with a soft glow on the bulb. The two yellow globe
+lamps on the posts at the top of the "Subway" stairs in level 0 cast a warm
+light over the posts, railings and buildings round the entrance, with a soft
+glow on each globe. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
 both ends and the cyan beacon on its roof lights the tunnel round it,
 flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and
@@ -2477,8 +2480,9 @@ created the original way (one already in play is moved instead), and if the
 level's limit of live enemies is reached the farthest one is removed first.
 Only types the level places can be spawned.
 
-**Debug warp (testing, Modernized).** `warp x y z` moves Duke to that point
-(the room is found from the level's room boxes), and `warp object N [distance]
+**Debug warp (testing, Modernized).** `warp x y z [degrees]` moves Duke to that point
+(the room is found from the level's room boxes; with degrees he and the view
+face that compass angle, 0 = +Z, 90 = +X), and `warp object N [distance]
 [degrees]` puts him `distance` units (default 600) from level object N, at
 that compass angle (0 = +Z, 90 = +X), facing it, with the view turned to it.
 For setting up tests only; it is not a cheat for play and can leave Duke

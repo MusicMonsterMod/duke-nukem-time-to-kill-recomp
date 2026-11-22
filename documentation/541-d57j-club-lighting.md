@@ -81,7 +81,7 @@ Real venues:
   ([Rosco Spectrum](https://spectrum.rosco.com/index.php/2015/11/subtle-warmth-with-bastard-ambers)).
 - Theatre colour: pale warm on the performer's front, deep colour from the
   side and back, warm against cool
-  ([Theatrecrafts](https://theatrecrafts.com/pages/home/topics/lighting/choosing-and-using-colour/)).
+  ([Theatrecrafts](https://theatrecrafts.com/pages/%68ome/topics/lighting/choosing-and-using-colour/)).
 - Haze makes the light visible in the air; keep it thin
   ([Chauvet, atmospheric impact](https://chauvetprofessional.com/news/atmospheric-impact/);
   [Showtec](https://showtec.co.uk/?p=167)); keep the ambient low, layers and

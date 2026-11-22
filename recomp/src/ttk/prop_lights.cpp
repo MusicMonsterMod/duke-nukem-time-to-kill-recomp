@@ -37,6 +37,7 @@
 #endif
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -91,6 +92,18 @@ bool barrel_mesh(uint32_t mesh) {
     return mesh_header(mesh,20,vp,list) && psx_mod_read_word(vp)==0xff860000u && psx_mod_read_half(vp+4)==0 &&
            psx_mod_read_word(vp+8*19)==0x01760050u && psx_mod_read_half(vp+8*19+4)==0xff76u;
 }
+// D41Y: the construction barricade (prop type 128; level 0 rooms 20 and 23):
+// 9 vertices, an orange-and-white A-frame (feet at y 255, z +-119, top rail
+// to y -138) with its warning lamp on top at one end, a 16 x 16 quad
+// (x -205..-92, y -255..-138, z 2). The lamp's texture is animated: the
+// game's own blink, a lit frame and a dark frame of 600 ms, all barricades in
+// step. First vertex (-205, 255, -119), the last (-205, -255, 2).
+bool barricade_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,9,vp,list) && psx_mod_read_word(vp)==0x00ffff33u && psx_mod_read_half(vp+4)==0xff89u &&
+           psx_mod_read_word(vp+8*8)==0xff01ff33u && psx_mod_read_half(vp+8*8+4)==0x0002u;
+}
+bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -101,6 +114,7 @@ int kind_of(uint32_t mesh) {
     if(stove_mesh(mesh)) return prop_light_stove;
     if(chandelier_mesh(mesh)) return prop_light_chandelier;
     if(ring_mesh(mesh)) return prop_light_ring;
+    if(barricade_mesh(mesh)) return prop_light_barricade;
     return prop_light_none;
 }
 bool visuals() {
@@ -117,6 +131,23 @@ Tune fill_light{{1.0f,0.74f,0.46f},0.5f,5000};          // the chandelier's broa
 // DNTTK_PROP_LIGHT_BARREL; DNTTK_PROP_BARREL_Y its model height).
 Tune barrel_light{{1.0f,0.52f,0.18f},1.3f,3000};
 float barrel_at[3]={0,-300,0};
+// D41Y: the barricade's warning lamp: a small amber light at the lamp, on
+// and off with the game's blink (developer DNTTK_PROP_LIGHT_BARRICADE), and
+// a soft halo over the lamp face while it is lit (DNTTK_PROP_BARRICADE_HALO=
+// "size level"). The light switches on with the lit frame and dies in
+// barricade_decay ms after it, as a bulb.
+Tune barricade_light{{1.0f,0.66f,0.10f},0.7f,1100};
+constexpr float barricade_lamp_at[3]={-148,-196,0};
+float barricade_halo_size=240,barricade_halo_level=90,barricade_decay=90;
+// The lamp's level now per barricade model (any thread reads it for the
+// halo): written by the game thread's frame hook from the D55 reading.
+struct BlinkSlot {std::atomic<uint32_t> mesh{0};std::atomic<float> level{0};std::atomic<float> rgb[3]{{1.0f},{0.77f},{0.0f}};};
+BlinkSlot blink_slots[8];
+BlinkSlot* blink_slot(uint32_t mesh,bool add) {
+    for(BlinkSlot& b:blink_slots) if(b.mesh.load(std::memory_order_relaxed)==mesh) return &b;
+    if(add) for(BlinkSlot& b:blink_slots) if(!b.mesh.load(std::memory_order_relaxed)) {b.mesh.store(mesh,std::memory_order_relaxed);return &b;}
+    return nullptr;
+}
 // D57G: the iron ring's five candles (one light at the ring's centre, among
 // the flames) and its fill on the hall below.
 Tune ring_light{{1.0f,0.80f,0.52f},0.9f,2400};
@@ -171,11 +202,12 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 // D54: ref is the prop; when it breaks (prop_state.h) the light sputters out
 // from broke_ms (standing 0) and the scans no longer find it.
 struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;
-               bool crystal=false;Tune own{};bool portal=false;};   // D57F: own = the crystal's light (its level lamp's look)
+               bool crystal=false;Tune own{};bool portal=false;
+               uint32_t blink_mesh=0;uint32_t lit_ms=0;};   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0,barrels=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0;
 // D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
 // appear within a sixth of a second); one taken goes dark at once.
 std::vector<Emitter> pickups;
@@ -192,7 +224,8 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=barrels=0;scan_sig=0;
+    emitters.clear();stoves=chandeliers=rings=barrels=barricades=0;scan_sig=0;
+    for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     std::vector<uint32_t> seen;
@@ -217,6 +250,10 @@ void scan_props() {
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
             if(barrel) {
                 place(e.p,p,yaw,barrel_at);e.tune=&barrel_light;e.fire=true;emitters.push_back(e);++barrels;
+            } else if(kind==prop_light_barricade) {
+                // D41Y: the light follows the lamp's frames (blink_update).
+                place(e.p,p,yaw,barricade_lamp_at);e.tune=&e.own;e.own=barricade_light;e.blink_mesh=mesh;blink_slot(mesh,true);
+                emitters.push_back(e);++barricades;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -233,7 +270,24 @@ void scan_props() {
         }
     }
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,emitters.size());
+    for(Emitter& e:emitters) if(e.blink_mesh) e.tune=&e.own;   // after the moves
+}
+// D41Y: each frame, every barricade model's lamp level from the frame the
+// game shows (D55 signal reading: 1 lit, 0 dark), for the halos and lights.
+void blink_update() {
+    if(!prop_signal_now) return;
+    for(BlinkSlot& b:blink_slots) {
+        const uint32_t mesh=b.mesh.load(std::memory_order_relaxed);
+        if(!mesh) continue;
+        float level=1,rgb[3]={1.0f,0.77f,0.0f};
+        if(!prop_signal_now(mesh,level,rgb)) level=1;   // no animation readable: steady
+        b.level.store(level,std::memory_order_relaxed);
+        if(level>0.5f) for(int c=0;c<3;++c) b.rgb[c].store(rgb[c],std::memory_order_relaxed);
+    }
+    if(static const bool trace=std::getenv("DNTTK_BLINK_TRACE")!=nullptr;trace)
+        for(const BlinkSlot& b:blink_slots) if(const uint32_t m=b.mesh.load(std::memory_order_relaxed))
+            std::fprintf(stderr,"[TTK prop light] frame %u barricade %08x lamp %.2f\n",frames,m,b.level.load(std::memory_order_relaxed));
 }
 void scan_pickups() {
     std::vector<Emitter> found;
@@ -332,6 +386,7 @@ void composition_hook(CPUState*,uint32_t) {
     const bool rescan=level!=scan_level || loads!=scan_loads;
     if(rescan || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
     if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) {pickups.clear();crystals.clear();}scan_pickups();scan_crystals();}
+    if(barricades) blink_update();
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     if(!room || (emitters.empty() && pickups.empty() && crystals.empty()) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
@@ -342,7 +397,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const PropSnapshot& snap=prop_snapshot_take();
     if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
         e.standing=0;e.broke_ms=ms;
-        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":"candle",e.ref.o);
+        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":e.blink_mesh?"barricade lamp":"candle",e.ref.o);
     }
     // Room gate (level_lamp_room_lit): a light comes on at once, fades out over 0.25 s.
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
@@ -370,8 +425,17 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const unsigned cap=std::min(room,6u);const double cut=near.size()>cap ? near[cap].d : 32000.0;
     for(const Near& q:near) {
         if(n>=cap) break;
-        const Emitter& e=*q.e;
+        Emitter& e=*q.e;   // D41Y: a barricade lamp keeps when it was last lit
         float k=e.tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
+        if(e.blink_mesh) {
+            // D41Y: on with the lit frame, a bulb's quick fade after it.
+            float on=0;
+            if(const BlinkSlot* b=blink_slot(e.blink_mesh,false)) on=b->level.load(std::memory_order_relaxed);
+            if(on>0.5f) e.lit_ms=ms;
+            else on=e.lit_ms && ms-e.lit_ms<barricade_decay ? std::max(on,1.0f-(ms-e.lit_ms)/barricade_decay) : on;
+            if(!e.standing) on=1;   // broken: sputters out from lit (D54)
+            k*=on;   // dark: published at 0, so the light list does not change with the blink
+        } else
         k*=e.portal?portal_breath(ms):e.crystal?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
@@ -422,6 +486,15 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
         // A slow breath, about 0.85..1.0 (3 s), in the pad lamp's colour.
         const float l=portal_top_level*portal_breath(ms);   // in step with its light
         if(n<max) out[n++]=billboard(0,portal_top_y,0,portal_top_halo,portal_top_halo,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,l*0.55f,l*0.80f,l);
+    } else if(kind==prop_light_barricade) {
+        // D41Y: a soft amber halo over the lamp while the game shows it lit.
+        const BlinkSlot* b=blink_slot(mesh,false);
+        const float on=b?b->level.load(std::memory_order_relaxed):0;
+        if(on>0.05f && n<max) {
+            const float l=barricade_halo_level*on;
+            out[n++]=billboard(barricade_lamp_at[0],barricade_lamp_at[1],barricade_lamp_at[2],barricade_halo_size,barricade_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                               l*b->rgb[0].load(std::memory_order_relaxed),l*b->rgb[1].load(std::memory_order_relaxed),l*b->rgb[2].load(std::memory_order_relaxed));
+        }
     } else if(kind==prop_light_ring) {
         uint32_t vp,list;
         if(!mesh_header(mesh,51,vp,list)) return 0;
@@ -491,7 +564,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);
     ttk::tune("DNTTK_PROP_LIGHT_BARREL",ttk::barrel_light);
     if(const char* e=std::getenv("DNTTK_PROP_BARREL_Y")) ttk::barrel_at[1]=(float)std::atof(e);
-    ttk::prop_light_lit_mesh=ttk::barrel_mesh;
+    ttk::tune("DNTTK_PROP_LIGHT_BARRICADE",ttk::barricade_light);
+    if(const char* e=std::getenv("DNTTK_PROP_BARRICADE_HALO")) std::sscanf(e,"%f %f %f",&ttk::barricade_halo_size,&ttk::barricade_halo_level,&ttk::barricade_decay);
+    ttk::prop_light_lit_mesh=ttk::lit_mesh;   // D41X barrel, D41Y barricade
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING_FILL",ttk::ring_fill);

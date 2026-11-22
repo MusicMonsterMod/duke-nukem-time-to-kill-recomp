@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-22 - D41Y closed out (Done)
+
+- D41Y ([note 534](534-d41y-barricade-warning-lamps.md)): user "lock it in and close it out!" Every construction barricade (type 128, by model) casts a small amber light in step with the original's lamp blink, plus a soft glow on the lamp while lit, in ENHANCED and RELIT; out when it breaks. Next up by user request: D17BO (subway train flickers as Duke walks; LEVEL00, UI slot 12 save copy in `research/savestates/d17bo/`).
+
+## 2026-11-22 - D41Y barricade warning lamps (Needs playtest)
+
+- D41Y ([note 534](534-d41y-barricade-warning-lamps.md)): the construction barricade's lamp already blinked in the original (animated texture, 600 ms lit/dark); now every barricade (type 128, by model) casts a small amber light in step with that blink, plus a soft glow on the lamp while lit, in ENHANCED and RELIT; out when it breaks; `lamp signs` skips it. Level 0 has four (only level among 16 surveyed). Executable `4f4f20a5...`. Waits on the user's look in UI slot 12 on the real display.
+
 ## 2026-11-22 - D41X closed out (Done)
 
 - D41X ([note 533](533-d41x-fire-barrel-light.md)): user "it's absolutely perfect! accepted". Every fire barrel (type 220, by model) casts a warm flickering fire light in ENHANCED and RELIT, out when it explodes; `lamp signs` skips it; level 5's barrel lamp line removed. Next up by user request: D41Y (construction barricade warning lamps flash; type 128, UI slot 12 save copy in `research/savestates/d41y/`).

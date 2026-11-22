@@ -16,7 +16,9 @@ namespace ttk {
 // D57G: prop_light_ring, the five-candle iron-ring chandelier (prop type 372).
 // D57F: prop_light_portal_top, the time machine's hanging top (prop type 192,
 // levels 0 and 5): no light of its own, darker metal, a glow at its centre.
-enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4};
+// D41Y: prop_light_barricade, the construction barricade (prop type 128):
+// a halo over its warning lamp while the game's own blink shows it lit.
+enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,
@@ -56,7 +58,12 @@ inline int (*level_lamp_bound)(uint16_t type,const int32_t p[3],BoundLamp* like)
 inline std::atomic<bool> prop_crystals_enabled{true};
 // D41X: a prop model whose light this file gives (the fire barrel), so the
 // D41D1 sign scan ("lamp signs") makes no second lamp for it.
+// D41Y: and the construction barricade's warning lamp.
 inline bool (*prop_light_lit_mesh)(uint32_t mesh)=nullptr;
+// D41Y: the D55 signal reading of a mesh's animated faces (level 0-1 of the
+// frame shown against its brightest frame, and the lit colour); false when
+// the mesh has none. Game thread. Set by modern_controls.cpp.
+inline bool (*prop_signal_now)(uint32_t mesh,float& level,float rgb[3])=nullptr;
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};

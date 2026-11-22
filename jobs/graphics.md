@@ -3322,6 +3322,36 @@ Closed out, 2026-11-21: the user accepted it and authorized the closeout
 ("it's now fixed! to an exceptionally high standard", "lock it in and close it out"). Before/after sheets (local) in
 `research/before-after/D17BN/`.
 
+
+### D17BO - Subway train flickers as Duke walks (UI slot 12)
+
+**Status: Todo (backlog; user report 2026-11-22, "next up"). Dependencies: -.**
+
+User, 2026-11-22, closing D41Y: "load up the new slot 12 i have just saved,
+walk forwards and backwards and notice the train to the left of the shot
+flickers."
+
+Test save: UI slot 12 (saved 2026-11-22 03:08, LEVEL00, the subway tunnel:
+Duke at (13571, -6009, 42585) on the track bed, the train car alongside on
+the left, its windowed side running down the tunnel), copied to
+`research/savestates/d17bo/` (local, never committed). Load private copies,
+never the player's card.
+
+Not yet investigated: a single offscreen look on the D41Y lab (2026-11-22)
+saw the scene but held `w`/`s` moved Duke only about 30 units, too little to
+show it. Reproduce first with the player's real input (walk forwards and
+back at the player's frame rate, 180 Hz), then classify: what flickers (the
+train's side faces, its windows, the ground or wall behind), whether it
+appears in LIGHTING ORIGINAL and Vanilla, and on the real display as well as
+offscreen. Known neighbours to rule in or out: D17Q (wall/surface flicker),
+D17AT and D17BI (depth fighting of flat and coplanar faces, [note
+522](../documentation/522-d17bi-flat-props.md)), the D41 dynamic lights on a
+large model (light list changes as Duke moves), the occluder fade on near
+props, and redraw/interpolation (D23N1). Fix the system, not this train.
+
+Acceptance: walking forwards and backwards past the train in UI slot 12 at
+180 Hz on the real display, the train shows no flicker; the same fix holds
+for other large models and levels; Vanilla unchanged; the user agrees.
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
 **Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**

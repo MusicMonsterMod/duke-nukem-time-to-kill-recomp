@@ -640,7 +640,9 @@ light ripples (the game's own animated light), its lamps ripple with it.
 Traffic lights light the street in the colour they show and flash with it:
 the amber lights on the kerb and the red ones over the road blink in turn, on
 the same frame as the lights themselves (levels 0, 5 and 9); the pulsing neon
-of level 29 pulses its light the same way. Level 0 (Los Angeles) also keeps
+of level 29 pulses its light the same way. The amber warning lamp on every
+construction barricade lights its rails and the ground round it as it blinks,
+with a soft glow on the lamp while it is lit. Level 0 (Los Angeles) also keeps
 its flickering pink lamp at the club sign. A
 lamp lights only while its room is in view, so a sign behind a wall does not
 tint the room in front of it. Break a prop that gives light (a traffic light,
@@ -701,7 +703,8 @@ The backtick console edits them:
   when their props break, for the session (to compare); `lamp breaks on`
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners,
-  chandeliers (both kinds) and fire barrels for the session (to compare).
+  chandeliers (both kinds), fire barrels and barricade lamps for the session
+  (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
   the level's rooms with lamps of their own, `lamp ambient P unlit` for rooms

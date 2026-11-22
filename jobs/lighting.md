@@ -1920,7 +1920,7 @@ backlog: D41Y (construction barricade warning lamps).
 
 ### D41Y - Construction barricade warning lamps flash
 
-**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41, D41X.**
+**Status: Done (user-accepted 2026-11-22, [note 534](../documentation/534-d41y-barricade-warning-lamps.md)). Dependencies: D41, D41X.**
 
 User, 2026-11-22 (accepting D41X, in a new UI slot 12 save): "add flashing
 lights to this object too, this kind of construction barrier thing". Save
@@ -1956,3 +1956,33 @@ Acceptance: in UI slot 12 the barricade lamps blink and light their rails and
 the ground around them at 180 Hz on the real display; every barricade in
 every level does the same; breaking one puts its light out; Vanilla
 pixel-identical; the user agrees it looks like a real barricade light.
+
+#### Work log
+
+2026-11-22 (Needs playtest). Found: **the lamp already blinks in the
+original.** Its face (face 0, a 16 x 16 quad on top of the A-frame) is an
+animated texture, 2 frames of 600 ms, lit amber and dark, all barricades in
+step (one shared animation record); the frame words alternate every 0.6 s in
+RAM and on screen. The card's "steady" was a misreading of the sign scan's
+static rating. What was missing was light. `prop_lights.cpp` now recognises
+the barricade by its model data (9 vertices; kind `prop_light_barricade`)
+and gives each standing one an amber light at its lamp (1.0 0.66 0.10,
+strength 0.7, radius 1100) that follows the game's own frame through the
+D55 signal reading (`signal_now`, exported as `prop_signal_now`), read once a
+game frame: on with the lit frame, a 90 ms bulb fade after it; plus a soft
+amber halo over the lamp while it is lit. Out when it breaks (D54); `lamp
+signs` skips the model; `lamp props off|on` includes it. The blink, ORIGINAL,
+Vanilla and Classic are untouched (step 4 needs no decision: the blink is the
+original's). Evidence: level 0 scan 4 barricades; RELIT floor beside one 53
+lit against 32 dark, rails 103 against 86 (props off: no change); Vanilla 0
+of 786432 pixels changed against the old build; 180 Hz p95 6 ms with props on
+and off, 600 presents each; break by hand logs `barricade lamp light goes
+out` for both. Survey of 16 levels (0-2, 5, 7, 9, 11, 12, 22-29): barricades
+on level 0 only; levels 3, 6, 8, 10 and 21 not reached by the lab's level
+jump. First tune (1.0, 1500) lit the whole floor and was cut. Limits: lights
+in step (the original's), halo per model, no lamp shadows; not yet seen on
+the real display. Executable `4f4f20a5...`. Before/after:
+`research/before-after/D41Y/` (local).
+
+Closed 2026-11-22. User: "lock it in and close it out!" Follow-up backlog: D17BO (the
+subway train flickers as Duke walks, new UI slot 12).

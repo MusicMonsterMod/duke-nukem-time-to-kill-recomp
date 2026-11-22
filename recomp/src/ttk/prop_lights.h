@@ -44,6 +44,12 @@ inline bool prop_light_club_kind(int kind) {return kind>=prop_light_neon_bar && 
 // D57J: the club look (club_lights.inc and the haze glows here): console
 // "lamp club off|on" (session; off = the lamps and look before D57J).
 inline std::atomic<bool> club_lights_enabled{true};
+// D57L: the LA apartment's mood lighting and lamps that follow their room's
+// switch (prop_lights.cpp, club_lights.inc); "lamp apartment off|on".
+inline std::atomic<bool> apartment_lights_enabled{true};
+// D57L: the prop record being drawn when prop_light_glows runs (0: not known),
+// so a lamp's halo can follow its own room (near_clip.cpp sets it).
+inline thread_local uint32_t prop_glow_object=0;
 // D57J: the neon bar's spot cans, in the bar's model space: the lens
 // centres (x of can i, y, z), the aim (down 25 degrees, along model -z) and
 // each can's gel (r g b). Shared by the gel lamps (club_lights.inc) and

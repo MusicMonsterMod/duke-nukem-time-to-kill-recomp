@@ -369,6 +369,57 @@ Tune pendant_light{{1.0f,0.78f,0.50f},0.5f,2200};
 float pendant_at[3]={0,520,0};
 constexpr float pendant_bulb_at[3]={0,455,0};
 float pendant_halo_size=300,pendant_halo_level=40,pendant_halo_rgb[3]={1.0f,0.90f,0.66f};
+// D57L (documentation/544-d57l-apartment-mood-lighting.md): lamps follow their
+// room's switch, and the LA apartment's mood.
+// - The game dims a room by its light colour (room record +0x54, 80 80 80 a
+//   plain room): the apartment's switch takes it 60 -> 10. A room under
+//   room_dark_below is switched off: its electric fixtures (the hanging,
+//   caged, globe and street lamps) go out with it, and a table lamp (it
+//   plugs in) stays on, turned low and so deeper amber (a dimmed tungsten
+//   bulb warms: about 2700 K full, 1600 K at 5%). Flames are not switched.
+//   Game-wide, the game's own state: any room a level dims follows.
+// - A room holding the hanging lamp is an apartment room (levels 0 and 9,
+//   room 8): its hanging lamp is a dim rose pool instead of a bright
+//   downward light and its table lamp warmer (the user's choice of the
+//   mock-ups: L4 lit, D3 switched off). club_lights.inc dims its painted
+//   light in Relit and adds the street's glow at its window.
+// "lamp apartment off" (session) is the look before D57L. Developer:
+// DNTTK_APARTMENT_PENDANT / _TABLE / DNTTK_DARK_TABLE="r g b strength radius",
+// DNTTK_APARTMENT_PENDANT_HALO="size level r g b", DNTTK_DARK_TABLE_HALO="level r g b".
+constexpr unsigned room_dark_below=0x40;
+Tune apartment_pendant{{1.0f,0.45f,0.42f},0.40f,1700};
+float apartment_pendant_halo[5]={300,60,1.0f,0.90f,0.66f};   // a warm-white bulb glow that reads against the rose (user 2026-11-22: "bring the halo back when the light is on")
+Tune apartment_table{{1.0f,0.60f,0.32f},0.9f,2300};
+Tune dark_table{{1.0f,0.55f,0.22f},0.80f,2200};
+float dark_table_halo[4]={45,1.0f,0.62f,0.30f};
+// The look each lamp's halo takes, worked out by the draw itself (1 an
+// apartment lamp, 2 switched off, 0 as before): the scan records each lamp's
+// prop, model, room and whether it is an apartment room, and the draw reads
+// the room's light colour from RAM as it draws. (A look published by the
+// light pass went stale whenever that pass did not run - the pause and save
+// screens, and the image after each rescan - and the old halo showed round a
+// switched-off lamp; user, 2026-11-22.)
+struct LookSlot {std::atomic<uint32_t> o{0},mesh{0},room{0};std::atomic<bool> apt{false};};
+LookSlot look_slots[16];
+unsigned room_light(uint32_t table,uint32_t rooms,uint32_t room);
+int slot_look(const LookSlot& l) {
+    if(!apartment_lights_enabled.load(std::memory_order_relaxed)) return 0;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    const bool ok=rooms && rooms<=256 && table>=0x80010000u && table<=0x80200000u-rooms*88 && !(table&3);
+    if(ok && room_light(table,rooms,l.room.load(std::memory_order_relaxed))<room_dark_below) return 2;
+    return l.apt.load(std::memory_order_relaxed)?1:0;
+}
+int look_of(uint32_t o,uint32_t mesh) {
+    int found=-1;
+    for(const LookSlot& l:look_slots) {
+        if(l.mesh.load(std::memory_order_relaxed)!=mesh) continue;
+        const int v=slot_look(l);
+        if(o && l.o.load(std::memory_order_relaxed)==o) return v;
+        // The prop not known: the model's look if every copy agrees.
+        if(found<0) found=v;else if(found!=v) found=0;
+    }
+    return o?0:std::max(found,0);
+}
 // D41AA: the subway train. Its lights ride with it (placed from its object
 // record each image) and follow the train overlay's state (+0x35, D44B: 0
 // parked, 1 pulling away, 2 at speed, 3 the crash, 4 stopped):
@@ -519,7 +570,8 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;
                bool crystal=false;Tune own{};bool portal=false;bool cage=false;   // D41Z: steady, as its texture
                uint32_t blink_mesh=0;uint32_t lit_ms=0;   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
-               float train_k=-1;};   // D41AA: a train light's level this image (-1: not a train light)
+               float train_k=-1;   // D41AA: a train light's level this image (-1: not a train light)
+               int lamp=0;bool apartment=false,dark=false;};   // D57L: table lamp / hanging lamp kind; in an apartment room; its room switched off
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
@@ -640,7 +692,7 @@ void scan_props() {
                 if(bound<0) {cages_pending=true;continue;}
                 if(bound==2) continue;
                 place(e.p,p,yaw,table_lamp_at);e.own=table_lamp_light;e.tune=&e.own;e.cage=true;   // steady
-                emitters.push_back(e);++table_lamps;
+                e.lamp=kind;emitters.push_back(e);++table_lamps;
             } else if(kind==prop_light_pendant) {
                 // D57K: as the table lamp: a lamp the level file binds keeps that lamp alone.
                 const int32_t at[3]={(int32_t)p[0],(int32_t)p[1],(int32_t)p[2]};
@@ -648,7 +700,7 @@ void scan_props() {
                 if(bound<0) {cages_pending=true;continue;}
                 if(bound==2) continue;
                 place(e.p,p,yaw,pendant_at);e.own=pendant_light;e.tune=&e.own;e.cage=true;   // steady
-                emitters.push_back(e);++pendants;
+                e.lamp=kind;emitters.push_back(e);++pendants;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -672,6 +724,31 @@ void scan_props() {
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
         std::fprintf(stderr,"[TTK prop light] caged lamp model %08x colour %.2f %.2f %.2f\n",m,c.rgb[0].load(),c.rgb[1].load(),c.rgb[2].load());
     for(Emitter& e:emitters) if(e.blink_mesh || e.cage) e.tune=&e.own;   // after the moves
+    // D57L: apartment rooms (holding a hanging lamp) and the halo slots.
+    std::vector<uint32_t> apt;
+    for(const Emitter& e:emitters) if(e.lamp==prop_light_pendant) apt.push_back(e.room);
+    unsigned slots=0;
+    for(Emitter& e:emitters) {
+        e.apartment=e.lamp && std::find(apt.begin(),apt.end(),e.room)!=apt.end();
+        if(e.lamp && slots<16) {
+            LookSlot& l=look_slots[slots++];
+            l.o.store(e.seed,std::memory_order_relaxed);l.room.store(e.room,std::memory_order_relaxed);
+            l.apt.store(e.apartment,std::memory_order_relaxed);l.mesh.store(psx_mod_read_word(e.seed+0x44),std::memory_order_relaxed);
+        }
+    }
+    for(unsigned i=slots;i<16;++i) look_slots[i].mesh.store(0,std::memory_order_relaxed);
+}
+// D57L: the room's light colour (+0x54, its red byte; 0x80 a plain room).
+unsigned room_light(uint32_t table,uint32_t rooms,uint32_t room) {
+    if(room>=rooms) return 0x80;
+    return psx_mod_read_byte(table+88*room+0x54);
+}
+// D57L: the light a lamp gives now (its room's switch, the apartment's look).
+const Tune* tune_now(const Emitter& e) {
+    if(!e.lamp || !apartment_lights_enabled.load(std::memory_order_relaxed)) return e.tune;
+    if(e.dark) return e.lamp==prop_light_table_lamp?&dark_table:nullptr;   // the hanging lamp is out
+    if(e.apartment) return e.lamp==prop_light_pendant?&apartment_pendant:&apartment_table;
+    return e.tune;
 }
 // D41Y: each frame, every barricade model's lamp level from the frame the
 // game shows (D55 signal reading: 1 lit, 0 dark), for the halos and lights.
@@ -850,6 +927,18 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         e.standing=0;e.broke_ms=ms;
         std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":e.blink_mesh?"barricade lamp":e.cage?"caged lamp":"candle",e.ref.o);
     }
+    // D57L: each lamp's room switched off or not (the game's room light colour);
+    // an electric fixture in a dark room gives no light (a table lamp turns low).
+    {
+        const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+        const bool ok=rooms && rooms<=256 && table>=0x80010000u && table<=0x80200000u-rooms*88 && !(table&3);
+        const bool follow=apartment_lights_enabled.load(std::memory_order_relaxed);
+        for(Emitter& e:emitters) e.dark=follow && ok && e.cage && room_light(table,rooms,e.room)<room_dark_below;
+        if(static const bool trace=std::getenv("DNTTK_PROP_LIGHT_TRACE")!=nullptr;trace) {
+            static unsigned last=~0u;unsigned dark=0;for(const Emitter& e:emitters) dark+=e.dark;
+            if(dark!=last) {last=dark;std::fprintf(stderr,"[TTK prop light] %u lamps in switched-off rooms\n",dark);}
+        }
+    }
     // Room gate (level_lamp_room_lit): a light comes on at once, fades out over 0.25 s.
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
     struct Near {double d;Emitter* e;};
@@ -860,10 +949,13 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     auto consider=[&](Emitter& e) {
         if(e.pickup && snap_ok && !pickup_present(snap,e)) return;
         if(e.crystal && snap_ok && !prop_standing(snap,e.ref)) return;   // D57F: taken (or moved) since the scan
+        if(e.dark && !e.lamp) return;   // D57L: an electric fixture in a switched-off room
+        const Tune* const tune=tune_now(e);
+        if(!tune) return;               // D57L: the hanging lamp, its room switched off
         const float target=!shown || shown(e.room)?1.0f:0.0f;
         e.vis=e.vis<target?target:std::max(target,e.vis-step);   // D41E: on at once, out over 0.25 s
         const double dx=e.p[0]-duke[0],dy=e.p[1]-duke[1],dz=e.p[2]-duke[2];
-        const double d=std::sqrt(dx*dx+dy*dy+dz*dz)-e.tune->radius;
+        const double d=std::sqrt(dx*dx+dy*dy+dz*dz)-tune->radius;
         // D41E: no range cut beyond the far limit; a light fades only when
         // nearer ones push it out of the budget (as the level lamps).
         if(d<32000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
@@ -903,7 +995,8 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     for(const Near& q:near) {
         if(n>=cap) break;
         Emitter& e=*q.e;   // D41Y: a barricade lamp keeps when it was last lit
-        float k=e.tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
+        const Tune* const tune=e.train_k>=0?e.tune:tune_now(e);   // D57L
+        float k=tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
         if(e.blink_mesh) {
             // D41Y: on with the lit frame, a bulb's quick fade after it.
             float on=0;
@@ -917,8 +1010,8 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         k*=e.portal?portal_breath(ms):e.crystal||e.cage?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
-        l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.tune->radius;
-        l.r=e.tune->rgb[0]*k;l.g=e.tune->rgb[1]*k;l.b=e.tune->rgb[2]*k;l.flags=0;
+        l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=tune->radius;
+        l.r=tune->rgb[0]*k;l.g=tune->rgb[1]*k;l.b=tune->rgb[2]*k;l.flags=0;
     }
     return n;
 }
@@ -1052,12 +1145,19 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
         if(n<max) out[n++]=billboard(street_lens_at[0],street_lens_at[1],street_lens_at[2],street_halo_size,street_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                      street_halo_level*street_halo_rgb[0],street_halo_level*street_halo_rgb[1],street_halo_level*street_halo_rgb[2]);
     } else if(kind==prop_light_table_lamp) {
-        // D57D: the shade glows warm round the bulb.
+        // D57D: the shade glows warm round the bulb (D57L: low and amber, its room switched off).
+        const bool low=look_of(prop_glow_object,mesh)==2;
+        const float lv=low?dark_table_halo[0]:table_halo_level;const float* rgb=low?dark_table_halo+1:table_halo_rgb;
         if(n<max) out[n++]=billboard(table_shade_at[0],table_shade_at[1],table_shade_at[2],table_halo_size,table_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
-                                     table_halo_level*table_halo_rgb[0],table_halo_level*table_halo_rgb[1],table_halo_level*table_halo_rgb[2]);
+                                     lv*rgb[0],lv*rgb[1],lv*rgb[2]);
     } else if(kind==prop_light_pendant) {
-        // D57K: the bulb glows warm under its shade.
-        if(n<max) out[n++]=billboard(pendant_bulb_at[0],pendant_bulb_at[1],pendant_bulb_at[2],pendant_halo_size,pendant_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+        // D57K: the bulb glows warm under its shade (D57L: rose in the
+        // apartment, none with its room switched off).
+        const int look=look_of(prop_glow_object,mesh);
+        const float* a=apartment_pendant_halo;
+        if(look==1 && n<max) out[n++]=billboard(pendant_bulb_at[0],pendant_bulb_at[1],pendant_bulb_at[2],a[0],a[0],0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     a[1]*a[2],a[1]*a[3],a[1]*a[4]);
+        else if(look==0 && n<max) out[n++]=billboard(pendant_bulb_at[0],pendant_bulb_at[1],pendant_bulb_at[2],pendant_halo_size,pendant_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                      pendant_halo_level*pendant_halo_rgb[0],pendant_halo_level*pendant_halo_rgb[1],pendant_halo_level*pendant_halo_rgb[2]);
     } else if(kind==prop_light_train && train_mesh_now.load(std::memory_order_relaxed)==mesh) {
         // D41AA: a glow on each bumper lamp (amber, red, amber), the beacon,
@@ -1176,6 +1276,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     if(const char* e=std::getenv("DNTTK_PROP_TABLE_LAMP_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::table_halo_size,&ttk::table_halo_level,&ttk::table_halo_rgb[0],&ttk::table_halo_rgb[1],&ttk::table_halo_rgb[2]);
     ttk::tune("DNTTK_PROP_LIGHT_PENDANT",ttk::pendant_light);   // D57K
     if(const char* e=std::getenv("DNTTK_PROP_PENDANT_AT")) ttk::pendant_at[1]=(float)std::atof(e);
+    ttk::tune("DNTTK_APARTMENT_PENDANT",ttk::apartment_pendant);ttk::tune("DNTTK_APARTMENT_TABLE",ttk::apartment_table);ttk::tune("DNTTK_DARK_TABLE",ttk::dark_table);   // D57L
+    if(const char* e=std::getenv("DNTTK_APARTMENT_PENDANT_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::apartment_pendant_halo[0],&ttk::apartment_pendant_halo[1],&ttk::apartment_pendant_halo[2],&ttk::apartment_pendant_halo[3],&ttk::apartment_pendant_halo[4]);
+    if(const char* e=std::getenv("DNTTK_DARK_TABLE_HALO")) std::sscanf(e,"%f %f %f %f",&ttk::dark_table_halo[0],&ttk::dark_table_halo[1],&ttk::dark_table_halo[2],&ttk::dark_table_halo[3]);
     if(const char* e=std::getenv("DNTTK_PROP_PENDANT_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::pendant_halo_size,&ttk::pendant_halo_level,&ttk::pendant_halo_rgb[0],&ttk::pendant_halo_rgb[1],&ttk::pendant_halo_rgb[2]);
     if(const char* e=std::getenv("DNTTK_PROP_STREET_AT")) std::sscanf(e,"%f %f",&ttk::street_at[1],&ttk::street_at[2]);
     if(const char* e=std::getenv("DNTTK_PROP_STREET_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::street_halo_size,&ttk::street_halo_level,&ttk::street_halo_rgb[0],&ttk::street_halo_rgb[1],&ttk::street_halo_rgb[2]);

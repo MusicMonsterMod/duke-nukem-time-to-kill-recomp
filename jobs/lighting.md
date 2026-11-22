@@ -1995,7 +1995,7 @@ Closed out, 2026-11-22: user "lock it in, and close it out." Done; lab
 
 ### D57L - LA apartment mood lighting: hazy and mysterious, with a lights-out glow
 
-**Status: Todo (backlog; user 2026-11-22, next up). Dependencies: D57K.**
+**Status: Done (2026-11-22, user-accepted: "its perfect!!"; [note 544](../documentation/544-d57l-apartment-mood-lighting.md)). Dependencies: D57K.**
 
 User, 2026-11-22, closing D57K: "now the next job after this one will be
 what to do when you turn the lights out in that room. i have resaved slot
@@ -2045,6 +2045,62 @@ Work, planned before it is built (as D57J):
 
 Acceptance: the room reads hazy and mysterious when lit, and when the switch
 is flicked a small light remains, judged by the user on the real display.
+
+Work log:
+
+- 2026-11-22 (research, measurement and plan; nothing built).
+  [Note 544](../documentation/544-d57l-apartment-mood-lighting.md). Lab
+  `recomp/analysis/d57l/` (local), from the user's slot 12 of 21:05 (copied
+  to `research/savestates/d57l/`); player saves and settings unchanged after
+  every run. Measured: the switch sets level flag `0x400` and changes room
+  8's light colour (room record +0x54) `60 60 60` -> `10 10 10`; the two prop
+  lamps (D57D table lamp, D57K hanging lamp) never read it, hence the dark
+  room with both lamps at full. Survey of all 21 levels: only level 0 room 8
+  and level 9 room 25 (dark from the load) are not `80 80 80`. Room 8's
+  street window is a portal into an outdoor room (room 3). Relit counts the
+  room as unlit (80%). Sourced research (Body Heat, Eyes Wide Shut, Lost
+  Highway, Drive, Blade Runner in American Cinematographer; the DOE tungsten
+  dimming curve; Level Design Book, Robert Yang, The Dark Mod). Mock-ups
+  with developer tunes and session lamps (`research/before-after/D57L/plan/`,
+  local): lit L3 (warm) and L4 (rose), lights-out D3 (table lamp low and
+  amber plus a faint street glow) and D4 (the table lamp alone). Plan: lamps
+  follow their room's light colour game-wide (ceiling fixtures go out,
+  plug-in lamps turn low and warmer), an apartment rule found by the hanging
+  lamp (Relit ambient 45%, the chosen looks, window glow at portals to
+  outdoor rooms, a thin glow round the shades). Waits for the user's choice.
+- 2026-11-22 (build). User: "its gotta be the l4 rose, and i think D3".
+  Game-wide: prop lamps read their room's light colour each image; under
+  0x40 (switched off) electric fixtures go out and a table lamp turns low
+  and amber (D3). Apartment rooms (holding the hanging lamp): the rose
+  hanging lamp and warmer table lamp (L4), Relit ambient 45%, a sodium glow
+  inside each portal into an outdoor room (level 0's window; strength 0.35,
+  radius 1400 to match D3 once centred in the opening). Lamp halos follow
+  their own prop (the draw's registers give the record; none missed).
+  `lamp apartment off|on`. Relit room views lit 82/78/89 -> 56/59/64,
+  switched off 28/39/37 -> 15/31/28; Original identical; the club's pass
+  unchanged; 180 Hz pacing p95 6 ms, GPU within noise; Vanilla no activity;
+  tests 270 OK. Shots `research/before-after/D57L/` (local). Level 9's copy
+  takes the rule without a window glow and was not seen in the lab. Needs
+  the user's look on the real display.
+- 2026-11-22 (playtest 1). User: "the only bit that doesnt look quite right
+  is the little bit of haze around the hanging lamp when its switched off ...
+  this is wonderful work." Lab, the resaved slot: no halo of ours round the
+  switched-off lamp (pixel-identical with prop lights on/off); the save
+  thumbnail's glow also appears with the fix, so it is not the shown image.
+  Fixed a real gap: the halo's look was reset by each prop rescan and only
+  restored by the light pass, so the old warm halo could show (pause/save
+  screens, the image after a rescan); the halo now reads its room's light
+  colour itself. Waits for the user's look with this build.
+- 2026-11-22 (playtest 2). User: "can we bring the halo back when the light
+  is on, and make the halo disappear when the light is off? it looked
+  awesome". The lit rose halo (level 28) sank into the rose wall; now a
+  warm-white bulb glow, 300 across at level 60 (lab A/B/C: the D57K halo
+  faint, pale rose washed out). Off: none (checked 3x bright, live flick).
+
+Closed out, 2026-11-22: user "its perfect!!", then "lock in and close out the work at
+hand". Done. The user's follow-up report (saturated reds glowy in dim light,
+Duke's shirt and the medkit, the strip club too) is the Relit emitter test,
+not this job: new job D41AC. Lab trimmed to its scripts and results.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
@@ -2537,3 +2593,40 @@ Work log, 2026-11-22 (Needs playtest):
 
 Closed out, 2026-11-22: user "lock it in and close it out. ten out of ten". Done; lab trimmed to its scripts and
 results (raw bursts removed).
+
+### D41AC - Relit emitter test catches saturated model colours
+
+**Status: Todo (user 2026-11-22). Dependencies: D41D, D41E.**
+
+User, 2026-11-22 (D57L, UI slot 12 resaved 22:55, copy in
+`research/savestates/d57l/red/`): "the red of duke's shirt and the med kit
+red, seem to be quite glowy in this dim light. i noticed that in the strip
+club too?" Then: "lets stand it up as a new job".
+
+Found (D57L lab, the apartment's vanity mirror view, room lit): the world
+shader (`recomp/psxrecomp/runtime/src/gpu_gl_renderer.c`, the D41D emitter
+term in the lit path) treats any texel that is bright and strongly coloured
+as a light source: `em = smoothstep(0.3, 0.55, max) * smoothstep(0.6, 0.85,
+saturation)`, and an emitter texel keeps its unlit look (`rgb * v_col * 2`),
+skipping Relit's dimmed ambient and the lamps. Meant for sign letters and
+neon; it also catches cloth and paint. Mean pixel values, Original -> Relit:
+walls 126 -> 69 (55%), Duke's red shirt and the medkit's red cross 189 -> 177
+(94%), Duke's skin 144 -> 136 (94%; not an emitter by the test: also check
+whether models are dimmed less than the world). Prop lamps and the D57L rule
+made no difference. The strip club (saturated reds and pinks) is very
+likely the same; not measured there.
+
+Work:
+
+1. Survey what the test catches: a developer view that tints emitter texels,
+   across the levels (signs, neon, screens, cloth, pickups, blood, enemies).
+2. Choose with the user, by rule (no per-level data): a tighter threshold;
+   models (characters, pickups) never emitters, with lit props such as the
+   club's neon bar kept; or explicit emitters (the known sign, neon and
+   screen faces). Also settle the model ambient question above.
+3. Relit and Enhanced; Original, Vanilla and Classic unchanged; export the
+   runtime patch; cost at 180 Hz; before/after shots (the apartment mirror,
+   the strip club).
+
+Acceptance: saturated model colours dim with the room in Relit while real
+signs and neon keep their glow, judged by the user on the real display.

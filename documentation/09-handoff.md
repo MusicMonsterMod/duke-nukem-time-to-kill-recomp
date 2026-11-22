@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-22 - D57L closed out (Done); new D41AC
+
+- D57L ([note 544](544-d57l-apartment-mood-lighting.md)): user "its perfect!!" Done. The LA apartment is hazy and warm in ENHANCED and RELIT (a rose hanging lamp with a warm bulb halo, a warmer table lamp, Relit ambient 45%, a sodium glow at the street window); flick the switch and the hanging lamp and its halo go out while the table lamp stays on, low and amber. Game-wide, prop lamps follow their room's light colour (+0x54). New job D41AC: Relit's emitter test keeps saturated model colours (Duke's red shirt, the medkit) glowing in dim rooms.
+
 ## 2026-11-22 - D57K and D57E closed out (Done)
 
 - D57K ([note 543](543-d57k-hanging-ceiling-lamp.md)): user "lock it in, and close it out." The hanging ceiling lamp (prop type 229, by model; room 8 of levels 0 and 9) lights its room in ENHANCED and RELIT. D57E closes with it. Next up by user request: D57L, the apartment's mood lighting and its light switch (research and plan first; save copy in `research/savestates/d57l/`).

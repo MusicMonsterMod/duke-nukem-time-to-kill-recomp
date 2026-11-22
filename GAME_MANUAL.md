@@ -660,7 +660,14 @@ haze. In ENHANCED the same lights sit on top of the club's own light;
 ORIGINAL shows the club as the game drew it. The shaded table lamps (the
 dressing room behind the club's stage, and a room off the LA street; levels
 0, 5 and 9) give a warm light over the table, the wall behind and the room
-round them, and their shades glow. The subway train in
+round them, and their shades glow. The furnished apartment off the LA street
+(levels 0 and 9) is lit low and warm: its hanging lamp throws a dim rose pool
+instead of a bright light from above, its table lamp glows warm, and in level
+0 a faint orange glow from the street lamps comes in at the window; in RELIT
+the room's own light is turned down so these carry it. Flick the light switch
+and the hanging lamp goes out with the room while the table lamp stays on,
+turned low and deep amber. In any room the game darkens this way, the
+electric lamps go out with it and table lamps turn low. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
 both ends and the cyan beacon on its roof lights the tunnel round it,
 flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and

@@ -3146,7 +3146,23 @@ void object(CPUState* cpu) {
     }
     // D41L: a woodburner's embers and a chandelier's flames (prop_lights.cpp).
     if(prop_light_kind && prop_light_glows && unified_scene(f) && !actor && !viewmodel && !body)
-        if(const int kind=prop_light_kind(mesh)) prop_glows(f,mesh,kind);
+        if(const int kind=prop_light_kind(mesh)) {
+            // D57L: a lamp whose halo follows its own room: the prop record
+            // being drawn, found in the draw's registers (its model +0x44).
+            prop_glow_object=0;
+            if(kind==prop_light_table_lamp || kind==prop_light_pendant) {
+                for(int r:{16,17,18,19,20,21,22,23,4,5,6,7}) {
+                    const uint32_t o=cpu->gpr[r];
+                    if(o>=0x80010000u && o<=0x801fff00u && !(o&3) && psx_mod_read_word(o+0x44)==mesh && psx_mod_read_byte(o+0x14)==1) {prop_glow_object=o;break;}
+                }
+                if(static const bool tr=std::getenv("DNTTK_PROP_LIGHT_TRACE")!=nullptr;tr) {
+                    static unsigned hit,miss;++(prop_glow_object?hit:miss);
+                    if((hit+miss)%600==1) std::fprintf(stderr,"[TTK prop light] lamp halo object: %u found, %u not\n",hit,miss);
+                }
+            }
+            prop_glows(f,mesh,kind);
+            prop_glow_object=0;
+        }
 }
 #include "water_clip.inc"
 #include "model_depth.inc"

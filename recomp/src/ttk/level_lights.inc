@@ -212,6 +212,9 @@ static void club_write_dropped(std::ostream& f);
 static void club_console(const char* rest);
 static bool club_room(int room);
 static float club_ambient_now();
+static bool apt_room(int room);          // D57L
+static float apt_ambient_now();
+static void apt_console(const char* rest);
 // D41E (relit.inc): ambient directives in the lamp file.
 static bool relit_parse_line(const char* line);
 static void relit_reset();
@@ -1183,6 +1186,7 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     auto need_sel=[&]{if(!s) level_lamp_notice("Lamp: none selected (lamp pick / lamp add)");return s!=nullptr;};
     if(!std::strcmp(verb,"ambient")) relit_console(rest);   // D41E
     else if(!std::strcmp(verb,"club")) club_console(rest);   // D57J
+    else if(!std::strcmp(verb,"apartment")) apt_console(rest);   // D57L
     else if(!std::strcmp(verb,"add") || !std::strcmp(verb,"here")) {
         LevelLamp l{};l.rgb[0]=1.0f;l.rgb[1]=0.85f;l.rgb[2]=0.6f;l.radius=4000;l.k=1;l.style=lamp_steady;
         if(s) {for(int i=0;i<3;++i) l.rgb[i]=s->rgb[i];l.radius=s->radius;l.k=s->k;l.style=s->style;}
@@ -1492,7 +1496,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         for(const std::string& r:level_lamp_listing) say(r.c_str());
         return true;
     }
-    static const char* const verbs[]={"ambient","add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind","club"};
+    static const char* const verbs[]={"ambient","add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind","club","apartment"};
     bool known=false;for(const char* v:verbs) {const size_t n=std::strlen(v);if(!std::strncmp(arg,v,n) && (!arg[n] || arg[n]==' ')) known=true;}
     if(!known) {say("Lamp: unknown command (type lamp for help)");return true;}
     {std::lock_guard<std::mutex> g(level_lamp_mutex);if(level_lamp_queue.size()<64) level_lamp_queue.emplace_back(arg);}

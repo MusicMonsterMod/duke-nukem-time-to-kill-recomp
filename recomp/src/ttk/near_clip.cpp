@@ -480,6 +480,7 @@ struct Frame {
     bool glow=false; // D41D1: a neon sign prop: gives light, never lit
     int64_t floor_surf=-1;   // D41P: the baked floor under this mesh's origin (-1 not looked up)
     bool hanging=false;      // D57F: a prop hanging far over its floor: no floor bake
+    bool exact_origin=false;int32_t origin[3]={0,0,0};   // D17BO: a static prop's own position
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -718,6 +719,10 @@ void shadow_probe_corner(float x,float y,float z) {
 // lighting flickered. Snapped to 8 units, the same point always finds the
 // same cell.
 inline float bake_snap(double v) {return (float)(std::floor(v/8.0+0.5)*8.0);}
+// D17BO: static props look up their floor from their own position (Frame
+// exact_origin). DNTTK_EXACT_ORIGIN=0 (developer) keeps the view's snapped one.
+uint64_t exact_origin_used=0,exact_origin_far=0;
+bool exact_origin_on() {static const bool v=env_int("DNTTK_EXACT_ORIGIN",1,0,1)!=0;return v;}
 bool lit_frame(const Frame& f,const Poly& poly) {
     if(!light_frame || f.sky || f.biomask || poly.depth_only || f.glow || poly.glow) return false;
     if(f.duke_lit) return unified() && !(f.viewmodel && (poly.command&0x02000000u));
@@ -925,11 +930,32 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                     if(light_eye_valid) {
                         const double t[3]={(double)f.g.tr[0],(double)f.g.tr[1],(double)f.g.tr[2]};
                         double o[3];for(int k=0;k<3;++k) o[k]=m[3*k]*t[0]+m[3*k+1]*t[1]+m[3*k+2]*t[2]+light_eye[k];
+                        // D17BO: from the view back to the world, the origin
+                        // carries the view's rounding (under a unit), and the
+                        // eye differs between a live image and its redraws.
+                        // The subway train's origin (z 39932) lies on the
+                        // snap's own boundary (half way between 39928 and
+                        // 39936, a cell line): it took two floors' light in
+                        // turn, image by image, and blinked as Duke walked.
+                        // A static prop takes its exact position instead (when
+                        // it agrees with the view's to 16 units).
+                        bool exact=false;
+                        if(f.exact_origin) {
+                            exact=true;
+                            for(int k=0;k<3;++k) exact&=std::abs(o[k]-(double)f.origin[k])<16.0;
+                            if(exact) for(int k=0;k<3;++k) o[k]=(double)f.origin[k];
+                            ++(exact?exact_origin_used:exact_origin_far);
+                            // Developer DNTTK_EXACT_ORIGIN_TRACE=1: fallbacks and a tally (per process).
+                            static const bool eo_trace=std::getenv("DNTTK_EXACT_ORIGIN_TRACE")!=nullptr;
+                            if(eo_trace && ((!exact && exact_origin_far<=64) || (exact_origin_used+exact_origin_far)%20000==0))
+                                std::fprintf(stderr,"[TTK exact origin] %s mesh %08x record %d %d %d view %.1f %.1f %.1f used %llu far %llu\n",exact?"tally":"far",
+                                    f.mesh,f.origin[0],f.origin[1],f.origin[2],o[0],o[1],o[2],(unsigned long long)exact_origin_used,(unsigned long long)exact_origin_far);
+                        }
                         // D57F: the time machine's top hangs 2450-4200 units
                         // over its pad, whose lamp lit it from the floor as if
                         // beside it: it takes the live lamps (f.hanging).
                         if(!f.hanging)
-                        f.floor_surf=lamp_bake_floor(bake_snap(o[0]),(float)o[1],bake_snap(o[2]));
+                        f.floor_surf=exact ? lamp_bake_floor((float)o[0],(float)o[1],(float)o[2]) : lamp_bake_floor(bake_snap(o[0]),(float)o[1],bake_snap(o[2]));
                         // Developer: DNTTK_FLOOR_TRACE_MESH=<hex mesh> logs its lookups.
                         if(static const uint32_t tm=[]{const char* e=std::getenv("DNTTK_FLOOR_TRACE_MESH");return e?(uint32_t)std::strtoul(e,nullptr,16):0u;}();tm && light_probe_cur==tm)
                             std::fprintf(stderr,"[TTK floor] mesh %08x origin %.2f %.2f %.2f floor %lld\n",tm,o[0],o[1],o[2],(long long)f.floor_surf);
@@ -2848,6 +2874,16 @@ void object(CPUState* cpu) {
     const int prop_kind=prop_light_kind && !viewmodel ? prop_light_kind(mesh) : 0;
     const float prop_tone=prop_kind && prop_light_tone ? prop_light_tone(prop_kind) : 1.0f;
     f.hanging=prop_kind==prop_light_portal_top && prop_tone!=1.0f;   // the extras on
+    // D17BO: the static prop loop (0x80032288) draws each prop with its object
+    // record in s2 (position at +4, mesh at +0x44): the floor lookup below
+    // uses that exact position (checked against the view's origin there).
+    if(cpu->gpr[31]==0x80032288u && !viewmodel && exact_origin_on()) {
+        const uint32_t o=cpu->gpr[18];
+        if(o>=0x80010000u && o<0x801fff00u && psx_mod_read_word(o+0x44)==mesh) {
+            f.exact_origin=true;f.mesh=mesh;
+            for(int k=0;k<3;++k) f.origin[k]=(int32_t)psx_mod_read_word(o+4+4*k);
+        }
+    }
     f.glow=tv || glow_copy;   // D53: the TV screen and the self-lit keypad give light; they take none
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
@@ -3584,7 +3620,7 @@ const char* near_clip_debug_json() {
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits,(unsigned long long)s.skipped);
     };
     char w[256],o[256];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu,\"prune_checked\":%llu,\"prune_mismatch\":%llu,\"prune_fallbacks\":%llu,\"obj\":[%llu,%llu,%llu,%llu,%llu]},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu,\"prune_checked\":%llu,\"prune_mismatch\":%llu,\"prune_fallbacks\":%llu,\"obj\":[%llu,%llu,%llu,%llu,%llu]},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu,\"exact_origin\":[%llu,%llu]}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -3597,7 +3633,8 @@ const char* near_clip_debug_json() {
         (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,(unsigned long long)coplanar_prune_checked,(unsigned long long)coplanar_prune_mismatch,(unsigned long long)coplanar_prune_fallbacks,(unsigned long long)coplanar_obj_meshes,(unsigned long long)coplanar_obj_faces,(unsigned long long)coplanar_obj_tested,(unsigned long long)coplanar_obj_found,(unsigned long long)coplanar_obj_max,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
         (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
-        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)game_view_drops,(unsigned long long)security_tv_fallbacks);
+        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)game_view_drops,(unsigned long long)security_tv_fallbacks,
+        (unsigned long long)exact_origin_used,(unsigned long long)exact_origin_far);
     return buffer;
 }
 }

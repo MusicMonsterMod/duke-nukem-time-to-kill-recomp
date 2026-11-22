@@ -3325,7 +3325,7 @@ Closed out, 2026-11-21: the user accepted it and authorized the closeout
 
 ### D17BO - Subway train flickers as Duke walks (UI slot 12)
 
-**Status: Todo (backlog; user report 2026-11-22, "next up"). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-22: "lock it in and close it out!"; [note 535](../documentation/535-d17bo-train-floor-origin.md)). Dependencies: -.**
 
 User, 2026-11-22, closing D41Y: "load up the new slot 12 i have just saved,
 walk forwards and backwards and notice the train to the left of the shot
@@ -3352,6 +3352,36 @@ props, and redraw/interpolation (D23N1). Fix the system, not this train.
 Acceptance: walking forwards and backwards past the train in UI slot 12 at
 180 Hz on the real display, the train shows no flicker; the same fix holds
 for other large models and levels; Vanilla unchanged; the user agrees.
+
+Work log, 2026-11-22 (Needs playtest). Lab `recomp/analysis/d17bo/`
+(local), private copies of UI slot 12. Single shots never caught it (they
+land on one image phase); a new developer burst capture of every presented
+image did: walking forwards then back, 60 of 360 images showed the train's
+whole side blinking between warm lit and grey while the world stayed
+steady; RELIT and ENHANCED only, not ORIGINAL or Vanilla, not the D41X/D41Y
+prop lamps. Owner: the D41P model bake. The train (static prop, model
+`0x8011c41c`, 9,471 units long) finds its floor from its origin rebuilt from
+the view, and that origin (z 39932) sits exactly on D57F's 8-unit snap
+boundary next to a cell line (39936): the view's sub-unit rounding, which
+differs between a live image and its redraws, sent the lookup to floor 12413
+or 12409 in turn. Fix, game-wide (`near_clip.cpp`): a static prop drawn by
+the prop loop (`0x80032288`, record in s2, mesh at +0x44) looks up its floor
+from the record's exact position (+4) when it agrees with the view's to 16
+units; other models keep the snapped view origin. Developer
+`DNTTK_EXACT_ORIGIN=0` (A/B), `DNTTK_EXACT_ORIGIN_TRACE=1`. Evidence: 360-image
+bursts at 180 Hz, RELIT 67 -> 0 flashes, ENHANCED 79 -> 0, 120 Hz 0, switch
+off 52 (returns); one floor (12413) for every lookup; 21-level survey with no
+fallback; Vanilla loads, no flashes; `ttk-near-test` PASS; Python suite 269
+OK; runtime patch applies to the pinned commit. Ruled out on the way (see
+the note): renderer, precision, subdivision, shadows, smooth light and
+quads, open models, depth, and perspective-correct vertex colour (tried,
+no change, reverted). Framework (developer): `present_shot` `count` bursts
+and `.raw` output. Needs the user's look at UI slot 12 on their display.
+
+Closed out, 2026-11-22: the user accepted it and authorized the closeout
+("lock it in and close it out!"). Before/after (local):
+`research/before-after/D17BO/`. Follow-up backlog: D41Z (the caged wall
+lamps in the new UI slot 12 give no light).
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
 **Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**

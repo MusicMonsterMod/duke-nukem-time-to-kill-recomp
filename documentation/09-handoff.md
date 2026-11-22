@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D17BO closed out (Done)
+
+- D17BO ([note 535](535-d17bo-train-floor-origin.md)): user "lock it in and close it out!" Static props find their D41P floor light from their exact position; the slot 12 train no longer blinks lit/grey as Duke walks. Next up by user request: D41Z (caged wall lamps give light; LEVEL00, UI slot 12 save copy in `research/savestates/d41z/`).
+
+## 2026-11-22 - D17BO subway train flicker (Needs playtest)
+
+- D17BO ([note 535](535-d17bo-train-floor-origin.md)): the UI slot 12 train blinked lit/grey image by image in RELIT and ENHANCED (D41P model bake: its view-rebuilt origin sat on the 8-unit snap boundary, so live images and redraws found different floors). Static props now find their floor from their exact position; bursts of 360 images at 180 Hz show no flashes (was 67/79). Waiting for the user's look at UI slot 12 on the real display.
+
 ## 2026-11-22 - D41Y closed out (Done)
 
 - D41Y ([note 534](534-d41y-barricade-warning-lamps.md)): user "lock it in and close it out!" Every construction barricade (type 128, by model) casts a small amber light in step with the original's lamp blink, plus a soft glow on the lamp while lit, in ENHANCED and RELIT; out when it breaks. Next up by user request: D17BO (subway train flickers as Duke walks; LEVEL00, UI slot 12 save copy in `research/savestates/d17bo/`).

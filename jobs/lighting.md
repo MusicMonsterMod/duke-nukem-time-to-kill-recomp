@@ -1986,3 +1986,32 @@ the real display. Executable `4f4f20a5...`. Before/after:
 
 Closed 2026-11-22. User: "lock it in and close it out!" Follow-up backlog: D17BO (the
 subway train flickers as Duke walks, new UI slot 12).
+
+### D41Z - Caged wall lamps give light (UI slot 12)
+
+**Status: Todo (backlog; user report 2026-11-22, "next up"). Dependencies: D41, D41X, D41Y.**
+
+User, 2026-11-22, closing D17BO: "these lamps are not emitters, so we need
+to do the same kind of thing as we have been doing with other objects".
+
+Test save: UI slot 12 (saved 2026-11-22 12:08, LEVEL00, the subway tunnel:
+Duke at (26354, -6016, 41758) looking at a small caged lamp, pale yellow
+behind bars, on the tunnel wall at the crosshair), copied to
+`research/savestates/d41z/` (local, never committed). Load private copies,
+never the player's card.
+
+Work, as D41X (fire barrels) and D41Y (barricade lamps): find what the lamp
+is (a prop with its own type and model, or part of the wall's texture), how
+many there are and on which levels, and whether the original animates it.
+Then make every such lamp a light source game-wide, found by its model or
+texture, never by placed positions (no per-level data): a small warm light
+at the lamp in LIGHTING ENHANCED and RELIT, in its colour, steady or in step
+with the original's own animation, with a soft glow on the lamp if it reads
+better; out if the lamp can be broken. Check it against the level lamps
+already placed there (`lamp list`, D41D sign scan, D41M bake) so the light
+is not doubled. LIGHTING ORIGINAL and Vanilla unchanged.
+
+Acceptance: the caged lamps in UI slot 12 light the wall and floor around
+them in ENHANCED and RELIT, and the same lamps elsewhere do too; no
+doubling with existing lamps; no cost at 180 Hz worth noting; ORIGINAL and
+Vanilla unchanged; the user agrees.

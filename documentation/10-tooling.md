@@ -744,3 +744,19 @@ Its PASS lines are lost to stdout buffering when an assert aborts; run it under
 captured exit RAM (above). The native tests stub the runtime: when gameplay
 code starts calling a new runtime or host symbol, add a stub that models the
 runtime's default behavior to each test that links that source file.
+
+## Present bursts (D17BO)
+
+2026-11-22 ([note 535](535-d17bo-train-floor-origin.md)): one `present_shot`
+per request lands several images apart at 180 Hz and can miss a flicker
+that lasts one image. `present_shot` with `count` and a path holding one
+`%d` or `%0Nd` (for example `burst/%04d.raw`) writes each of the next
+`count` presented images to its own file. A `.raw` path skips PNG encoding
+(8-byte width/height header, then RGB rows top-down) and keeps the game at
+pace; PNG bursts stall it. Poll `present_shot_seq` until it has advanced by
+`count`. `recomp/analysis/d17bo/flick.py <dir>` (local lab) scores images
+that differ from both neighbours while the neighbours match.
+
+Developer switches from the same job: `DNTTK_EXACT_ORIGIN=0` (static props
+find their D41P floor from the view's snapped origin, as before) and
+`DNTTK_EXACT_ORIGIN_TRACE=1` (stderr: fallbacks and a per-process tally).

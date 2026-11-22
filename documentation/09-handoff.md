@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D57I closed out (Done)
+
+- D57I ([note 540](540-d57i-sodium-street-lamps.md)): user "lock it in and close it out". The LA street lamp posts (prop type 160, by model; levels 0, 5 and 9) give high-pressure sodium light in ENHANCED and RELIT: a pool out over the road and a glow on the lens. Next up by user request: D57J (the strip club in Relit reads as "a room with the lights all on bright"; redo it as a dark, hazy, coloured nightclub, every level it appears in; test spot the user's UI slot 12, copied to `research/savestates/d57j/`; lab `recomp/analysis/d57j/`; research started in the job).
+
+## 2026-11-22 - D57I sodium street lamps (Needs playtest)
+
+- D57I ([note 540](540-d57i-sodium-street-lamps.md)): the LA street lamp posts (prop type 160, a 26-vertex pole and cobra head, by model; `prop_light_street`, `prop_lights.cpp`) give high-pressure sodium light (1.00 0.60 0.20) in ENHANCED and RELIT: one steady light out over the road under each head (810 above the street) and a soft halo on the lens. Survey of all 21 levels: posts only on levels 0 (6), 5 (5) and 9 (6). Relit, road under a post's arm 41.4 -> 62.6; 180 Hz pacing unchanged; GPU about +1.5 points; executable `e47a3899...`. Waits on the user's look on the real display (lab view: lab save slot 3 copy, level 0 street).
+
 ## 2026-11-22 - D57C closed out (Done)
 
 - D57C ([note 539](539-d57c-subway-entrance-globes.md)): user "lock it in and close it out". The LA subway entrance globes (prop type 315, by model; levels 0, 5 and 9) cast a steady warm light with a soft halo in ENHANCED and RELIT. Next up by user request: D57I (the LA street lamp posts give sodium-vapour light, a 90s street at night; first step a prop survey for the lamp post models, D57C lab `recomp/analysis/d57c/`).

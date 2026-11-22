@@ -647,7 +647,10 @@ tunnel and corridor walls (levels 0, 5 and 9) light the wall and floor round
 them in their own colour, with a soft glow on the bulb. The two yellow globe
 lamps on the posts at the top of the "Subway" stairs in level 0 cast a warm
 light over the posts, railings and buildings round the entrance, with a soft
-glow on each globe. The subway train in
+glow on each globe. The street lamp posts of the LA streets (levels 0, 5 and
+9) burn with the orange-amber of sodium lamps: each throws a pool of light
+down onto the road and pavement under its head, with darker road between the
+posts, and its lens glows. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
 both ends and the cyan beacon on its roof lights the tunnel round it,
 flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and

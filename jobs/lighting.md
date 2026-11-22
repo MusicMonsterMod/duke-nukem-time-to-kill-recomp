@@ -1715,7 +1715,7 @@ pair, other copies on the level light too, Vanilla unchanged.
 
 ### D57I - Street lamp posts give sodium-vapour light (LA levels)
 
-**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D57C.**
+**Status: Done (2026-11-22). Dependencies: D57C.**
 
 User, 2026-11-22, accepting D57C: "the next job is a job that needs going
 into the backlog which is now to add lighting to these lamp post models. im
@@ -1742,6 +1742,101 @@ really thinking these have got to be sodium vapor lamps. really go for that
   Classic unchanged; cost measured at 180 Hz. Test on the real street: warp
   cannot stand Duke on some LA streets (D57C), so use a save state if needed
   (ask the user).
+
+Work log, 2026-11-22 ([note 540](../documentation/540-d57i-sodium-street-lamps.md)):
+
+- Found by prop survey: the post is prop type 160, a 26-vertex pole with an
+  arm reaching out over the road to a cobra head whose lens (two faces
+  painted with one white-hot bulb) is 2820 above the street. All 21 levels:
+  posts only on levels 0 (6), 5 (5) and 9 (6), the shared LA street block.
+- Researched HPS with sources (Philips SON datasheets: 1900-2000 K, x 0.540
+  y 0.420, Ra about 20; out of sRGB, it clips to pure orange; the usual
+  rendering 255 183 76; cobra heads aim down and out, IES type II/III). The
+  light is 1.00 0.60 0.20, between the two.
+- `prop_lights.cpp`: `street_lamp_mesh`, kind `prop_light_street`: one
+  steady light per post out over the road (810 above it, 480 beyond the
+  lens; strength 1.7, radius 2400) and a soft sodium halo on the lens.
+  LIGHTING ENHANCED and RELIT; Vanilla and Classic unchanged (a `--vanilla`
+  run makes no prop scan). Tuned on the level 0 street from a lab save (warp
+  stood Duke on the street there): an orange wash at first, then separate
+  pools, then the light moved out over the road so the post's own pole takes
+  about half as much.
+- Relit, road under a post's arm 41.4 -> 62.6, a facade out of reach
+  unchanged; 180 Hz pacing unchanged (p95 6 ms both); GPU about +1.5 points
+  for all prop lights in view. Tests 270 OK (2 skipped). Waits on the
+  user's look on the real display (`research/before-after/D57I/`, local).
+- Closed out 2026-11-22: user "lock it in and close it out". Done. Lab
+  `recomp/analysis/d57i/` trimmed to its scripts and results. Next up: D57J.
+
+### D57J - Strip club lighting: a dark, hazy nightclub in Relit
+
+**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D57I.**
+
+User, 2026-11-22, closing D57I: "review the lighting inside the strip club.
+the problem is that in relit, it's like, too bright all in one go, wheras
+what we want is some kinda colored lights that resemble the dark seductive
+atmosphere of a hazy nightclub. this looks more like a room with the lights
+all on bright. so we need to play with lighting redone here in a way to
+represent that. if we could even research some other club situations too
+that would be great, because i want the aesthetic to be really good here
+you know. and of course the club comes up more than once in the game so we
+need to pay attention to that too."
+
+- Test spot: the user's UI slot 12 of 2026-11-22 17:15, copied to
+  `research/savestates/d57j/` (local, never committed; the lab loads it as
+  slot 11 from its own card copy, `recomp/analysis/d57j/`). Level 0, Duke at
+  (6829, -9720, -3461) in the club: patterned green walls, the pink neon
+  ceiling tubes, the "Bootylicious" sign, the pole stages with their red
+  canopy lamps, tables and the bar. Lab shots `c0-*.png` (Original,
+  Enhanced, Relit).
+- What lights it now (MEASURED, lab `lamp list`, level 0): four D41D1 scan
+  lamps in the club rooms 75 and 76, each at strength 0.6 and radius 4886 to
+  6000 (red 1.00 0.26 0.31, pink 1.00 0.48 0.51, mint 0.60 1.00 0.72,
+  magenta 1.00 0.27 0.67, all at y -10547), and the Bootylicious sign lamp
+  (1.00 0.35 0.85, r 3500, flicker). Broad overlapping radii plus Relit's
+  lamp gain (1.7x, reach 1.35x) give an even fill over the whole room: the
+  likely cause of the "lights all on" look (not yet proven; first step a
+  per-lamp off/on study, and whether Relit's dimmed base light is dimmed
+  enough here).
+- Look to aim for (research 2026-11-22, see below): a low ambient base;
+  light in layers, brighter at the bar and entrance and darkest in the
+  seating; saturated coloured pools (magenta, red, violet, a cool blue
+  accent) from the real fixtures, the pink neon tubes, the stage canopy
+  lamps and the signs, so pools and dark gaps, not a fill; the dancers on the
+  pole stages as the brightest, warm-keyed point of the room; a haze feel
+  (light visible in the air round the lamps: halos or a light fog tint
+  within the club only, if cheap). Optionally a slow colour drift or chase on
+  a stage, only if it reads as atmosphere (the D41AA lesson).
+- Scope: the club in every level it appears in (find them: levels 5 and 9
+  reuse level 0's street block; survey all 21 levels for the club's rooms,
+  lamps or props, by data, not by level number). Game-wide rules, no
+  per-level data where it can be avoided (fix the system, keep custom
+  levels possible); where the lamps come from the level lamp files, a change
+  to how scan lamps are made or tuned for such rooms is preferred over
+  hand-placed lamps. RELIT first, ENHANCED reviewed too; Original, Vanilla
+  and Classic unchanged; cost measured at 180 Hz (GPU clock-weighted).
+  Before/after shots to `research/before-after/D57J/`; the user's look on
+  the real display decides.
+- Research so far (a start; widen it in the job): nightclub lighting keeps
+  the ambient low because ambient light flattens the effect lighting
+  ([Night meet light, lighting techniques for nightlife](https://www.slideshare.net/JackKelly25/night-meet-light-discussion-of-lighting-techniques-for-nightlife));
+  layered zones, brighter near the entrance, accent-led lounges
+  ([nightclub lighting guide 2026](https://betopperdj.com/blogs/news/stage-lighting-for-nightclubs-2026));
+  fewer ambient fixtures, more highlights on architecture, narrow pin spots
+  with gels making saturated pools over the bar (OHM Lounge,
+  [Live Design](https://www.livedesignonline.com/mag/meditative-space-focus-lighting-adds-energy-and-color-manhattans-ohm-lounge));
+  low moody light from under banquette seating
+  ([Live Design, The Heat](https://www.livedesignonline.com/architainment/heat));
+  haze makes beams and colour visible in the air
+  ([Showtec, nightclub lighting](https://showtec.co.uk/?p=167));
+  table-dance clubs as "mood ... an aura of tension and drama"
+  ([Robe case study](https://www.robe.cz/api/robe/pdfs/en/news/352));
+  in game scenes the neon signs act as key lights, with fog for depth
+  ([80.lv, neon alley in UE4](https://80.lv/articles/lighting-exercise-in-ue4-night-time-alleyway-with-neon-signs),
+  [80.lv, cyberpunk lights and colour](https://80.lv/articles/lights-and-color-in-cyberpunk-environments)).
+  Still to study: reference clubs in games and film (Duke Nukem 3D's own
+  strip club in Red Light District under EDuke32/Polymer, Hitman's Berlin
+  club, Cyberpunk 2077's Lizzie's Bar, film neon interiors), with sources.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

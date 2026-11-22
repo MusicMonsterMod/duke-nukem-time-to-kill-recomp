@@ -24,8 +24,10 @@ namespace ttk {
 // a soft halo over the globe.
 // D41AA: prop_light_train, the subway train (prop type 77): halos over its
 // bumper lamps, roof beacon and headlight, and its crash flash and sparks.
+// D57I: prop_light_street, the LA street lamp post (prop type 160): a soft
+// sodium-orange glow on its lens.
 enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
-      prop_light_cage=6,prop_light_train=7,prop_light_globe=8};
+      prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,

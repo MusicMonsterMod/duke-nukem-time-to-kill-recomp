@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D53G closed out (Done)
+
+- D53G ([note 532](532-d53g-first-person-idle-gestures.md)): user "perfect!! excellent work. this is better than i could have ever imagined it would be. lock it in and close it out". First-person idle weapon gestures (inspect, heft, rest; energy weapon kept low), eased out on input, cut on fire. Next up by user note: D41X (slot 12 barrel light).
+
+## 2026-11-22 - D53G first-person idle gestures (Needs playtest)
+
+- D53G ([note 532](532-d53g-first-person-idle-gestures.md)): IDLE ANIMATIONS ON in first person plays inspect / heft / rest gestures on the weapon display pose on each idle beat (VOICE ONLY cadence and lines kept), eased out in 0.1 s on input, cut at once on fire or upper actions; `RenderState.fp_idle` for redraws; developer console `fpidle`. Executable `b453300b...`. Waits on the user's look at 180 on the real display.
+
 ## 2026-11-21 - D53B closed out (Done)
 
 - D53B ([note 531](531-d53b-no-idle-lines-at-camera.md)): user "thats excellent. lock it in and close it out. it works exactly as intended". Idle in walk mode with instant snap-out, idle holster always redrawn, no idle at cameras or in the console, IDLE ANIMATIONS on/voice/off (first person ON = lines only) and DUKE TALK (schema 81). Follow-up: D53G first-person idle poses.

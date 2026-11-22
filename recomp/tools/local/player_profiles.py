@@ -84,7 +84,8 @@ NIGHT_VISION_LOOKS = ('duke3d', 'original')
 # air the moment Duke surfaces (Duke 3D); classic: the original gradual refill.
 BREATH_RESTORES = ('instant', 'classic')
 # D53B (Modernized, schema 81): IDLE ANIMATIONS. on (default): the original
-# idle (holster, fidgets, lines), first person speaks only; voice: Duke keeps
+# idle (holster, fidgets, lines); in first person D53G weapon gestures and the
+# lines; voice: Duke keeps
 # his weapon and only says his idle lines; off: no idle at all.
 IDLE_ANIMATIONS_MODES = ('on', 'voice', 'off')
 # D53B (Modernized, schema 81): DUKE TALK, as EDuke32's. off plays Duke's
@@ -734,7 +735,7 @@ def describe(settings):
         lines.append(f"FPS display: {'on' if controls['fps'] else 'off'} (the console's statistics block, top left)")
         lines.append(f"Night vision: {controls['night_vision']} (Modern toggles instantly without interrupting fire)")
         lines.append(f"Night vision look: {controls['night_vision_look']} (duke3d: Duke 3D's green world and glowing enemies, Polymorph; original: TTK's flat green)")
-        lines.append(f"Idle animations: {controls['idle_animations']} (on: the original idle, Duke speaks only in first person; voice: he keeps his weapon and only talks; off: no idle)")
+        lines.append(f"Idle animations: {controls['idle_animations']} (on: the original idle, weapon gestures in first person; voice: he keeps his weapon and only talks; off: no idle)")
         lines.append(f"Duke talk: {controls['duke_talk']} (off: Duke's lines play silently, as EDuke32's Duke talk)")
         lines.append(f"Breath restore: {controls['breath_restore']} (instant: full air the moment Duke surfaces; classic: the original gradual refill)")
         lines.append(f"Dynamite: {describe_dynamite(controls['dynamite'])}")

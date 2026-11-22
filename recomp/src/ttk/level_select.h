@@ -20,6 +20,8 @@ bool beat_console_command(const char* line, void (*say)(const char*), bool& clos
 bool crouch_console_command(const char* line, void (*say)(const char*), bool& close);
 // D14A: "fov [60..120|default]", session-only first-person projection.
 bool fov_console_command(const char* line, void (*say)(const char*), bool& close);
+// D53G (developer): "fpidle <gesture> [seconds]" holds or plays a first-person idle gesture.
+bool fp_idle_console_command(const char* line, void (*say)(const char*), bool& close);
 // D17AR2 (developer): "hostvis [on|off|default]" (modern_controls.cpp,
 // host_visibility.inc), the host world visibility switch for the session.
 bool hostvis_console_command(const char* line, void (*say)(const char*), bool& close);

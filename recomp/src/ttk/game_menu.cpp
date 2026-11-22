@@ -471,7 +471,7 @@ std::vector<Screen> make_screens() {
         {"SECURITY MONITORS",Section::Controls,"security_monitors","DNTTK_SECURITY_MONITORS",true,"DUKE 3D: BIG LIT SCREENS AND A REC FRAME. POLYMORPH ONLY",
          {{"DUKE 3D","duke3d","\"duke3d\""},{"TTK","ttk","\"ttk\""}},0},
         // D53B: what Duke does when left alone (console_idle.inc).
-        {"IDLE ANIMATIONS",Section::Controls,"idle_animations","DNTTK_IDLE_ANIMATIONS",true,"DUKE LEFT ALONE. FIRST PERSON: HIS LINES ONLY",
+        {"IDLE ANIMATIONS",Section::Controls,"idle_animations","DNTTK_IDLE_ANIMATIONS",true,"DUKE LEFT ALONE. FIRST PERSON: GUN GESTURES",
          {{"ON","on","\"on\""},{"VOICE ONLY","voice","\"voice\""},{"OFF","off","\"off\""}},0},
     }};
     s[3]={"ADVANCED",{

@@ -3469,7 +3469,7 @@ at 180 Hz matches the launched look. Pairs in `research/before-after/D53F/`
 
 ### D53G - First-person idle poses
 
-**Status: Todo (backlog; user idea 2026-11-21, during D53B). Dependencies: D53B, D36.**
+**Status: Done (user-accepted 2026-11-22: "perfect!! excellent work. this is better than i could have ever imagined it would be. lock it in and close it out"; [note 532](../documentation/532-d53g-first-person-idle-gestures.md)). Dependencies: D53B (Done), D36 (Done).**
 
 User, 2026-11-21: "you cant actually see him crack his knuckles or whatever in
 first person, so just randomly lowering the weapon just feels off. ... if we
@@ -3480,4 +3480,32 @@ moves in the view; read the D36 audit, note 257, and the D36H5 arm rig, note
 305, first), so ON can animate in first person too. Acceptance: a visible,
 interruptible first-person idle that snaps out at once like the D53B fidgets;
 third person and Vanilla unchanged.
+
+Work log, 2026-11-22 (Needs playtest). User at selection: "will likely need
+some reposing". In first person the eye sees the display pose (the weapon
+matrix and the arms rebuilt from it, D36), not the native skeleton, so the
+gesture is a layer on that pose. IDLE ANIMATIONS ON in first person is now its
+own mode: VOICE ONLY's cadence (countdown full, no holster, the fidget-66
+lines) plus, on each idle beat with a ready weapon, one of three gestures
+(inspect 3.4 s, heft 2.0 s, rest 3.0 s; keyed pitch/yaw/roll/offset about the
+grip, Catmull-Rom, game-timed), published in `RenderState` and blended for
+redraws. Activity eases it out over 0.1 s; fire, a weapon key or any upper
+action cuts it in the same update. RPG at 0.35 amplitude, two-handed rest at
+0.6. Developer console `fpidle`. Evidence (offscreen, 180, private copies):
+stills on nine weapons; natural idle, first gesture 9.5 s after standing
+still; W walking at frame 4 with the gesture gone by frame 7, mouse by 8, fire
+cut in the shot's own update (frame 3); new `ttk-controls-test` D53G group,
+159 groups pass; unit tests 269 OK. Remaining: the user's look at 180 on the
+real display; thrown weapons, crossbow and upgrades not seen; unarmed first
+person stays lines only.
+
+Work log, 2026-11-22, part two (Needs playtest). User: "this is absolutely
+insanely good work ... watching all the weapon idles in first person. they are
+incredible. the only one i want tweaking is 7, energy weapon. can see exposed
+shoulder joint looking disembodied". The support upper arm rose with the gun
+until its cut shoulder end showed bottom left; at 0.35 amplitude it still
+did. The energy weapon now has its own inspect, heft and rest that never rise
+above ready (turned while dropped, bounced below, lowered rest); 13 stills
+through the three show the arm running off the bottom. Controls test 159 and
+unit tests 269 OK.
 

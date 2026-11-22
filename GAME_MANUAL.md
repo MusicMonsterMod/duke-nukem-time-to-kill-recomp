@@ -1471,7 +1471,11 @@ what he does:
 - **ON** (default): in third person he puts his weapon away, a second later
   fidgets (cracks his knuckles, stretches, looks around) and sometimes talks,
   then draws his weapon again by himself. In first person, where you cannot
-  see a fidget, he keeps his weapon up and only says his lines.
+  see a fidget, he keeps his weapon and plays with it instead (D53G): he
+  turns it over to look it over, hefts it in his hand, or tips it up and
+  rests it, then brings it back to ready; he still says his lines. Any input
+  eases the weapon straight back (about a tenth of a second), and a shot
+  leaves the aimed gun at once.
 - **VOICE ONLY**: he keeps his weapon up and only says his lines, in either
   view (about every 30 seconds of standing still).
 - **OFF**: no idle at all.

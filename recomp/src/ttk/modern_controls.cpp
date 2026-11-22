@@ -2414,6 +2414,8 @@ struct RenderState {
     bool laser_toe_in;
     // D53E: the OPTIONS values confirmed in game (live_env.h).
     char live_env[1536];
+    // D53G: the first-person idle gesture's pose (pitch, yaw, roll, x, y, z).
+    double fp_idle[6];
 };
 static_assert(sizeof(RenderState)<=16384,"RenderState must fit frame_replay's Frame::render");
 bool replay_gameplay_context() { return gameplay_context(); }
@@ -2488,6 +2490,7 @@ void render_state_save(void* out) {
     r.lights=light_view;
     r.ammo_view=ammo_view;
     r.laser_toe_in=aim_bolt_launch_enabled();
+    fp_idle_pose_live(r.fp_idle);
     ttk_live_env_pack(r.live_env,sizeof r.live_env);
     std::memcpy(out,&r,sizeof r);
 }
@@ -2529,6 +2532,7 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
     }
     a.projection_blend+=(b.projection_blend-a.projection_blend)*alpha;
     a.onehand_view.raise+=(b.onehand_view.raise-a.onehand_view.raise)*alpha;
+    if(a.weapon_slot==b.weapon_slot) for(int i=0;i<6;++i) a.fp_idle[i]+=(b.fp_idle[i]-a.fp_idle[i])*alpha;
     std::memcpy(out,&a,sizeof a);
 }
 // D10H8: the draw-time state for a redraw of the newer frame's display list.
@@ -2551,6 +2555,7 @@ void render_state_blend_newer(void* out,const void* older,double alpha) {
         if(a.channel_hand.valid && n.channel_hand.valid && a.weapon_slot==n.weapon_slot) n.channel_hand=f.channel_hand;
         n.projection_blend=f.projection_blend;
         n.onehand_view.raise=f.onehand_view.raise;
+        if(a.weapon_slot==n.weapon_slot) std::memcpy(n.fp_idle,f.fp_idle,sizeof n.fp_idle);
     }
     std::memcpy(out,&n,sizeof n);
 }
@@ -2574,6 +2579,7 @@ void render_state_load(const void* in) {
     ttk_world_classic_set(r.world_classic);
     push_letgo=r.push_letgo;
     override_onehand_view=r.onehand_view;
+    std::memcpy(override_fp_idle,r.fp_idle,sizeof override_fp_idle);
     override_door_valid=r.door_valid; override_door_frame=r.door_frame;
     override_channel_hand=r.channel_hand;
     override_projection_blend=r.projection_blend;

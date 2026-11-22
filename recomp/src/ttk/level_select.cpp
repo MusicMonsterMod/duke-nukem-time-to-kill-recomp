@@ -143,6 +143,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     if(beat_console_command(line,say,close))return true;
     if(crouch_console_command(line,say,close))return true;
     if(fov_console_command(line,say,close))return true;
+    if(fp_idle_console_command(line,say,close))return true; // D53G
     if(point_blank_console_command(line,say,close))return true;
     if(shot_view_console_command(line,say,close))return true;
     if(beam_follow_console_command(line,say,close))return true;

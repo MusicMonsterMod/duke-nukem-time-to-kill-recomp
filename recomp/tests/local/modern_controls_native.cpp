@@ -4593,6 +4593,47 @@ int main(int argc,char** argv) {
         ttk::input=saved_input;update();
         std::puts("PASS: D53B idle owner: activity resets the idle countdown and ends a fidget at once, idle holster redrawn on the next activity or after its fidget (not a chosen holster), IDLE ANIMATIONS OFF / VOICE ONLY, DUKE TALK OFF, Vanilla unchanged");
     }
+    {
+        // D53G: IDLE ANIMATIONS ON in first person keeps the weapon and the
+        // VOICE ONLY cadence, and plays a first-person gesture on the beat;
+        // activity eases it out, a shot (upper action) cuts it at once.
+        auto H=[&](uint32_t o){return unsigned(psx_mod_read_half(p+o));};
+        auto J=[](const char* t){return std::strstr(ttk::controls_debug_json(),t)!=nullptr;};
+        const auto saved_input=ttk::input;
+        const uint16_t saved[]={psx_mod_read_half(p+0x240),psx_mod_read_half(p+0x60),psx_mod_read_half(p+0x74)};
+        const uint32_t saved_bits=psx_mod_read_word(p+0x224),saved_step=psx_mod_read_word(0x800d21fc);
+        const uint8_t saved_eq=psx_mod_read_byte(p+0x3b8),saved_w=psx_mod_read_byte(p+0x3b9),saved_mode=psx_mod_read_byte(p+0x22c),saved_beat=psx_mod_read_byte(p+0x232);
+        auto update=[&]{++ttk::input.sequence;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;ttk::input.first_person=true;
+        ttk_live_env_set("DNTTK_IDLE_ANIMATIONS","on");ttk_live_env_set("DNTTK_DUKE_TALK","on");
+        psx_mod_write_word(p+0x224,saved_bits&~0x200002cdu);psx_mod_write_byte(p+0x22c,0);psx_mod_write_word(0x800d21fc,10);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x232,1);
+        update();++ttk::activity_serial;update();                                     // the cadence starts full
+        assert(J("\"fp_gesture\":\"none\""));
+        for(int i=0;i<305;++i){psx_mod_write_half(p+0x240,H(0x240)-10);update();}
+        assert(!J("\"fp_gesture\":\"none\"") && J("\"fp_weight\":1.00"));      // a gesture on the beat
+        assert(H(0x240)==3000 && psx_mod_read_byte(p+0x3b8)==2 && H(0x74)==5 && psx_mod_read_byte(p+0x232)==2); // weapon kept, no holster
+        ++ttk::activity_serial;update();assert(J("\"fp_weight\":0.67"));           // activity eases it out
+        update();update();update();assert(J("\"fp_gesture\":\"none\""));
+        bool close=false;auto say=[](const char*){};
+        assert(ttk::fp_idle_console_command("fpidle heft",say,close) && close);update();
+        assert(J("\"fp_gesture\":\"heft\""));
+        psx_mod_write_half(p+0x74,15);update();assert(J("\"fp_gesture\":\"none\"") && J("\"fp_weight\":0.00")); // a shot: gone at once
+        psx_mod_write_half(p+0x74,5);
+        ttk::fp_idle_console_command("fpidle rest",say,close);update();assert(J("\"fp_gesture\":\"rest\""));
+        ttk::input.held[ttk::fire]=true;++ttk::activity_serial;update();ttk::input.held[ttk::fire]=false;
+        assert(J("\"fp_gesture\":\"none\""));                                    // fire: gone in the same update
+        // Third person ON keeps the original idle (no gesture); Vanilla has none.
+        ttk::input.first_person=false;ttk::fp_idle_console_command("fpidle rest",say,close);update();
+        assert(J("\"fp_gesture\":\"none\""));                                    // not in third person
+        ttk::input.first_person=true;ttk::modern=false;ttk::fp_idle_console_command("fpidle rest",say,close);update();
+        ttk::modern=true;assert(J("\"fp_gesture\":\"none\""));
+        psx_mod_write_half(p+0x240,saved[0]);psx_mod_write_half(p+0x60,saved[1]);psx_mod_write_half(p+0x74,saved[2]);
+        psx_mod_write_word(p+0x224,saved_bits);psx_mod_write_word(0x800d21fc,saved_step);
+        psx_mod_write_byte(p+0x3b8,saved_eq);psx_mod_write_byte(p+0x3b9,saved_w);psx_mod_write_byte(p+0x22c,saved_mode);psx_mod_write_byte(p+0x232,saved_beat);
+        ttk::input=saved_input;update();
+        std::puts("PASS: D53G first-person idle: ON in first person keeps the weapon and plays a gesture on the idle beat, activity eases it out, a shot cuts it, third person and Vanilla unchanged");
+    }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets
     // only the requested eye along the view's right row before the original solve.

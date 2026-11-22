@@ -1133,6 +1133,13 @@ static OnehandView onehand_view_live() {
     return {climbs!=0 && sidearm && (mode==3 || mode==7) && climb_weapon_ready(),0,false};
 }
 static OnehandView onehand_view() {return render_override ? override_onehand_view : onehand_view_live();}
+// D53G: the first-person idle gesture's pose (console_idle.inc); redraw
+// workers take the published frame's (blended between ticks).
+static double override_fp_idle[6];
+static void fp_idle_view(double* out) {
+    if(render_override) std::memcpy(out,override_fp_idle,sizeof override_fp_idle);
+    else fp_idle_pose_live(out);
+}
 // High ready, developer tuning only: DNTTK_FP_ONEHAND_RAISE=pitch,roll,x,y,z
 // (degrees muzzle up and rolled out, view units as weapon_slot_offset).
 static const double* onehand_raise_pose() {
@@ -1285,10 +1292,19 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
         double m[3][3];mat_mul(rz,rx,m);mat_mul(m,lh,lh);
     }
+    // D53G: the idle gesture, about the grip in the level frame (as the tilt).
+    double idle_pose[6];fp_idle_view(idle_pose);
+    if(idle_pose[0] || idle_pose[1] || idle_pose[2]) {
+        const double d=3.14159265358979/180,p=idle_pose[0]*d,y=idle_pose[1]*d,r=idle_pose[2]*d;
+        const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
+        const double ry[3][3]={{std::cos(y),0,std::sin(y)},{0,1,0},{-std::sin(y),0,std::cos(y)}};
+        const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
+        double m[3][3];mat_mul(ry,rx,m);mat_mul(m,rz,m);mat_mul(m,lh,lh);
+    }
     const double* anchor=weapon_anchor();const double k=weapon_motion();
     const unsigned slot=weapon_view_slot();
     const double* extra=slot<32 ? slot_offset(slot) : weapon_slot_offset[0];
-    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r]+raise*high[2+r];
+    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r]+raise*high[2+r]+idle_pose[3+r];
     // The level-frame world rotation lh is shown pitched with the view: world
     // rotation C^T lh, stored transposed as lh^T C. The render's C (x scaled)
     // times its transpose gives lh; the flash offset follows the same rotation.

@@ -1887,3 +1887,17 @@ about 75 ms after the load. Not measured on citadel. Needs the user's check
 on the field laptop (rebuilt with this change).
 
 - 2026-11-17: accepted and closed. User: "looks awesome to me. i'd say lets lock it in and close it out".
+
+### D41X - Does the barrel in UI slot 12 really emit light?
+
+**Status: Todo (backlog; user note 2026-11-22, "we'll look at that one next"). Dependencies: D41.**
+
+User, 2026-11-22 (while playtesting D53G): "barrel in slot 12, is that really
+emitting light? hmm". Work: on a private copy of UI slot 12, identify the barrel
+(object type and level) and what lights it: the original's own vertex
+colours or light, a D41 dynamic or prop light (`prop_lights`), a glow (D41
+glows) or the lamp bake. Compare with the original (Vanilla, `--dynamic-lights
+off`, glows off) and decide with the user whether the light fits the object.
+Fix the rule for the whole object type, not this one level (no per-level data).
+Acceptance: the user agrees the barrel's lighting matches what it is.
+

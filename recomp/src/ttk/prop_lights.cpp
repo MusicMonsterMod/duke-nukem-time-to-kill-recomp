@@ -175,7 +175,18 @@ bool club_bar_mesh(uint32_t mesh) {
     return mesh_header(mesh,26,vp,list) && psx_mod_read_word(vp)==0x0123fe00u && psx_mod_read_half(vp+4)==0x0047u &&
            psx_mod_read_word(vp+8*25)==0xfedd0555u && psx_mod_read_half(vp+8*25+4)==0x0047u;
 }
-bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh);}
+// D57D: the shaded table lamp (prop type 228; level 0: on the box table in
+// the strip club's back room behind the stage, and in a furnished room off
+// the street): 20 vertices, a square stem (model y 38..196, 108 across) under
+// a four-sided shade, its open rim at y 21 (278 across) narrowing to the top
+// at y -196 (98 across), painted a pale warm cream (248 248 176 at its
+// brightest). First vertex (-54, 196, -54), the last (-49, -196, 49).
+bool table_lamp_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,20,vp,list) && psx_mod_read_word(vp)==0x00c4ffcau && psx_mod_read_half(vp+4)==0xffcau &&
+           psx_mod_read_word(vp+8*19)==0xff3cffcfu && psx_mod_read_half(vp+8*19+4)==0x0031u;
+}
+bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -191,6 +202,7 @@ int kind_of(uint32_t mesh) {
     if(train_mesh(mesh)) return prop_light_train;
     if(globe_mesh(mesh)) return prop_light_globe;
     if(street_lamp_mesh(mesh)) return prop_light_street;
+    if(table_lamp_mesh(mesh)) return prop_light_table_lamp;   // D57D
     if(neon_bar_mesh(mesh)) return prop_light_neon_bar;   // D57J
     if(canopy_mesh(mesh)) return prop_light_canopy;
     if(club_bar_mesh(mesh)) return prop_light_club_bar;
@@ -322,6 +334,17 @@ Tune street_light{{1.0f,0.60f,0.20f},1.7f,2400};
 float street_at[3]={0,650,1000};   // 810 above the street
 constexpr float street_lens_at[3]={0,-1335,523};
 float street_halo_size=560,street_halo_level=100,street_halo_rgb[3]={1.0f,0.72f,0.38f};
+// D57D: the shaded table lamp: a tungsten bulb (about 2700 K) behind a
+// cream shade. One steady light at the bulb, inside the shade just above its
+// open rim, so the table top, the floor round it and the walls nearby take a
+// warm pool; a soft glow on the shade. Developer:
+// DNTTK_PROP_LIGHT_TABLE_LAMP="r g b strength radius",
+// DNTTK_PROP_TABLE_LAMP_AT="y" (model height of the bulb),
+// DNTTK_PROP_TABLE_LAMP_HALO="size level r g b".
+Tune table_lamp_light{{1.0f,0.78f,0.50f},1.2f,2600};
+float table_lamp_at[3]={0,-40,0};
+constexpr float table_shade_at[3]={0,-90,0};
+float table_halo_size=520,table_halo_level=70,table_halo_rgb[3]={1.0f,0.90f,0.62f};
 // D41AA: the subway train. Its lights ride with it (placed from its object
 // record each image) and follow the train overlay's state (+0x35, D44B: 0
 // parked, 1 pulling away, 2 at speed, 3 the crash, 4 stopped):
@@ -476,7 +499,7 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0,table_lamps=0;
 // D41AA: the train (one a level; game thread): its record, its room (it
 // relinks as it runs) and the overlay state last seen (~0u: none yet).
 struct Train {uint32_t o=0,mesh=0,room=0,state=~0u,room_frame=0;int32_t crash_p[3]={0,0,0};bool crashed_here=false;};
@@ -499,7 +522,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=0;scan_sig=0;cages_pending=false;
+    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=0;scan_sig=0;cages_pending=false;
     const uint32_t train_was=train.o;train.o=0;
     unsigned cage_models=0,globe_models=0;
     for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
@@ -586,6 +609,14 @@ void scan_props() {
                 if(bound==2) continue;
                 place(e.p,p,yaw,street_at);e.own=street_light;e.tune=&e.own;e.cage=true;   // steady
                 emitters.push_back(e);++street_lamps;
+            } else if(kind==prop_light_table_lamp) {
+                // D57D: a lamp the level file binds to it keeps that lamp alone.
+                const int32_t at[3]={(int32_t)p[0],(int32_t)p[1],(int32_t)p[2]};
+                const int bound=level_lamp_bound ? level_lamp_bound((uint16_t)psx_mod_read_half(o+0x2c),at,nullptr) : 0;
+                if(bound<0) {cages_pending=true;continue;}
+                if(bound==2) continue;
+                place(e.p,p,yaw,table_lamp_at);e.own=table_lamp_light;e.tune=&e.own;e.cage=true;   // steady
+                emitters.push_back(e);++table_lamps;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -605,7 +636,7 @@ void scan_props() {
     for(unsigned i=globe_models;i<8;++i) globe_slots[i].mesh.store(0,std::memory_order_relaxed);
     if(!train.o) {train.mesh=0;train.state=~0u;train_mesh_now.store(0,std::memory_order_relaxed);}
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu table lamps, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,table_lamps,emitters.size());
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
         std::fprintf(stderr,"[TTK prop light] caged lamp model %08x colour %.2f %.2f %.2f\n",m,c.rgb[0].load(),c.rgb[1].load(),c.rgb[2].load());
     for(Emitter& e:emitters) if(e.blink_mesh || e.cage) e.tune=&e.own;   // after the moves
@@ -988,6 +1019,10 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
         // D57I: the sodium lens glows under the lamp head.
         if(n<max) out[n++]=billboard(street_lens_at[0],street_lens_at[1],street_lens_at[2],street_halo_size,street_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                      street_halo_level*street_halo_rgb[0],street_halo_level*street_halo_rgb[1],street_halo_level*street_halo_rgb[2]);
+    } else if(kind==prop_light_table_lamp) {
+        // D57D: the shade glows warm round the bulb.
+        if(n<max) out[n++]=billboard(table_shade_at[0],table_shade_at[1],table_shade_at[2],table_halo_size,table_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     table_halo_level*table_halo_rgb[0],table_halo_level*table_halo_rgb[1],table_halo_level*table_halo_rgb[2]);
     } else if(kind==prop_light_train && train_mesh_now.load(std::memory_order_relaxed)==mesh) {
         // D41AA: a glow on each bumper lamp (amber, red, amber), the beacon,
         // the headlight while it shines, the impact and the skid sparks.
@@ -1100,6 +1135,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_CAGE",ttk::cage_light);
     ttk::tune("DNTTK_PROP_LIGHT_GLOBE",ttk::globe_light);   // D57C
     ttk::tune("DNTTK_PROP_LIGHT_STREET",ttk::street_light);   // D57I
+    ttk::tune("DNTTK_PROP_LIGHT_TABLE_LAMP",ttk::table_lamp_light);   // D57D
+    if(const char* e=std::getenv("DNTTK_PROP_TABLE_LAMP_AT")) ttk::table_lamp_at[1]=(float)std::atof(e);
+    if(const char* e=std::getenv("DNTTK_PROP_TABLE_LAMP_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::table_halo_size,&ttk::table_halo_level,&ttk::table_halo_rgb[0],&ttk::table_halo_rgb[1],&ttk::table_halo_rgb[2]);
     if(const char* e=std::getenv("DNTTK_PROP_STREET_AT")) std::sscanf(e,"%f %f",&ttk::street_at[1],&ttk::street_at[2]);
     if(const char* e=std::getenv("DNTTK_PROP_STREET_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::street_halo_size,&ttk::street_halo_level,&ttk::street_halo_rgb[0],&ttk::street_halo_rgb[1],&ttk::street_halo_rgb[2]);
     if(const char* e=std::getenv("DNTTK_CLUB_HAZE")) std::sscanf(e,"%f %f %f %f",&ttk::club_haze_neon,&ttk::club_haze_can,&ttk::club_haze_beam,&ttk::club_haze_canopy);   // D57J

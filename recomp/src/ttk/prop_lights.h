@@ -32,9 +32,12 @@ namespace ttk {
 // 117); prop_light_club_bar, the back bar's shelves (prop type 4). Their
 // rooms are nightclub rooms (club_lights.inc); the bar and the canopy carry
 // haze glows, the back bar only marks its room.
+// D57D: prop_light_table_lamp, the shaded table lamp (prop type 228; level
+// 0, the strip club's back room and a furnished room off the street): a
+// soft warm glow on its shade.
 enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
       prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9,
-      prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12};
+      prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12,prop_light_table_lamp=13};
 inline bool prop_light_club_kind(int kind) {return kind>=prop_light_neon_bar && kind<=prop_light_club_bar;}
 // D57J: the club look (club_lights.inc and the haze glows here): console
 // "lamp club off|on" (session; off = the lamps and look before D57J).

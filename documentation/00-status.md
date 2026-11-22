@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-22 - D57D closed out (Done)
+
+- D57D ([note 542](542-d57d-club-back-room-lamp.md)): user "lock it in and close it out!! thats excellent." The shaded table lamps (prop type 228, by model; levels 0, 5 and 9) light their rooms in ENHANCED and RELIT. Next up by user request: D57K, the hanging ceiling lamp (prop type 229) in level 0 room 8, the LA apartment (user's UI slot 12 of 2026-11-22 19:49, copy in `research/savestates/d57k/`).
+
+## 2026-11-22 - D57D strip club back-room lamp (Needs playtest)
+
+- D57D ([note 542](542-d57d-club-back-room-lamp.md)): the shaded table lamp (prop type 228, by model; levels 0, 5 and 9) gives a steady warm light and a soft shade glow in ENHANCED and RELIT; the club's secret room is level 0 room 13, the dressing room behind the stage (reached from stage room 76 through passage room 10). Original, Vanilla and Classic unchanged; 180 Hz pacing unchanged; executable `19334bcb...`. Warp cannot stand Duke in the room, so the look waits on the user (a save state in the room would help). Level 0's other copy (room 8, an upper room off the street) may be D57E's apartment lamp.
+
 ## 2026-11-22 - D57J closed out (Done)
 
 - D57J ([note 541](541-d57j-club-lighting.md)): user "lock it in and close it out. im insanely impressed. this is just unfathomably good work." The strip club (levels 0, 5 and 9, found by its fixtures' models) is a dark, hazy nightclub in RELIT (nightclub-room rule in `club_lights.inc`; `lamp club off|on` compares). ENHANCED reviewed; Original, Vanilla and Classic unchanged; no measurable cost at 180 Hz.

@@ -1496,12 +1496,48 @@ results. Follow-up backlog: [D57I](#d57i---street-lamp-posts-give-sodium-vapour-
 
 ### D57D - SOMEONE'S GONNA PAY strip club secret-room lamp gives light
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+**Status: Done ([note 542](../documentation/542-d57d-club-back-room-lamp.md)), user-accepted 2026-11-22 ("lock it in and close it out!! thats excellent."). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: in the strip club of SOMEONE'S GONNA PAY, the lamp inside
 the secret room should be a real light. Acceptance: the room and objects in
 it take the lamp's light.
+
+Work log, 2026-11-22 (Needs playtest):
+
+- No level is named SOMEONE'S GONNA PAY (the club levels are 0 TIME TO KILL,
+  5 OBEY OR DIE, 9 PIG FACTORY); the room was found by data, following the
+  room portals out of D57J's club rooms on level 0: stage room 76 -> an
+  empty passage (room 10) -> room 13, a dressing room behind the stage
+  (vanity and mirror, benches, chairs, posters, a box table with the lamp on
+  it). Its drawn floor is 512 above the club's.
+- The lamp: prop type 228, a shaded table lamp (20 vertices, cream shade,
+  never made a lamp by the D41D1 sign scan). All 21 levels surveyed: level 0
+  (room 13 and room 8, a furnished upper room off the street), level 5 (room
+  13) and level 9 (room 8, two in room 13).
+- `prop_lights.cpp`/`.h`: `prop_light_table_lamp`, by model, game-wide: a
+  steady warm tungsten light at the bulb (1.00 0.78 0.50, strength 1.2,
+  radius 2600) and a soft glow on the shade; ENHANCED and RELIT; Original,
+  Vanilla and Classic unchanged. Developer `DNTTK_PROP_LIGHT_TABLE_LAMP`,
+  `DNTTK_PROP_TABLE_LAMP_AT`, `DNTTK_PROP_TABLE_LAMP_HALO`.
+- Evidence (lab `recomp/analysis/d57d/`): facing the lamp, Relit 17.9 ->
+  32.8 mean (the wall behind, the table and the ceiling take a warm pool),
+  Enhanced 20.2 -> 30.7; Original unchanged; Vanilla makes no prop scan;
+  180 Hz pacing unchanged (p95 6 ms), GPU about +2 to +3 points with the
+  lamp filling the view; tests 270 OK. Shots `research/before-after/D57D/`
+  (local).
+- Limit: warp cannot stand Duke in room 13 (he drops to a floor near the
+  club's height, the camera under the room's floor line), so the lab sees
+  the room from just under its floor. The user's look in the room decides;
+  a save state there would help. Room 8 may be D57E's apartment lamp (lit by
+  the same rule; not confirmed).
+
+Closed out, 2026-11-22: user "lock it in and close it out!! thats excellent." Done; lab
+`recomp/analysis/d57d/` trimmed to its scripts and results (shots kept in
+`research/before-after/D57D/`). Follow-up backlog:
+[D57K](#d57k---hanging-ceiling-lamp-gives-light-la-apartment) (the hanging
+ceiling lamp of the user's UI slot 12, in the same room 8 as the second table
+lamp).
 
 ### D57E - LA apartment lamp gives light
 
@@ -1512,6 +1548,11 @@ User, 2026-11-14: a lamp in a Los Angeles apartment-building area should
 light its surroundings, following the same conventions as the other lamps.
 First step: confirm which level and room with the user (or their savestate).
 Acceptance: the lamp lights the room around it.
+
+Note, 2026-11-22: level 0 room 8 is a furnished upper apartment off the LA
+street. Its shaded table lamp (type 228) has given light since D57D; its
+hanging ceiling lamp (type 229) is [D57K](#d57k---hanging-ceiling-lamp-gives-light-la-apartment).
+Ask the user whether either is this lamp; if so, D57E closes with them.
 
 ### D57F - Time-portal machine crystal slots glow when filled (OBEY OR DIE)
 
@@ -1869,6 +1910,44 @@ Work log, 2026-11-22 ([note 541](../documentation/541-d57j-club-lighting.md)):
 
 Closed out, 2026-11-22: user "lock it in and close it out. im insanely impressed. this is just unfathomably good work." Done; lab trimmed to its scripts and
 results (shots kept in `research/before-after/D57J/`).
+
+### D57K - Hanging ceiling lamp gives light (LA apartment)
+
+**Status: Todo (backlog; user UI slot 12, 2026-11-22). Dependencies: D57D.**
+
+User, 2026-11-22, closing D57D: "the next one is the light i have just saved
+in slot 12. can you check that light, and then add it to the backlog."
+
+Checked 2026-11-22 (lab `recomp/analysis/d57k/`, local; the user's UI slot
+12 of 2026-11-22 19:49 copied to `research/savestates/d57k/`, local, never
+committed; the lab loads it as slot 11 from its own card copy):
+
+- The spot: level 0, room 8, the furnished upper apartment off the LA street
+  (sofas, vanity with mirror, a TV, the D57D table lamp at (7781, -12060,
+  7442)). Duke at (11136, -11769, 9863), looking up at the lamp.
+- The lamp: prop type 229, a pendant hanging from the ceiling at (11969,
+  -12842, 9424), 1430 from Duke: 16 vertices, 272 x 940 x 274; a cord from
+  the ceiling (model y -470) down to a shallow four-sided cream shade (apex
+  y 379, rim y 451, 272 across) with a white bulb hanging under it (y
+  448..470, painted 248 248 248). Model first vertex (13, 470, -13) per the
+  face dump; read the exact words for the matcher.
+- Today it gives no light: room 8 has no lamps in `level00.lights`; ENHANCED
+  is identical to ORIGINAL there (mean 118.1), RELIT only dims the painted
+  light (98.8). The room's painted light is already bright, so Relit's base
+  dimming and the lamp's pool decide how it reads.
+
+Work: by model, game-wide, no per-level data (the D57C/D57D pattern in
+`prop_lights.cpp`): a steady warm tungsten light at the bulb under the shade
+(a pendant throws its light down and out: the floor and furniture under it
+brighter, the ceiling above the shade darker), a soft glow on the bulb and
+shade; LIGHTING ENHANCED and RELIT; Original, Vanilla and Classic unchanged.
+First step: survey all 21 levels for the model (D57D's `lampsurvey` case);
+D57D found room 8 on levels 0 and 9. Check whether Relit should dim this
+room's painted light further so the lamp reads as the source. Cost measured
+at 180 Hz; before/after shots to `research/before-after/D57K/`. The lab can
+load the slot (warp could not stand Duke in this upper room in D57D).
+Acceptance: the room under the lamp takes its light, judged by the user on
+the real display.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

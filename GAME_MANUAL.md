@@ -657,7 +657,10 @@ falls on each dancer from her pole's canopy, the spot cans on the neon bars
 throw magenta and blue pools with soft light shafts in the air, the tables
 and the bar glow, and the neon tubes and the canopies' bulbs glow in the
 haze. In ENHANCED the same lights sit on top of the club's own light;
-ORIGINAL shows the club as the game drew it. The subway train in
+ORIGINAL shows the club as the game drew it. The shaded table lamps (the
+dressing room behind the club's stage, and a room off the LA street; levels
+0, 5 and 9) give a warm light over the table, the wall behind and the room
+round them, and their shades glow. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
 both ends and the cyan beacon on its roof lights the tunnel round it,
 flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and

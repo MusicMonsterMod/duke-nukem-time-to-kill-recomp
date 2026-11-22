@@ -646,7 +646,9 @@ with a soft glow on the lamp while it is lit. The small caged lamps on the
 tunnel and corridor walls (levels 0, 5 and 9) light the wall and floor round
 them in their own colour, with a soft glow on the bulb. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
-both ends and the cyan beacon on its roof lights the tunnel round it. When it
+both ends and the cyan beacon on its roof lights the tunnel round it,
+flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and
+now and then flashes bright for a moment. When it
 pulls away its headlight flickers on and throws a warm light down the tunnel
 ahead of it; when it crashes, firelight flares over the car, the walls and the
 floor while sparks fly from its wheels, the beacon dips and the headlight
@@ -696,7 +698,10 @@ The backtick console edits them:
   and flash of the prop the lamp is bound to, for a traffic light), or `lamp
   style wave [phase]
   [depth]` to follow the game's own animated light (phase 0 to 31, depth 0
-  to 1), `lamp note text`, `lamp del`.
+  to 1), or `lamp style duke [hitag] [lit shade] [unlit shade]` for Duke
+  Nukem 3D's random light (its sector effector 4: lamps with different hitags
+  flash apart; plain `duke` is hitag 0, lit shade 0, unlit shade 20), `lamp
+  note text`, `lamp del`.
 - `lamp save` writes the level's lamps (`recomp/assets/lights/levelNN.lights`),
   `lamp reload` goes back to the saved file, and `lamp clear` removes them all.
 - `lamp scan [threshold]` replaces the lamps found from the painted light with

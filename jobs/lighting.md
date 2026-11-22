@@ -2127,7 +2127,7 @@ slot 10 (parked) and slot 9 (at the controls, E starts it) copied to
 
 ### D41AB - Train beacon flickers like Duke 3D lights (UI slot 12)
 
-**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41AA.**
+**Status: Done ([note 538](../documentation/538-d41ab-duke3d-random-lights.md)), user-accepted 2026-11-22 ("lock it in and close it out. ten out of ten"). Dependencies: D41AA.**
 
 User, 2026-11-22, accepting D41AA: "my crosshair is pointing at that
 overhead light. i wonder if we can make that blink in the same way that
@@ -2156,3 +2156,27 @@ a glitch, its got a real aesthetic to it."
   strobe read as a flicker fault, so match the reference's rhythm.
 - Modernized only (LIGHTING ENHANCED and RELIT); Original and Vanilla
   unchanged.
+
+Work log, 2026-11-22 (Needs playtest):
+
+- Reference read: EDuke32 `actors.cpp` SE 4 (`SE_4_RANDOM_LIGHTS`) and its
+  spawn in `game.cpp`, `g_globalRandom` drawn once a 30 Hz tick;
+  `research/Tutorial.map` parsed (its SE 4 rooms: SE shade 0, sector shade
+  20). A Duke random light sits dim and on one tick in eight, at random,
+  flashes for one 33 ms tick to a random shade 0-15.
+- `recomp/src/ttk/duke_flicker.h` implements that rule; level lamps get the
+  style `duke[:H[:ON[:OFF]]]` (live and baked; console `lamp style duke`),
+  prop lights a style option, and the train's cyan roof beacon (light and
+  halo, read from one tick per game frame) uses it: hitag 0, lit 0, unlit
+  20, strength 1.2 at shade 0. Developer
+  `DNTTK_PROP_TRAIN_BEACON_STYLE="duke H ON OFF"|"steady"`.
+- Evidence (UI slot 12, 180 Hz, Relit): flashes of 6 images (one tick) or
+  11-12 (two), door, halo and ceiling on the same images; a `duke` level
+  lamp flashes the same way; Original constant; pacing unchanged (p95 6
+  ms); unit test of the rule; 270 local tests OK.
+- Waits on the user's look on the real display (UI slot 12; UI slot 9,
+  press E, for the moving train). Limits in the note: the painted beacon
+  face stays bright, no palette swap, the pause menu not measured.
+
+Closed out, 2026-11-22: user "lock it in and close it out. ten out of ten". Done; lab trimmed to its scripts and
+results (raw bursts removed).

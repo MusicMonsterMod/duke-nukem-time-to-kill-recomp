@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D41AB closed out (Done)
+
+- D41AB ([note 538](538-d41ab-duke3d-random-lights.md)): user "lock it in and close it out. ten out of ten". The subway train's cyan roof beacon flickers with Duke Nukem 3D's random-light look (SE 4 reimplemented from EDuke32), light and halo together, in ENHANCED and RELIT; the style is reusable (`duke[:H[:ON[:OFF]]]` level lamps, prop light option). No new backlog from this job.
+
+## 2026-11-22 - D41AB Duke 3D random lights (Needs playtest)
+
+- D41AB ([note 538](538-d41ab-duke3d-random-lights.md)): Duke Nukem 3D's random light (SE 4, from EDuke32's `actors.cpp`: lit one 30 Hz tick in eight when `((g_globalRandom / (hitag + 1)) & 31) < 4`, shade `SE shade + (g_globalRandom & 15)`, else the dim sector shade) in `recomp/src/ttk/duke_flicker.h`: a level-lamp style `duke[:H[:ON[:OFF]]]` (live and baked; console `lamp style duke`), a prop light option, and the subway train's cyan roof beacon (light and halo from one tick per game frame; hitag 0, lit 0, unlit 20, strength 1.2). UI slot 12, 180 Hz, Relit: 6-image (one tick) and 11-12-image flashes, light and halo in step; Original constant; pacing p95 6 ms either way; 270 local tests OK. Executable `d0182ebc...`. Waits on the user's look on the real display (UI slot 12; UI slot 9, press E).
+
 ## 2026-11-22 - D41AA closed out (Done)
 
 - D41AA ([note 537](537-d41aa-subway-train-lights.md)): user "excellent!!! ... close out the job at hand". The LEVEL00 subway train carries its own lights (bumper clusters, cyan roof beacon, a headlight that strikes up as it pulls away, crash flash and skid sparks, a steady wreck) in ENHANCED and RELIT. Next up by user request: D41AB (the train's cyan roof beacon flickers with Duke 3D's random-light look, as a reusable lamp style; UI slot 12 save copy in `research/savestates/d41ab/`; references: the EDuke32 lighting-effects wiki and `research/Tutorial.map`).

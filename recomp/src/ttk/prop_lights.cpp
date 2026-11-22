@@ -27,6 +27,7 @@
 // Vanilla: nothing changes.
 #include "prop_lights.h"
 #include "prop_state.h"
+#include "duke_flicker.h"
 #include "live_env.h"
 #include "pc_input.h"
 #include "cpu_state.h"
@@ -246,7 +247,27 @@ bool cage_colour(uint32_t mesh,float rgb[3]) {
 // flash sparks" (halo levels), DNTTK_PROP_TRAIN_TRACE=1 (state changes).
 Tune train_lamps{{1.0f,0.45f,0.06f},0.7f,1300};     // a bumper cluster (amber, red, amber)
 Tune train_beam{{1.0f,0.80f,0.50f},1.6f,8000};      // the headlight, well ahead of the nose (it lights the tunnel, not its own cab)
-Tune train_beacon{{0.14f,0.76f,1.0f},0.8f,3000};    // the cyan roof beacon (the D41D1 sign lamp's colour)
+Tune train_beacon{{0.14f,0.76f,1.0f},1.2f,3000};    // the cyan roof beacon (the D41D1 sign lamp's colour); D41AB: its strength at shade 0
+// D41AB: a prop light's style. duke: Duke Nukem 3D's random light (SE 4,
+// duke_flicker.h): hitag, lit shade (+0..15 a flash), unlit shade; the light
+// and its halo take the level together. steady: 1. Developer:
+// DNTTK_PROP_TRAIN_BEACON_STYLE="duke H ON OFF" or "steady".
+struct PropStyle {bool duke;int hitag,on,off;};
+// The Duke tick the game frame was composed at (composition_hook, from the
+// draw clock): the frame's lights and the halos of all its images read the
+// same tick, so a light and its halo flash together.
+std::atomic<uint32_t> duke_tick_frame{0};
+float prop_style_level(const PropStyle& p) {
+    return p.duke?duke_random_light_level_at(duke_tick_frame.load(std::memory_order_relaxed),p.hitag,p.on,p.off):1.0f;
+}
+void tune_style(const char* name,PropStyle& p) {
+    const char* e=std::getenv(name);
+    if(!e) return;
+    if(!std::strncmp(e,"steady",6)) {p.duke=false;return;}
+    int v[3]={p.hitag,p.on,p.off};
+    if(std::sscanf(e,"duke %d %d %d",&v[0],&v[1],&v[2])>=0) {p={true,v[0]<0?0:v[0],v[1],v[2]};}
+}
+PropStyle train_beacon_style{true,0,duke_default_on_shade,duke_default_off_shade};   // the tutorial map's SE 4: lit 0, unlit 20
 Tune train_flash{{1.0f,0.58f,0.22f},3.2f,9000};     // the impact
 Tune train_sparks{{1.0f,0.78f,0.45f},2.0f,2800};    // skid sparks
 // Model points (y down, the nose at +x).
@@ -299,6 +320,8 @@ TrainLook train_look(uint32_t ms) {
         l.lead=t<1100?train_sputter(t,1100,11)+0.0f:
                !buzz?0.85f:drop>0.70f?0.45f*(prop_light_noise(s*34,23)>0.5f?1.0f:0.0f):0.78f+0.12f*prop_light_noise(s*9,29);
     }
+    // D41AB: the beacon flickers as Duke 3D's random lights, in every state.
+    l.beacon*=prop_style_level(train_beacon_style);
     return l;
 }
 // D57G: the iron ring's five candles (one light at the ring's centre, among
@@ -618,6 +641,7 @@ void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
     if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
     ++frames;
+    duke_tick_frame.store(duke_tick(now_ms()),std::memory_order_relaxed);   // D41AB
     const uint32_t level=psx_mod_read_word(0x800be570u);
     // D54: a savestate load rescans too (a prop broken since, or standing again).
     const uint32_t loads=psx_mod_savestate_loads();
@@ -875,6 +899,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_TRAIN_LAMPS",ttk::train_lamps);   // D41AA
     ttk::tune("DNTTK_PROP_LIGHT_TRAIN_BEAM",ttk::train_beam);
     ttk::tune("DNTTK_PROP_LIGHT_TRAIN_BEACON",ttk::train_beacon);
+    ttk::tune_style("DNTTK_PROP_TRAIN_BEACON_STYLE",ttk::train_beacon_style);   // D41AB
     ttk::tune("DNTTK_PROP_LIGHT_TRAIN_FLASH",ttk::train_flash);
     ttk::tune("DNTTK_PROP_LIGHT_TRAIN_SPARKS",ttk::train_sparks);
     if(const char* e=std::getenv("DNTTK_PROP_TRAIN_BEAM_AT")) std::sscanf(e,"%f %f %f",&ttk::train_beam_at[0],&ttk::train_beam_at[1],&ttk::train_beam_at[2]);

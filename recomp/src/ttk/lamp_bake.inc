@@ -77,6 +77,7 @@ static float lamp_style_mean(const LevelLamp& l) {
     case lamp_broken: return 0.13f;
     case lamp_wave: return 0.8f;
     case lamp_signal: return 0.5f;
+    case lamp_duke: return duke_random_light_mean(l.duke_on,l.duke_off);   // D41AB
     default: return 1.0f;
     }
 }
@@ -92,6 +93,7 @@ static float lamp_style_swing(const LevelLamp& l) {
     case lamp_broken: return 0.87f;
     case lamp_wave: return std::clamp(l.depth,0.05f,1.0f)*0.5f;
     case lamp_signal: return 0.5f;
+    case lamp_duke: return duke_random_light_swing(l.duke_on,l.duke_off);   // D41AB
     default: return l.props.empty()?0.0f:0.5f;
     }
 }
@@ -296,7 +298,7 @@ static void lamp_bake_levels(LightStage& v,unsigned lamp0,unsigned lamp1) {
     for(unsigned i=0;i<n;++i) {
         const LevelLamp& l=level_lamps[i];
         float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
-        float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,i));
+        float e=l.k*lamp_level_value(l,wave,i);
         if(l.style==lamp_signal) signal_lamp_now(i,rgb,e);   // D55A: colour and brightness (it lost the brightness)
         if(l.standing==0 && breaks) e*=prop_dying_level(light_ticks-l.broke_tick,i);
         e*=level_lamp_monitor_scale(l);   // D53F: the TTK look's monitor lamps

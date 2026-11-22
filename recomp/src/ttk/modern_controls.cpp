@@ -31,6 +31,7 @@
 #include "lamp_bake_map.h"
 #include "security_monitor.h"
 #include "prop_lights.h"
+#include "duke_flicker.h"
 #include "prop_state.h"
 #include "screen_flash.h"
 #include "pgxp.h"

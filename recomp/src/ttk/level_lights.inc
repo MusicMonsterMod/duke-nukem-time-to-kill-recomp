@@ -37,7 +37,11 @@
 //
 // File format, one lamp per line ('#' starts a comment):
 //   x y z  r g b  radius  strength  style  [# note]
-// style: steady flicker pulse candle strobe broken signal, or wave:P:D
+// style: steady flicker pulse candle strobe broken signal, wave:P:D, or
+// duke:H:ON:OFF
+// D41AB: duke is Duke Nukem 3D's random light (SE 4, duke_flicker.h): hitag
+// H (lamps with other hitags flash apart), lit shade ON (+0..15 a flash),
+// unlit shade OFF; "duke" alone is duke:0:0:20, the EDuke32 tutorial's.
 // D55: signal follows the animated texture of the lamp's prop (traffic
 // lights): the colour and brightness of the frame the game shows now.
 // D54: the note's "prop TYPE x y z" entries name the props the lamp belongs
@@ -55,9 +59,10 @@
 // (prop_state.h); when the last breaks it sputters out and stays dark.
 // standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
 struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
-                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;int monitor=-1;};
-enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_styles};
-static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal"};
+                  std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;int monitor=-1;
+                  int duke_hitag=0,duke_on=duke_default_on_shade,duke_off=duke_default_off_shade;};   // D41AB
+enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_duke,lamp_styles};
+static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal","duke"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
 static constexpr double level_lamp_far=32000,level_lamp_fade=4000;
 static double level_lamp_cut_fade(double d,double cut,double width) {return std::clamp((cut-d)/width,0.0,1.0);}
@@ -181,11 +186,22 @@ static bool lamp_style_parse(const char* s,LevelLamp& l) {
         }
         l.phase=((ph%32)+32)%32;l.depth=std::clamp(dp,0.0f,1.0f);
     }
+    if(st==lamp_duke) {   // D41AB: duke[:H[:ON[:OFF]]]
+        int v[3]={0,duke_default_on_shade,duke_default_off_shade};const char* r=s+used;
+        for(int i=0;i<3;++i) {
+            while(*r==':' || *r==' ') ++r;
+            if(std::sscanf(r,"%d",&v[i])!=1) break;
+            while(*r && *r!=':' && *r!=' ') ++r;
+        }
+        l.duke_hitag=std::clamp(v[0],0,32767);l.duke_on=std::clamp(v[1],-128,127);l.duke_off=std::clamp(v[2],-128,127);
+    }
     return true;
 }
 static std::string lamp_style_text(const LevelLamp& l) {
+    char b[40];
+    if(l.style==lamp_duke) {std::snprintf(b,sizeof b,"duke:%d:%d:%d",l.duke_hitag,l.duke_on,l.duke_off);return b;}
     if(l.style!=lamp_wave) return lamp_style_names[l.style];
-    char b[32];std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
+std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
 }
 // D41E (relit.inc): ambient directives in the lamp file.
 static bool relit_parse_line(const char* line);
@@ -259,6 +275,15 @@ static float lamp_style_value(int style,uint32_t t,uint32_t seed) {
     }
     default: return 1.0f;
     }
+}
+// A lamp's level now: its style, the wave lamps' live table entry, or
+// (D41AB) Duke 3D's random light on the draw clock.
+struct LampWave;
+static float lamp_wave_value(const LampWave& w,int phase,float depth);
+static float lamp_level_value(const LevelLamp& l,const LampWave& wave,uint32_t seed) {
+    if(l.style==lamp_wave) return lamp_wave_value(wave,l.phase,l.depth);
+    if(l.style==lamp_duke) return duke_random_light_level(ttk_draw_clock_ms(),l.duke_hitag,l.duke_on,l.duke_off);
+    return lamp_style_value(l.style,light_ticks,seed);
 }
 // D41D1: the lamp's room (see LevelLamp::room).
 static int level_lamp_room(const LevelLamp& l) {
@@ -609,7 +634,7 @@ static unsigned level_lamps_publish(PSXModLight* out,unsigned room) {
     for(unsigned j=0;j<n && k<cap;++j) {
         const LevelLamp& l=level_lamps[near[j].i];
         float rgb[3]={l.rgb[0],l.rgb[1],l.rgb[2]};
-        float e=l.k*(l.style==lamp_wave ? lamp_wave_value(wave,l.phase,l.depth) : lamp_style_value(l.style,light_ticks,near[j].i));
+        float e=l.k*lamp_level_value(l,wave,near[j].i);
         // D55: a signal lamp shows its prop's frame (colour and brightness).
         if(l.style==lamp_signal) signal_lamp_now(near[j].i,rgb,e);
         e*=(float)level_lamp_cut_fade(near[j].d,cut,level_lamp_fade);
@@ -1194,8 +1219,8 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     } else if(!std::strcmp(verb,"style")) {
         if(!need_sel()) return;
         LevelLamp t=*s;
-        if(!lamp_style_parse(rest,t)) {level_lamp_notice("Lamp: styles steady flicker pulse candle strobe broken signal wave [phase 0-31] [depth 0-1]");return;}
-        s->style=t.style;s->phase=t.phase;s->depth=t.depth;level_lamps_dirty=true;level_lamp_flash_until=0;
+        if(!lamp_style_parse(rest,t)) {level_lamp_notice("Lamp: styles steady flicker pulse candle strobe broken signal wave [phase 0-31] [depth 0-1] duke [hitag] [lit shade] [unlit shade]");return;}
+        s->style=t.style;s->phase=t.phase;s->depth=t.depth;s->duke_hitag=t.duke_hitag;s->duke_on=t.duke_on;s->duke_off=t.duke_off;level_lamps_dirty=true;level_lamp_flash_until=0;
         level_lamp_describe(b,sizeof b,level_lamp_selected);level_lamp_notice("Lamp: %s",b);
     } else if(!std::strcmp(verb,"note")) {
         if(!need_sel()) return;

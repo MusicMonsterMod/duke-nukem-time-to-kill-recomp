@@ -60,7 +60,8 @@
 // standing: 1 yes, 0 broken (since broke_tick), -1 not yet known.
 struct LevelLamp {double p[3];float rgb[3];double radius;float k;int style;std::string note;int phase=0;float depth=1;int room=-2;
                   std::vector<PropRef> props;int standing=-1;uint32_t broke_tick=0;bool wall_checked=false;int monitor=-1;
-                  int duke_hitag=0,duke_on=duke_default_on_shade,duke_off=duke_default_off_shade;};   // D41AB
+                  int duke_hitag=0,duke_on=duke_default_on_shade,duke_off=duke_default_off_shade;   // D41AB
+                  int club=0;float file_rgb[3]={0,0,0};double file_radius=0;};   // D57J: 1 reshaped (the file's values kept), 2 added by the club rule
 enum {lamp_steady,lamp_flicker,lamp_pulse,lamp_candle,lamp_strobe,lamp_broken,lamp_wave,lamp_signal,lamp_duke,lamp_styles};
 static const char* const lamp_style_names[lamp_styles]={"steady","flicker","pulse","candle","strobe","broken","wave","signal","duke"};
 static constexpr unsigned level_lamp_max=12;          // of PSX_MOD_MAX_LIGHTS per image
@@ -203,13 +204,21 @@ static std::string lamp_style_text(const LevelLamp& l) {
     if(l.style!=lamp_wave) return lamp_style_names[l.style];
 std::snprintf(b,sizeof b,"wave:%d:%.2f",l.phase,l.depth);return b;
 }
+// D57J (club_lights.inc): nightclub rooms.
+static void club_reset();
+static void club_update();
+static void club_file_values(LevelLamp& l);
+static void club_write_dropped(std::ostream& f);
+static void club_console(const char* rest);
+static bool club_room(int room);
+static float club_ambient_now();
 // D41E (relit.inc): ambient directives in the lamp file.
 static bool relit_parse_line(const char* line);
 static void relit_reset();
 static void relit_save_lines(std::ostream& f);
 static void relit_console(const char* rest);
 static void level_lamps_load(unsigned level) {
-    relit_reset();
+    relit_reset();club_reset();
     level_lamps.clear();level_lamp_selected=-1;level_lamps_dirty=false;level_lamps_level=level;level_lamp_prop_sig=0;signal_cache_clear();
     level_lamps_path_used=level_lamps_path(level);
     std::ifstream f(level_lamps_path_used);
@@ -245,11 +254,14 @@ static bool level_lamps_save(std::string& error) {
         f<<"# x y z  r g b  radius  strength  style  # note\n";
         relit_save_lines(f);   // D41E: ambient lines (Relit)
         char row[200];
-        for(const LevelLamp& l:level_lamps) {
+        for(const LevelLamp& lamp:level_lamps) {
+            if(lamp.club==2) continue;   // D57J: added by the club rule at every load
+            LevelLamp l=lamp;club_file_values(l);
             std::snprintf(row,sizeof row,"%.0f %.0f %.0f  %.2f %.2f %.2f  %.0f  %.2f  %s",
                           l.p[0],l.p[1],l.p[2],l.rgb[0],l.rgb[1],l.rgb[2],l.radius,l.k,lamp_style_text(l).c_str());
             f<<row;if(!l.note.empty()) f<<"  # "<<l.note;f<<'\n';
         }
+        club_write_dropped(f);   // D57J: the scan lamps the club rule took out
         if(!f) {error="write failed";return false;}
     }
     std::filesystem::rename(tmp,path,ec);
@@ -1170,6 +1182,7 @@ static void level_lamp_run(CPUState* cpu,const std::string& cmd) {
     char b[200];
     auto need_sel=[&]{if(!s) level_lamp_notice("Lamp: none selected (lamp pick / lamp add)");return s!=nullptr;};
     if(!std::strcmp(verb,"ambient")) relit_console(rest);   // D41E
+    else if(!std::strcmp(verb,"club")) club_console(rest);   // D57J
     else if(!std::strcmp(verb,"add") || !std::strcmp(verb,"here")) {
         LevelLamp l{};l.rgb[0]=1.0f;l.rgb[1]=0.85f;l.rgb[2]=0.6f;l.radius=4000;l.k=1;l.style=lamp_steady;
         if(s) {for(int i=0;i<3;++i) l.rgb[i]=s->rgb[i];l.radius=s->radius;l.k=s->k;l.style=s->style;}
@@ -1354,6 +1367,7 @@ static void level_lamps_update(CPUState* cpu) {
     // D41W: while no bake is shown (after a load the bake waits for these; 8
     // a tick held it back 110-250 ms) as many as fit in 8 ms a tick (25-40
     // lamps took 7-10 ms on the desktop).
+    club_update();   // D57J: before the wall checks (the bake waits for those)
     if(shadow_mesh_tris && !shadow_mesh_copy.empty()) {
         unsigned budget=lamp_bake_is_active()?8:~0u,moved=0,checked=0;
         const auto wall_t0=std::chrono::steady_clock::now();
@@ -1455,6 +1469,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         say("  save | reload | clear | off | on | gate on|off | props on|off | crystals on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
         say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
         say("  ambient [P [unlit|outdoor|room N|here]] | ambient clear [room N|here]: how far RELIT dims this level's painted light");
+        say("  club [on|off]: the nightclub rule (D57J): dark club rooms lit by their fixtures; off reloads the lamps without it");
         say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
         say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");
         return true;
@@ -1477,7 +1492,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
         for(const std::string& r:level_lamp_listing) say(r.c_str());
         return true;
     }
-    static const char* const verbs[]={"ambient","add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind"};
+    static const char* const verbs[]={"ambient","add","here","pick","move","nudge","color","colour","radius","power","style","note","del","save","reload","clear","scan","signs","bind","unbind","club"};
     bool known=false;for(const char* v:verbs) {const size_t n=std::strlen(v);if(!std::strncmp(arg,v,n) && (!arg[n] || arg[n]==' ')) known=true;}
     if(!known) {say("Lamp: unknown command (type lamp for help)");return true;}
     {std::lock_guard<std::mutex> g(level_lamp_mutex);if(level_lamp_queue.size()<64) level_lamp_queue.emplace_back(arg);}

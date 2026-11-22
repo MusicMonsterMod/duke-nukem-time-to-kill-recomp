@@ -650,7 +650,14 @@ light over the posts, railings and buildings round the entrance, with a soft
 glow on each globe. The street lamp posts of the LA streets (levels 0, 5 and
 9) burn with the orange-amber of sodium lamps: each throws a pool of light
 down onto the road and pavement under its head, with darker road between the
-posts, and its lens glows. The subway train in
+posts, and its lens glows. The strip club (levels 0, 5 and 9) is a dark,
+hazy nightclub: in RELIT its room light is turned well down and the club is
+lit by its own fixtures, in pools with darkness between: warm amber light
+falls on each dancer from her pole's canopy, the spot cans on the neon bars
+throw magenta and blue pools with soft light shafts in the air, the tables
+and the bar glow, and the neon tubes and the canopies' bulbs glow in the
+haze. In ENHANCED the same lights sit on top of the club's own light;
+ORIGINAL shows the club as the game drew it. The subway train in
 level 0 carries its lights with it: its bumper lamps glow amber and red at
 both ends and the cyan beacon on its roof lights the tunnel round it,
 flickering at random the way Duke Nukem 3D's broken lights do: it sits dim and

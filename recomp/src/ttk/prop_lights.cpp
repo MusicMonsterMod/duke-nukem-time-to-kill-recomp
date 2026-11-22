@@ -148,6 +148,33 @@ bool street_lamp_mesh(uint32_t mesh) {
     return mesh_header(mesh,26,vp,list) && psx_mod_read_word(vp)==0x05b6ffb9u && psx_mod_read_half(vp+4)==0xfd9du &&
            psx_mod_read_word(vp+8*25)==0xfa5a004bu && psx_mod_read_half(vp+8*25+4)==0x0263u;
 }
+// D57J: the LA strip club's fixtures (levels 0, 5 and 9). The ceiling neon
+// bar (prop type 193): 48 vertices, a magenta tube along model x -2000..2000
+// at y 0 (the ceiling) and four spot cans hanging under it (y 102..277) at x
+// +-550 and +-1600, their lenses (x, 232, -160) aimed along model -z and 25
+// degrees down. First vertex (-1600, 0, 0), the last (1550, 102, 0).
+bool neon_bar_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,48,vp,list) && psx_mod_read_word(vp)==0x0000f9c0u && psx_mod_read_half(vp+4)==0x0000u &&
+           psx_mod_read_word(vp+8*47)==0x0066060eu && psx_mod_read_half(vp+8*47+4)==0x0000u;
+}
+// The pole stage's canopy (prop type 117): a red hexagonal lampshade, 13
+// vertices, its open rim at model y 0 (radius about 500 about (-38, 27)) and
+// its top at y -448, a ring of bulbs painted round its band. First vertex
+// (-31, -448, -41), the last (416, 0, 307).
+bool canopy_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,13,vp,list) && psx_mod_read_word(vp)==0xfe40ffe1u && psx_mod_read_half(vp+4)==0xffd7u &&
+           psx_mod_read_word(vp+8*12)==0x000001a0u && psx_mod_read_half(vp+8*12+4)==0x0133u;
+}
+// The back bar's bottle shelves (prop type 4, over the counter): 26
+// vertices, 3072 x 582 x 988. First vertex (-512, 291, 71), the last (1365,
+// -291, 71).
+bool club_bar_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,26,vp,list) && psx_mod_read_word(vp)==0x0123fe00u && psx_mod_read_half(vp+4)==0x0047u &&
+           psx_mod_read_word(vp+8*25)==0xfedd0555u && psx_mod_read_half(vp+8*25+4)==0x0047u;
+}
 bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
@@ -164,6 +191,9 @@ int kind_of(uint32_t mesh) {
     if(train_mesh(mesh)) return prop_light_train;
     if(globe_mesh(mesh)) return prop_light_globe;
     if(street_lamp_mesh(mesh)) return prop_light_street;
+    if(neon_bar_mesh(mesh)) return prop_light_neon_bar;   // D57J
+    if(canopy_mesh(mesh)) return prop_light_canopy;
+    if(club_bar_mesh(mesh)) return prop_light_club_bar;
     return prop_light_none;
 }
 bool visuals() {
@@ -492,6 +522,7 @@ void scan_props() {
             const bool barrel=barrel_mesh(mesh);
             const int kind=barrel?prop_light_none:kind_of(mesh);
             if(!kind && !barrel) continue;
+            if(prop_light_club_kind(kind)) continue;   // D57J: their lights are club lamps (club_lights.inc)
             double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             const double yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*pi/4096);
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
@@ -836,6 +867,65 @@ PropGlow billboard(float x,float y,float z,float w,float h,float anchor_y,float 
     q.u=u;q.v=v;q.tw=tw;q.th=th;q.rgb[0]=level8(r);q.rgb[1]=level8(g);q.rgb[2]=level8(b);
     return q;
 }
+// D57J: haze round the club's lights (Enhanced and Relit only: LIGHTING
+// ORIGINAL keeps the club as the game drew it). The neon tube glows in the
+// air along its length; each spot can's lens glows in its gel and throws a
+// soft shaft down its aim (two crossed quads, the beam texture: brightest at
+// the lens); the canopy's bulb ring glows and the inside of the shade is lit.
+// Developer: DNTTK_CLUB_HAZE="neon can beam canopy" (levels, 0 off).
+float club_haze_neon=34,club_haze_can=120,club_haze_beam=26,club_haze_canopy=60;
+constexpr float club_tube_rgb[3]={1.0f,0.0f,0.87f};   // the tube's texels (248 0 216)
+bool club_haze_on() {
+    if(!club_lights_enabled.load(std::memory_order_relaxed)) return false;
+    const char* t=ttk_live_env("DNTTK_LIGHTS");
+    return !(t && !std::strcmp(t,"off"));
+}
+PropGlow quad(const float c[4][3],int u,int v,int tw,int th,float r,float g,float b) {
+    PropGlow q{};std::memcpy(q.p,c,sizeof q.p);q.u=u;q.v=v;q.tw=tw;q.th=th;q.rgb[0]=level8(r);q.rgb[1]=level8(g);q.rgb[2]=level8(b);
+    return q;
+}
+unsigned club_glows(int kind,PropGlow* out,unsigned max) {
+    if(!club_haze_on()) return 0;
+    unsigned n=0;
+    if(kind==prop_light_neon_bar) {
+        for(int i=-2;i<=2 && n<max && club_haze_neon>0;++i)
+            out[n++]=billboard(800.0f*i,40,0,900,520,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                               club_haze_neon*club_tube_rgb[0],club_haze_neon*club_tube_rgb[1],club_haze_neon*club_tube_rgb[2]);
+        for(int c=0;c<4;++c) {
+            const float* g=club_gel[c];
+            const float lx=club_can_x[c],ly=club_can_y,lz=club_can_z;
+            if(n<max && club_haze_can>0) {
+                const float k=club_haze_can;
+                out[n++]=billboard(lx,ly+10,lz-30,300,300,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                   k*(0.35f+0.65f*g[0]),k*(0.35f+0.65f*g[1]),k*(0.35f+0.65f*g[2]));
+            }
+            if(club_haze_beam<=0) continue;
+            // The shaft: from the lens (80 wide) down the aim, 1900 long, 760 wide at its end.
+            constexpr float len=1900,w0=40,w1=380;
+            const float e[3]={lx+club_can_aim[0]*len,ly+club_can_aim[1]*len,lz+club_can_aim[2]*len};
+            // Across the beam: model x, and the direction square to x and the aim.
+            const float side2[3]={0,club_can_aim[2],-club_can_aim[1]};
+            for(const float* sd:{(const float*)nullptr,side2}) {
+                if(n>=max) break;
+                const float s[3]={sd?sd[0]:1.0f,sd?sd[1]:0.0f,sd?sd[2]:0.0f};
+                const float c4[4][3]={{lx-s[0]*w0,ly-s[1]*w0,lz-s[2]*w0},{lx+s[0]*w0,ly+s[1]*w0,lz+s[2]*w0},
+                                      {e[0]-s[0]*w1,e[1]-s[1]*w1,e[2]-s[2]*w1},{e[0]+s[0]*w1,e[1]+s[1]*w1,e[2]+s[2]*w1}};
+                const float k=club_haze_beam;
+                out[n++]=quad(c4,prop_beam_u,0,prop_beam_w,prop_beam_h,k*g[0],k*g[1],k*g[2]);
+            }
+        }
+    } else if(kind==prop_light_canopy && club_haze_canopy>0) {
+        const float k=club_haze_canopy;
+        // Inside the shade, lit from below by its lamp.
+        if(n<max) out[n++]=billboard(-38,-60,27,1200,700,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,k,k*0.55f,k*0.38f);
+        // The bulb ring: six small warm points round the band.
+        for(int i=0;i<6 && n<max;++i) {
+            const float a=(float)(i*pi/3+pi/6);
+            out[n++]=billboard(-38+520*std::cos(a),-400,27+520*std::sin(a),170,170,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,1.4f*k,1.4f*k*0.78f,1.4f*k*0.52f);
+        }
+    }
+    return n;
+}
 unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
     if(!visuals()) return 0;
     const uint32_t ms=now_ms();unsigned n=0;
@@ -926,6 +1016,8 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
                 out[n++]=billboard(x,y,z,260,260,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,v,v*0.8f,v*0.5f);
             }
         }
+    } else if(prop_light_club_kind(kind)) {
+        n=club_glows(kind,out,max);
     } else if(kind==prop_light_ring) {
         uint32_t vp,list;
         if(!mesh_header(mesh,51,vp,list)) return 0;
@@ -977,6 +1069,14 @@ void paint(uint16_t* bank) {
         bank[(size_t)y*1024+base+prop_white_halo_u+x]=texel(g,g,g);
     }
     for(int y=0;y<prop_shade_h;++y) for(int x=0;x<prop_shade_w;++x) bank[(size_t)y*1024+base+prop_shade_u+x]=0x8000;
+    // D57J: the light shaft: a soft gaussian across, fading down its length.
+    for(int y=0;y<prop_beam_h;++y) for(int x=0;x<prop_beam_w;++x) {
+        const float ny=(y+0.5f)/prop_beam_h,nx=(x+0.5f)/prop_beam_w*2-1;
+        const float across=std::exp(-nx*nx*4.0f)-std::exp(-4.0f);
+        const float along=std::pow(1-ny,1.6f)*smooth(0.0f,0.08f,ny);
+        const float g=std::max(0.0f,across/(1-std::exp(-4.0f))*along);
+        bank[(size_t)y*1024+base+prop_beam_u+x]=texel(g,g,g);
+    }
     // Embers: red-orange, hottest along the bottom, soft at the sides,
     // brighter in uneven clumps.
     for(int y=0;y<prop_ember_h;++y) for(int x=0;x<prop_ember_w;++x) {
@@ -1002,6 +1102,11 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_STREET",ttk::street_light);   // D57I
     if(const char* e=std::getenv("DNTTK_PROP_STREET_AT")) std::sscanf(e,"%f %f",&ttk::street_at[1],&ttk::street_at[2]);
     if(const char* e=std::getenv("DNTTK_PROP_STREET_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::street_halo_size,&ttk::street_halo_level,&ttk::street_halo_rgb[0],&ttk::street_halo_rgb[1],&ttk::street_halo_rgb[2]);
+    if(const char* e=std::getenv("DNTTK_CLUB_HAZE")) std::sscanf(e,"%f %f %f %f",&ttk::club_haze_neon,&ttk::club_haze_can,&ttk::club_haze_beam,&ttk::club_haze_canopy);   // D57J
+    if(const char* e=std::getenv("DNTTK_CLUB_GEL")) {   // D57J: "outer r g b inner r g b" (the cans at x +-1600, +-550)
+        float v[6];
+        if(std::sscanf(e,"%f %f %f %f %f %f",&v[0],&v[1],&v[2],&v[3],&v[4],&v[5])==6) for(int c=0;c<4;++c) for(int k=0;k<3;++k) ttk::club_gel[c][k]=v[(c==0||c==3?0:3)+k];
+    }
     if(const char* e=std::getenv("DNTTK_PROP_GLOBE_HALO")) std::sscanf(e,"%f %f",&ttk::globe_halo_size,&ttk::globe_halo_level);
     if(const char* e=std::getenv("DNTTK_PROP_CAGE_AT")) ttk::cage_at[2]=(float)std::atof(e);
     if(const char* e=std::getenv("DNTTK_PROP_CAGE_HALO")) std::sscanf(e,"%f %f",&ttk::cage_halo_size,&ttk::cage_halo_level);

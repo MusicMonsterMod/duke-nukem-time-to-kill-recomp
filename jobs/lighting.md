@@ -1770,7 +1770,7 @@ Work log, 2026-11-22 ([note 540](../documentation/540-d57i-sodium-street-lamps.m
 
 ### D57J - Strip club lighting: a dark, hazy nightclub in Relit
 
-**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D57I.**
+**Status: Done (accepted 2026-11-22). Dependencies: D57I.**
 
 User, 2026-11-22, closing D57I: "review the lighting inside the strip club.
 the problem is that in relit, it's like, too bright all in one go, wheras
@@ -1837,6 +1837,38 @@ need to pay attention to that too."
   Still to study: reference clubs in games and film (Duke Nukem 3D's own
   strip club in Red Light District under EDuke32/Polymer, Hitman's Berlin
   club, Cyberpunk 2077's Lizzie's Bar, film neon interiors), with sources.
+
+Work log, 2026-11-22 ([note 541](../documentation/541-d57j-club-lighting.md)):
+
+- Cause (MEASURED, level 0, the user's view, Relit): all lamps mean 37.1,
+  level lamps off (Relit's dimmed painted light alone) 14.6, Original 20.6;
+  any one of the 13 club lamps off moves it by 3.3 at most. Relit's base is
+  dark enough; the wash is four broad scan lamps plus sign lamps of
+  3500-4224 at every table and tube, at Relit's 1.7x strength and 1.35x
+  reach.
+- The club by data: its fixtures by model in `prop_lights.cpp` (neon bar
+  type 193, pole canopy 117, back bar 4). Survey of all 21 levels: levels 0
+  (rooms 75, 76), 5 (17, 41; the burning club) and 9 (12) only.
+- Research widened (real venues, games, film; note 541): low ambient, light
+  only from visible fixtures, pools with dark gaps, magenta/red with a cool
+  blue accent against one warm near-skin key on each dancer, thin haze.
+- Change (`recomp/src/ttk/club_lights.inc`, new; `prop_lights.cpp`/`.h`,
+  `level_lights.inc`, `relit.inc`): a room holding a club fixture is a
+  nightclub room: Relit ambient 30%; scan lamps out; the other lamps
+  saturated at 55% reach; added (not saved) a warm amber-pink key under each
+  canopy (strength 4.0, radius 2000) and a magenta or blue gel pool down each
+  spot can's aim; haze glows on the tubes, can lenses (with soft shafts) and
+  canopies in Enhanced and Relit. `lamp club off|on` compares; `lamp save`
+  keeps the file's values.
+- Evidence: Relit mean / dark share before -> after: level 0 slot 40.6 / 17%
+  -> 22.7 / 64%, level 0 stages 47.0 -> 28.8, level 5 50.1 -> 31.1, level 9
+  48.5 -> 29.9; Enhanced reviewed (34.2 -> 26.7 on the slot view); Original
+  and Vanilla unchanged. 180 Hz pacing unchanged, GPU no measurable change;
+  tests 270 OK. Shots in `research/before-after/D57J/` (local).
+- Needs playtest: the user's look on the real display.
+
+Closed out, 2026-11-22: user "lock it in and close it out. im insanely impressed. this is just unfathomably good work." Done; lab trimmed to its scripts and
+results (shots kept in `research/before-after/D57J/`).
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

@@ -1316,6 +1316,7 @@ static bool crystal_mission_usable(CPUState* cpu,uint32_t handler,uint32_t objec
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
 #include "relit.inc"
+#include "club_lights.inc"   // D57J
 #include "lamp_bake.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.

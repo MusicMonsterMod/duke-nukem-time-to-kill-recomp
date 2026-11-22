@@ -26,8 +26,26 @@ namespace ttk {
 // bumper lamps, roof beacon and headlight, and its crash flash and sparks.
 // D57I: prop_light_street, the LA street lamp post (prop type 160): a soft
 // sodium-orange glow on its lens.
+// D57J: the LA strip club's fixtures (levels 0, 5 and 9): prop_light_neon_bar,
+// the ceiling bar with its magenta neon tube and four spot cans (prop type
+// 193); prop_light_canopy, the red lampshade over a pole stage (prop type
+// 117); prop_light_club_bar, the back bar's shelves (prop type 4). Their
+// rooms are nightclub rooms (club_lights.inc); the bar and the canopy carry
+// haze glows, the back bar only marks its room.
 enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
-      prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9};
+      prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9,
+      prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12};
+inline bool prop_light_club_kind(int kind) {return kind>=prop_light_neon_bar && kind<=prop_light_club_bar;}
+// D57J: the club look (club_lights.inc and the haze glows here): console
+// "lamp club off|on" (session; off = the lamps and look before D57J).
+inline std::atomic<bool> club_lights_enabled{true};
+// D57J: the neon bar's spot cans, in the bar's model space: the lens
+// centres (x of can i, y, z), the aim (down 25 degrees, along model -z) and
+// each can's gel (r g b). Shared by the gel lamps (club_lights.inc) and
+// the lens halos and beams (prop_lights.cpp).
+constexpr float club_can_x[4]={-1600,-550,550,1600},club_can_y=232,club_can_z=-160;
+constexpr float club_can_aim[3]={0,0.42f,-0.91f};
+inline float club_gel[4][3]={{1.0f,0.10f,0.55f},{0.30f,0.22f,1.0f},{0.30f,0.22f,1.0f},{1.0f,0.10f,0.55f}};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,
@@ -90,6 +108,9 @@ constexpr int prop_ember_u=48,prop_ember_w=32,prop_ember_h=16;    // embers behi
 // with prop_shade_tpage: the same page in mode 0, half the background).
 constexpr int prop_white_halo_u=80,prop_white_halo_w=32,prop_white_halo_h=32;
 constexpr int prop_shade_u=112,prop_shade_w=4,prop_shade_h=4;
+// D57J: a soft light shaft for haze (club spot cans): brightest at the top
+// edge (the lens), widening and fading downwards, soft at the sides.
+constexpr int prop_beam_u=128,prop_beam_w=32,prop_beam_h=32;
 constexpr uint32_t prop_shade_tpage=0x104;
 
 // Smooth value noise, 0..1, from a time in steps and a seed.

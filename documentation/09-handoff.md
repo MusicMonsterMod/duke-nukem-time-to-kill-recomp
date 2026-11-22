@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D57J closed out (Done)
+
+- D57J ([note 541](541-d57j-club-lighting.md)): user "lock it in and close it out. im insanely impressed. this is just unfathomably good work." The strip club (levels 0, 5 and 9, found by its fixtures' models) is a dark, hazy nightclub in RELIT (nightclub-room rule in `club_lights.inc`; `lamp club off|on` compares). ENHANCED reviewed; Original, Vanilla and Classic unchanged; no measurable cost at 180 Hz.
+
+## 2026-11-22 - D57J strip club lighting (Needs playtest)
+
+- D57J ([note 541](541-d57j-club-lighting.md)): nightclub rooms (`club_lights.inc`; fixtures by model in `prop_lights.cpp`: neon bar 193, pole canopy 117, back bar 4) on levels 0 (rooms 75, 76), 5 (17, 41) and 9 (12). Relit ambient 30% there, the scan lamps out, other lamps saturated at 55% reach, a warm key under each canopy (1.00 0.68 0.55, 4.0, r 2000) and gel pools from the spot cans (magenta outer, blue inner), haze glows and shafts in Enhanced and Relit. Console `lamp club off|on` for A/B. Relit on the user's slot view 40.6 -> 22.7 (dark 17% -> 64%); Original and Vanilla unchanged; 180 Hz pacing unchanged, no measurable GPU cost; executable `1881e8d2...`. Waits on the user's look on the real display (test spot: UI slot 12, copy in `research/savestates/d57j/`).
+
 ## 2026-11-22 - D57I closed out (Done)
 
 - D57I ([note 540](540-d57i-sodium-street-lamps.md)): user "lock it in and close it out". The LA street lamp posts (prop type 160, by model; levels 0, 5 and 9) give high-pressure sodium light in ENHANCED and RELIT: a pool out over the road and a glow on the lens. Next up by user request: D57J (the strip club in Relit reads as "a room with the lights all on bright"; redo it as a dark, hazy, coloured nightclub, every level it appears in; test spot the user's UI slot 12, copied to `research/savestates/d57j/`; lab `recomp/analysis/d57j/`; research started in the job).

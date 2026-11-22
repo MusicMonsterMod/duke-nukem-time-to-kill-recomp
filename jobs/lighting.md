@@ -1541,7 +1541,7 @@ lamp).
 
 ### D57E - LA apartment lamp gives light
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+**Status: Done (closed with D57K, 2026-11-22). Dependencies: D57, D57K.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: a lamp in a Los Angeles apartment-building area should
@@ -1553,6 +1553,20 @@ Note, 2026-11-22: level 0 room 8 is a furnished upper apartment off the LA
 street. Its shaded table lamp (type 228) has given light since D57D; its
 hanging ceiling lamp (type 229) is [D57K](#d57k---hanging-ceiling-lamp-gives-light-la-apartment).
 Ask the user whether either is this lamp; if so, D57E closes with them.
+
+Work log, 2026-11-22 (Needs playtest; user: "proceed to do them in order",
+D57K first): D57K lights the room 8 hanging lamp. With D57D, every lamp of
+the LA apartment set now gives light: the table lamp (type 228) and the
+hanging lamp (type 229), in room 8 of levels 0 and 9 (the 21-level surveys
+of D57D and D57K found no other copies of either outside the club rooms).
+The level and room of the 2026-11-14 commentary are not on record (no video
+from that day in the screencaps folder), so the user confirms on the D57K
+playtest whether this is the lamp they meant; if so D57E closes with D57K,
+otherwise a save state at the lamp starts it.
+
+Closed out, 2026-11-22, with D57K: user "lock it in, and close it out." The
+user went straight on to the same room's mood lighting (D57L), so the
+apartment lamps of room 8 are taken as this lamp. Done.
 
 ### D57F - Time-portal machine crystal slots glow when filled (OBEY OR DIE)
 
@@ -1913,7 +1927,7 @@ results (shots kept in `research/before-after/D57J/`).
 
 ### D57K - Hanging ceiling lamp gives light (LA apartment)
 
-**Status: Todo (backlog; user UI slot 12, 2026-11-22). Dependencies: D57D.**
+**Status: Done (user-accepted 2026-11-22: "lock it in, and close it out"). Dependencies: D57D.** [Note 543](../documentation/543-d57k-hanging-ceiling-lamp.md).
 
 User, 2026-11-22, closing D57D: "the next one is the light i have just saved
 in slot 12. can you check that light, and then add it to the backlog."
@@ -1948,6 +1962,89 @@ at 180 Hz; before/after shots to `research/before-after/D57K/`. The lab can
 load the slot (warp could not stand Duke in this upper room in D57D).
 Acceptance: the room under the lamp takes its light, judged by the user on
 the real display.
+
+Work log, 2026-11-22 (Needs playtest):
+
+- Model words read from the slot (lab `verts`): first vertex (13, 470, 13)
+  (the face dump's -13 above was a face corner), the last (136, 451, 137).
+- Survey of all 21 levels: the model is in room 8 of level 0 and room 8 of
+  level 9 (the same apartment set, at another load address); none elsewhere.
+- `prop_lights.cpp`/`.h`: `pendant_mesh`, kind `prop_light_pendant`, by
+  model, game-wide: one steady warm tungsten light just under the bulb
+  (1.00 0.78 0.50, strength 0.5, radius 2200) and a soft glow on the bulb
+  (300 across, level 40); ENHANCED and RELIT; Original, Vanilla and Classic
+  unchanged. Developer `DNTTK_PROP_LIGHT_PENDANT`, `DNTTK_PROP_PENDANT_AT`,
+  `DNTTK_PROP_PENDANT_HALO`. The table lamp's 1.2 bleached this brightly
+  painted room (Relit 90th percentile 251); 0.7 still washed the wall; 0.5
+  reads as a warm pool with the shade visible.
+- Evidence from the user's slot: Relit 100.0 -> 131.4 mean (90th percentile
+  119 -> 196), Enhanced 118.3 -> 139.8, Original identical; 180 Hz pacing
+  p50/p95 6 ms off and on, GPU 17.4-17.6 % off vs 17.0-17.8 % on (no
+  measurable cost); Vanilla no prop-light activity; tests 270 OK. Shots
+  `research/before-after/D57K/` (local).
+- Limits: one lab view (the slot looks up at the lamp); Relit does not dim
+  the room's painted light further (a follow-up if the lamp should read as
+  the only source); level 9's copy not looked at.
+
+Closed out, 2026-11-22: user "lock it in, and close it out." Done; lab
+`recomp/analysis/d57k/` trimmed to its scripts and results (shots kept in
+`research/before-after/D57K/`). Follow-up backlog:
+[D57L](#d57l---la-apartment-mood-lighting-hazy-and-mysterious-with-a-lights-out-glow)
+(the same room's mood lighting and its light switch; user's resaved UI slot
+12, next up).
+
+### D57L - LA apartment mood lighting: hazy and mysterious, with a lights-out glow
+
+**Status: Todo (backlog; user 2026-11-22, next up). Dependencies: D57K.**
+
+User, 2026-11-22, closing D57K: "now the next job after this one will be
+what to do when you turn the lights out in that room. i have resaved slot
+12 so you'll want to copy it over. First off, when the lights go off (using
+the switch right in front of you), the room dims, but the lights stay
+bright. i really like this aesthetic, so it made me think what if we did a
+little work in this room overall where we actually make the room a bit more
+seductive - not as in the nightclub, but having the big bright "downward
+lighting" look for the apartment of a "lady of the evening" if you know
+what i mean, is a bit too much! i feel like it should be more hazy and
+mysterious in there. i dont mind for a bit of recolor of the lighting if it
+suits the occasion. when you switch the lights off, we do something where
+there is still somewhat of a light source somewhere because i really like
+that aesthetic somehow of the small amount of light in the room when the
+switch is flicked. maybe dim the desk lamp? so maybe we actually plan this
+one out a bit, and also do some research on lighting that room too just
+like we did with the strip club."
+
+The spot: level 0 room 8, the furnished upper apartment off the LA street
+(D57K; the same set is room 8 of level 9). The user's resaved UI slot 12 of
+2026-11-22 21:05 is copied to `research/savestates/d57l/` (local, never
+committed); Duke stands at the room's light switch.
+
+Work, planned before it is built (as D57J):
+
+1. Research (sourced, as D57J's nightclub study): how film, games and
+   lighting design light a dim, intimate 90s apartment of this kind - low
+   warm practicals (shaded lamps, a red or amber gel or bulb), haze, light
+   kept low and off the ceiling, pools rather than a wash; and how a room
+   reads after the main light is switched off (one practical left on, light
+   from the window or the street, the TV).
+2. Measure the room as the game draws it: its painted light in each mode,
+   the lamps (D57D table lamp, D57K hanging lamp), the switch (what the game
+   changes when it is flicked: the room's shade, a sector light, a flag),
+   and why the prop lights stay bright after it (they do not follow the
+   switch today).
+3. A written plan with mock-ups or lab shots for the user to choose from
+   before the build: the lit look (hazier, warmer or recoloured, less of a
+   bright downward pool from the hanging lamp) and the lights-out look
+   (the hanging lamp goes out with the switch; a small light stays, e.g.
+   the table lamp dimmed low, the window or the TV).
+4. Build by rule, not by level data (fix the system, not the level): a
+   room rule as D57J's club rooms (found by its fixtures, so level 9's copy
+   follows), the switch read from the game's own state; ENHANCED and RELIT;
+   Original, Vanilla and Classic unchanged; cost measured at 180 Hz;
+   before/after shots to `research/before-after/D57L/`.
+
+Acceptance: the room reads hazy and mysterious when lit, and when the switch
+is flicked a small light remains, judged by the user on the real display.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

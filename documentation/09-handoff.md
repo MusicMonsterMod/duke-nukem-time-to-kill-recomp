@@ -1,5 +1,14 @@
 # Next-session handoff
 
+## 2026-11-22 - D57K and D57E closed out (Done)
+
+- D57K ([note 543](543-d57k-hanging-ceiling-lamp.md)): user "lock it in, and close it out." The hanging ceiling lamp (prop type 229, by model; room 8 of levels 0 and 9) lights its room in ENHANCED and RELIT. D57E closes with it. Next up by user request: D57L, the apartment's mood lighting and its light switch (research and plan first; save copy in `research/savestates/d57l/`).
+
+## 2026-11-22 - D57K hanging ceiling lamp, D57E apartment lamp (Needs playtest)
+
+- D57K ([note 543](543-d57k-hanging-ceiling-lamp.md)): the hanging ceiling lamp (prop type 229, by model; room 8 of levels 0 and 9) gives a steady warm light and a soft bulb glow in ENHANCED and RELIT (strength 0.5; Relit 100.0 -> 131.4 from the user's slot); Original, Vanilla and Classic unchanged; no measurable cost at 180 Hz. Waits on the user's look from UI slot 12.
+- D57E: both LA apartment lamps now give light; the user confirms whether the 2026-11-14 lamp is one of them, and if so it closes with D57K.
+
 ## 2026-11-22 - D57D closed out (Done)
 
 - D57D ([note 542](542-d57d-club-back-room-lamp.md)): user "lock it in and close it out!! thats excellent." The shaded table lamps (prop type 228, by model; levels 0, 5 and 9) light their rooms in ENHANCED and RELIT. Next up by user request: D57K, the hanging ceiling lamp (prop type 229) in level 0 room 8, the LA apartment (user's UI slot 12 of 2026-11-22 19:49, copy in `research/savestates/d57k/`).

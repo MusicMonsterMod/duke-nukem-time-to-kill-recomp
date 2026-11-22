@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-22 - D41Z closed out (Done)
+
+- D41Z ([note 536](536-d41z-caged-wall-lamps.md)): user "its perfect!! lock it in and close it out". Every caged wall lamp (types 665, 667, 851; by model) casts a steady light in its texture's colour with a soft halo, in ENHANCED and RELIT; levels 0, 5 and 9. Next up by user request: D41AA (subway train lights: bumper lamp clusters, red markers, cyan panel; type 77, UI slot 12 save copy in `research/savestates/d41aa/`).
+
+## 2026-11-22 - D41Z caged wall lamps (Needs playtest)
+
+- D41Z ([note 536](536-d41z-caged-wall-lamps.md)): every caged wall lamp (types 665, 667 and level 5's red 851; one cage model, found by model) casts a steady light in its texture's colour (pale 1.00 0.99 0.60, red 1.00 0.06 0.06) with a soft halo on the bulb, in ENHANCED and RELIT. Level 0: 24, level 5: 24 lit plus 8 red ones that keep their existing D41D1 sign lamps (no doubling), level 9: 7. Slot 12 wall 34 -> 71 (Relit); Original unchanged; Vanilla pixel-identical; 180 Hz pacing unchanged. Executable `eb706942...`. Waits on the user's look in UI slot 12 on the real display.
+
 ## 2026-11-22 - D17BO closed out (Done)
 
 - D17BO ([note 535](535-d17bo-train-floor-origin.md)): user "lock it in and close it out!" Static props find their D41P floor light from their exact position; the slot 12 train no longer blinks lit/grey as Duke walks. Next up by user request: D41Z (caged wall lamps give light; LEVEL00, UI slot 12 save copy in `research/savestates/d41z/`).

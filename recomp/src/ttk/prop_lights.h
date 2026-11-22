@@ -18,7 +18,10 @@ namespace ttk {
 // levels 0 and 5): no light of its own, darker metal, a glow at its centre.
 // D41Y: prop_light_barricade, the construction barricade (prop type 128):
 // a halo over its warning lamp while the game's own blink shows it lit.
-enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5};
+// D41Z: prop_light_cage, the caged wall lamp (prop type 667): a soft halo
+// over its bulb.
+enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
+      prop_light_cage=6};
 // The model kind of an object mesh (prop_light_none for every other mesh).
 inline int (*prop_light_kind)(uint32_t mesh)=nullptr;
 // Whether the drawn extras (flames, the grate's glow) are on: Modernized,

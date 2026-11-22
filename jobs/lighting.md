@@ -1989,7 +1989,7 @@ subway train flickers as Duke walks, new UI slot 12).
 
 ### D41Z - Caged wall lamps give light (UI slot 12)
 
-**Status: Todo (backlog; user report 2026-11-22, "next up"). Dependencies: D41, D41X, D41Y.**
+**Status: Done (user-accepted 2026-11-22: "its perfect!! lock it in and close it out"; [note 536](../documentation/536-d41z-caged-wall-lamps.md)). Dependencies: D41, D41X, D41Y.**
 
 User, 2026-11-22, closing D17BO: "these lamps are not emitters, so we need
 to do the same kind of thing as we have been doing with other objects".
@@ -2015,3 +2015,80 @@ Acceptance: the caged lamps in UI slot 12 light the wall and floor around
 them in ENHANCED and RELIT, and the same lamps elsewhere do too; no
 doubling with existing lamps; no cost at 180 Hz worth noting; ORIGINAL and
 Vanilla unchanged; the user agrees.
+
+Work log, 2026-11-22 ([note 536](../documentation/536-d41z-caged-wall-lamps.md)):
+
+- Measured: the lamp is a static prop, not texture: types 665 and 667 (pale)
+  and 851 (red, level 5) share one 26-vertex cage model, one record per type
+  and level, steady (no animated face), unbreakable by gunfire. Level 0 has
+  24, level 5 32 (8 red), level 9 7; none on the 13 other levels reached.
+- Implemented in `prop_lights.cpp`: every caged lamp, found by its model,
+  gets a steady light 90 units before its bulb in the colour read from its
+  own texture (pale 1.00 0.99 0.60, red 1.00 0.06 0.06), strength 0.8,
+  radius 1600, and a soft halo in that colour, in LIGHTING ENHANCED and
+  RELIT. A lamp the level file already binds to that prop (level 5's red sign
+  lamps) keeps that lamp alone; `lamp signs` skips the model; out when marked
+  broken (D54).
+- Evidence: slot 12 wall 34 -> 71 (Relit), 50 -> 71 (Enhanced), Original
+  unchanged; light points in their own rooms for all 24 level 0 lamps; Vanilla
+  pixel-identical; 180 Hz pacing unchanged; local tests OK.
+- Remaining: the user's look in UI slot 12 on the real display; levels 5 and
+  9 checked by trace only.
+
+Closeout, 2026-11-22: user "its perfect!! lock it in and close it out". Done. Lab `recomp/analysis/d41z/` trimmed
+to its scripts, results and the D41AA train inspection.
+
+### D41AA - Subway train lights (UI slot 12)
+
+**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41, D41X, D41Y, D41Z.**
+
+User, 2026-11-22, accepting D41Z: "thoroughly inspect the train model as
+shown here. i feel like there are spots on the train that could be lit and it
+would add drama to it ... there are clearly sections here which look like
+lights".
+
+Test save: UI slot 12 (saved 2026-11-22 12:47, LEVEL00: Duke at (18763,
+-6015, 40290) facing the front of the parked subway train on the tracks),
+copied to `research/savestates/d41aa/` (local, never committed). Load
+private copies, never the player's card.
+
+First inspection (D41Z lab, `tm-results.json`, `tm-mosaic.png`, local;
+MEASURED):
+
+- The train is a static prop (kind 1) of type 77, model `0x8011c41c` (69
+  vertices, 65 faces, 9470 long: x -9361..110, y -1794 (roof)..46, z +-898),
+  record `0x801d5d64` in room 82 at (7399, -5784, 39932), yaw 1958 (D17BO's
+  train). No face is animated (no animation table), so any light is steady
+  unless we choose otherwise.
+- Faces that look like lights, from their textures:
+  - Faces 0 and 2: the bumper strip low on both ends (y -357..46): a lamp
+    cluster of amber, red, amber squares (hot texels 210 106 0).
+  - Face 3: a bright cyan panel on top of the front end (x -9361..-8846,
+    y -1523), 231 of 238 texels bright (mean 75 196 242): the blue window
+    seen over the cab in the save.
+  - Faces 1, 17, 18, 19 and 61-63: the end panels' lower corners carry two
+    red marker lamps each (200 0 0); faces 17 and 19 also hold the amber
+    hazard stripes (not lamps).
+  - The side windows (faces 4-6, 21, 23, 26, 33, 36, 40-42, 52) are dark
+    grey glass: lighting them (a lit car interior) would be an addition, not
+    something the texture shows; ask the user.
+- Existing lamps: level 0's file has one D41D1 sign lamp bound to a type 77
+  prop (`sign type 77 room 23 prop 77 32741 -5784 41976`, cyan 0.14 0.76
+  1.00, radius 3992) - the cyan panel of a second train at a place where the
+  room-list scan now finds none (only the room 82 train). Find what that
+  second train is (a moving object, another state, another list) before
+  adding lights, so no train is lit twice and none is missed.
+
+Work, as D41X-D41Z: make the train's lamps light sources game-wide, found by
+its model (and by its face textures for where on the model), never by placed
+positions: the bumper clusters cast low amber/red light on the rails and
+tunnel floor, the red markers small red glows, the cyan panel a cool light,
+each with a soft halo on the lamp where it reads better; LIGHTING ENHANCED
+and RELIT, ORIGINAL and Vanilla unchanged. Keep the D17BO fix (no flicker
+while walking past). Check every level the train model appears on.
+
+Acceptance: in UI slot 12 the train's lamps visibly light the rails, floor
+and tunnel around its ends in ENHANCED and RELIT and add drama; no doubling
+with the existing type 77 sign lamp; no flicker; no cost at 180 Hz worth
+noting; ORIGINAL and Vanilla unchanged; the user agrees.
+

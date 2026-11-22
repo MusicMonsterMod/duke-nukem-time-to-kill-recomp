@@ -30,6 +30,7 @@
 #include "live_env.h"
 #include "pc_input.h"
 #include "cpu_state.h"
+#include "gpu.h"
 #if defined(PSX_SDL3)
 #include <SDL3/SDL.h>
 #else
@@ -103,7 +104,17 @@ bool barricade_mesh(uint32_t mesh) {
     return mesh_header(mesh,9,vp,list) && psx_mod_read_word(vp)==0x00ffff33u && psx_mod_read_half(vp+4)==0xff89u &&
            psx_mod_read_word(vp+8*8)==0xff01ff33u && psx_mod_read_half(vp+8*8+4)==0x0002u;
 }
-bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh);}
+// D41Z: the caged wall lamp (prop types 665 and 667 pale, 851 red; levels 0,
+// 5 and 9, one model record per type and level): 26 vertices, a bulb 86 wide
+// and 200 tall behind four bars, standing out from its wall plate (model z
+// 31) to z -31; model -z faces the room. Its texture is steady (no animated
+// face). First vertex (0, 100, -3), the last (-43, -99, 31).
+bool cage_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,26,vp,list) && psx_mod_read_word(vp)==0x00640000u && psx_mod_read_half(vp+4)==0xfffdu &&
+           psx_mod_read_word(vp+8*25)==0xff9dffd5u && psx_mod_read_half(vp+8*25+4)==0x001fu;
+}
+bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -115,6 +126,7 @@ int kind_of(uint32_t mesh) {
     if(chandelier_mesh(mesh)) return prop_light_chandelier;
     if(ring_mesh(mesh)) return prop_light_ring;
     if(barricade_mesh(mesh)) return prop_light_barricade;
+    if(cage_mesh(mesh)) return prop_light_cage;
     return prop_light_none;
 }
 bool visuals() {
@@ -147,6 +159,63 @@ BlinkSlot* blink_slot(uint32_t mesh,bool add) {
     for(BlinkSlot& b:blink_slots) if(b.mesh.load(std::memory_order_relaxed)==mesh) return &b;
     if(add) for(BlinkSlot& b:blink_slots) if(!b.mesh.load(std::memory_order_relaxed)) {b.mesh.store(mesh,std::memory_order_relaxed);return &b;}
     return nullptr;
+}
+// D41Z: the caged wall lamp: a steady light just before its bulb in the
+// bulb's own colour (cage_colour: pale warm white, or red), and a soft halo
+// over the bulb. Developer: DNTTK_PROP_LIGHT_CAGE="r g b strength radius"
+// (r g b: the colour when the texture cannot be read), DNTTK_PROP_CAGE_AT=
+// "z" its model depth, DNTTK_PROP_CAGE_HALO="size level".
+Tune cage_light{{1.0f,0.90f,0.62f},0.8f,1600};
+float cage_at[3]={0,0,-90};
+float cage_halo_size=300,cage_halo_level=60;
+// The colour per lamp model (any thread reads it for the halo): written by
+// the game thread's prop scan.
+struct CageSlot {std::atomic<uint32_t> mesh{0};std::atomic<float> rgb[3]{{1.0f},{0.90f},{0.62f}};};
+CageSlot cage_slots[16];
+const CageSlot* cage_slot(uint32_t mesh) {
+    for(const CageSlot& c:cage_slots) if(c.mesh.load(std::memory_order_relaxed)==mesh) return &c;
+    return nullptr;
+}
+// The bulb's colour: the mean of the model's lit texels (brightest channel
+// 0.4 and up, read from VRAM through each face's CLUT), scaled to its
+// brightest channel and deepened (power 1.5) so a pale bulb gives a warm
+// light and a red one a red light. False when the texture is not readable.
+bool cage_colour(uint32_t mesh,float rgb[3]) {
+    uint32_t vp,cur;
+    if(!mesh_header(mesh,26,vp,cur)) return false;
+    double sum[3]={0,0,0},n=0;
+    for(unsigned guard=0;guard<64;++guard) {
+        const uint32_t header=psx_mod_read_word(cur);cur+=4;
+        const uint32_t type=header&0xffff,count=header>>16;
+        if(type==0xff) break;
+        unsigned size=0;
+        switch(type) {case 0x20: case 0x28: size=8;break;case 0x30: case 0x38: size=12;break;case 0x24: case 0x2c: size=16;break;case 0x34: case 0x3c: size=20;break;}
+        if(!size || !count || count>64 || cur>0x801fff00u-count*size) break;
+        for(uint32_t k=0;k<count;++k,cur+=size) {
+            if(type!=0x24 && type!=0x2c && type!=0x34 && type!=0x3c) continue;
+            const uint32_t t1=psx_mod_read_word(cur+4),t2=psx_mod_read_word(cur+8),t3=psx_mod_read_word(cur+12);
+            const unsigned nc=(type&8)?4:3;
+            const uint32_t clut=t1>>16,tp=(t2>>16)&0x1ff,uv[4]={t1&0xffff,t2&0xffff,t3&0xffff,t3>>16};
+            int u0=255,u1=0,v0=255,v1=0;
+            for(unsigned i=0;i<nc;++i) {u0=std::min<int>(u0,uv[i]&0xff);u1=std::max<int>(u1,uv[i]&0xff);v0=std::min<int>(v0,uv[i]>>8);v1=std::max<int>(v1,uv[i]>>8);}
+            if((u1-u0+1)*(v1-v0+1)>64*64) continue;
+            const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
+            auto at=[](int x,int y){return gpu_vram_peek(x&1023,y&511);};
+            for(int v=v0;v<=v1;++v) for(int u=u0;u<=u1;++u) {
+                uint16_t c;
+                if(depth==0) c=at(cx+((at(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
+                else if(depth==1) c=at(cx+((at(tx+u/2,ty+v)>>(8*(u&1)))&0xff),cy);
+                else c=at(tx+u,ty+v);
+                const double r=(c&31)/31.0,g=((c>>5)&31)/31.0,b=((c>>10)&31)/31.0;
+                if(std::max({r,g,b})<0.4) continue;
+                sum[0]+=r;sum[1]+=g;sum[2]+=b;n+=1;
+            }
+        }
+    }
+    const double m=std::max({sum[0],sum[1],sum[2]});
+    if(n<8 || m<=0) return false;
+    for(int c=0;c<3;++c) rgb[c]=(float)std::pow(sum[c]/m,1.5);
+    return true;
 }
 // D57G: the iron ring's five candles (one light at the ring's centre, among
 // the flames) and its fill on the hall below.
@@ -202,12 +271,13 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 // D54: ref is the prop; when it breaks (prop_state.h) the light sputters out
 // from broke_ms (standing 0) and the scans no longer find it.
 struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;
-               bool crystal=false;Tune own{};bool portal=false;
+               bool crystal=false;Tune own{};bool portal=false;bool cage=false;   // D41Z: steady, as its texture
                uint32_t blink_mesh=0;uint32_t lit_ms=0;};   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0;
+bool cages_pending=false;   // D41Z: the level's lamps not loaded at the scan: scan again soon
 // D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
 // appear within a sixth of a second); one taken goes dark at once.
 std::vector<Emitter> pickups;
@@ -224,7 +294,8 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=barrels=barricades=0;scan_sig=0;
+    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=0;scan_sig=0;cages_pending=false;
+    unsigned cage_models=0;
     for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
@@ -254,6 +325,26 @@ void scan_props() {
                 // D41Y: the light follows the lamp's frames (blink_update).
                 place(e.p,p,yaw,barricade_lamp_at);e.tune=&e.own;e.own=barricade_light;e.blink_mesh=mesh;blink_slot(mesh,true);
                 emitters.push_back(e);++barricades;
+            } else if(kind==prop_light_cage) {
+                // D41Z: a lamp the level's lamp file binds to this prop (a
+                // D41D1 sign lamp: level 5's red ones) keeps that lamp alone.
+                // The model's colour first: the halo uses it either way.
+                CageSlot* slot=nullptr;
+                for(unsigned i=0;i<cage_models && !slot;++i) if(cage_slots[i].mesh.load(std::memory_order_relaxed)==mesh) slot=&cage_slots[i];
+                if(!slot && cage_models<16) {
+                    slot=&cage_slots[cage_models++];
+                    float rgb[3]={cage_light.rgb[0],cage_light.rgb[1],cage_light.rgb[2]};
+                    cage_colour(mesh,rgb);
+                    for(int c=0;c<3;++c) slot->rgb[c].store(rgb[c],std::memory_order_relaxed);
+                    slot->mesh.store(mesh,std::memory_order_relaxed);
+                }
+                const int32_t at[3]={(int32_t)p[0],(int32_t)p[1],(int32_t)p[2]};
+                const int bound=level_lamp_bound ? level_lamp_bound((uint16_t)psx_mod_read_half(o+0x2c),at,nullptr) : 0;
+                if(bound<0) {cages_pending=true;continue;}
+                if(bound==2) {++cages_bound;continue;}
+                place(e.p,p,yaw,cage_at);e.own=cage_light;e.tune=&e.own;e.cage=true;
+                if(slot) for(int c=0;c<3;++c) e.own.rgb[c]=slot->rgb[c].load(std::memory_order_relaxed);
+                emitters.push_back(e);++cages;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -269,9 +360,12 @@ void scan_props() {
             }
         }
     }
+    for(unsigned i=cage_models;i<16;++i) cage_slots[i].mesh.store(0,std::memory_order_relaxed);
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,emitters.size());
-    for(Emitter& e:emitters) if(e.blink_mesh) e.tune=&e.own;   // after the moves
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,emitters.size());
+    if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
+        std::fprintf(stderr,"[TTK prop light] caged lamp model %08x colour %.2f %.2f %.2f\n",m,c.rgb[0].load(),c.rgb[1].load(),c.rgb[2].load());
+    for(Emitter& e:emitters) if(e.blink_mesh || e.cage) e.tune=&e.own;   // after the moves
 }
 // D41Y: each frame, every barricade model's lamp level from the frame the
 // game shows (D55 signal reading: 1 lit, 0 dark), for the halos and lights.
@@ -384,7 +478,7 @@ void composition_hook(CPUState*,uint32_t) {
     // D54: a savestate load rescans too (a prop broken since, or standing again).
     const uint32_t loads=psx_mod_savestate_loads();
     const bool rescan=level!=scan_level || loads!=scan_loads;
-    if(rescan || frames-scan_frame>300) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
+    if(rescan || frames-scan_frame>300 || (cages_pending && frames-scan_frame>=10)) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
     if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) {pickups.clear();crystals.clear();}scan_pickups();scan_crystals();}
     if(barricades) blink_update();
 }
@@ -397,7 +491,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     const PropSnapshot& snap=prop_snapshot_take();
     if(prop_snapshot_usable(snap,scan_sig)) for(Emitter& e:emitters) if(e.standing && !prop_standing(snap,e.ref)) {
         e.standing=0;e.broke_ms=ms;
-        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":e.blink_mesh?"barricade lamp":"candle",e.ref.o);
+        std::fprintf(stderr,"[TTK prop light] %s light goes out: its prop %08x broke\n",e.fire?"fire":e.portal?"portal":e.blink_mesh?"barricade lamp":e.cage?"caged lamp":"candle",e.ref.o);
     }
     // Room gate (level_lamp_room_lit): a light comes on at once, fades out over 0.25 s.
     const float step=std::min(1.0f,(ms-vis_ms)/250.0f);vis_ms=ms;
@@ -436,7 +530,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
             if(!e.standing) on=1;   // broken: sputters out from lit (D54)
             k*=on;   // dark: published at 0, so the light list does not change with the blink
         } else
-        k*=e.portal?portal_breath(ms):e.crystal?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
+        k*=e.portal?portal_breath(ms):e.crystal||e.cage?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=e.tune->radius;
@@ -495,6 +589,14 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
             out[n++]=billboard(barricade_lamp_at[0],barricade_lamp_at[1],barricade_lamp_at[2],barricade_halo_size,barricade_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                l*b->rgb[0].load(std::memory_order_relaxed),l*b->rgb[1].load(std::memory_order_relaxed),l*b->rgb[2].load(std::memory_order_relaxed));
         }
+    } else if(kind==prop_light_cage) {
+        // D41Z: a soft warm-white halo over the bulb, just before its bars.
+        // In the bulb's colour (a lamp the level file lights keeps the halo too).
+        const CageSlot* c=cage_slot(mesh);
+        const float r=c?c->rgb[0].load(std::memory_order_relaxed):cage_light.rgb[0],g=c?c->rgb[1].load(std::memory_order_relaxed):cage_light.rgb[1],
+                    b=c?c->rgb[2].load(std::memory_order_relaxed):cage_light.rgb[2];
+        if(n<max) out[n++]=billboard(0,0,-40,cage_halo_size,cage_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     cage_halo_level*r,cage_halo_level*g,cage_halo_level*b);
     } else if(kind==prop_light_ring) {
         uint32_t vp,list;
         if(!mesh_header(mesh,51,vp,list)) return 0;
@@ -566,7 +668,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     if(const char* e=std::getenv("DNTTK_PROP_BARREL_Y")) ttk::barrel_at[1]=(float)std::atof(e);
     ttk::tune("DNTTK_PROP_LIGHT_BARRICADE",ttk::barricade_light);
     if(const char* e=std::getenv("DNTTK_PROP_BARRICADE_HALO")) std::sscanf(e,"%f %f %f",&ttk::barricade_halo_size,&ttk::barricade_halo_level,&ttk::barricade_decay);
-    ttk::prop_light_lit_mesh=ttk::lit_mesh;   // D41X barrel, D41Y barricade
+    ttk::tune("DNTTK_PROP_LIGHT_CAGE",ttk::cage_light);
+    if(const char* e=std::getenv("DNTTK_PROP_CAGE_AT")) ttk::cage_at[2]=(float)std::atof(e);
+    if(const char* e=std::getenv("DNTTK_PROP_CAGE_HALO")) std::sscanf(e,"%f %f",&ttk::cage_halo_size,&ttk::cage_halo_level);
+    ttk::prop_light_lit_mesh=ttk::lit_mesh;   // D41X barrel, D41Y barricade, D41Z caged lamp
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING_FILL",ttk::ring_fill);

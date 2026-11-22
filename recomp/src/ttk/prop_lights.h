@@ -54,6 +54,9 @@ struct BoundLamp {float rgb[3],radius,k,off[3];};
 inline int (*level_lamp_bound)(uint16_t type,const int32_t p[3],BoundLamp* like)=nullptr;
 // D57F: console "lamp crystals off|on" (moved crystals' lights, session).
 inline std::atomic<bool> prop_crystals_enabled{true};
+// D41X: a prop model whose light this file gives (the fire barrel), so the
+// D41D1 sign scan ("lamp signs") makes no second lamp for it.
+inline bool (*prop_light_lit_mesh)(uint32_t mesh)=nullptr;
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};

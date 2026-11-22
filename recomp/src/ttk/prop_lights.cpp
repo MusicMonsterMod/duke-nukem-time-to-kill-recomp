@@ -81,6 +81,16 @@ bool ring_mesh(uint32_t mesh) {
 // vertices, an octagonal body (y -763..-87) on four prongs down to y 666.
 // List header 0x0018002c, first vertex (-590, -763, -244), the last
 // (162, 666, -518).
+// D41X: the fire barrel (prop type 220; levels 0 and 5): 20 vertices, the
+// drum (y 374 at the floor up to its open rim at -122, 320 x 276) with a
+// fire cross standing in it up to y -374. The original paints its glow into
+// the room's vertex colours; it gives no light of its own. First vertex
+// (0, -122, 0), the last (80, 374, -138).
+bool barrel_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,20,vp,list) && psx_mod_read_word(vp)==0xff860000u && psx_mod_read_half(vp+4)==0 &&
+           psx_mod_read_word(vp+8*19)==0x01760050u && psx_mod_read_half(vp+8*19+4)==0xff76u;
+}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -103,6 +113,10 @@ struct Tune {float rgb[3],k,radius;};
 Tune fire_light{{1.0f,0.46f,0.15f},1.5f,2800};          // the stove's fire, before its door
 Tune candle_light{{1.0f,0.80f,0.52f},0.9f,1600};        // among the candles: ceiling and arms
 Tune fill_light{{1.0f,0.74f,0.46f},0.5f,5000};          // the chandelier's broad fill below
+// D41X: the fire barrel's open fire, in the flame above the rim (developer
+// DNTTK_PROP_LIGHT_BARREL; DNTTK_PROP_BARREL_Y its model height).
+Tune barrel_light{{1.0f,0.52f,0.18f},1.3f,3000};
+float barrel_at[3]={0,-300,0};
 // D57G: the iron ring's five candles (one light at the ring's centre, among
 // the flames) and its fill on the hall below.
 Tune ring_light{{1.0f,0.80f,0.52f},0.9f,2400};
@@ -161,7 +175,7 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0;
 // D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
 // appear within a sixth of a second); one taken goes dark at once.
 std::vector<Emitter> pickups;
@@ -178,7 +192,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=0;scan_sig=0;
+    emitters.clear();stoves=chandeliers=rings=barrels=0;scan_sig=0;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     std::vector<uint32_t> seen;
@@ -191,12 +205,19 @@ void scan_props() {
             if(std::find(seen.begin(),seen.end(),o)!=seen.end()) continue;
             seen.push_back(o);
             if(psx_mod_read_byte(o+0x14)!=1 || prop_broken_flag(o)) continue;   // D54: broken props give no light
-            const int kind=kind_of(psx_mod_read_word(o+0x44));
-            if(!kind) continue;
+            const uint32_t mesh=psx_mod_read_word(o+0x44);
+            // D41X: the fire barrel has no drawn extras (its fire is the
+            // model's own), so it is found here only, not by kind_of on
+            // every draw.
+            const bool barrel=barrel_mesh(mesh);
+            const int kind=barrel?prop_light_none:kind_of(mesh);
+            if(!kind && !barrel) continue;
             double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             const double yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*pi/4096);
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
-            if(kind==prop_light_portal_top) {
+            if(barrel) {
+                place(e.p,p,yaw,barrel_at);e.tune=&barrel_light;e.fire=true;emitters.push_back(e);++barrels;
+            } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
                 place(e.p,p,yaw,at);e.tune=&portal_light;e.portal=true;emitters.push_back(e);
@@ -212,7 +233,7 @@ void scan_props() {
         }
     }
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu lights\n",scan_level,stoves,chandeliers,rings,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,emitters.size());
 }
 void scan_pickups() {
     std::vector<Emitter> found;
@@ -468,6 +489,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_FIRE",ttk::fire_light);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLES",ttk::candle_light);
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);
+    ttk::tune("DNTTK_PROP_LIGHT_BARREL",ttk::barrel_light);
+    if(const char* e=std::getenv("DNTTK_PROP_BARREL_Y")) ttk::barrel_at[1]=(float)std::atof(e);
+    ttk::prop_light_lit_mesh=ttk::barrel_mesh;
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING_FILL",ttk::ring_fill);

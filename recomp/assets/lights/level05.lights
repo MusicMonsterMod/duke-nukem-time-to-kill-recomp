@@ -31,7 +31,6 @@
 -1377 -11650 7003  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 1 animated prop 216 -1377 -11550 6651
 -3520 -11609 7003  1.00 0.00 0.00  3000  1.00  signal  # sign type 216 room 1 animated prop 216 -3520 -11509 6651
 5420 -9600 6091  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 2 animated prop 449 5120 -9600 6144
-1507 -9838 1725  1.00 0.87 0.00  2686  1.00  candle  # sign type 220 room 2 animated prop 220 1691 -9590 1489
 19756 -9600 971  1.00 0.87 0.00  5000  1.00  candle  # sign type 449 room 4 animated prop 449 19456 -9600 1024
 13637 -11531 4834  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 4 animated prop 217 13989 -11537 4834
 13637 -11554 2663  1.00 0.86 0.00  3000  1.00  signal  # sign type 217 room 4 animated prop 217 13989 -11560 2663

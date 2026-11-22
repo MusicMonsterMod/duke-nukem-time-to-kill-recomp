@@ -1890,7 +1890,7 @@ on the field laptop (rebuilt with this change).
 
 ### D41X - Does the barrel in UI slot 12 really emit light?
 
-**Status: Todo (backlog; user note 2026-11-22, "we'll look at that one next"). Dependencies: D41.**
+**Status: Done ([note 533](../documentation/533-d41x-fire-barrel-light.md)), accepted 2026-11-22. Dependencies: D41.**
 
 User, 2026-11-22 (while playtesting D53G): "barrel in slot 12, is that really
 emitting light? hmm". Work: on a private copy of UI slot 12, identify the barrel
@@ -1901,3 +1901,58 @@ off`, glows off) and decide with the user whether the light fits the object.
 Fix the rule for the whole object type, not this one level (no per-level data).
 Acceptance: the user agrees the barrel's lighting matches what it is.
 
+Work log, 2026-11-22: the warm patch round the slot 12 barrel (fire barrel,
+prop type 220, LEVEL00 room 22) is the original's painted vertex light
+(Vanilla, Original and Enhanced alike); none of our lights lit it on level 0
+(the steady `scan room 22` lamp adds about 0.3 levels there and in Relit only
+dims the room to 60%), while level 5's barrel alone had a sign lamp from its
+level file. User chose a real fire light for every fire barrel. Now
+`prop_lights.cpp` finds the barrel by its model data in the prop scan (7 on
+level 0, 1 on level 5) and gives it a warm flickering fire light in its
+flames (1.0 0.52 0.18, strength 1.3, radius 3000, model y -300) that sputters
+out when it blows up (D54); the sign scan skips it (`prop_light_lit_mesh`)
+and level 5's barrel lamp line is removed. Original, Vanilla (pixel-identical)
+and Classic unchanged; 180 Hz redraws clean. Waits on the user's look on the
+real display ([note 533](../documentation/533-d41x-fire-barrel-light.md)).
+
+Closed 2026-11-22. User: "it's absolutely perfect! accepted". Follow-up
+backlog: D41Y (construction barricade warning lamps).
+
+### D41Y - Construction barricade warning lamps flash
+
+**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41, D41X.**
+
+User, 2026-11-22 (accepting D41X, in a new UI slot 12 save): "add flashing
+lights to this object too, this kind of construction barrier thing". Save
+copy: `research/savestates/d41y/` (local).
+
+What is there (MEASURED, offscreen on a private copy): the save is LEVEL00
+room 20, Duke at (-12530, -6015, 41418) facing two orange-and-white
+construction barricades. Each is a static prop (kind 1) of type 128, model
+9 vertices (first (-205, 255, -119), last (-205, -255, 2); at `0x80125fc4`
+on level 0), with a small amber warning lamp drawn on its top rail. The lamp
+is steady in the original (the D41D1 sign scan rates it a non-animated
+glow, colour 1.00 0.77 0.00, about 2237) and casts no light: no lamp file
+binds type 128, and our lights give it none. Level 0 places four (rooms 20
+and 23, two in each); other levels not surveyed.
+
+Work, the D41X way (one rule, no per-level data):
+1. Survey every level for type 128 (and any other barricade or warning-lamp
+   models) with the level select.
+2. Find the lamp's faces in the model (the bright amber texels) and their
+   model position.
+3. Modernized Polymorph: the lamp blinks like a real barricade light (about
+   1 Hz, on/off with a soft edge, a per-barricade phase so a row does not
+   blink in lock step), drawn as a glow over the lamp face (D41L drawn
+   extras) and casting a small amber blinking light (`prop_lights.cpp`, found
+   by model data like the fire barrel; lit by LIGHTING ENHANCED and RELIT; out
+   when the barricade breaks, D54). Exclude the model from `lamp signs`
+   (`prop_light_lit_mesh`).
+4. LIGHTING ORIGINAL keeps the lamp steady with no light? Decide with the
+   user whether the blink itself (a drawn change) belongs to every LIGHTING
+   setting or only ENHANCED and RELIT. Vanilla and Classic unchanged.
+
+Acceptance: in UI slot 12 the barricade lamps blink and light their rails and
+the ground around them at 180 Hz on the real display; every barricade in
+every level does the same; breaking one puts its light out; Vanilla
+pixel-identical; the user agrees it looks like a real barricade light.

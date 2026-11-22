@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-22 - D41X closed out (Done)
+
+- D41X ([note 533](533-d41x-fire-barrel-light.md)): user "it's absolutely perfect! accepted". Every fire barrel (type 220, by model) casts a warm flickering fire light in ENHANCED and RELIT, out when it explodes; `lamp signs` skips it; level 5's barrel lamp line removed. Next up by user request: D41Y (construction barricade warning lamps flash; type 128, UI slot 12 save copy in `research/savestates/d41y/`).
+
+## 2026-11-22 - D41X fire barrel light (Needs playtest)
+
+- D41X ([note 533](533-d41x-fire-barrel-light.md)): the slot 12 barrel's glow was the original's painted light; our lights gave level 0's fire barrels none. Now every fire barrel (type 220, found by model) casts a warm flickering fire light from its flames in ENHANCED and RELIT, goes out when it explodes; `lamp signs` skips it; level 5's barrel lamp line removed. Executable `15be35bd...`. Waits on the user's look on the real display (UI slot 12).
+
 ## 2026-11-22 - D53G closed out (Done)
 
 - D53G ([note 532](532-d53g-first-person-idle-gestures.md)): user "perfect!! excellent work. this is better than i could have ever imagined it would be. lock it in and close it out". First-person idle weapon gestures (inspect, heft, rest; energy weapon kept low), eased out on input, cut on fire. Next up by user note: D41X (slot 12 barrel light).

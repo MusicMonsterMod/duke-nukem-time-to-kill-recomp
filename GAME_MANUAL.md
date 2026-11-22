@@ -700,8 +700,8 @@ The backtick console edits them:
   scans bind their sign lamps themselves. `lamp breaks off` keeps lamps lit
   when their props break, for the session (to compare); `lamp breaks on`
   restores the rule.
-- `lamp props off` / `lamp props on` darkens and relights the woodburners and
-  chandeliers (both kinds) for the session (to compare).
+- `lamp props off` / `lamp props on` darkens and relights the woodburners,
+  chandeliers (both kinds) and fire barrels for the session (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
   the level's rooms with lamps of their own, `lamp ambient P unlit` for rooms
@@ -722,6 +722,14 @@ warm, and a broad light on the hall below. The
 glow and flames show whatever LIGHTING is set to; the light they cast
 needs LIGHTING ENHANCED or RELIT. If one is broken, its light goes out. Vanilla and
 Classic keep the original look.
+
+**Fire barrels (D41X).** Every burning oil drum (TIME TO KILL, OBEY OR DIE and
+any level that places one) is a real fire in Modernized (Polymorph) with
+LIGHTING ENHANCED or RELIT: a warm, flickering light from the flames over its
+rim on the floor, walls and Duke's gun around it. The warm patch the original
+painted around it stays as it was. When the barrel blows up its light
+sputters out with it. LIGHTING ORIGINAL, Vanilla and Classic keep the
+original look.
 
 Signs and neon keep their own look under any light: they give light, and
 neon signs take none on their letters, so they stay as crisp as drawn. Only

@@ -910,6 +910,7 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
             if(types_ok && type<0x7428u/28 && (psx_mod_read_word(types+28*type)&0x20000000u)) continue; // pickups
             const uint32_t mesh=psx_mod_read_word(o+0x44);
             if(mesh<0x80010000u || mesh>0x801ffff0u || (mesh&3)) continue;
+            if(prop_light_lit_mesh && prop_light_lit_mesh(mesh)) continue;   // D41X: lit by prop_lights.cpp (the fire barrel)
             const Glow& g=mesh_glow(mesh);
             if(neon) neon->insert(neon->end(),g.neon.begin(),g.neon.end());
             if(std::getenv("DNTTK_LAMP_TRACE") && !g.neon.empty())

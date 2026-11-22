@@ -644,7 +644,14 @@ of level 29 pulses its light the same way. The amber warning lamp on every
 construction barricade lights its rails and the ground round it as it blinks,
 with a soft glow on the lamp while it is lit. The small caged lamps on the
 tunnel and corridor walls (levels 0, 5 and 9) light the wall and floor round
-them in their own colour, with a soft glow on the bulb. Level 0 (Los Angeles) also keeps
+them in their own colour, with a soft glow on the bulb. The subway train in
+level 0 carries its lights with it: its bumper lamps glow amber and red at
+both ends and the cyan beacon on its roof lights the tunnel round it. When it
+pulls away its headlight flickers on and throws a warm light down the tunnel
+ahead of it; when it crashes, firelight flares over the car, the walls and the
+floor while sparks fly from its wheels, the beacon dips and the headlight
+blows. The wreck's smashed front lamps glow a little dimmer; its rear lamps
+and beacon stay lit. Level 0 (Los Angeles) also keeps
 its flickering pink lamp at the club sign. A
 lamp lights only while its room is in view, so a sign behind a wall does not
 tint the room in front of it. Break a prop that gives light (a traffic light,
@@ -705,8 +712,8 @@ The backtick console edits them:
   when their props break, for the session (to compare); `lamp breaks on`
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners,
-  chandeliers (both kinds), fire barrels, barricade lamps and caged wall
-  lamps for the session
+  chandeliers (both kinds), fire barrels, barricade lamps, caged wall
+  lamps and the subway train's lights for the session
   (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for

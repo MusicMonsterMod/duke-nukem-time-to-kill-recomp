@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-22 - D41AA closed out (Done)
+
+- D41AA ([note 537](537-d41aa-subway-train-lights.md)): user "excellent!!! ... close out the job at hand". The LEVEL00 subway train carries its own lights (bumper clusters, cyan roof beacon, a headlight that strikes up as it pulls away, crash flash and skid sparks, a steady wreck) in ENHANCED and RELIT. Next up by user request: D41AB (the train's cyan roof beacon flickers with Duke 3D's random-light look, as a reusable lamp style; UI slot 12 save copy in `research/savestates/d41ab/`; references: the EDuke32 lighting-effects wiki and `research/Tutorial.map`).
+
+## 2026-11-22 - D41AA subway train lights (Needs playtest)
+
+- D41AA ([note 537](537-d41aa-subway-train-lights.md)): the LEVEL00 subway train (type 77, one model, found by model) carries its lights every image, following the type 77 overlay's state (`+0x35`: 0 parked, 1-2 running, 3 crash, 4 stopped): bumper clusters at both ends and the cyan roof beacon; a headlight 3200 ahead of the nose that strikes up as it pulls away; at the impact an orange flash and skid sparks on the side it skids toward, the beacon dips, the headlight blows; the wreck's nose cluster holds steady (a first buzzing version read as a flicker fault in the user's new UI slot 12 and was removed). Level 0's train sign lamp removed (it died with D54 as soon as the train moved). Crash region 32-41 -> 79-82; Original unchanged; Vanilla pixel-identical; 180 Hz pacing unchanged. Executable `e05c136f...`. Test saves: UI slot 9 (at the controls, press E), slot 10 (parked), slot 12 (wreck); copies in `research/savestates/d41aa/`. Waits on the user's look on the real display.
+
 ## 2026-11-22 - D41Z closed out (Done)
 
 - D41Z ([note 536](536-d41z-caged-wall-lamps.md)): user "its perfect!! lock it in and close it out". Every caged wall lamp (types 665, 667, 851; by model) casts a steady light in its texture's colour with a soft halo, in ENHANCED and RELIT; levels 0, 5 and 9. Next up by user request: D41AA (subway train lights: bumper lamp clusters, red markers, cyan panel; type 77, UI slot 12 save copy in `research/savestates/d41aa/`).

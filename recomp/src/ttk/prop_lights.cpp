@@ -114,7 +114,18 @@ bool cage_mesh(uint32_t mesh) {
     return mesh_header(mesh,26,vp,list) && psx_mod_read_word(vp)==0x00640000u && psx_mod_read_half(vp+4)==0xfffdu &&
            psx_mod_read_word(vp+8*25)==0xff9dffd5u && psx_mod_read_half(vp+8*25+4)==0x001fu;
 }
-bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh);}
+// D41AA: the subway train (prop type 77; level 0): 69 vertices, a car 9470
+// long (model x -9361..110, y -1794 roof..46 rails, z +-898). Its nose (x
+// +110, a sloped cab) leads when it runs; both ends carry a bumper cluster of
+// three lamps (amber, red, amber) and the flat tail end (x -9361) a cyan
+// beacon on the roof. Its texture is steady (no animated face). First vertex
+// (-2, 46, -899), the last (-341, -357, 683).
+bool train_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,69,vp,list) && psx_mod_read_word(vp)==0x002efffeu && psx_mod_read_half(vp+4)==0xfc7du &&
+           psx_mod_read_word(vp+8*68)==0xfe9bfeabu && psx_mod_read_half(vp+8*68+4)==0x02abu;
+}
+bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -127,6 +138,7 @@ int kind_of(uint32_t mesh) {
     if(ring_mesh(mesh)) return prop_light_ring;
     if(barricade_mesh(mesh)) return prop_light_barricade;
     if(cage_mesh(mesh)) return prop_light_cage;
+    if(train_mesh(mesh)) return prop_light_train;
     return prop_light_none;
 }
 bool visuals() {
@@ -217,6 +229,78 @@ bool cage_colour(uint32_t mesh,float rgb[3]) {
     for(int c=0;c<3;++c) rgb[c]=(float)std::pow(sum[c]/m,1.5);
     return true;
 }
+// D41AA: the subway train. Its lights ride with it (placed from its object
+// record each image) and follow the train overlay's state (+0x35, D44B: 0
+// parked, 1 pulling away, 2 at speed, 3 the crash, 4 stopped):
+// - both bumper clusters glow, and the tail's cyan roof beacon is lit;
+// - pulling away, the nose's headlight strikes up (a stutter, then full) and
+//   throws a strong warm light ahead down the tunnel;
+// - at the impact (2 -> 3) an orange flash at the nose with the game's
+//   fireball, sparks strobing low at the leading end while it skids, the
+//   beacon dips, the headlight blows and sputters out;
+// - wrecked (4, as a later save finds it): the smashed nose cluster holds a
+//   little dimmer after its sputter; the tail cluster and the beacon stay lit.
+// A train model under another type (a custom level) keeps the parked look.
+// Developer: DNTTK_PROP_LIGHT_TRAIN_LAMPS / _BEAM / _BEACON / _FLASH /
+// _SPARKS ("r g b strength radius"), DNTTK_PROP_TRAIN_BEAM_AT="x y z", DNTTK_PROP_TRAIN_HALO="lamp beacon beam
+// flash sparks" (halo levels), DNTTK_PROP_TRAIN_TRACE=1 (state changes).
+Tune train_lamps{{1.0f,0.45f,0.06f},0.7f,1300};     // a bumper cluster (amber, red, amber)
+Tune train_beam{{1.0f,0.80f,0.50f},1.6f,8000};      // the headlight, well ahead of the nose (it lights the tunnel, not its own cab)
+Tune train_beacon{{0.14f,0.76f,1.0f},0.8f,3000};    // the cyan roof beacon (the D41D1 sign lamp's colour)
+Tune train_flash{{1.0f,0.58f,0.22f},3.2f,9000};     // the impact
+Tune train_sparks{{1.0f,0.78f,0.45f},2.0f,2800};    // skid sparks
+// Model points (y down, the nose at +x).
+constexpr float train_lead_at[3]={170,-30,350},train_tail_at[3]={-9440,-30,-24},train_beacon_at[3]={-9100,-1700,15};
+float train_beam_at[3]={3200,-300,0};
+// The impact and the sparks stand outside the car on the side it skids
+// toward (train_side: +1 model +z, -1 model -z, from its own motion after
+// the impact), so they light the flank and floor there.
+constexpr float train_flash_at[3]={400,-650,1300},train_sparks_at[3]={-600,0,1000};
+// The three lamps of each cluster (texels u 72, 80, 88 at v 186 on faces 0
+// and 2), stood just off the face for the halos; amber, red, amber.
+constexpr float train_lead_lamps[3][3]={{117,-27,179},{99,-27,359},{81,-27,533}};
+constexpr float train_tail_lamps[3][3]={{-9386,-27,184},{-9386,-27,-24},{-9386,-27,-234}};
+float train_halo_lamp=110,train_halo_beacon=70,train_halo_beam=90,train_halo_flash=130,train_halo_sparks=170;
+// The train now (game thread writes; the halos read it on any thread).
+std::atomic<uint32_t> train_mesh_now{0},train_state_now{0},train_start_ms{0},train_crash_ms{0};
+std::atomic<float> train_side{1};
+struct TrainLook {float lead,tail,beacon,beam,flash,sparks;};
+// A light blowing: two lit ticks, then three in four for a second, fading.
+float train_sputter(uint32_t t,uint32_t ms_len,uint32_t seed) {
+    if(t>=ms_len) return 0;
+    const uint32_t tick=t/34;uint32_t h=(tick+seed*0x9e3779b9u)*2654435761u;h^=h>>15;
+    return (tick<2 || ((h>>8)&3)!=0) ? 1.0f-(float)t/ms_len : 0.0f;
+}
+TrainLook train_look(uint32_t ms) {
+    TrainLook l{1,1,1,0,0,0};
+    const uint32_t st=train_state_now.load(std::memory_order_relaxed);
+    if(st==1 || st==2) {
+        // Pulling away: the headlight strikes up, stutters, then holds with
+        // the car's hum.
+        const uint32_t t=ms-train_start_ms.load(std::memory_order_relaxed);
+        l.beam=t<90?1.0f:t<220?0.0f:t<280?0.8f:t<420?0.1f:t<700?0.4f+0.6f*(t-420)/280.0f:
+               0.94f+0.06f*prop_light_noise(t/1000.0*14,77);
+    } else if(st==3 || st==4) {
+        const uint32_t t=ms-train_crash_ms.load(std::memory_order_relaxed);
+        const double s=t/1000.0;
+        // The impact: white-hot for a moment, then a fire's flutter dying away.
+        if(t<3200) l.flash=t<70?1.0f:std::exp(-(float)(t-70)/750.0f)*(0.7f+0.3f*prop_light_noise(s*22,91));
+        // Skid sparks: a hard strobe while it slews, gone in under a second.
+        if(t<950) l.sparks=(prop_light_noise(s*48,57)>0.42f?1.0f:0.12f)*(1.0f-t/950.0f);
+        l.beam=train_sputter(t,1100,7);
+        // The beacon dips at the blow.
+        if(t<420) l.beacon=0.35f+0.65f*prop_light_noise(s*30,33)*(t/420.0f);
+        // The nose cluster is smashed: it buzzes and now and then drops out.
+        // The user read a buzzing wreck lamp as a flicker fault (UI slot 12,
+        // 2026-11-22): after its sputter the nose cluster holds steady, a
+        // little dimmer. DNTTK_PROP_TRAIN_BUZZ=1 brings the buzz back.
+        static const bool buzz=std::getenv("DNTTK_PROP_TRAIN_BUZZ") && std::atoi(std::getenv("DNTTK_PROP_TRAIN_BUZZ"))!=0;
+        const float drop=buzz?prop_light_noise(s*1.4,19):0.0f;
+        l.lead=t<1100?train_sputter(t,1100,11)+0.0f:
+               !buzz?0.85f:drop>0.70f?0.45f*(prop_light_noise(s*34,23)>0.5f?1.0f:0.0f):0.78f+0.12f*prop_light_noise(s*9,29);
+    }
+    return l;
+}
 // D57G: the iron ring's five candles (one light at the ring's centre, among
 // the flames) and its fill on the hall below.
 Tune ring_light{{1.0f,0.80f,0.52f},0.9f,2400};
@@ -272,11 +356,17 @@ constexpr int arm_corner[12]={0,4,6,8,10,12,14,16,18,20,22,24};
 // from broke_ms (standing 0) and the scans no longer find it.
 struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t room;float vis=1;PropRef ref;int standing=1;uint32_t broke_ms=0;bool pickup=false;
                bool crystal=false;Tune own{};bool portal=false;bool cage=false;   // D41Z: steady, as its texture
-               uint32_t blink_mesh=0;uint32_t lit_ms=0;};   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
+               uint32_t blink_mesh=0;uint32_t lit_ms=0;   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
+               float train_k=-1;};   // D41AA: a train light's level this image (-1: not a train light)
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
 size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0;
+// D41AA: the train (one a level; game thread): its record, its room (it
+// relinks as it runs) and the overlay state last seen (~0u: none yet).
+struct Train {uint32_t o=0,mesh=0,room=0,state=~0u,room_frame=0;int32_t crash_p[3]={0,0,0};bool crashed_here=false;};
+Train train;
+Emitter train_lights[6];   // lamps, tail, beacon, beam, flash, sparks (persistent: the room fade)
 bool cages_pending=false;   // D41Z: the level's lamps not loaded at the scan: scan again soon
 // D56: glowing pickups, rescanned every 10 frames (dropped and spawned ones
 // appear within a sixth of a second); one taken goes dark at once.
@@ -295,6 +385,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
 }
 void scan_props() {
     emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=0;scan_sig=0;cages_pending=false;
+    const uint32_t train_was=train.o;train.o=0;
     unsigned cage_models=0;
     for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
@@ -319,7 +410,11 @@ void scan_props() {
             double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
             const double yaw=(int16_t)psx_mod_read_half(o+0x1c)*(2*pi/4096);
             Emitter e{};e.room=r;e.seed=o;e.ref=prop_ref(o);
-            if(barrel) {
+            if(kind==prop_light_train) {
+                // D41AA: its lights follow it each image (train_update, publish).
+                if(train_was!=o || !train.mesh) train.state=~0u;
+                train.o=o;train.mesh=mesh;train.room=r;
+            } else if(barrel) {
                 place(e.p,p,yaw,barrel_at);e.tune=&barrel_light;e.fire=true;emitters.push_back(e);++barrels;
             } else if(kind==prop_light_barricade) {
                 // D41Y: the light follows the lamp's frames (blink_update).
@@ -361,6 +456,7 @@ void scan_props() {
         }
     }
     for(unsigned i=cage_models;i<16;++i) cage_slots[i].mesh.store(0,std::memory_order_relaxed);
+    if(!train.o) {train.mesh=0;train.state=~0u;train_mesh_now.store(0,std::memory_order_relaxed);}
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
         std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,emitters.size());
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
@@ -470,20 +566,70 @@ bool pickup_present(const PropSnapshot& snap,Emitter& e) {
     e.p[1]-=lift;for(int c=0;c<3;++c) e.ref.p[c]=(int32_t)e.p[c];e.ref.p[1]=(int32_t)(e.p[1]+lift);
     return true;
 }
+// D41AA: each game frame, the train's state (the overlay's +0x35 for type
+// 77) and, while it runs, the room it is linked in.
+uint32_t train_room_of(uint32_t o) {
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return 0;
+    for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
+        uint32_t node=psx_mod_read_word(table+88*r+head_at);
+        for(unsigned guard=0;node && guard<1024;++guard) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+            if(psx_mod_read_word(node+8)==o) return r;
+            node=psx_mod_read_word(node+4);
+        }
+    }
+    return ~0u;
+}
+void train_update() {
+    if(!train.o) return;
+    if(psx_mod_read_byte(train.o+0x14)!=1 || psx_mod_read_word(train.o+0x44)!=train.mesh) {train.o=train.mesh=0;train.state=~0u;train_mesh_now.store(0);return;}
+    const uint32_t st=psx_mod_read_half(train.o+0x2c)==77 ? psx_mod_read_byte(train.o+0x35) : 0;
+    const uint32_t ms=now_ms();
+    if(train.state==~0u) {
+        // Found (a load, a level): already running or wrecked long since.
+        train.crashed_here=false;train_side.store(1);
+        train_start_ms.store(ms-60000);train_crash_ms.store(ms-60000);
+    } else if(st!=train.state) {
+        if(train.state==0 && st==1) train_start_ms.store(ms);
+        if(train.state==2 && st==3) {
+            train_crash_ms.store(ms);train.crashed_here=true;
+            for(int k=0;k<3;++k) train.crash_p[k]=(int32_t)psx_mod_read_word(train.o+4+4*k);
+        }
+        if(std::getenv("DNTTK_PROP_TRAIN_TRACE")) std::fprintf(stderr,"[TTK prop light] train %08x state %u -> %u at frame %u ms %u\n",train.o,train.state,st,frames,ms);
+    }
+    // The side it skids toward: its motion since the impact, in model space
+    // (model +z goes to world (sin yaw, cos yaw) in x, z).
+    if(train.crashed_here && st>=3) {
+        const double yaw=(int16_t)psx_mod_read_half(train.o+0x1c)*(2*pi/4096);
+        const double dx=(int32_t)psx_mod_read_word(train.o+4)-train.crash_p[0],dz=(int32_t)psx_mod_read_word(train.o+12)-train.crash_p[2];
+        const double side=dx*std::sin(yaw)+dz*std::cos(yaw);
+        if(std::fabs(side)>=16) train_side.store(side>0?1.0f:-1.0f,std::memory_order_relaxed);
+    }
+    train.state=st;
+    train_state_now.store(st,std::memory_order_relaxed);train_mesh_now.store(train.mesh,std::memory_order_relaxed);
+    if((st>=1 && st<=3) || frames-train.room_frame>=30) {
+        train.room_frame=frames;
+        const uint32_t r=train_room_of(train.o);
+        if(r!=~0u) train.room=r;
+    }
+}
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
-    if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();scan_level=~0u;return;}   // Vanilla: nothing
+    if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
     ++frames;
     const uint32_t level=psx_mod_read_word(0x800be570u);
     // D54: a savestate load rescans too (a prop broken since, or standing again).
     const uint32_t loads=psx_mod_savestate_loads();
     const bool rescan=level!=scan_level || loads!=scan_loads;
+    if(rescan) train.state=~0u;   // D41AA: a load: no start or impact from the jump
     if(rescan || frames-scan_frame>300 || (cages_pending && frames-scan_frame>=10)) {scan_level=level;scan_loads=loads;scan_frame=frames;scan_props();}
     if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) {pickups.clear();crystals.clear();}scan_pickups();scan_crystals();}
     if(barricades) blink_update();
+    train_update();
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
-    if(!room || (emitters.empty() && pickups.empty() && crystals.empty()) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
+    if(!room || (emitters.empty() && pickups.empty() && crystals.empty() && !train.o) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const uint32_t ms=now_ms();
@@ -512,6 +658,32 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
         if(d<32000 && e.vis>0.01f && (e.standing || ms-e.broke_ms<prop_dying_ticks*34u)) near.push_back({d,&e});
     };
     for(Emitter& e:emitters) consider(e);
+    // D41AA: the train's lights, where it is now (it runs at 256 a tick).
+    if(train.o && train.state!=~0u) {
+        double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(train.o+4+4*k);
+        const double yaw=(int16_t)psx_mod_read_half(train.o+0x1c)*(2*pi/4096);
+        const TrainLook look=train_look(ms);
+        const float side=train_side.load(std::memory_order_relaxed);
+        const float flash_at[3]={train_flash_at[0],train_flash_at[1],train_flash_at[2]*side},sparks_at[3]={train_sparks_at[0],train_sparks_at[1],train_sparks_at[2]*side};
+        const struct {const Tune* t;const float* at;float k;} parts[6]={{&train_lamps,train_lead_at,look.lead},{&train_lamps,train_tail_at,look.tail},
+            {&train_beacon,train_beacon_at,look.beacon},{&train_beam,train_beam_at,look.beam},{&train_flash,flash_at,look.flash},{&train_sparks,sparks_at,look.sparks}};
+        for(int i=0;i<6;++i) {
+            Emitter& e=train_lights[i];
+            e.tune=parts[i].t;e.room=train.room;e.seed=train.o+i;e.train_k=parts[i].k;e.standing=1;
+            place(e.p,p,yaw,parts[i].at);
+            // The beam, flash and sparks exist only while they show; the
+            // lamps stay in the list through their flicker.
+            if(i>=3 && parts[i].k<=0) {e.vis=0;continue;}
+            consider(e);
+        }
+        if(static const bool trace=std::getenv("DNTTK_PROP_TRAIN_TRACE")!=nullptr;trace) {
+            static uint32_t last;
+            if(ms-last>=100) {last=ms;
+                std::fprintf(stderr,"[TTK prop light] train look ms %u state %u room %u shown %d: lead %.2f tail %.2f beacon %.2f beam %.2f flash %.2f sparks %.2f; vis %.2f %.2f %.2f (cap %u, %zu near)\n",
+                ms,train.state,train.room,shown?(int)shown(train.room):-1,look.lead,look.tail,look.beacon,look.beam,look.flash,look.sparks,
+                train_lights[0].vis,train_lights[1].vis,train_lights[2].vis,room,near.size());}
+        }
+    }
     if(prop_pickups_enabled.load(std::memory_order_relaxed)) for(Emitter& e:pickups) consider(e);
     if(prop_crystals_enabled.load(std::memory_order_relaxed)) for(Emitter& e:crystals) consider(e);
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
@@ -529,7 +701,8 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
             else on=e.lit_ms && ms-e.lit_ms<barricade_decay ? std::max(on,1.0f-(ms-e.lit_ms)/barricade_decay) : on;
             if(!e.standing) on=1;   // broken: sputters out from lit (D54)
             k*=on;   // dark: published at 0, so the light list does not change with the blink
-        } else
+        } else if(e.train_k>=0) k*=e.train_k;
+        else
         k*=e.portal?portal_breath(ms):e.crystal||e.cage?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
@@ -597,6 +770,34 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
                     b=c?c->rgb[2].load(std::memory_order_relaxed):cage_light.rgb[2];
         if(n<max) out[n++]=billboard(0,0,-40,cage_halo_size,cage_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                      cage_halo_level*r,cage_halo_level*g,cage_halo_level*b);
+    } else if(kind==prop_light_train && train_mesh_now.load(std::memory_order_relaxed)==mesh) {
+        // D41AA: a glow on each bumper lamp (amber, red, amber), the beacon,
+        // the headlight while it shines, the impact and the skid sparks.
+        const TrainLook l=train_look(ms);
+        constexpr float lamp_rgb[3][3]={{1.0f,0.72f,0.10f},{1.0f,0.10f,0.05f},{1.0f,0.72f,0.10f}};
+        for(int end=0;end<2;++end) {
+            const float lv=(end?l.tail:l.lead)*train_halo_lamp;
+            if(lv<1) continue;
+            for(int i=0;i<3 && n<max;++i) {
+                const float* at=end?train_tail_lamps[i]:train_lead_lamps[i];
+                out[n++]=billboard(at[0],at[1],at[2],150,150,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,lv*lamp_rgb[i][0],lv*lamp_rgb[i][1],lv*lamp_rgb[i][2]);
+            }
+        }
+        if(n<max && l.beacon>0) {const float v=train_halo_beacon*l.beacon;
+            out[n++]=billboard(-9100,-1580,15,900,900,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,v*0.35f,v*0.85f,v);}
+        if(n<max && l.beam>0) {const float v=train_halo_beam*l.beam;
+            out[n++]=billboard(160,-60,300,1000,1000,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,v,v*0.86f,v*0.62f);}
+        if(n<max && l.flash>0) {const float v=train_halo_flash*l.flash;
+            out[n++]=billboard(train_flash_at[0],train_flash_at[1],train_flash_at[2]*train_side.load(std::memory_order_relaxed)*0.75f,3600,3600,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,v,v*0.62f,v*0.25f);}
+        if(l.sparks>0) {
+            // A few hot points jumping about the leading wheels.
+            const double t=ms/1000.0;
+            for(int i=0;i<4 && n<max;++i) {
+                const float v=train_halo_sparks*l.sparks*(0.5f+0.5f*prop_light_noise(t*40,200+i));
+                const float x=train_sparks_at[0]+800*(prop_light_noise(t*25,210+i)-0.5f),y=train_sparks_at[1]-120*prop_light_noise(t*31,220+i),z=(train_sparks_at[2]-80+160*prop_light_noise(t*27,230+i))*train_side.load(std::memory_order_relaxed);
+                out[n++]=billboard(x,y,z,260,260,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,v,v*0.8f,v*0.5f);
+            }
+        }
     } else if(kind==prop_light_ring) {
         uint32_t vp,list;
         if(!mesh_header(mesh,51,vp,list)) return 0;
@@ -671,6 +872,13 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_CAGE",ttk::cage_light);
     if(const char* e=std::getenv("DNTTK_PROP_CAGE_AT")) ttk::cage_at[2]=(float)std::atof(e);
     if(const char* e=std::getenv("DNTTK_PROP_CAGE_HALO")) std::sscanf(e,"%f %f",&ttk::cage_halo_size,&ttk::cage_halo_level);
+    ttk::tune("DNTTK_PROP_LIGHT_TRAIN_LAMPS",ttk::train_lamps);   // D41AA
+    ttk::tune("DNTTK_PROP_LIGHT_TRAIN_BEAM",ttk::train_beam);
+    ttk::tune("DNTTK_PROP_LIGHT_TRAIN_BEACON",ttk::train_beacon);
+    ttk::tune("DNTTK_PROP_LIGHT_TRAIN_FLASH",ttk::train_flash);
+    ttk::tune("DNTTK_PROP_LIGHT_TRAIN_SPARKS",ttk::train_sparks);
+    if(const char* e=std::getenv("DNTTK_PROP_TRAIN_BEAM_AT")) std::sscanf(e,"%f %f %f",&ttk::train_beam_at[0],&ttk::train_beam_at[1],&ttk::train_beam_at[2]);
+    if(const char* e=std::getenv("DNTTK_PROP_TRAIN_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::train_halo_lamp,&ttk::train_halo_beacon,&ttk::train_halo_beam,&ttk::train_halo_flash,&ttk::train_halo_sparks);
     ttk::prop_light_lit_mesh=ttk::lit_mesh;   // D41X barrel, D41Y barricade, D41Z caged lamp
     ttk::tune("DNTTK_PROP_LIGHT_ATOMIC",ttk::atomic_light);
     ttk::tune("DNTTK_PROP_LIGHT_RING",ttk::ring_light);

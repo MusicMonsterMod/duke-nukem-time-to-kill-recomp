@@ -2040,7 +2040,7 @@ to its scripts, results and the D41AA train inspection.
 
 ### D41AA - Subway train lights (UI slot 12)
 
-**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41, D41X, D41Y, D41Z.**
+**Status: Done ([note 537](../documentation/537-d41aa-subway-train-lights.md)), user-accepted 2026-11-22 ("excellent!!! ... close out the job at hand"). Dependencies: D41, D41X, D41Y, D41Z.**
 
 User, 2026-11-22, accepting D41Z: "thoroughly inspect the train model as
 shown here. i feel like there are spots on the train that could be lit and it
@@ -2092,3 +2092,67 @@ and tunnel around its ends in ENHANCED and RELIT and add drama; no doubling
 with the existing type 77 sign lamp; no flicker; no cost at 180 Hz worth
 noting; ORIGINAL and Vanilla unchanged; the user agrees.
 
+Work log 2026-11-22 (Needs playtest; [note 537](../documentation/537-d41aa-subway-train-lights.md)):
+user "let's see what we can do with it to make it look more exciting"; UI
+slot 10 (parked) and slot 9 (at the controls, E starts it) copied to
+`research/savestates/d41aa/`.
+
+- MEASURED: one train (record `0x801d5d64`, type 77). E: parked (state 0)
+  at (32741, -5784, 41976), pulling away at 0.78 s, 256 a tick west, the
+  crash (state 3) at x 7910 after 4.25 s (it slews and skids 2044 sideways),
+  stopped (4) at the slot 12 pose. The level file's cyan sign lamp was bound
+  to the start pose, so it sputtered out (D54) as the train left: the moving
+  and wrecked train had no light.
+- Change (`prop_lights.cpp`, by model, no level data): lights ride with the
+  train every image and follow its state: both bumper clusters and the cyan
+  roof beacon; the headlight strikes up as it pulls away and lights the
+  tunnel ahead; at the impact an orange flash and skid sparks on the side it
+  skids toward, the beacon dips, the headlight blows; the wreck's nose
+  cluster buzzes and drops out. Halos on the six bumper lamps, beacon,
+  headlight, flash and sparks. Level 0's train sign lamp removed;
+  `lamp signs` skips the model; `lamp props` covers it.
+- Evidence: state trace and light levels as designed; crash region 32-41 ->
+  79-82 for 0.7 s after impact; slot 12 tail end lit cyan and amber;
+  Original unchanged; Vanilla pixel-identical; 180 Hz pacing unchanged
+  (slot 12 and during the ride); local tests OK. Before/after pairs in
+  `research/before-after/D41AA/` (local).
+- Remaining: the user's look on the real display (slot 9: press E; slot
+  12), especially the crash strength and the beacon.
+- Same day, user: "the lights in this shot flicker if you walk a step
+  forward and back" (new UI slot 12 at the wreck's nose). Found: the wreck's
+  intended buzz (dropouts strobing at about 34 Hz; still burst 9 jumps,
+  none without it). Room gate, budget and halos ruled out. Fix: the wreck's
+  nose cluster holds steady after its impact sputter (0 jumps over 1080
+  images); `DNTTK_PROP_TRAIN_BUZZ=1` keeps the old look for developers.
+
+### D41AB - Train beacon flickers like Duke 3D lights (UI slot 12)
+
+**Status: Todo (backlog; user request 2026-11-22, "next up"). Dependencies: D41AA.**
+
+User, 2026-11-22, accepting D41AA: "my crosshair is pointing at that
+overhead light. i wonder if we can make that blink in the same way that
+duke3d's lights can blink. i essentially want to reimplement that exact
+aesthetic ... its essentially a random flickering effect, it doesnt look like
+a glitch, its got a real aesthetic to it."
+
+- The light: the subway train's cyan roof beacon over its tail end (model
+  face 3; D41AA `train_beacon`, a light that rides with the train, and its
+  halo). Test save: UI slot 12 (saved 2026-11-22 14:03, LEVEL00, the wreck
+  at rest, Duke at (18190, -6017, 41162) looking up at the beacon), copied to
+  `research/savestates/d41ab/` (local, never committed). D41AA's UI slot 9
+  (at the controls, press E) shows it on the moving train.
+- Reference, to study before building: the EDuke32 wiki's lighting effects
+  category (https://wiki.eduke32.com/wiki/Category:Editing_Lighting_Effects,
+  with its tutorial) and the tutorial map the user placed at
+  `research/Tutorial.map` (local). Reimplement the Duke 3D random-light
+  flicker closely from how the engine does it (its sector effector and the
+  game code's timing and shade steps), not an approximation: random, but
+  never reading as a glitch.
+- Scope: the flicker drives the beacon's light and its halo together (and,
+  if the original affects the lit surfaces' shade, the equivalent here), at
+  any frame rate (verify at 180 Hz). Build it as a reusable lamp style (a
+  level-lamp `style` and a prop light option) so other lamps can use it
+  later; game-wide, no per-level data. Avoid D41AA's lesson: a fast hard
+  strobe read as a flicker fault, so match the reference's rhythm.
+- Modernized only (LIGHTING ENHANCED and RELIT); Original and Vanilla
+  unchanged.

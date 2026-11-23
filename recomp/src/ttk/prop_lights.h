@@ -126,6 +126,8 @@ inline bool (*prop_signal_now)(uint32_t mesh,float& level,float rgb[3])=nullptr;
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};
+// D57A: lava pools give light ("lamp lava off|on", the session).
+inline std::atomic<bool> lava_lights_enabled{true};
 // D56: console "lamp pickups off|on" (glowing pickups, session).
 inline std::atomic<bool> prop_pickups_enabled{true};
 

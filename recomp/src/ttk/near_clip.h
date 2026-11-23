@@ -86,6 +86,8 @@ void near_clip_set_glow_meshes(std::vector<uint32_t> meshes);
 // thread without a GPU readback; null until it arrives. Emulation thread.
 void near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>> vram,uint32_t level);
 bool near_clip_has_vram(uint32_t level);
+// D57A: that snapshot (null if none for this level). Game thread.
+std::shared_ptr<const std::vector<uint16_t>> near_clip_vram(uint32_t level);
 // The one RAM effect drawing a world piece in a non-flat room has (the
 // colour-index nibble clear), for a redraw-only live frame that draws none.
 void near_clip_host_world_unlit(uint32_t mesh);

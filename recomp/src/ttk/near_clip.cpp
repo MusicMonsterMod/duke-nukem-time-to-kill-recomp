@@ -3367,6 +3367,7 @@ void near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>> vram,uint32
     model_vram=std::move(vram);model_vram_level=level;
 }
 bool near_clip_has_vram(uint32_t level) {return model_vram && model_vram_level==level;}
+std::shared_ptr<const std::vector<uint16_t>> near_clip_vram(uint32_t level) {return model_vram && model_vram_level==level ? model_vram : nullptr;}
 void near_clip_set_glow_faces(std::vector<uint32_t> faces) {
     std::sort(faces.begin(),faces.end());faces.erase(std::unique(faces.begin(),faces.end()),faces.end());glow_faces.swap(faces);
 }

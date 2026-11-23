@@ -1441,7 +1441,7 @@ light left behind; measured cost at 180 Hz.
 
 ### D57A - Lava gives light (GOLD AND GUNS)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+**Status: Needs playtest ([note 549](../documentation/549-d57a-lava-light.md)). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: lava in GOLD AND GUNS looks bright but contributes no
@@ -1449,6 +1449,25 @@ light. Work: lava faces as warm emitters through the existing level-light
 path (D41D texture emitters, baked with D41M where fixed), cheap; maybe a slow
 throb. Acceptance: nearby walls and Duke take the lava's light, within the
 performance budget.
+
+Work log, 2026-11-23 overnight ([note 549](../documentation/549-d57a-lava-light.md)):
+the lava is world geometry: the channel at the bottom of the long hall's pit
+(level 3 rooms 49-53, a plane at y 6784), a dark orange flowing texture
+under vertex colours painted full red; nothing lit the pit. New rule in
+`prop_lights.cpp`, game-wide, once a level and after each load: flat faces,
+every corner painted red 200+, a fiery texture (read from the level's VRAM
+snapshot that the neon scan already takes: reading VRAM directly stalled 24
+ms on the GL readback; now 0.33 ms). Faces gather into pools (4000 across);
+each gives a warm light (1.00 0.42 0.10, 1.0, radius 9000) 900 over the
+surface with a slow 3.6 s throb; only the nearest two light at once, the
+second handing over smoothly. Survey, all 21 levels: level 3 only (54
+faces, 15 pools); red flat faces on levels 0, 5, 7, 9 and 23 fail the
+texture test. Relit `lamp lava off|on`: south walkway (the test save) 45.8
+-> 48.1, hall over the channel 41.3 -> 44.3, in the pit 27.0 -> 37.0;
+Original identical at still views; Vanilla: no lava activity. 180 Hz
+pacing unchanged; GPU +16 points with six pools, +4.6 with two (kept). New
+console `lamp lava off|on`. Before/after: `research/before-after/D57A/`
+(local). Test save left in the user's UI slot 5 (the south walkway).
 
 ### D57B - Light for the secret DeLorean (GOLD AND GUNS)
 

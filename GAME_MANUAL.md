@@ -749,6 +749,8 @@ The backtick console edits them:
   scans bind their sign lamps themselves. `lamp breaks off` keeps lamps lit
   when their props break, for the session (to compare); `lamp breaks on`
   restores the rule.
+- `lamp lava off` / `lamp lava on` turns the light from lava pools off and
+  on for the session (to compare).
 - `lamp props off` / `lamp props on` darkens and relights the woodburners,
   chandeliers (both kinds), fire barrels, barricade lamps, caged wall
   lamps, candle stands, the DeLorean and the subway train's lights for the session
@@ -780,6 +782,14 @@ or RELIT: a small warm pool on the wall and floor round each candle that
 flickers gently with its flame, and a soft glow round the flame. LIGHTING
 ORIGINAL, Vanilla and Classic keep the original look; `lamp props off`
 compares.
+
+**Lava (D57A).** Lava lights its surroundings in Modernized (Polymorph) with
+LIGHTING ENHANCED or RELIT: in GOLD AND GUNS the channel at the bottom of the
+long hall's pit throws a warm orange glow up its walls that breathes slowly,
+strongest near you. Found from the level itself (flat, glowing lava faces), so
+any level's lava does the same. LIGHTING ORIGINAL, Vanilla and Classic keep
+the original look; `lamp lava off` / `lamp lava on` compares (`lamp props
+off` also turns it off).
 
 **The secret DeLorean (D57B).** Found it in GOLD AND GUNS? In Modernized
 (Polymorph) with LIGHTING ENHANCED or RELIT it has its headlights on, a

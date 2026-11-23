@@ -27,6 +27,7 @@
 // Vanilla: nothing changes.
 #include "prop_lights.h"
 #include "prop_state.h"
+#include "near_clip.h"
 #include "duke_flicker.h"
 #include "live_env.h"
 #include "pc_input.h"
@@ -40,6 +41,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -443,6 +445,39 @@ Tune delorean_vent{{1.0f,0.48f,0.20f},0.55f,2000};
 float delorean_head_at[3]={0,-40,-1350},delorean_vent_at[3]={0,-120,1300};
 constexpr float delorean_lamp_at[2][3]={{-245,84,-1050},{245,84,-1050}},delorean_vents_at[3]={0,0,1090};
 float delorean_head_halo[2]={260,90},delorean_vent_halo[2]={320,55};
+// D57A: lava gives light. Time to Kill draws its lava as world faces (GOLD
+// AND GUNS: the channel at the bottom of the long hall's pit, level 3 rooms
+// 49-53, a plane at y 6784): a dark orange, flowing texture (mean 71 34 1)
+// under vertex colours painted to a full red (about 255 120 120), which is
+// what makes it glow; the walls round it take none of that light. Found by
+// rule, game-wide, once a level (and after each load): a world face is lava
+// when it is flat (every corner at one height), every corner's painted red
+// is at least lava_paint_min and well over its blue, and its texture is
+// fiery (red the strongest channel, blue under 15% of it, green 25-75% of
+// it). Its faces are gathered into pools (lava_pool across); each pool
+// gives one warm light lava_lift above its surface, with a slow, gentle
+// throb (lava_level: about 0.85..1.0, 3.6 s, each pool on its own phase).
+// The lights go with the prop lights (the nearest, rooms shown).
+// Developer: DNTTK_LAVA_LIGHT="r g b strength radius", DNTTK_LAVA_AT="lift
+// pool" (height over the surface, pool size), DNTTK_LAVA_THROB="depth seconds",
+// DNTTK_LAVA_TRACE=1 (the scan's faces, textures and pools).
+// Tuned in the GOLD AND GUNS pit (its walls 6800 tall): radius 3600 lit the
+// bottom of the walls only, unseen from the hall's rim; 9000 warms the walls
+// up to the rim and, faintly, the cave ceiling, as a pool of lava would.
+Tune lava_light{{1.0f,0.42f,0.10f},1.0f,9000};
+float lava_lift=900,lava_pool=4000,lava_throb_depth=0.15f,lava_throb_s=3.6f;
+// At most lava_max pools light at once, the nearest; the last of them fades
+// as the next one comes as near (over lava_handoff), so walking the hall
+// hands the light on without a pop. Each pool light is a shadowed prop light
+// (about 2.7 points of GPU at 180 Hz): six cost 16 points in the GOLD AND
+// GUNS hall, two cost 5 (developer: DNTTK_LAVA_MAX="n handoff").
+unsigned lava_max=2;float lava_handoff=2000;
+constexpr unsigned lava_paint_min=200;
+float lava_level(uint32_t ms,uint32_t seed) {
+    const float t=ms/1000.0f,ph=(float)(seed%997)*0.37f;
+    const float slow=0.5f+0.5f*std::sin(2*(float)pi*t/lava_throb_s+ph);
+    return 1.0f-lava_throb_depth*slow+0.03f*(prop_light_noise(t*0.9,seed)-0.5f);
+}
 // D57L (documentation/544-d57l-apartment-mood-lighting.md): lamps follow their
 // room's switch, and the LA apartment's mood.
 // - The game dims a room by its light colour (room record +0x54, 80 80 80 a
@@ -651,7 +686,8 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
                uint32_t blink_mesh=0;uint32_t lit_ms=0;   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
                float train_k=-1;   // D41AA: a train light's level this image (-1: not a train light)
                int lamp=0;bool apartment=false,dark=false;   // D57L: table lamp / hanging lamp kind; in an apartment room; its room switched off
-               bool steady=false;};   // D57B: no flicker, and not an electric fixture of its room
+               bool steady=false;   // D57B: no flicker, and not an electric fixture of its room
+               bool lava=false;};   // D57A: a pool of lava (lava_level)
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
@@ -861,6 +897,131 @@ void blink_update() {
         for(const BlinkSlot& b:blink_slots) if(const uint32_t m=b.mesh.load(std::memory_order_relaxed))
             std::fprintf(stderr,"[TTK prop light] frame %u barricade %08x lamp %.2f\n",frames,m,b.level.load(std::memory_order_relaxed));
 }
+// D57A: the level's lava pools (game thread; on a level change or a load,
+// again while the level's textures are not yet in VRAM).
+std::vector<Emitter> lava;
+uint32_t lava_level_seen=~0u,lava_loads_seen=~0u,lava_frame=0;unsigned lava_tries=0;bool lava_pending=false;
+// The mean colour (0..1) of a world texture entry's texels (its UV box,
+// through its CLUT); false when nothing readable is there (not loaded yet).
+// It reads the level's VRAM snapshot that the neon scan (or, in LIGHTING
+// ORIGINAL, D57F's share) already takes a moment after each load, delivered
+// without a GPU wait (near_clip_vram): reading VRAM here (gpu_vram_peek, or
+// one gpu_vram_copy) stalled the game thread 24 ms on the GL readback.
+std::shared_ptr<const std::vector<uint16_t>> lava_vram;
+bool texture_mean(uint32_t t1,uint32_t t2,uint32_t t3,double out[3]) {
+    if(!lava_vram || lava_vram->size()<1024*512) return false;
+    const uint32_t clut=t1>>16,tp=(t2>>16)&0x1ff,uv[4]={t1&0xffff,t2&0xffff,t3&0xffff,t3>>16};
+    int u0=255,u1=0,v0=255,v1=0;
+    for(uint32_t q:uv) {u0=std::min<int>(u0,q&0xff);u1=std::max<int>(u1,q&0xff);v0=std::min<int>(v0,q>>8);v1=std::max<int>(v1,q>>8);}
+    const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
+    const std::vector<uint16_t>& vram=*lava_vram;
+    auto at=[&vram](int x,int y){return vram[(size_t)(y&511)*1024+(x&1023)];};
+    double sum[3]={0,0,0};unsigned n=0,lit=0;
+    for(int v=v0;v<=v1;v+=2) for(int u=u0;u<=u1;u+=2) {   // every other texel: plenty for a mean
+        uint16_t c;
+        if(depth==0) c=at(cx+((at(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
+        else if(depth==1) c=at(cx+((at(tx+u/2,ty+v)>>(8*(u&1)))&0xff),cy);
+        else c=at(tx+u,ty+v);
+        sum[0]+=(c&31)/31.0;sum[1]+=((c>>5)&31)/31.0;sum[2]+=((c>>10)&31)/31.0;++n;lit+=(c&0x7fff)!=0;
+    }
+    if(!n || lit*4<n) return false;
+    for(int k=0;k<3;++k) out[k]=sum[k]/n;
+    return true;
+}
+bool fiery(const double m[3]) {
+    return m[0]>=0.15 && m[0]>=m[1] && m[0]>=m[2] && m[2]<=0.15*m[0] && m[1]>=0.25*m[0] && m[1]<=0.75*m[0];
+}
+void scan_lava() {
+    const auto t0=std::chrono::steady_clock::now();
+    lava.clear();lava_pending=false;
+    lava_vram=near_clip_vram(lava_level_seen);
+    if(!lava_vram) {lava_pending=true;return;}   // the level's snapshot comes a moment after the load
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    const uint32_t textures=psx_mod_read_word(0x800d67a8u+0x58);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3) || textures<0x80010000u || textures>0x801ffff0u) {lava_pending=true;return;}
+    struct Face {double c[3];uint32_t room;double area;};
+    std::vector<Face> faces;
+    std::vector<std::pair<int,int>> verdict;   // texture index, 1 fiery / 0 not / -1 unreadable
+    unsigned candidates=0,unreadable=0;double tex_ms=0;
+    for(uint32_t r=0;r<rooms;++r) {
+        const uint32_t a=table+88*r;
+        const double org[3]={(double)(int32_t)psx_mod_read_word(a),(double)(int32_t)psx_mod_read_word(a+4),(double)(int32_t)psx_mod_read_word(a+8)};
+        const unsigned n=psx_mod_read_byte(a+0x32);const uint32_t list=psx_mod_read_word(a+0x40);
+        if(!n || list<0x80010000u || list>0x80200000u-n*4 || (list&3)) continue;
+        for(unsigned i=0;i<n;++i) {
+            const uint32_t piece=psx_mod_read_word(list+4*i);
+            if(piece<0x80010000u || piece>0x801f0000u || (piece&3)) continue;
+            const unsigned count=psx_mod_read_half(piece+0x14);
+            if(!count || count>2048 || piece+0x1c+8*count>0x80200000u) continue;
+            uint32_t cursor=piece+psx_mod_read_word(piece+0x18);
+            if(cursor<0x80010000u || cursor>0x801ffff0u) continue;
+            for(unsigned guard=0;guard<=256;++guard) {
+                const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+                const uint32_t type=header&0xffff,m=header>>16;
+                if(type==0xff || (type!=0x60 && type!=0x61) || !m || m>4096 || cursor+m*8>0x80200000u) break;
+                for(uint32_t k=0;k<m;++k,cursor+=8) {
+                    const uint32_t word=psx_mod_read_word(cursor);const unsigned nc=type==0x60?3u:4u;
+                    double c[3]={0,0,0},y0=0,lo[2]={1e30,1e30},hi[2]={-1e30,-1e30};bool ok=true;
+                    for(unsigned j=0;j<nc && ok;++j) {
+                        const unsigned idx=(word>>(8*j))&0xff;
+                        if(idx>=count) {ok=false;break;}
+                        const uint32_t w0=psx_mod_read_word(piece+0x1c+8*idx),w1=psx_mod_read_word(piece+0x20+8*idx);
+                        const unsigned R=w1&0xff,B=(w1>>16)&0xff;
+                        if(R<lava_paint_min || R<B*3/2) {ok=false;break;}   // painted to glow, red
+                        const double p[3]={org[0]+(int16_t)(((w0&0xff)<<10)&0xffff),org[1]+(int16_t)((((w0>>8)&0xff)<<7)&0xffff),org[2]+(int16_t)((((w0>>16)&0xff)<<10)&0xffff)};
+                        if(j==0) y0=p[1];else if(p[1]!=y0) {ok=false;break;}   // flat
+                        for(int q=0;q<3;++q) c[q]+=p[q]/nc;
+                        lo[0]=std::min(lo[0],p[0]);hi[0]=std::max(hi[0],p[0]);lo[1]=std::min(lo[1],p[2]);hi[1]=std::max(hi[1],p[2]);
+                    }
+                    if(!ok) continue;
+                    ++candidates;
+                    const int16_t tex=(int16_t)psx_mod_read_half(cursor+4);
+                    int v=-2;
+                    for(const auto& t:verdict) if(t.first==tex) {v=t.second;break;}
+                    if(v==-2) {
+                        const uint32_t e=textures+(uint32_t)(tex*12);
+                        double mean[3];
+                        const auto tt=std::chrono::steady_clock::now();
+                        v=texture_mean(psx_mod_read_word(e),psx_mod_read_word(e+4),psx_mod_read_word(e+8),mean)?(fiery(mean)?1:0):-1;
+                        tex_ms+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-tt).count();
+                        verdict.push_back({tex,v});
+                        if(std::getenv("DNTTK_LAVA_TRACE") && v>=0)
+                            std::fprintf(stderr,"[TTK lava] level %u texture %d: %.2f %.2f %.2f %s\n",lava_level_seen,tex,v>=0?mean[0]:0,v>=0?mean[1]:0,v>=0?mean[2]:0,v?"fiery":"not fiery");
+                    }
+                    if(v<0) {++unreadable;continue;}
+                    if(!v) continue;
+                    faces.push_back({{c[0],c[1],c[2]},r,(hi[0]-lo[0]+1)*(hi[1]-lo[1]+1)});
+                }
+            }
+        }
+    }
+    lava_vram.reset();
+    if(unreadable) lava_pending=true;   // a candidate's texture not in VRAM yet: again (up to 20 tries)
+    // Pools: each face joins the first pool within lava_pool (across, at its height).
+    struct Pool {double sum[3],w;uint32_t room;unsigned n;};
+    std::vector<Pool> pools;
+    for(const Face& f:faces) {
+        Pool* hit=nullptr;
+        for(Pool& p:pools) {
+            const double dx=p.sum[0]/p.w-f.c[0],dz=p.sum[2]/p.w-f.c[2];
+            if(std::fabs(p.sum[1]/p.w-f.c[1])<64 && dx*dx+dz*dz<lava_pool*lava_pool/4) {hit=&p;break;}
+        }
+        if(!hit) {pools.push_back({{0,0,0},0,f.room,0});hit=&pools.back();}
+        for(int q=0;q<3;++q) hit->sum[q]+=f.c[q]*f.area;
+        hit->w+=f.area;++hit->n;
+    }
+    for(const Pool& p:pools) {
+        Emitter e{};e.room=p.room;e.lava=true;e.tune=&lava_light;
+        e.p[0]=p.sum[0]/p.w;e.p[1]=p.sum[1]/p.w-lava_lift;e.p[2]=p.sum[2]/p.w;   // up is -y
+        e.seed=(uint32_t)((int32_t)e.p[0]*31+(int32_t)e.p[2]*17);
+        lava.push_back(e);
+    }
+    if(std::getenv("DNTTK_PROP_LIGHT_TRACE") || std::getenv("DNTTK_LAVA_TRACE"))
+        std::fprintf(stderr,"[TTK lava] level %u: %u flat glowing faces, %zu lava faces in %zu pools%s (%.2f ms, textures %.2f)\n",lava_level_seen,candidates,faces.size(),pools.size(),lava_pending?" (textures not loaded: again)":"",
+                     std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count(),tex_ms);
+    if(std::getenv("DNTTK_LAVA_TRACE")) for(const Emitter& e:lava)
+        std::fprintf(stderr,"[TTK lava]   pool room %u light at %.0f %.0f %.0f\n",e.room,e.p[0],e.p[1],e.p[2]);
+}
 void scan_pickups() {
     std::vector<Emitter> found;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
@@ -998,7 +1159,7 @@ void train_update() {
 }
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
-    if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
+    if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();lava.clear();lava_level_seen=~0u;scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
     ++frames;
     duke_tick_frame.store(duke_tick(now_ms()),std::memory_order_relaxed);   // D41AB
     const uint32_t level=psx_mod_read_word(0x800be570u);
@@ -1010,9 +1171,13 @@ void composition_hook(CPUState*,uint32_t) {
     if(rescan || frames-pickup_frame>=10) {pickup_frame=frames;if(rescan) {pickups.clear();crystals.clear();}scan_pickups();scan_crystals();}
     if(barricades) blink_update();
     train_update();
+    // D57A: lava, once a level and after each load, once the level's VRAM
+    // snapshot is there (and again while its textures load), every 30 images, up to 40 tries.
+    if(level!=lava_level_seen || loads!=lava_loads_seen) {lava_level_seen=level;lava_loads_seen=loads;lava_tries=0;lava_frame=frames-60;lava_pending=true;lava.clear();}
+    if(lava_pending && lava_tries<40 && frames-lava_frame>=30) {lava_frame=frames;++lava_tries;scan_lava();}
 }
 unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
-    if(!room || (emitters.empty() && pickups.empty() && crystals.empty() && !train.o) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
+    if(!room || (emitters.empty() && pickups.empty() && crystals.empty() && lava.empty() && !train.o) || !prop_lights_enabled.load(std::memory_order_relaxed) || !input_modernized()) return 0;
     const uint32_t pl=players+psx_mod_read_word(player_index)%2*0x8a4u;
     const double duke[3]={(double)(int32_t)psx_mod_read_word(pl+4),(double)(int32_t)psx_mod_read_word(pl+8),(double)(int32_t)psx_mod_read_word(pl+12)};
     const uint32_t ms=now_ms();
@@ -1084,12 +1249,24 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
     }
     if(prop_pickups_enabled.load(std::memory_order_relaxed)) for(Emitter& e:pickups) consider(e);
     if(prop_crystals_enabled.load(std::memory_order_relaxed)) for(Emitter& e:crystals) consider(e);
+    if(lava_lights_enabled.load(std::memory_order_relaxed)) for(Emitter& e:lava) consider(e);   // D57A
     std::sort(near.begin(),near.end(),[](const Near& a,const Near& b){return a.d<b.d;});
+    // D57A: the nearest lava_max pools only; the last fades toward the next one's distance.
+    double lava_d[8];unsigned lava_n=0;
+    for(const Near& q:near) if(q.e->lava && lava_n<8) lava_d[lava_n++]=q.d;
+    unsigned lava_rank=0;
     unsigned n=0;
     const unsigned cap=std::min(room,6u);const double cut=near.size()>cap ? near[cap].d : 32000.0;
     for(const Near& q:near) {
         if(n>=cap) break;
         Emitter& e=*q.e;   // D41Y: a barricade lamp keeps when it was last lit
+        float lava_k=1;
+        if(e.lava) {
+            const unsigned r=lava_rank++;
+            if(r>=lava_max) continue;
+            if(r+1==lava_max && r+1<lava_n) lava_k=(float)std::clamp((lava_d[r+1]-lava_d[r])/lava_handoff,0.0,1.0);
+            if(lava_k<0.01f) continue;   // faded out: not even a dark light in the list (its cost is per light)
+        }
         const Tune* const tune=e.train_k>=0?e.tune:tune_now(e);   // D57L
         float k=tune->k*e.vis*(float)std::clamp((cut-q.d)/4000,0.0,1.0);
         if(e.blink_mesh) {
@@ -1102,7 +1279,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
             k*=on;   // dark: published at 0, so the light list does not change with the blink
         } else if(e.train_k>=0) k*=e.train_k;
         else
-        k*=e.portal?portal_breath(ms):e.crystal||e.cage||e.steady?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
+        k*=e.lava?lava_level(ms,e.seed)*lava_k:e.portal?portal_breath(ms):e.crystal||e.cage||e.steady?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=tune->radius;
@@ -1396,6 +1573,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_BULB",ttk::bulb_light);ttk::tune("DNTTK_APARTMENT_BULB",ttk::apartment_bulb);   // D57M
     if(const char* e=std::getenv("DNTTK_PROP_BULB_AT")) ttk::bulb_at[1]=(float)std::atof(e);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLE_STAND",ttk::candle_stand_light);   // D57H
+    ttk::tune("DNTTK_LAVA_LIGHT",ttk::lava_light);   // D57A
+    if(const char* e=std::getenv("DNTTK_LAVA_AT")) std::sscanf(e,"%f %f",&ttk::lava_lift,&ttk::lava_pool);
+    if(const char* e=std::getenv("DNTTK_LAVA_THROB")) std::sscanf(e,"%f %f",&ttk::lava_throb_depth,&ttk::lava_throb_s);
+    if(const char* e=std::getenv("DNTTK_LAVA_MAX")) std::sscanf(e,"%u %f",&ttk::lava_max,&ttk::lava_handoff);
     ttk::tune("DNTTK_PROP_LIGHT_DELOREAN_HEAD",ttk::delorean_head);ttk::tune("DNTTK_PROP_LIGHT_DELOREAN_VENT",ttk::delorean_vent);   // D57B
     if(const char* e=std::getenv("DNTTK_PROP_DELOREAN_HEAD_AT")) std::sscanf(e,"%f %f %f",&ttk::delorean_head_at[0],&ttk::delorean_head_at[1],&ttk::delorean_head_at[2]);
     if(const char* e=std::getenv("DNTTK_PROP_DELOREAN_VENT_AT")) std::sscanf(e,"%f %f %f",&ttk::delorean_vent_at[0],&ttk::delorean_vent_at[1],&ttk::delorean_vent_at[2]);

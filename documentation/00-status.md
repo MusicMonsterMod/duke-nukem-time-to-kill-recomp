@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - D57A lava gives light (Needs playtest)
+
+- D57A ([note 549](549-d57a-lava-light.md)): lava found by rule, game-wide (flat world faces, painted full red, fiery texture; survey: level 3 only, the long hall's pit) gives a warm light that throbs slowly, the two nearest pools at once, in ENHANCED and RELIT (`lamp lava off|on`). Relit walkway 45.8 -> 48.1, pit 27.0 -> 37.0; Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about +4.6 points). Test save: the user's UI slot 5 (the south walkway beside the pit). Waits for the user's look.
+
 ## 2026-11-23 - D57B the DeLorean's lights (Needs playtest)
 
 - D57B ([note 548](548-d57b-delorean-lights.md)): the secret DeLorean in GOLD AND GUNS (prop type 238, model `0x80128108`, by model; level 3 room 37 only) has its headlights on (a warm-white light just before the nose) and its rear vents aglow (orange, behind the tail), steady, with small halos, in ENHANCED and RELIT. User's UI slot 9: Relit 29.8 -> 45.7, Enhanced 32.0 -> 38.5, Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about +2.5 points). Waits for the user's look (UI slot 9).

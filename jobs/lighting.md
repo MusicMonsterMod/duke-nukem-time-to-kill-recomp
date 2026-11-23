@@ -2102,6 +2102,28 @@ hand". Done. The user's follow-up report (saturated reds glowy in dim light,
 Duke's shirt and the medkit, the strip club too) is the Relit emitter test,
 not this job: new job D41AC. Lab trimmed to its scripts and results.
 
+### D57M - Obey or Die apartment: dangling bulb
+
+**Status: Todo (user 2026-11-23). Dependencies: D57L.**
+
+User, 2026-11-23: "first take a copy of the new slot 12 - this is the same
+apartment but in level 5 obey or die. there's this lightbulb dangling here.
+can we make that emit light properly and give it similar moody treatment
+that we gave the apartment room. it's only one light so dont spend too long
+on it, should be a real quick one." Save copy (UI slot 12, internal slot 11,
+2026-11-23 01:07) in `research/savestates/d57m/`.
+
+Work: find the bulb by its model (D57K's survey found the hanging lamp,
+prop type 229, only in levels 0 and 9; level 5's bulb is likely another
+model) and its room; give it a light by rule, game-wide like D57D/D57K
+(prop_lights.cpp), and the D57L apartment mood (club_lights.inc apartment
+rooms: low Relit ambient, warm pools, a soft bulb glow; the switch, if the
+room has one). ENHANCED and RELIT; Original, Vanilla and Classic unchanged;
+cost at 180 Hz; a before/after shot.
+
+Acceptance: the bulb lights the room with the apartment's mood, judged by
+the user on the real display.
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**
@@ -2596,7 +2618,7 @@ results (raw bursts removed).
 
 ### D41AC - Relit emitter test catches saturated model colours
 
-**Status: Todo (user 2026-11-22). Dependencies: D41D, D41E.**
+**Status: Done (user-accepted 2026-11-23: "the signs look amazing!"; [note 545](../documentation/545-d41ac-model-emitters.md)). Dependencies: D41D, D41E.**
 
 User, 2026-11-22 (D57L, UI slot 12 resaved 22:55, copy in
 `research/savestates/d57l/red/`): "the red of duke's shirt and the med kit
@@ -2630,3 +2652,55 @@ Work:
 
 Acceptance: saturated model colours dim with the room in Relit while real
 signs and neon keep their glow, judged by the user on the real display.
+
+Work log:
+
+- 2026-11-23. Developer view `PSX_EMITTER_VIEW=1` (emitter texels magenta on
+  the world, green on models) and `=2` (raw texel), compiled in only when
+  set. Texel values do not separate paint from light (shirt max 0.82 and
+  saturation 0.83, medkit cross 0.81/1.00, club neon 0.91/1.00), so the rule
+  is by surface: a model is an emitter only if its mesh is a light fixture
+  the prop-light system knows (`prop_light_kind`, game-wide); Duke, weapons,
+  pickups, enemies, doors, plants and furniture dim with the room; world
+  signs keep the texel test. The mark rides the host vertex surface word
+  (`PSX_MOD_SURF_NO_EMITTER`, bit 31) to `v_lit` 2 in the shader. Console
+  `lamp emitters all|fixtures` (session) for comparison, carried to the
+  redraw workers through `RenderState`. Relit, percent of Original: shirt
+  90% -> 53% (walls 55%), arm 58-60% (models dim like the world: the 94% skin
+  figure was a region artefact), medkit cross 101% both ways (a baked lamp
+  pool; 55% with the bake off). Club: neon tubes and canopies keep their
+  glow, tables and dancers dim. Survey of all 21 levels: no model emitter
+  left off the fixture list (lost: level 0 STOP sign, level 9 bushes, level
+  12 urn plants). Original pixel-identical between the rules, Vanilla no
+  activity, 180 Hz pacing p95 6 ms both ways, GPU within noise. Tests 270
+  OK, runtime tests pass, patch checked against a clean `08ec704a`. Shots
+  `research/before-after/D41AC/` (local). Open: whole saturated world
+  floors and walls (levels 3, 12, 27, the club's gold panels) also skip
+  Relit's dimming through the world side of the test; not changed, for the
+  user to choose. Needs the user's look on the real display.
+- 2026-11-23 (playtest 1). User: "the stuff in the apartment now looks
+  great! but ... the exit sign is now illegeble [UI slot 10] ... the
+  bootylicious sign doesnt actually look illuminated at all [UI slot 9]".
+  EXIT (caused here): a sign model off the fixture list was lit like paint
+  and its sign lamp washed it to a red blob (130% of Original). The neon
+  scan now also returns glowing static props (the sign-lamp weights and
+  `sign_min_glow`; 34 on level 0), which keep the emitter rule: EXIT back to
+  102%, letters legible. Bootylicious (older gap, the same under both
+  rules): D41K's neon faces arrive about 45 ticks after a load, but the
+  redraw workers were forked at the load and never had them, so every 180 Hz
+  redraw lit the letters and the club's 30% ambient dimmed them (55%). The
+  workers are now refreshed when the scan lands (once per load, 6 ms fork):
+  88%, drawn as its own neon. The club's table tops (also D41K neon faces)
+  now draw unlit in every image too. Shirt still 53%. Survey of 21 levels
+  repeated: no model emitter left on Duke, pickups or plants. Pacing p95
+  6 ms; GPU pairs not readable (a Flatpak update and a browser loading the
+  host). Tests 270 OK, runtime tests pass. Shots added to
+  `research/before-after/D41AC/`. Waits for the user's look.
+- 2026-11-23. User on the world side of the test: "i see no problem with
+  levels 3, 12, and 27. the club also looks absolutely incredible. i like
+  how the gold gets picked up by the light if anything." Left as it is
+  (noted: held texels take no flashes, blasts or shadows; room switches
+  still dim them through the painted light).
+
+Closed out, 2026-11-23: user "lock it in and close it out. the signs look
+amazing!" Done. Lab trimmed to its scripts and results.

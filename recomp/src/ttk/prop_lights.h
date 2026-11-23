@@ -10,6 +10,8 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include "mod_plugins.h"
 
 namespace ttk {
@@ -47,6 +49,13 @@ inline std::atomic<bool> club_lights_enabled{true};
 // D57L: the LA apartment's mood lighting and lamps that follow their room's
 // switch (prop_lights.cpp, club_lights.inc); "lamp apartment off|on".
 inline std::atomic<bool> apartment_lights_enabled{true};
+// D41AC: only light fixtures (a model with a prop_light_kind) may be
+// emitters in the D41D shader rule (bright, saturated texels keep their
+// unlit look); every other model (Duke, pickups, enemies, doors, furniture)
+// dims with the room. Console "lamp emitters all" (session) restores the
+// old rule, where any model could be one; "lamp emitters fixtures" the new.
+// Developer DNTTK_MODEL_EMITTERS=all starts with the old rule.
+inline std::atomic<bool> model_emitters_fixtures_only{[]{const char* e=std::getenv("DNTTK_MODEL_EMITTERS");return !(e && !std::strcmp(e,"all"));}()};
 // D57L: the prop record being drawn when prop_light_glows runs (0: not known),
 // so a lamp's halo can follow its own room (near_clip.cpp sets it).
 inline thread_local uint32_t prop_glow_object=0;

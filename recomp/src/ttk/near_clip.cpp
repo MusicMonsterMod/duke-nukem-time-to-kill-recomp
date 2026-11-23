@@ -480,6 +480,7 @@ struct Frame {
     bool glow=false; // D41D1: a neon sign prop: gives light, never lit
     int64_t floor_surf=-1;   // D41P: the baked floor under this mesh's origin (-1 not looked up)
     bool hanging=false;      // D57F: a prop hanging far over its floor: no floor bake
+    bool no_emitter=false;   // D41AC: a model that is not a light fixture: never an emitter in the shader
     bool exact_origin=false;int32_t origin[3]={0,0,0};   // D17BO: a static prop's own position
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
@@ -735,6 +736,7 @@ bool lit_frame(const Frame& f,const Poly& poly) {
 // logged every 120 images, to compare how one light reaches walls and props.
 struct LightProbe { double n=0,base=0,add=0,gain=0,nl=0,reach=0,one=0,two=0,flat=0; };
 std::vector<uint32_t> glow_faces; // D41D1/D41K, sorted face records (near_clip_set_glow_faces)
+std::vector<uint32_t> glow_meshes; // D41AC, sorted meshes of glowing static props (near_clip_set_glow_meshes)
 bool light_probe_on() {static const bool v=std::getenv("DNTTK_LIGHT_PROBE")!=nullptr;return v;}
 unsigned light_probe_why[8];std::mutex light_probe_lock;LightProbe light_probe[3];PSXModLight light_probe_l[PSX_MOD_MAX_LIGHTS];int light_probe_n=0;float light_probe_amb=1;unsigned light_probe_frames=0;
 double probe_limit(double m) {return m>0.35?0.35+0.65*(1.0-std::exp(-(m-0.35)/0.65)):m;}   // gpu_gl_renderer.c lit_col (D41K)
@@ -989,11 +991,17 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
                     }
                     bake_census_count(smooth ? (f.floor_surf>0?3u:poly_floor?5u:4u) : poly.surface ? 0u : poly_floor ? 5u : f.object ? 2u : 1u);
                 }
-                if(!smooth && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,poly_fn[0],poly_fn[1],poly_fn[2],poly_floor);
-                else if(smooth && f.floor_surf<=0 && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],poly_floor);
-                else if((nv[0]!=0 || nv[1]!=0 || nv[2]!=0) && f.floor_surf>0) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],(uint32_t)f.floor_surf);
-                else if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
-                else if(poly.surface) {psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,poly.surface);++baked_corners;}   // D41M
+                // D41AC: the no-emitter mark rides the surface word.
+                const uint32_t ne=f.object && f.no_emitter ? PSX_MOD_SURF_NO_EMITTER : 0u;
+                if(!smooth && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,poly_fn[0],poly_fn[1],poly_fn[2],poly_floor|ne);
+                else if(smooth && f.floor_surf<=0 && poly_floor) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],poly_floor|ne);
+                else if((nv[0]!=0 || nv[1]!=0 || nv[2]!=0) && f.floor_surf>0) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],(uint32_t)f.floor_surf|ne);
+                else if(nv[0]!=0 || nv[1]!=0 || nv[2]!=0) {
+                    if(ne) psx_mod_gpu_host_vertex_world_normal_surface(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2],ne);
+                    else psx_mod_gpu_host_vertex_world_normal(addr,word,wx,wy,wz,(float)nv[0],(float)nv[1],(float)nv[2]);
+                }
+                else if(poly.surface) {psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,poly.surface|ne);++baked_corners;}   // D41M
+                else if(ne) psx_mod_gpu_host_vertex_world_surface(addr,word,wx,wy,wz,ne);
                 else psx_mod_gpu_host_vertex_world(addr,word,wx,wy,wz);
             }
         }
@@ -2874,6 +2882,12 @@ void object(CPUState* cpu) {
     const int prop_kind=prop_light_kind && !viewmodel ? prop_light_kind(mesh) : 0;
     const float prop_tone=prop_kind && prop_light_tone ? prop_light_tone(prop_kind) : 1.0f;
     f.hanging=prop_kind==prop_light_portal_top && prop_tone!=1.0f;   // the extras on
+    // D41AC: only a light fixture's model (a prop-light kind, or a glowing
+    // sign or panel found by the neon scan) keeps the shader's emitter rule
+    // (its neon, shade or lens glows in a dim room); Duke, his weapons,
+    // pickups, enemies, doors and furniture dim with the room.
+    f.no_emitter=prop_kind==prop_light_none && model_emitters_fixtures_only.load(std::memory_order_relaxed) &&
+        !std::binary_search(glow_meshes.begin(),glow_meshes.end(),mesh);   // a glowing sign or panel (the neon scan)
     // D17BO: the static prop loop (0x80032288) draws each prop with its object
     // record in s2 (position at +4, mesh at +0x44): the floor lookup below
     // uses that exact position (checked against the view's origin there).
@@ -3355,6 +3369,9 @@ void near_clip_set_vram(std::shared_ptr<const std::vector<uint16_t>> vram,uint32
 bool near_clip_has_vram(uint32_t level) {return model_vram && model_vram_level==level;}
 void near_clip_set_glow_faces(std::vector<uint32_t> faces) {
     std::sort(faces.begin(),faces.end());faces.erase(std::unique(faces.begin(),faces.end()),faces.end());glow_faces.swap(faces);
+}
+void near_clip_set_glow_meshes(std::vector<uint32_t> meshes) {
+    std::sort(meshes.begin(),meshes.end());meshes.erase(std::unique(meshes.begin(),meshes.end()),meshes.end());glow_meshes.swap(meshes);
 }
 bool near_clip_host_world_live() {
     const bool clip_live=first_person_view_live() || third_person_camera_live() || widescreen_near_clip_live();

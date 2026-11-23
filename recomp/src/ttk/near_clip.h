@@ -79,6 +79,8 @@ uint64_t near_clip_object_null_count();
 // but none falls on its letters, while the rest of the prop takes light.
 // Emulation thread.
 void near_clip_set_glow_faces(std::vector<uint32_t> faces);
+// D41AC: meshes of glowing static props (signs, lit panels): their texels keep the shader's emitter rule.
+void near_clip_set_glow_meshes(std::vector<uint32_t> meshes);
 // D57F: all of VRAM (1024 x 512) as of this level's start, from the neon
 // scan's snapshot (level_lights.inc), for palette checks on the emulation
 // thread without a GPU readback; null until it arrives. Emulation thread.

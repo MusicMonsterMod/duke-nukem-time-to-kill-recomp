@@ -733,6 +733,14 @@ The backtick console edits them:
   placed.
 - `lamp gate off` lets every nearby lamp light through walls again for the
   session (to compare); `lamp gate on` restores the rule.
+- In LIGHTING ENHANCED and RELIT, bright, strongly coloured parts of light
+  fittings (neon tubes, lamp shades, lenses) and of signs (EXIT boxes, neon
+  signs, lit panels) keep their own glow
+  in a dim room. Other models (Duke, his weapons, pickups, enemies, doors,
+  plants, furniture) dim with the room, so Duke's red shirt or a medkit's
+  cross no longer glows. `lamp emitters all` brings back the old rule for the
+  session (any model could glow), to compare; `lamp emitters fixtures`
+  restores the new one.
 - `lamp bind` makes the selected lamp go out with the prop nearest the
   crosshair (for lamps you placed at a light fitting), `lamp unbind` undoes
   it, and `lamp bind all` binds every lamp whose note names a prop type. The

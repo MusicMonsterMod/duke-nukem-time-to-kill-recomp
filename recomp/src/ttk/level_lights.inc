@@ -997,19 +997,26 @@ static std::vector<SignCand> level_lamps_signs(std::vector<uint32_t>* neon=nullp
 // dark and 10% neon) from a copy of main RAM and VRAM taken in one step, and
 // runs on its own thread; the game thread polls for the result.
 struct NeonSnapshot {std::vector<uint8_t> ram;std::vector<uint16_t> vram;};
-static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
-    std::vector<uint32_t> neon;
+// D41AC: glow, the meshes of static props whose glowing area reaches
+// sign_min_glow by the sign-lamp weights above (non-animated faces): signs
+// and lit panels such as an EXIT box, which keep the shader's emitter rule
+// as light fixtures do (near_clip_set_glow_meshes).
+struct NeonResult {std::vector<uint32_t> faces,glow;};
+static NeonResult neon_scan(const NeonSnapshot& s) {
+    NeonResult res;std::vector<uint32_t>& neon=res.faces;
     auto ok=[](uint32_t a,uint32_t n){return a>=0x80010000u && a<=0x80200000u-n;};
     auto rb=[&](uint32_t a)->uint32_t{return s.ram[a&0x1fffff];};
     auto rh=[&](uint32_t a)->uint32_t{a&=0x1ffffe;return s.ram[a]|s.ram[a+1]<<8;};
     auto rw=[&](uint32_t a)->uint32_t{a&=0x1ffffc;return s.ram[a]|s.ram[a+1]<<8|s.ram[a+2]<<16|(uint32_t)s.ram[a+3]<<24;};
     auto texel=[&](int x,int y){return s.vram[(y&511)*1024+(x&1023)];};
     const uint32_t table=rw(0x800da454),rooms=rw(0x800da47c),types=rw(0x800d2660);
-    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return neon;
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return res;
     const bool types_ok=types>=0x80010000u && types<0x80200000u-0x7428u && !(types&3);
-    // Per texture window: is it neon on a dark ground?
-    std::map<std::array<uint32_t,3>,bool> texes;
-    auto tex_neon=[&](uint32_t t1,uint32_t t2,uint32_t t3,unsigned nc)->bool {
+    // Per texture window: is it neon on a dark ground, and its glowing
+    // fraction by the sign-lamp weights (D41AC)?
+    struct TexN {bool neon=false;double frac=0;};
+    std::map<std::array<uint32_t,3>,TexN> texes;
+    auto tex_neon=[&](uint32_t t1,uint32_t t2,uint32_t t3,unsigned nc)->TexN {
         const std::array<uint32_t,3> key{t1,t2&0x1ffffffu,nc==4?t3:t3&0xffffu};
         if(auto it=texes.find(key);it!=texes.end()) return it->second;
         const uint32_t clut=t1>>16,tp=(t2>>16)&0x1ff;
@@ -1017,7 +1024,7 @@ static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
         int u0=255,u1=0,v0=255,v1=0;
         for(unsigned i=0;i<nc;++i) {u0=std::min<int>(u0,uv[i]&0xff);u1=std::max<int>(u1,uv[i]&0xff);v0=std::min<int>(v0,uv[i]>>8);v1=std::max<int>(v1,uv[i]>>8);}
         const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
-        double n=0,dark=0,ne=0;
+        double n=0,dark=0,ne=0,w=0;
         for(int v=v0;v<=v1;++v) for(int u=u0;u<=u1;++u) {
             uint16_t c;
             if(depth==0) c=texel(cx+((texel(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
@@ -1031,16 +1038,21 @@ static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
                 const double d=mx-mn,hue=mx==r?std::fmod(60*(g-b)/d+360,360.0):mx==g?60*(b-r)/d+120:60*(r-g)/d+240;
                 if(hue<12 || hue>70) ne+=1;
             }
+            const double sat=mx>0?(mx-mn)/mx:0;
+            w+=lamp_ss(0.75,0.95,mx)*lamp_ss(0.6,0.9,sat);
         }
-        return texes[key]=n>=64 && dark>=0.4*n && ne>=0.1*n;
+        TexN t;t.neon=n>=64 && dark>=0.4*n && ne>=0.1*n;
+        t.frac=n>0?w/n:0;if(t.frac>=0.01 && dark>=0.4*n) t.frac=std::min(1.0,t.frac*3);
+        return texes[key]=t;
     };
-    std::map<uint32_t,std::vector<uint32_t>> meshes;
-    auto mesh_neon=[&](uint32_t mesh)->const std::vector<uint32_t>& {
+    struct MeshN {std::vector<uint32_t> faces;double e=0;};
+    std::map<uint32_t,MeshN> meshes;
+    auto mesh_neon=[&](uint32_t mesh)->const MeshN& {
         if(auto it=meshes.find(mesh);it!=meshes.end()) return it->second;
-        std::vector<uint32_t>& out=meshes[mesh];
+        MeshN& mn=meshes[mesh];std::vector<uint32_t>& out=mn.faces;
         const unsigned nv=rb(mesh+6);
         const uint32_t vp=rw(mesh+0x10);uint32_t cur=rw(mesh+0x14);
-        if(!nv || vp<0x80010000u || vp>0x80200000u-8*nv || (vp&3)) return out;
+        if(!nv || vp<0x80010000u || vp>0x80200000u-8*nv || (vp&3)) return mn;
         for(unsigned guard=0;guard<256;++guard) {
             if(cur<0x80010000u || cur>0x801ffffcu || (cur&3)) break;
             const uint32_t header=rw(cur);cur+=4;
@@ -1066,11 +1078,14 @@ static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
                     nn[0]+=u[1]*v[2]-u[2]*v[1];nn[1]+=u[2]*v[0]-u[0]*v[2];nn[2]+=u[0]*v[1]-u[1]*v[0];
                 };
                 cross(P[0],P[1],P[2]);if(nc==4) cross(P[1],P[3],P[2]);
-                if(std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2])<1) continue;
-                if(tex_neon(t1,t2,t3,nc)) out.push_back(cur);
+                const double len=std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2]);
+                if(len<1) continue;
+                const TexN t=tex_neon(t1,t2,t3,nc);
+                if(t.neon) out.push_back(cur);
+                if(t.frac>=0.05) mn.e+=len/2*t.frac;   // D41AC: as mesh_glow
             }
         }
-        return out;
+        return mn;
     };
     std::set<uint32_t> seen;
     for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
@@ -1084,12 +1099,16 @@ static std::vector<uint32_t> neon_scan(const NeonSnapshot& s) {
             if(types_ok && type<0x7428u/28 && (rw(types+28*type)&0x20000000u)) continue; // pickups
             const uint32_t mesh=rw(o+0x44);
             if(mesh<0x80010000u || mesh>0x801ffff0u || (mesh&3)) continue;
-            const std::vector<uint32_t>& f=mesh_neon(mesh);
-            neon.insert(neon.end(),f.begin(),f.end());
+            const MeshN& f=mesh_neon(mesh);
+            neon.insert(neon.end(),f.faces.begin(),f.faces.end());
+            if(f.e>=sign_min_glow) res.glow.push_back(mesh);
+            if(std::getenv("DNTTK_NEON_TRACE") && (f.e>0 || !f.faces.empty()))
+                std::fprintf(stderr,"[TTK neon] prop %08x type %u room %u mesh %08x at %d %d %d: neon faces %zu, glow %.0f%s\n",o,type,r,mesh,
+                             (int)rw(o+4),(int)rw(o+8),(int)rw(o+12),f.faces.size(),f.e,f.e>=sign_min_glow?" (glowing prop)":"");
         }
     }
     (void)ok;
-    return neon;
+    return res;
 }
 // Removes lamps whose note starts with prefix; returns how many are left.
 static size_t level_lamps_drop_notes(const char* prefix) {
@@ -1397,11 +1416,11 @@ static void level_lamps_update(CPUState* cpu) {
     // (the level's textures in place), and once more when the object
     // animation table first shows up (animated signs).
     static unsigned neon_level=~0u,neon_loads=~0u;static uint32_t neon_due;static bool neon_had_table;
-    static std::future<std::vector<uint32_t>> neon_job;static unsigned neon_gen,neon_job_gen,neon_job_level;static bool neon_job_table;
+    static std::future<NeonResult> neon_job;static unsigned neon_gen,neon_job_gen,neon_job_level;static bool neon_job_table;
     static double neon_snap_ms;static std::chrono::steady_clock::time_point neon_job_t0;
     static std::shared_ptr<NeonSnapshot> neon_pending;static unsigned neon_pending_gen,neon_vram_polls;static bool neon_vram_wait;
     if(const unsigned loads=psx_mod_savestate_loads();level!=neon_level || loads!=neon_loads) {
-        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});++neon_gen;
+        neon_level=level;neon_loads=loads;neon_due=light_ticks+45;neon_had_table=false;near_clip_set_glow_faces({});near_clip_set_glow_meshes({});++neon_gen;
     }
     if((neon_due && light_ticks>=neon_due) || (!neon_due && !neon_had_table && near_clip_object_animation())) {
         neon_due=0;neon_had_table=near_clip_object_animation()!=0;
@@ -1422,7 +1441,7 @@ static void level_lamps_update(CPUState* cpu) {
         neon_snap_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
         if(check) {   // developer: the old pass beside it, for comparison
             std::vector<uint32_t> old;level_lamps_signs(&old);std::sort(old.begin(),old.end());old.erase(std::unique(old.begin(),old.end()),old.end());
-            std::vector<uint32_t> fresh=neon_scan(*neon_pending);std::sort(fresh.begin(),fresh.end());fresh.erase(std::unique(fresh.begin(),fresh.end()),fresh.end());
+            std::vector<uint32_t> fresh=neon_scan(*neon_pending).faces;std::sort(fresh.begin(),fresh.end());fresh.erase(std::unique(fresh.begin(),fresh.end()),fresh.end());
             std::fprintf(stderr,"[TTK lamp] neon check level %u: old %zu new %zu faces, %s\n",level,old.size(),fresh.size(),old==fresh?"identical":"DIFFERENT");
         }
         neon_job_gen=++neon_gen;neon_job_level=level;neon_job_table=neon_had_table;neon_job_t0=t0;neon_pending_gen=neon_job_gen;
@@ -1440,13 +1459,22 @@ static void level_lamps_update(CPUState* cpu) {
         neon_job=std::async(std::launch::async,[snap]{return neon_scan(*snap);});
     }
     if(neon_job.valid() && neon_job.wait_for(std::chrono::seconds(0))==std::future_status::ready) {
-        std::vector<uint32_t> neon=neon_job.get();
+        NeonResult got=neon_job.get();std::vector<uint32_t>& neon=got.faces;
         const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-neon_job_t0).count();
         if(neon_job_gen==neon_gen && neon_job_level==level) {
             std::fprintf(stderr,"[TTK lamp] level %u: %zu neon sign faces take no dynamic light (snapshot %.1f ms on the game thread over %u polls, scan %.1f ms off it%s)\n",
                          level,neon.size(),neon_snap_ms,neon_vram_polls,ms,neon_job_table?"":", animated faces not yet known");
             neon_vram_polls=0;
+            const size_t glowing=got.glow.size();
             near_clip_set_glow_faces(std::move(neon));
+            near_clip_set_glow_meshes(std::move(got.glow));   // D41AC
+            // D41AC: the redraw workers are forked copies taken at the level
+            // load, before this result: refresh them so redraws hold the same
+            // neon faces and glowing props as the live image (developer
+            // DNTTK_NEON_REFORK=0 skips it, to compare).
+            static const bool refork=[]{const char* e=std::getenv("DNTTK_NEON_REFORK");return !(e && e[0]=='0');}();
+            if(refork) psx_mod_replay_workers_refresh();
+            std::fprintf(stderr,"[TTK lamp] level %u: %zu glowing props keep their emitter glow%s\n",level,glowing,refork?"; redraw workers refreshed":"");
         }
     }
     std::deque<std::string> todo;
@@ -1470,7 +1498,7 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!*arg || !std::strcmp(arg,"help")) {
         say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
         say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
-        say("  save | reload | clear | off | on | gate on|off | props on|off | crystals on|off.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
+        say("  save | reload | clear | off | on | gate on|off | props on|off | crystals on|off | emitters fixtures|all.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
         say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
         say("  ambient [P [unlit|outdoor|room N|here]] | ambient clear [room N|here]: how far RELIT dims this level's painted light");
         say("  club [on|off]: the nightclub rule (D57J): dark club rooms lit by their fixtures; off reloads the lamps without it");
@@ -1490,6 +1518,8 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(!std::strcmp(arg,"breaks on") || !std::strcmp(arg,"breaks")) {level_lamps_breaks.store(1);say("Lamp: a lamp goes out when its prop breaks");return true;}
     if(!std::strcmp(arg,"gate off")) {level_lamps_gate.store(0);say("Lamp: lamps light through walls from unseen rooms (session)");return true;}
     if(!std::strcmp(arg,"gate on") || !std::strcmp(arg,"gate")) {level_lamps_gate.store(1);say("Lamp: a lamp lights only while its room is shown");return true;}
+    if(!std::strcmp(arg,"emitters all")) {model_emitters_fixtures_only.store(false);say("Lamp: any model may glow as an emitter, the old rule (session)");return true;}   // D41AC
+    if(!std::strcmp(arg,"emitters fixtures") || !std::strcmp(arg,"emitters")) {model_emitters_fixtures_only.store(true);say("Lamp: only light fixtures glow as emitters; other models dim with the room");return true;}
     if(!std::strcmp(arg,"list")) {
         std::lock_guard<std::mutex> g(level_lamp_mutex);
         char head[96];std::snprintf(head,sizeof head,"Level %u: %zu lamps",level_lamp_listing_level,level_lamp_listing.size());say(head);

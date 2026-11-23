@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - D41AC closed out (Done); new D57M
+
+- D41AC ([note 545](545-d41ac-model-emitters.md)): user "lock it in and close it out. the signs look amazing!" Done. Only light fixtures, glowing sign props and world signs keep the Relit emitter glow; Duke's shirt and the medkit dim with the room; EXIT and Bootylicious signs right in every 180 Hz image (neon faces and glowing props reach the redraw workers). World floors and walls left as they are (user: the gold catching the light is good). New job D57M: level 5's apartment dangling bulb with the D57L mood (save copy in `research/savestates/d57m/`).
+
+## 2026-11-23 - D41AC playtest 1: signs fixed (Needs playtest)
+
+- D41AC ([note 545](545-d41ac-model-emitters.md)): apartment accepted by eye ("looks great"). EXIT sign (UI slot 10) legible again: glowing sign props found by the neon scan keep the emitter glow. Bootylicious (UI slot 9) lit again: D41K's neon faces now reach the 180 Hz redraw workers (refreshed once the scan lands at each load). The club's table tops now draw unlit in every image too. Waits for the user's look.
+
+## 2026-11-23 - D41AC only light fixtures glow as emitters (Needs playtest)
+
+- D41AC ([note 545](545-d41ac-model-emitters.md)): in ENHANCED and RELIT only light-fixture models (by model, game-wide) and world signs keep the emitter glow; Duke's red shirt, the medkit, the club's tables and dancers dim with the room (shirt 90% -> 53% of Original in Relit). `lamp emitters all|fixtures` compares (session). Original and Vanilla unchanged, 180 Hz unchanged. Waits for the user's look on the real display. Open: saturated world floors and walls also skip Relit's dimming (levels 3, 12, 27, the club's gold panels).
+
 ## 2026-11-22 - D57L closed out (Done); new D41AC
 
 - D57L ([note 544](544-d57l-apartment-mood-lighting.md)): user "its perfect!!" Done. The LA apartment is hazy and warm in ENHANCED and RELIT (a rose hanging lamp with a warm bulb halo, a warmer table lamp, Relit ambient 45%, a sodium glow at the street window); flick the switch and the hanging lamp and its halo go out while the table lamp stays on, low and amber. Game-wide, prop lamps follow their room's light colour (+0x54). New job D41AC: Relit's emitter test keeps saturated model colours (Duke's red shirt, the medkit) glowing in dim rooms.

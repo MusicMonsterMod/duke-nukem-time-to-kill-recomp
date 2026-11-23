@@ -2418,6 +2418,8 @@ struct RenderState {
     char live_env[1536];
     // D53G: the first-person idle gesture's pose (pitch, yaw, roll, x, y, z).
     double fp_idle[6];
+    // D41AC: the live frame's "lamp emitters" switch (fixtures only or all).
+    bool emitters_fixtures;
 };
 static_assert(sizeof(RenderState)<=16384,"RenderState must fit frame_replay's Frame::render");
 bool replay_gameplay_context() { return gameplay_context(); }
@@ -2492,6 +2494,7 @@ void render_state_save(void* out) {
     r.lights=light_view;
     r.ammo_view=ammo_view;
     r.laser_toe_in=aim_bolt_launch_enabled();
+    r.emitters_fixtures=model_emitters_fixtures_only.load(std::memory_order_relaxed);
     fp_idle_pose_live(r.fp_idle);
     ttk_live_env_pack(r.live_env,sizeof r.live_env);
     std::memcpy(out,&r,sizeof r);
@@ -2590,6 +2593,7 @@ void render_state_load(const void* in) {
     light_view=r.lights;
     override_ammo_view=r.ammo_view;
     laser_toe_in_replay=r.laser_toe_in?1:0;
+    model_emitters_fixtures_only.store(r.emitters_fixtures,std::memory_order_relaxed);   // D41AC: a worker's own copy
     // DNTTK_REPLAY_LIVE_ENV=0 (developer A/B): the worker keeps its fork-time values.
     static const bool live_env_carry=[]{const char* t=std::getenv("DNTTK_REPLAY_LIVE_ENV");return !(t && t[0]=='0' && !t[1]);}();
     if(live_env_carry) ttk_live_env_unpack(r.live_env,sizeof r.live_env);

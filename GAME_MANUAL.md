@@ -792,7 +792,9 @@ long hall's pit throws a warm orange glow up its walls that breathes slowly,
 strongest near you. Found from the level itself (flat, glowing lava faces), so
 any level's lava does the same. LIGHTING ORIGINAL, Vanilla and Classic keep
 the original look; `lamp lava off` / `lamp lava on` compares (`lamp props
-off` also turns it off).
+off` also turns it off). The pit's painted glow, which a few of its wall
+panels had upside down (bright at the top), now runs bright at the lava on
+every panel in Modernized (D57N).
 
 **The secret DeLorean (D57B).** Found it in GOLD AND GUNS? In Modernized
 (Polymorph) with LIGHTING ENHANCED or RELIT it has its headlights on, a

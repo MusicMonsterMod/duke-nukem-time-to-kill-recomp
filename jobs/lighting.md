@@ -2245,6 +2245,42 @@ measurable GPU cost. Lab only: the user's look on the real display decides.
 
 Closed out 2026-11-23: user "10/10 lock it in and close it out". Done.
 
+### D57N - GOLD AND GUNS lava-glow texture upside down (UI slots 10 and 12)
+
+**Status: Needs playtest ([note 552](../documentation/552-d57n-lava-glow-upright.md)). Dependencies: D57A.**
+
+User, 2026-11-23: "can you take a look at save slots 12 and slot 10. this
+texture appears to be upside down. it is a baked in light, to give an extreme
+lava glow effect. admitedly, i dont actually think this texture looks that
+good! the first experiment i want to do is can we vertically invert the two
+that my crosshair is pointed at in those save states, because they dont line
+up with the other use of this texture. stand up a job first and then perform
+the work". Saves: the user's UI slot 10 (runtime slot09, 12:14) and UI slot
+12 (runtime slot11, 12:13), level 3, copied read only (hash-checked) to
+`research/savestates/d57n/`.
+
+Work: find the faces under the crosshair in both saves and the texture (and
+its other uses); flip the two faces' texture vertically so they line up,
+preferably by a rule that finds every face of this texture laid the other
+way (no per-level data); Modernized only, Vanilla unchanged. Acceptance: the
+two faces line up with the texture's other uses in the user's look; a
+possible follow-up is a better-looking glow.
+
+Work log, 2026-11-23 ([note 552](../documentation/552-d57n-lava-glow-upright.md)):
+a ray through the crosshair finds, in both saves, a sloped wall face of the
+lava pit's lower band (room 49, record `0x801af438`; room 53, `0x801b5ed4`)
+with texture entry 1725 (page `0x18`, palette `0x278`), a warm painted glow.
+Of its 98 wall faces 80 run with the glow at the lava and 18 the other way
+(entries 1725, 1726, 1784, 1918, 1919, 1921, 1928; rooms 49, 52, 53). Rule,
+game-wide: a baked-glow wall texture (strong gradient along v, its bright
+end fiery) mostly laid one way up has its other faces' v mirrored at draw
+time (the list in mod memory for the redraw workers, built with the lava
+scan from its VRAM snapshot). GOLD AND GUNS: those 18 faces; brown stone
+gradients are not glows (a first version without the hue test caught one).
+Both saves: the band now glows at the lava like its neighbours; stable over
+40 presents at 180 Hz. Vanilla and Classic unchanged. Needs the user's look
+(UI slots 10 and 12).
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**

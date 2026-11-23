@@ -1053,6 +1053,121 @@ bool texture_mean(uint32_t t1,uint32_t t2,uint32_t t3,double out[3]) {
 bool fiery(const double m[3]) {
     return m[0]>=0.15 && m[0]>=m[1] && m[0]>=m[2] && m[2]<=0.15*m[0] && m[1]>=0.25*m[0] && m[1]<=0.75*m[0];
 }
+// D57N: the baked-glow walls laid upside down (see prop_lights.h). Every
+// wall face (not flat) is grouped by its texture's page and palette; a
+// group whose texture's painted brightness runs strongly along v (the mean
+// of its brighter quarter of rows at least 1.6 times its darker quarter, its
+// bright end fiery: red the strongest, blue at most 35% of it) and
+// whose faces mostly (70%+, 12 or more) run one way in world height has its
+// other faces flipped. Uses the level's VRAM snapshot (lava_vram).
+void scan_glow_flips(uint32_t level) {
+    if(!glow_flip_block) return;
+    psx_mod_write_word(glow_flip_block,~0u);psx_mod_write_word(glow_flip_block+4,0);
+    if(const char* e=std::getenv("DNTTK_GLOW_FLIP");e && e[0]=='0') return;
+    if(!lava_vram) return;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c),textures=psx_mod_read_word(0x800d67a8u+0x58);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3) || textures<0x80010000u || textures>0x801ffff0u) return;
+    const std::vector<uint16_t>& vram=*lava_vram;
+    auto at=[&vram](int x,int y){return vram[(size_t)(y&511)*1024+(x&1023)];};
+    struct Face {uint32_t record;uint32_t key;int dir;};   // key: page << 16 | clut; dir: +1 v grows downward
+    std::vector<Face> faces;
+    std::vector<std::pair<uint32_t,float>> gradient;   // per key: brighter quarter / darker quarter (0: not read, or not a fiery glow)
+    std::vector<std::array<float,3>> glow_rgb;          // per key: the brighter quarter's colour
+    for(uint32_t r=0;r<rooms;++r) {
+        const uint32_t a=table+88*r;
+        const double org1=(double)(int32_t)psx_mod_read_word(a+4);
+        const unsigned n=psx_mod_read_byte(a+0x32);const uint32_t list=psx_mod_read_word(a+0x40);
+        if(!n || list<0x80010000u || list>0x80200000u-n*4 || (list&3)) continue;
+        for(unsigned i=0;i<n;++i) {
+            const uint32_t piece=psx_mod_read_word(list+4*i);
+            if(piece<0x80010000u || piece>0x801f0000u || (piece&3)) continue;
+            const unsigned count=psx_mod_read_half(piece+0x14);
+            if(!count || count>2048 || piece+0x1c+8*count>0x80200000u) continue;
+            uint32_t cursor=piece+psx_mod_read_word(piece+0x18);
+            if(cursor<0x80010000u || cursor>0x801ffff0u) continue;
+            for(unsigned guard=0;guard<=256;++guard) {
+                const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+                const uint32_t type=header&0xffff,m=header>>16;
+                if(type==0xff || (type!=0x60 && type!=0x61) || !m || m>4096 || cursor+m*8>0x80200000u) break;
+                for(uint32_t k=0;k<m;++k,cursor+=8) {
+                    const uint32_t word=psx_mod_read_word(cursor);const unsigned nc=type==0x60?3u:4u;
+                    const int16_t tex=(int16_t)psx_mod_read_half(cursor+4);
+                    const uint32_t e=textures+(uint32_t)(tex*12);
+                    const uint32_t t1=psx_mod_read_word(e),t2=psx_mod_read_word(e+4),t3=psx_mod_read_word(e+8);
+                    if((t2>>16)&0x200) continue;   // animated
+                    const uint32_t uv[4]={t1&0xffff,t2&0xffff,t3&0xffff,t3>>16};
+                    double y[4];bool ok=true;double ymin=1e30,ymax=-1e30;
+                    for(unsigned j=0;j<nc;++j) {
+                        const unsigned idx=(word>>(8*j))&0xff;
+                        if(idx>=count) {ok=false;break;}
+                        const uint32_t w0=psx_mod_read_word(piece+0x1c+8*idx);
+                        y[j]=org1+(int16_t)((((w0>>8)&0xff)<<7)&0xffff);ymin=std::min(ymin,y[j]);ymax=std::max(ymax,y[j]);
+                    }
+                    if(!ok || ymax-ymin<256) continue;   // a wall: at least 256 tall
+                    double vt=0,vb=0;unsigned nt=0,nb=0;
+                    for(unsigned j=0;j<nc;++j) {if(y[j]==ymin) {vt+=uv[j]>>8;++nt;} if(y[j]==ymax) {vb+=uv[j]>>8;++nb;}}
+                    if(!nt || !nb || vt/nt==vb/nb) continue;
+                    const uint32_t key=(t2>>16&0x1ff)<<16|(t1>>16);
+                    // The texture's painted gradient along v, once per key.
+                    bool known=false;
+                    for(const auto& g:gradient) if(g.first==key) {known=true;break;}
+                    if(!known) {
+                        int v0=255,v1=0,u0=255,u1=0;
+                        for(unsigned j=0;j<nc;++j) {u0=std::min<int>(u0,uv[j]&0xff);u1=std::max<int>(u1,uv[j]&0xff);v0=std::min<int>(v0,uv[j]>>8);v1=std::max<int>(v1,uv[j]>>8);}
+                        const uint32_t tp=(t2>>16)&0x1ff,clut=t1>>16;
+                        const int tx=(tp&0xf)*64,ty=((tp>>4)&1)*256,depth=(tp>>7)&3,cx=(clut&0x3f)*16,cy=(clut>>6)&0x1ff;
+                        const int rows=v1-v0+1,q=std::max(1,rows/4);
+                        double band[2]={0,0},rgb[2][3]={{0,0,0},{0,0,0}};unsigned bn[2]={0,0};
+                        for(int v=v0;v<=v1;++v) {
+                            const int which=v<v0+q?0:v>v1-q?1:-1;
+                            if(which<0) continue;
+                            for(int u=u0;u<=u1;u+=2) {
+                                uint16_t c;
+                                if(depth==0) c=at(cx+((at(tx+u/4,ty+v)>>(4*(u&3)))&0xf),cy);
+                                else if(depth==1) c=at(cx+((at(tx+u/2,ty+v)>>(8*(u&1)))&0xff),cy);
+                                else c=at(tx+u,ty+v);
+                                band[which]+=(c&31)+((c>>5)&31)+((c>>10)&31);++bn[which];
+                                rgb[which][0]+=c&31;rgb[which][1]+=(c>>5)&31;rgb[which][2]+=(c>>10)&31;
+                            }
+                        }
+                        float ratio=0;std::array<float,3> hot{0,0,0};
+                        if(bn[0] && bn[1]) {
+                            const double a0=band[0]/bn[0],a1=band[1]/bn[1];ratio=(float)(std::max(a0,a1)/std::max(1.0,std::min(a0,a1)));
+                            const int b=a1>a0?1:0;for(int c=0;c<3;++c) hot[c]=(float)(rgb[b][c]/bn[b]/31.0);
+                            // A glow: its bright end fiery (red the strongest, little blue).
+                            if(!(hot[0]>=hot[1] && hot[2]<=0.35f*hot[0] && hot[1]<=0.8f*hot[0])) ratio=-ratio;
+                        }
+                        gradient.push_back({key,ratio});glow_rgb.push_back(hot);
+                    }
+                    faces.push_back({cursor,key,vb/nb>vt/nt?1:-1});
+                }
+            }
+        }
+    }
+    std::vector<uint32_t> flips;unsigned groups=0;
+    for(size_t gi=0;gi<gradient.size();++gi) {
+        const auto& g=gradient[gi];
+        if(std::getenv("DNTTK_LAVA_TRACE") && std::fabs(g.second)>=1.6f)
+            std::fprintf(stderr,"[TTK glow flip] level %u texture page %x palette %x: gradient %.1f, bright end %.2f %.2f %.2f%s\n",level,g.first>>16,g.first&0xffff,std::fabs(g.second),
+                         glow_rgb[gi][0],glow_rgb[gi][1],glow_rgb[gi][2],g.second<0?" (not fiery: not a glow)":"");
+        if(g.second<1.6f) continue;
+        unsigned down=0,up=0;
+        for(const Face& f:faces) if(f.key==g.first) (f.dir>0?down:up)++;
+        const unsigned total=down+up,major=std::max(down,up);
+        if(total<12 || major<0.7*total || major==total) continue;   // 12+: a texture used widely (level 5's 7-face group is too thin to judge)
+        const int odd=down>=up?-1:1;
+        for(const Face& f:faces) if(f.key==g.first && f.dir==odd) flips.push_back(f.record);
+        ++groups;
+        if(std::getenv("DNTTK_PROP_LIGHT_TRACE") || std::getenv("DNTTK_LAVA_TRACE"))
+            std::fprintf(stderr,"[TTK glow flip] level %u texture page %x palette %x: gradient %.1f, %u faces one way, %u the other: those flipped\n",level,g.first>>16,g.first&0xffff,g.second,major,total-major);
+    }
+    std::sort(flips.begin(),flips.end());flips.erase(std::unique(flips.begin(),flips.end()),flips.end());
+    if(flips.size()>glow_flip_max) flips.resize(glow_flip_max);
+    for(size_t i=0;i<flips.size();++i) psx_mod_write_word(glow_flip_block+8+4*(uint32_t)i,flips[i]);
+    psx_mod_write_word(glow_flip_block+4,(uint32_t)flips.size());psx_mod_write_word(glow_flip_block,level);
+    if(std::getenv("DNTTK_PROP_LIGHT_TRACE") || std::getenv("DNTTK_LAVA_TRACE"))
+        std::fprintf(stderr,"[TTK glow flip] level %u: %zu wall faces of %u glow textures flipped upright\n",level,flips.size(),groups);
+}
 void scan_lava() {
     const auto t0=std::chrono::steady_clock::now();
     lava.clear();lava_pending=false;
@@ -1117,6 +1232,7 @@ void scan_lava() {
             }
         }
     }
+    if(!unreadable) scan_glow_flips(lava_level_seen);   // D57N: the same snapshot
     lava_vram.reset();
     if(unreadable) lava_pending=true;   // a candidate's texture not in VRAM yet: again (up to 20 tries)
     // Pools: each face joins the first pool within lava_pool (across, at its height).
@@ -1282,6 +1398,10 @@ void train_update() {
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
     if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();lava.clear();lava_level_seen=~0u;scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
+    if(!glow_flip_block) {   // D57N: before any redraw worker is forked
+        glow_flip_block=psx_mod_alloc_guest_memory(glow_flip_block_size,16);
+        if(glow_flip_block) {psx_mod_write_word(glow_flip_block,~0u);psx_mod_write_word(glow_flip_block+4,0);}
+    }
     if(!prop_stand_block) {   // D57B rev 2: before any redraw worker is forked
         prop_stand_block=psx_mod_alloc_guest_memory(prop_stand_block_size,16);
         if(prop_stand_block) {psx_mod_write_word(prop_stand_block,~0u);psx_mod_write_word(prop_stand_block+4,0);}

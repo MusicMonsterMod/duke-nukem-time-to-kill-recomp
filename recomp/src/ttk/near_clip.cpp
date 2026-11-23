@@ -1771,6 +1771,11 @@ void world(CPUState* cpu) {
         if(((t2>>16)&0x200) && !animate(t1,t2,t3,false)) continue;
         p.clut=t1>>16;p.tpage=t2>>16;
         p.uv[0]=t1&0xffff;p.uv[1]=t2&0xffff;p.uv[2]=t3&0xffff;p.uv[3]=t3>>16;
+        // D57N: a baked-glow wall laid upside down: its texture flipped vertically.
+        if(glow_flip_has(record)) {
+            unsigned v0=255,v1=0;for(unsigned j=0;j<p.count;++j) {v0=std::min(v0,p.uv[j]>>8);v1=std::max(v1,p.uv[j]>>8);}
+            for(unsigned j=0;j<p.count;++j) p.uv[j]=(p.uv[j]&0xff)|((v0+v1-(p.uv[j]>>8))<<8);
+        }
         // D17AO1: a painted sky opens onto the borrowed sky drawn behind it.
         if(sky_borrow_skip(p.clut,p.tpage,p.uv,p.count)) {trace_record(f,"sky_borrow",record);continue;}
         // Light table when every corner's color-index byte has bit 4 (0x80011908).

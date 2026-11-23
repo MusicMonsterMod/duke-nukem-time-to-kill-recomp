@@ -135,6 +135,23 @@ inline uint32_t prop_stand_block=0;
 constexpr uint32_t prop_stand_block_size=0x800;
 inline bool prop_stand_owns(uint32_t address) {return prop_stand_block && address>=prop_stand_block && address<prop_stand_block+prop_stand_block_size;}
 inline uint32_t (*prop_mesh_swap)(uint32_t mesh)=nullptr;
+// D57N: baked-glow wall textures laid upside down. A wall texture whose
+// painted light runs strongly from one end to the other (GOLD AND GUNS: the
+// lava pit's glow, bright at the lava) is mostly laid one way up; the few
+// faces laid the other way draw with their texture flipped vertically. The
+// faces (their records, sorted) are in a mod-memory block allocated on the
+// first live frame, filled by the live prop scan: +0 the level, +4 count,
+// then the records. Developer: DNTTK_GLOW_FLIP=0 leaves them as they are.
+inline uint32_t glow_flip_block=0;
+constexpr uint32_t glow_flip_block_size=0x1000,glow_flip_max=(0x1000-8)/4;
+inline bool glow_flip_has(uint32_t record) {
+    if(!glow_flip_block) return false;
+    const uint32_t n=psx_mod_read_word(glow_flip_block+4);
+    if(!n || n>glow_flip_max || psx_mod_read_word(glow_flip_block)!=psx_mod_read_word(0x800be570u)) return false;
+    uint32_t lo=0,hi=n;
+    while(lo<hi) {const uint32_t mid=(lo+hi)/2,v=psx_mod_read_word(glow_flip_block+8+4*mid);if(v==record) return true;if(v<record) lo=mid+1;else hi=mid;}
+    return false;
+}
 // D57A: lava pools give light ("lamp lava off|on", the session).
 inline std::atomic<bool> lava_lights_enabled{true};
 // D56: console "lamp pickups off|on" (glowing pickups, session).

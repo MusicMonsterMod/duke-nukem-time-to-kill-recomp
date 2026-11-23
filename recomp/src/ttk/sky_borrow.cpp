@@ -34,6 +34,10 @@
 #else
 #include <SDL.h>
 #endif
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -46,7 +50,118 @@ extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 
 namespace ttk {
+bool host_visibility_room_shown(uint32_t room);   // D17AT6 (host_visibility.inc)
 namespace {
+// D17BP: the rooms with an open shaft top, found from the level's mesh once a
+// level (and after a load). A world face's corners: room origin + grid bytes
+// (x and z << 10, y << 7), as level_lights.inc decodes them. An edge used by
+// one face only is an opening's edge; it is a shaft rim when it is level (both
+// ends at one height) and its face is a wall (every corner in the edge's
+// vertical plane) going down from it. A room with shaft_rim_min such edges at
+// one height, at the room's top, has an open shaft top: the borrowed sky is
+// drawn while it is shown. Developer: DNTTK_SKY_SHAFT_TRACE=1 lists them.
+constexpr unsigned shaft_rim_min=3;
+std::vector<uint8_t> shaft_rooms;   // 1: the room has an open shaft top
+uint32_t shaft_level=~0u,shaft_loads=~0u;
+void find_shafts(uint32_t level) {
+    const auto t0=std::chrono::steady_clock::now();
+    shaft_rooms.clear();
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
+    shaft_rooms.assign(rooms,0);
+    struct P {int32_t x,y,z;bool operator<(const P& o) const {return x!=o.x?x<o.x:y!=o.y?y<o.y:z<o.z;}bool operator==(const P& o) const {return x==o.x && y==o.y && z==o.z;}};
+    struct Edge {P a,b;unsigned face;};
+    for(uint32_t r=0;r<rooms;++r) {
+        const uint32_t a=table+88*r;
+        const int32_t org[3]={(int32_t)psx_mod_read_word(a),(int32_t)psx_mod_read_word(a+4),(int32_t)psx_mod_read_word(a+8)};
+        const unsigned n=psx_mod_read_byte(a+0x32);const uint32_t list=psx_mod_read_word(a+0x40);
+        if(!n || list<0x80010000u || list>0x80200000u-n*4 || (list&3)) continue;
+        std::vector<Edge> edges;std::vector<std::array<P,4>> faces;std::vector<unsigned> corners;
+        for(unsigned i=0;i<n;++i) {
+            const uint32_t piece=psx_mod_read_word(list+4*i);
+            if(piece<0x80010000u || piece>0x801f0000u || (piece&3)) continue;
+            const unsigned count=psx_mod_read_half(piece+0x14);
+            if(!count || count>2048 || piece+0x1c+8*count>0x80200000u) continue;
+            uint32_t cursor=piece+psx_mod_read_word(piece+0x18);
+            if(cursor<0x80010000u || cursor>0x801ffff0u) continue;
+            for(unsigned guard=0;guard<=256;++guard) {
+                const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+                const uint32_t type=header&0xffff,m=header>>16;
+                if(type==0xff || (type!=0x60 && type!=0x61) || !m || m>4096 || cursor+m*8>0x80200000u) break;
+                for(uint32_t k=0;k<m;++k,cursor+=8) {
+                    const uint32_t word=psx_mod_read_word(cursor);const unsigned nc=type==0x60?3u:4u;
+                    std::array<P,4> f{};bool ok=true;
+                    for(unsigned j=0;j<nc;++j) {
+                        const unsigned idx=(word>>(8*j))&0xff;
+                        if(idx>=count) {ok=false;break;}
+                        const uint32_t w0=psx_mod_read_word(piece+0x1c+8*idx);
+                        f[j]={org[0]+(int16_t)(((w0&0xff)<<10)&0xffff),org[1]+(int16_t)((((w0>>8)&0xff)<<7)&0xffff),org[2]+(int16_t)((((w0>>16)&0xff)<<10)&0xffff)};
+                    }
+                    if(!ok) continue;
+                    const unsigned id=(unsigned)faces.size();faces.push_back(f);corners.push_back(nc);
+                    // Around the face: a GT4's corners run 0 1 3 2.
+                    const unsigned ring[4]={0,1,nc==4?3u:2u,2};
+                    for(unsigned e=0;e<nc;++e) {
+                        P p=f[ring[e]],q=f[ring[(e+1)%nc]];
+                        if(p==q) continue;
+                        if(q<p) std::swap(p,q);
+                        edges.push_back({p,q,id});
+                    }
+                }
+            }
+        }
+        std::sort(edges.begin(),edges.end(),[](const Edge& x,const Edge& y){return x.a<y.a || (x.a==y.a && x.b<y.b);});
+        std::vector<std::pair<int32_t,unsigned>> rims;   // height, edges
+        for(size_t i=0;i<edges.size();) {
+            size_t j=i+1;while(j<edges.size() && edges[j].a==edges[i].a && edges[j].b==edges[i].b) ++j;
+            const Edge& e=edges[i];
+            if(j==i+1 && e.a.y==e.b.y) {
+                // Its face a wall going down from the edge?
+                const auto& f=faces[e.face];bool wall=true,below=false;
+                const double dx=e.b.x-e.a.x,dz=e.b.z-e.a.z,len=std::sqrt(dx*dx+dz*dz);
+                for(unsigned c=0;c<corners[e.face] && wall;++c) {
+                    const double cross=(f[c].x-e.a.x)*dz-(f[c].z-e.a.z)*dx;
+                    wall=len>0 && std::fabs(cross)/len<=64;
+                    if(f[c].y<e.a.y) wall=false;   // nothing of the face above the rim (up is -y)
+                    below|=f[c].y>e.a.y;
+                }
+                if(wall && below) {
+                    bool found=false;
+                    for(auto& h:rims) if(h.first==e.a.y) {++h.second;found=true;}
+                    if(!found) rims.push_back({e.a.y,1});
+                }
+            }
+            i=j;
+        }
+        // A shaft top is the room's highest point (a rim at the floor is a pit going down).
+        int32_t top=INT32_MAX;for(size_t i=0;i<faces.size();++i) for(unsigned c=0;c<corners[i];++c) top=std::min(top,faces[i][c].y);
+        for(const auto& h:rims) if(h.second>=shaft_rim_min && h.first<=top+256) {
+            shaft_rooms[r]=1;
+            if(std::getenv("DNTTK_SKY_SHAFT_TRACE")) std::fprintf(stderr,"[TTK sky] level %u room %u: open shaft top at y %d (%u rim edges)\n",level,r,h.first,h.second);
+        }
+    }
+    if(std::getenv("DNTTK_SKY_SHAFT_TRACE")) {
+        unsigned k=0;for(uint8_t v:shaft_rooms) k+=v;
+        std::fprintf(stderr,"[TTK sky] level %u: %u rooms with an open shaft top (%.2f ms)\n",level,k,
+                     std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count());
+    }
+}
+// Is a room with a shaft top shown (by the host's walk, or the game's own
+// portal walk bitset 0x800e1f10 when the host did not walk: Classic)?
+bool shaft_shown() {
+    static const bool trace=std::getenv("DNTTK_SKY_SHAFT_TRACE")!=nullptr;
+    static unsigned last=~0u;
+    for(uint32_t r=0;r<shaft_rooms.size();++r) {
+        if(!shaft_rooms[r]) continue;
+        const unsigned how=host_visibility_room_shown(r)?1u:r<128 && ((psx_mod_read_word(0x800e1f10u+4u*(r>>5))>>(r&31))&1u)?2u:0u;
+        if(how) {
+            if(trace && last!=(r<<2|how)) {last=r<<2|how;std::fprintf(stderr,"[TTK sky] shaft room %u shown (%s)\n",r,how==1?"host walk":"game walk");}
+            return true;
+        }
+    }
+    if(trace && last!=0) {last=0;std::fprintf(stderr,"[TTK sky] no shaft room shown\n");}
+    return false;
+}
 constexpr uint32_t level_index=0x800be570u,table_pointer=0x800ddb18u,players=0x800c27bcu;
 // The routine's level words (note 92): fixed ring, slow band, backdrop, fill
 // colour, fast band. Duke Hill's values, read from LEVEL01 on a private run.
@@ -177,6 +292,13 @@ void hook(CPUState* cpu,uint32_t address) {
             pack_ok() && !own_sky() && allocate() &&
             identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram);
         sky_borrow_level=level;
+        // D17BP: what this composition may open onto (see sky_borrow_wanted).
+        sky_borrow_face_left_prev.store(sky_borrow_face_left.exchange(false,std::memory_order_relaxed),std::memory_order_relaxed);
+        if(sky_borrow_ready) {
+            const uint32_t loads=psx_mod_savestate_loads();
+            if(level!=shaft_level || loads!=shaft_loads) {shaft_level=level;shaft_loads=loads;find_shafts(level);}
+            sky_borrow_shaft_shown.store(shaft_shown(),std::memory_order_relaxed);
+        } else sky_borrow_shaft_shown.store(false,std::memory_order_relaxed);
         return;
     }
     if(address==0x8001fc44u) {

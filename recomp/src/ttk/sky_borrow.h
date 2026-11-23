@@ -11,6 +11,7 @@
 // shaft) shows the same sky instead of black. Shared with near_clip.cpp, which is also linked into
 // the native tests, so the state lives here.
 #pragma once
+#include <atomic>
 #include <cstdint>
 
 namespace ttk {
@@ -44,13 +45,26 @@ inline bool painted_sky_face(uint32_t level,uint32_t clut,uint32_t tpage,const u
 }
 // World face check (near_clip host path): true when the face is a painted
 // sky to leave out this composition.
+// D17BP: a painted face left out in this composition (the near-clip path
+// may run on the redraw workers too, hence atomic).
+inline std::atomic<bool> sky_borrow_face_left{false},sky_borrow_face_left_prev{false};
 inline bool sky_borrow_skip(uint32_t clut,uint32_t tpage,const uint32_t uv[4],unsigned count) {
-    return sky_borrow_ready && painted_sky_face(sky_borrow_level,clut,tpage,uv,count);
+    const bool skip=sky_borrow_ready && painted_sky_face(sky_borrow_level,clut,tpage,uv,count);
+    if(skip) sky_borrow_face_left.store(true,std::memory_order_relaxed);
+    return skip;
 }
-// D17BJ: the borrowed sky is drawn behind every composition of a ready
-// level, not only while a painted face is in view, so openings without a
-// face show it too. Only background pixels change: a same-camera survey of
-// 24 views (cabin, lava cavern, level start) changed nothing but the cabin
-// opening (note 504).
-inline bool sky_borrow_wanted() {return sky_borrow_ready;}
+// D17BJ: openings without a face (the GOLD AND GUNS cabin shaft) show the
+// borrowed sky too (note 504). D17BP (note 550): but not every opening is
+// a window: the level's cavern roof has a gap (a hole in the original
+// geometry, drawn black by the game) that then showed a patch of sky. So
+// the sky is drawn while a painted face was left out (this or the last
+// composition, as D17AO1) or while a room with an open shaft top is shown:
+// a level rim of unshared wall edges with nothing above (sky_borrow.cpp,
+// found from the level's mesh). A gap in a roof (sloped edges, sloped
+// faces round it) is no shaft and stays black, as the original drew it.
+inline std::atomic<bool> sky_borrow_shaft_shown{false};
+inline bool sky_borrow_wanted() {
+    return sky_borrow_ready && (sky_borrow_face_left.load(std::memory_order_relaxed) || sky_borrow_face_left_prev.load(std::memory_order_relaxed) ||
+                                sky_borrow_shaft_shown.load(std::memory_order_relaxed));
+}
 }

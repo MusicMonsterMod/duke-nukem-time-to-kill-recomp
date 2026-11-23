@@ -3384,7 +3384,7 @@ Closed out, 2026-11-22: the user accepted it and authorized the closeout
 lamps in the new UI slot 12 give no light).
 ### D17BP - GOLD AND GUNS sky patch in the cavern ceiling (UI slot 10)
 
-**Status: Todo (backlog; reported 2026-11-23). Dependencies: -.**
+**Status: Needs playtest ([note 550](../documentation/550-d17bp-cavern-roof-gap.md)). Dependencies: -.**
 
 User, 2026-11-23: "there's a patch of sky which has opened up in the cavern
 on gold and guns". Evidence: the user's UI slot 10 savestate (runtime file
@@ -3402,6 +3402,21 @@ whether the original game draws it too.
 Work: find the face and the rule that draws sky there; fix by rule (no
 per-level data); the cabin of D17BJ must keep its sky. Acceptance: the
 cavern ceiling draws as rock in the user's playtest, D17BJ's sky unchanged.
+
+Work log, 2026-11-23 overnight ([note 550](../documentation/550-d17bp-cavern-roof-gap.md);
+the user's overnight list said "D17BJ", taken as this job, whose lead it
+is): with the borrowed sky off the patch is black: room 16's roof mesh has a
+hole (six unshared, sloped edges, about 2000 across; no face of any room and
+no prop covers it), a gap in the original geometry that the game draws
+black. D17BJ's always-on sky showed through it. Room flags and painted light
+do not tell it from the cabin's shaft; the shape does. `sky_borrow.cpp` now
+reads the level's mesh once a level (and after a load) for open shaft tops
+(level rims of unshared wall edges at a room's highest point: GOLD AND GUNS
+room 45, the cabin, only) and draws the borrowed sky while a painted face
+was left out (D17AO1) or while a shaft room is shown (host walk, or the
+game's portal walk in Classic). Cavern: black, as the original; cabin and
+start shaft: sky as before; Classic the same. Limit: the gap is black, not
+rock (filling it is geometry, a possible follow-up). Needs the user's look.
 
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 

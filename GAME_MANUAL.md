@@ -329,7 +329,10 @@ It applies automatically. Original sky geometry and coarse animation steps remai
 A level with no sky of its own may close an opening with a painted sky picture
 (GOLD AND GUNS's mine shaft). Modernized opens that skylight onto Duke Hill's
 sunset sky, drawn like the game's own sky: it turns as you look around, never
-moves as you walk, and its clouds drift. Vanilla keeps the painted picture.
+moves as you walk, and its clouds drift. The same sky shows through the
+cabin's open shaft in GOLD AND GUNS (an opening at the top of a shaft, found
+from the level's shape, D17BJ); a gap in a cave roof is not a window and stays
+dark, as the original game draws it (D17BP). Vanilla keeps the painted picture.
 
 In PIG FACTORY, parts of the flooded room's pool are water you can swim in,
 but the original never drew their surface: the two square shafts off the pool

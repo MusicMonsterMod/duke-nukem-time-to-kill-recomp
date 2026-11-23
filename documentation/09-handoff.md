@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-23 - D17BP cavern roof gap (Needs playtest)
+
+- D17BP ([note 550](550-d17bp-cavern-roof-gap.md)): the GOLD AND GUNS cavern's "patch of sky" is a gap in the original roof mesh (room 16, about 2000 across, nothing covers it) that D17BJ's always-on borrowed sky showed through. The borrowed sky is now drawn while a painted sky face is left out (D17AO1) or while a room with an open shaft top is shown (found from the level's mesh: level rims of wall edges at a room's top; GOLD AND GUNS: the cabin, room 45, only). Cavern: black, as the original; cabin and start shaft: sky as before; Classic the same. Test save: the user's UI slot 10.
+
 ## 2026-11-23 - D57A lava gives light (Needs playtest)
 
 - D57A ([note 549](549-d57a-lava-light.md)): lava found by rule, game-wide (flat world faces, painted full red, fiery texture; survey: level 3 only, the long hall's pit) gives a warm light that throbs slowly, the two nearest pools at once, in ENHANCED and RELIT (`lamp lava off|on`). Relit walkway 45.8 -> 48.1, pit 27.0 -> 37.0; Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about +4.6 points). Test save: the user's UI slot 5 (the south walkway beside the pit). Waits for the user's look.

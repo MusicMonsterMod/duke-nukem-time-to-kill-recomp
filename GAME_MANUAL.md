@@ -751,7 +751,7 @@ The backtick console edits them:
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners,
   chandeliers (both kinds), fire barrels, barricade lamps, caged wall
-  lamps and the subway train's lights for the session
+  lamps, candle stands and the subway train's lights for the session
   (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
@@ -773,6 +773,13 @@ warm, and a broad light on the hall below. The
 glow and flames show whatever LIGHTING is set to; the light they cast
 needs LIGHTING ENHANCED or RELIT. If one is broken, its light goes out. Vanilla and
 Classic keep the original look.
+
+**Candles on iron stands (D57H).** The tall iron stands with a red candle
+(LEVEL 8's halls) give light in Modernized (Polymorph) with LIGHTING ENHANCED
+or RELIT: a small warm pool on the wall and floor round each candle that
+flickers gently with its flame, and a soft glow round the flame. LIGHTING
+ORIGINAL, Vanilla and Classic keep the original look; `lamp props off`
+compares.
 
 **Fire barrels (D41X).** Every burning oil drum (TIME TO KILL, OBEY OR DIE and
 any level that places one) is a real fire in Modernized (Polymorph) with

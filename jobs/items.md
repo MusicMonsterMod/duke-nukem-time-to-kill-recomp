@@ -2300,6 +2300,34 @@ Work log, 2026-11-20 (note 517, "Fix (D08A48, built)"):
   the heading alone, level with the empty frame (rebuilt, seen in HOLY
   TERROR). Accepted 2026-11-20: "lock it in and close it out".
 
+### D08A49 - Key cheats never give a mission item the level cannot give
+
+**Status: Todo (backlog; reported 2026-11-23). Dependencies: D08A48, D60.**
+
+User, 2026-11-23: "when doing dnstuff etc on gold and guns, it gives you that
+mystery key remember? that key we prevented showing in the mission items
+because it doesnt really exist. prevent that."
+
+Background: D22P ([note 517](../documentation/517-d22p-gold-and-guns-skeleton-key.md))
+found that GOLD AND GUNS (level 3) names a Skeleton Key (item 6) that no
+pickup in the level gives and no lock takes; D08A48 lists a mission item only
+if the level can give it (`mission_givable`, the dispatcher map and the level
+scan) or Duke has it or used it. The key-granting cheats set every named
+item's flag, so the phantom key counts as found and shows again (not yet
+reproduced; the user's report).
+
+Work: in Modernized, `dnstuff`, `dnkeys` and `dnitems` (and any other cheat
+that grants mission items) give only the items the current level can give,
+using the same D08A48 rule (game-wide, no per-level data); keep D60's rule
+(never give back an item already used at its lock). Before the level scan is
+ready (unscanned levels), keep today's behaviour or wait for the scan; decide
+and document. Vanilla keeps the original cheats.
+
+Acceptance: on GOLD AND GUNS the cheats leave no skeleton key and the mission
+panel stays empty (MISSION / NONE); every level with real mission items still
+gets them from the cheats (test over all levels' fresh starts); D60's used
+items stay used; Vanilla unchanged.
+
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 
 **Status: Done (user-accepted 2026-11-20: "lock it in and close us out"). Dependencies: D08A45.** [Note 516](../documentation/516-d60-family-jewels-any-order.md).

@@ -3382,6 +3382,27 @@ Closed out, 2026-11-22: the user accepted it and authorized the closeout
 ("lock it in and close it out!"). Before/after (local):
 `research/before-after/D17BO/`. Follow-up backlog: D41Z (the caged wall
 lamps in the new UI slot 12 give no light).
+### D17BP - GOLD AND GUNS sky patch in the cavern ceiling (UI slot 10)
+
+**Status: Todo (backlog; reported 2026-11-23). Dependencies: -.**
+
+User, 2026-11-23: "there's a patch of sky which has opened up in the cavern
+on gold and guns". Evidence: the user's UI slot 10 savestate (runtime file
+slot09, level 3, saved 2026-11-23 02:13), copied (read only, hash-checked
+identical to the player's file) to `research/savestates/d17bp/`; work from
+private card copies, never the player's slot. The thumbnail shows a dark
+cave ceiling with one flat pink-purple quad of sky in it.
+
+Lead, not verified: D17BJ ([note 504](../documentation/504-d17bj-cabin-sky.md)) made an open ceiling
+in this level's cabin show the level's sky; check first whether that rule
+(or another sky/ceiling path) also catches this cavern face, and compare
+with Vanilla, ORIGINAL world settings and the Classic renderer to see
+whether the original game draws it too.
+
+Work: find the face and the rule that draws sky there; fix by rule (no
+per-level data); the cabin of D17BJ must keep its sky. Acceptance: the
+cavern ceiling draws as rock in the user's playtest, D17BJ's sky unchanged.
+
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
 **Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**

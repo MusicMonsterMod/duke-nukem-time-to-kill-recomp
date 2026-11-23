@@ -44,7 +44,11 @@ namespace ttk {
 // every rule (its room's switch, an apartment room), a warm glow on the bulb.
 enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
       prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9,
-      prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12,prop_light_table_lamp=13,prop_light_pendant=14,prop_light_bulb=15};
+      prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12,prop_light_table_lamp=13,prop_light_pendant=14,prop_light_bulb=15,
+      prop_light_candle_stand=16};
+// D57H: prop_light_candle_stand, the red candle on a tall iron stand (prop
+// type 361; level 8, 22 copies): a small warm candle light at its flame and
+// a soft halo over the flame (its flame is the model's own animated quads).
 // D57M: a hanging lamp (the shaded one or the bare bulb): an apartment room's mark.
 inline bool prop_light_hanging(int kind) {return kind==prop_light_pendant || kind==prop_light_bulb;}
 inline bool prop_light_club_kind(int kind) {return kind>=prop_light_neon_bar && kind<=prop_light_club_bar;}

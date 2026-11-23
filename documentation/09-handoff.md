@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-23 - D57H red candle stands (Needs playtest)
+
+- D57H ([note 547](547-d57h-red-candle-stands.md)): the red candle on an iron stand (prop type 361, model `0x80131bd8`, by model; level 8 only, 22 copies) gives a small warm candle light just over its flame with the chandeliers' gentle flicker, and a soft warm halo, in ENHANCED and RELIT. Slot view Relit 45.9 -> 70.3, Enhanced 41.5 -> 54.9, Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about 16% -> 21% with two candles in view). Waits for the user's look on the real display (UI slot 9).
+
 ## 2026-11-23 - D57M closed out (Done)
 
 - D57M ([note 546](546-d57m-dangling-bulb.md)): user "10/10 lock it in and close it out." Done. The bare bulb in level 5's apartment (prop type 929, by model; level 5 only) lights the room in ENHANCED and RELIT with the D57L apartment mood (warm low pool, hot glow on the bulb, Relit ambient 45%, sodium glow at the window) and follows its room's switch. Original and Vanilla unchanged, 180 Hz unchanged.

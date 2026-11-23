@@ -1460,6 +1460,16 @@ entirely dark area, which makes the discovery underwhelming. Work: a subtle
 added lamp (per-level light file) that shows the car and keeps the mood.
 Acceptance: the car reads clearly in the user's playtest, still atmospheric.
 
+Saves and the car (2026-11-23): the user's UI slot 9 (runtime slot08, level
+3, 02:18; Duke in the DeLorean's cave looking at the car) and UI slot 12
+(runtime slot11, 02:10; outside the room, at its double doors, prop type 712)
+are copied read only, hash-checked, to `research/savestates/d57b/`. Lab
+(`recomp/analysis/d57b/`, local): the car is prop type 238, model
+`0x80128108` (67 vertices, 756 x 463 x 2112), in room 37 at (-6053, 619,
+-50050), yaw 1507. Prefer a rule by model (a prop light, as D57D/K/M) over
+a per-level lamp file entry (the original plan above), per the
+fix-the-system rule.
+
 ### D57C - LA subway entrance globe lights give light
 
 **Status: Done ([note 539](../documentation/539-d57c-subway-entrance-globes.md)), user-accepted 2026-11-22 ("lock it in and close it out"). Dependencies: D57.**
@@ -1747,7 +1757,7 @@ and close it out").
 
 ### D57H - Red candles on iron stands give light (UI slot 9)
 
-**Status: Todo (backlog, reported 2026-11-18, not investigated). Dependencies: D57G.**
+**Status: Needs playtest ([note 547](../documentation/547-d57h-red-candle-stands.md)). Dependencies: D57G.**
 
 User, 2026-11-18 (desktop), from their UI slot 9 save: "this kind of
 candle doesnt emit light (i dont think) so make it emit". Backlog only; no
@@ -1767,6 +1777,27 @@ every level gives a small warm candle light at the flame, breaking with the
 prop (D54) and correct after loads (D41W). Acceptance: the candle in the
 slot 9 view lights the wall and floor around it in a matched before/after
 pair, other copies on the level light too, Vanilla unchanged.
+
+Work log, 2026-11-23 overnight ([note 547](../documentation/547-d57h-red-candle-stands.md)):
+the user's "i dont think" was right: no lamp, prop light or scan lamp sat at
+the candle (the nearest, the level file's candle lamps on the type-498
+props, 2900 and 4500 away). The candle is prop type 361, model `0x80131bd8`
+(59 vertices, 190 x 730 x 190: iron foot, pole, drip tray, a hexagonal red
+candle and the game's animated flame at y -336..-365, about 700 over the
+floor). New prop-light kind `prop_light_candle_stand`, by model, game-wide:
+one small warm candle light just over the flame (1.00 0.70 0.30, strength
+0.7, radius 1400; 0.9/1500 went hot on the wall beside it in Relit), the
+chandeliers' gentle candle flicker, and a soft warm halo round the flame; a
+light fixture for D41AC and `lit_mesh`; breaks with its prop (D54). Survey,
+all 21 levels: level 8 only, 22 copies (rooms 22, 23, 36, 39, 40, 41, 60).
+Slot view (`lamp props off|on`): Relit 45.9 -> 70.3, Enhanced 41.5 -> 54.9,
+Original 37.9 / 37.8 (identical but for the weapon's bob and the flame's
+frame); rooms 39 and 23 Relit 26 -> 33 and 59 -> 73. Vanilla: no prop-light
+activity. 180 Hz Relit: pacing p50/p95 6 ms, max 7-8, none over 10 ms
+before and after; GPU (clock-weighted) about 16% -> 21% with the two candles
+in view (two more shadowed prop lights; a cap to the nearest two changed
+nothing and was not kept). Before/after: `research/before-after/D57H/`
+(local). Needs the user's look on the real display (UI slot 9).
 
 ### D57I - Street lamp posts give sodium-vapour light (LA levels)
 

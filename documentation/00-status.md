@@ -1,5 +1,11 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - review: D57H, D57A, D08A49 accepted; D57B and D17BP revision 2 (Needs playtest)
+
+- D57H, D57A, D08A49: user-accepted; closeouts wait for the user's instruction.
+- D57B rev 2 ([note 548](548-d57b-delorean-lights.md)): the DeLorean's cave is a showcase room (Relit ambient 35%, its two baked torches at 45%), so the car's own lights lead (Relit 45.7 -> 35.1 with the car lit); the four crates under it are drawn from a taller copy of their model that reaches the floor (by geometry, the car at its height). Original unchanged in light; Vanilla untouched; 180 Hz unchanged.
+- D17BP rev 2 ([note 550](550-d17bp-cavern-roof-gap.md)): the cavern's roof gap is closed with rock: a cap piece (the gap's corners round one missing grid point, tile triangles with the neighbouring roof's textures and colours) found and built from the level's mesh; cabin and start shaft keep their sky; Classic keeps the black gap.
+
 ## 2026-11-23 - D08A49 key cheats and phantom mission items (Needs playtest)
 
 - D08A49 ([note 551](551-d08a49-key-cheats-givable.md)): in Modernized the key-granting cheats (`dnstuff`, `dnkeys`, `dnitems`) give only the mission items the level can give (the D08A48 scan): GOLD AND GUNS gets no phantom Skeleton Key (the panel stays MISSION / NONE); every level's fresh start gets exactly its own items; D60's used items stay used; Vanilla unchanged. Items already held from an earlier cheat are kept (a load's scan cannot tell them from legitimate ones).

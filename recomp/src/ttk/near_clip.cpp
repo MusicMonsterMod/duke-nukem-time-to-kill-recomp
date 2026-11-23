@@ -2866,7 +2866,9 @@ void object(CPUState* cpu) {
     // and its textures only in the second bank, like the borrowed sky.
     const bool tv=security_tv_owns(mesh) && security_tv_owns(vertices) && security_tv_owns(list);
     const bool glow_copy=security_glow_owns(mesh) && security_glow_owns(vertices) && security_glow_owns(list);
-    if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed && !tv && !glow_copy)) return;
+    // D57B rev 2: a DeLorean stand's copy: its corners in mod memory, its faces the model's own.
+    const bool stand=prop_stand_owns(mesh) && prop_stand_owns(vertices) && list>=0x80010000 && list<=0x801ffff0;
+    if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed && !tv && !glow_copy && !stand)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     f.nv_glow=night_vision_glow_object();
     // D08A46: a red or yellow key card (in the world or in Duke's hand).
@@ -3337,8 +3339,12 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // the TTK monitor is restored for it.
         const uint32_t tv=security_tv_swap && unified() ? security_tv_swap(mesh) : 0;
         if(tv) cpu->gpr[4]=tv;
+        // D57B rev 2: a DeLorean stand reaches the floor (prop_lights.cpp), host path only.
+        const uint32_t stand=!tv && prop_mesh_swap && unified() ? prop_mesh_swap(mesh) : 0;
+        if(stand) cpu->gpr[4]=stand;
         object(cpu);
         if(tv && security_tv_owns(tv) && cpu->gpr[4]==tv) {cpu->gpr[4]=mesh;++security_tv_fallbacks;}
+        if(stand && cpu->gpr[4]==stand) cpu->gpr[4]=mesh;   // left to the original: the model as it is
     }
 }
 void hook(CPUState* cpu,uint32_t address) {

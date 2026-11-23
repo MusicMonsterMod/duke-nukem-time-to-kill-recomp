@@ -797,7 +797,9 @@ off` also turns it off).
 **The secret DeLorean (D57B).** Found it in GOLD AND GUNS? In Modernized
 (Polymorph) with LIGHTING ENHANCED or RELIT it has its headlights on, a
 warm-white pool on the bonnet and the rock ahead, and its rear vents glow
-orange on the cave wall behind it, with a soft glow on the lamps. LIGHTING
+orange on the cave wall behind it, with a soft glow on the lamps. In RELIT
+its cave is kept dark (the room's light and its wall torches turned down) so
+the car is what you see. The crates it rests on reach the cave floor. LIGHTING
 ORIGINAL, Vanilla and Classic keep the original look; `lamp props off`
 compares.
 

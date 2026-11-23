@@ -1469,6 +1469,16 @@ pacing unchanged; GPU +16 points with six pools, +4.6 with two (kept). New
 console `lamp lava off|on`. Before/after: `research/before-after/D57A/`
 (local). Test save left in the user's UI slot 5 (the south walkway).
 
+User review, 2026-11-23: "excellent, accepted - there isnt much visual gain
+though is my only verdict so if we find it's taken a performance hit, not
+opposed to dropping it in the future. we'll leave it as it is for now. the
+only refinement is that when duke is jumping over the lava pit, you can
+really see the orange glow on his weapon/arms as he's grabbing the next
+surface." Read as the one visible gain (the glow on Duke), not a request: a
+first-person dimming of lava light was built and tested, then removed again
+(it would take away the gain the user named). Unchanged; awaiting the
+closeout instruction.
+
 ### D57B - Light for the secret DeLorean (GOLD AND GUNS)
 
 **Status: Needs playtest ([note 548](../documentation/548-d57b-delorean-lights.md)). Dependencies: D57.**
@@ -1503,6 +1513,20 @@ slot 9: a headlight 1800 out ahead lit only the rock (body dim); strength
 but for the weapon's bob; UI slot 12 (outside the doors) unchanged in every
 mode. 180 Hz pacing unchanged; GPU about +2.5 points. Before/after:
 `research/before-after/D57B/` (local). Needs the user's look (UI slot 9).
+
+Revision 2, 2026-11-23 ([note 548](../documentation/548-d57b-delorean-lights.md)):
+user: the car's lighting accepted; the room should be moodier so the car is
+the focal point, and the crates it rests on float: make them taller to the
+ground, the car at its height ("you make the call"). The cave was Relit's
+unlit-room default (80%) with two baked wall torches. A room holding the
+DeLorean is now a showcase room: Relit ambient 35% (follows `lamp props`),
+its file lamps at 45% of their colour before the bake. The four crates
+(model `0x80128048`; bottoms 97 and 130 over the floor) are drawn from a copy
+whose bottom reaches the floor (0 -> 138), found by geometry (props under
+the car whose tops meet its underside), in mod memory for the redraw
+workers. Relit 25.5 -> 35.1 (rev 1 45.7), Enhanced 31.1 -> 38.3, Original
+30.4 / 30.4; crates on the floor in 40 consecutive 180 Hz presents; pacing
+unchanged, GPU as rev 1; Vanilla untouched. Needs the user's look (UI slot 9).
 
 ### D57C - LA subway entrance globe lights give light
 
@@ -1832,6 +1856,9 @@ before and after; GPU (clock-weighted) about 16% -> 21% with the two candles
 in view (two more shadowed prop lights; a cap to the nearest two changed
 nothing and was not kept). Before/after: `research/before-after/D57H/`
 (local). Needs the user's look on the real display (UI slot 9).
+
+User review, 2026-11-23: "perfect, accepted." Awaiting the closeout
+instruction (status kept until then).
 
 ### D57I - Street lamp posts give sodium-vapour light (LA levels)
 

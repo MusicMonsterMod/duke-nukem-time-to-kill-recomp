@@ -42,6 +42,17 @@ static float club_spot_k=1.3f,club_spot_radius=1500,club_spot_dist=1300;
 // Developer: DNTTK_APARTMENT_AMBIENT=<percent>,
 // DNTTK_APARTMENT_WINDOW="r g b strength radius inside above".
 static float apt_ambient=0.45f;
+// D57B rev 2: a room holding the secret DeLorean (prop_light_delorean, by
+// model) is a showcase room: in RELIT its painted light is dimmed well down
+// (show_ambient) so the car, lit by its own headlights and vents, is the
+// room's focal point. It follows the prop lights ("lamp props off" brings
+// the room's old light back). Developer: DNTTK_SHOWCASE_AMBIENT=<percent>.
+static float show_ambient=0.35f;
+// Its other lamps (the level file's: GOLD AND GUNS's two wall torches in the
+// car's cave) shine at show_lamps of their colour, so the car's own lights
+// lead; set before the bake (they are baked lamps), for the level, so "lamp
+// props off" does not bring them back (developer: DNTTK_SHOWCASE_LAMPS=<percent>).
+static float show_lamps=0.45f;
 static float apt_window_rgb[3]={1.0f,0.50f,0.18f},apt_window_k=0.35f,apt_window_radius=1400,apt_window_in=250,apt_window_up=300;
 static struct ClubState {
     unsigned level=~0u;bool done=false;uint64_t sig=0;
@@ -51,6 +62,8 @@ static struct ClubState {
     std::vector<LevelLamp> dropped;                 // the file's scan lamps taken out (lamp save writes them back)
     std::vector<uint8_t> apt;                       // D57L: per room: 1 = an apartment room
     unsigned apts=0,windows=0;
+    std::vector<uint8_t> show;                      // D57B: per room: 1 = a showcase room (the DeLorean's)
+    unsigned shows=0;
 } club_st;
 static void club_tune_once() {
     static bool done=false;
@@ -65,12 +78,17 @@ static void club_tune_once() {
     if(const char* e=std::getenv("DNTTK_CLUB_SPOT")) std::sscanf(e,"%f %f %f",&club_spot_k,&club_spot_radius,&club_spot_dist);
     if(const char* e=std::getenv("DNTTK_APARTMENT");e && e[0]=='0') apartment_lights_enabled.store(false);
     if(const char* e=std::getenv("DNTTK_APARTMENT_AMBIENT")) apt_ambient=std::clamp((float)std::atof(e),10.0f,100.0f)/100.0f;
+    if(const char* e=std::getenv("DNTTK_SHOWCASE_AMBIENT")) show_ambient=std::clamp((float)std::atof(e),10.0f,100.0f)/100.0f;
+    if(const char* e=std::getenv("DNTTK_SHOWCASE_LAMPS")) show_lamps=std::clamp((float)std::atof(e),0.0f,100.0f)/100.0f;
     if(const char* e=std::getenv("DNTTK_APARTMENT_WINDOW")) std::sscanf(e,"%f %f %f %f %f %f %f",&apt_window_rgb[0],&apt_window_rgb[1],&apt_window_rgb[2],&apt_window_k,&apt_window_radius,&apt_window_in,&apt_window_up);
 }
 static void club_reset() {club_st.loaded_tick=light_ticks;club_st.next_try=0;club_st.done=false;club_st.room.clear();club_st.dropped.clear();club_st.fixtures=club_st.shaped=club_st.added=0;
-                         club_st.apt.clear();club_st.apts=club_st.windows=0;}
+                         club_st.apt.clear();club_st.apts=club_st.windows=0;club_st.show.clear();club_st.shows=0;}
 static bool apt_room(int room) {return room>=0 && (size_t)room<club_st.apt.size() && club_st.apt[(size_t)room];}
 static float apt_ambient_now() {club_tune_once();return apt_ambient;}
+static bool show_room(int room) {return room>=0 && (size_t)room<club_st.show.size() && club_st.show[(size_t)room] && prop_lights_enabled.load(std::memory_order_relaxed);}
+static float show_ambient_now() {club_tune_once();return show_ambient;}
+static float show_lamps_now() {club_tune_once();return show_lamps;}
 static float club_ambient_now() {club_tune_once();return club_ambient;}
 static bool club_room(int room) {return room>=0 && (size_t)room<club_st.room.size() && club_st.room[(size_t)room];}
 // The colour pushed away from white, its brightest channel kept.
@@ -100,7 +118,7 @@ static void club_apply() {
     if(!rooms || rooms>256 || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     struct Fixture {int kind;double p[3],yaw;uint32_t room;};
     std::vector<Fixture> fx,pendants;std::vector<uint32_t> seen;
-    club_st.room.assign(rooms,0);club_st.apt.assign(rooms,0);
+    club_st.room.assign(rooms,0);club_st.apt.assign(rooms,0);club_st.show.assign(rooms,0);club_st.shows=0;
     for(uint32_t r=0;r<rooms;++r) for(uint32_t head_at:{0x48u,0x4cu}) {
         uint32_t node=psx_mod_read_word(table+88*r+head_at);
         for(unsigned guard=0;node && guard<1024;++guard) {
@@ -111,6 +129,7 @@ static void club_apply() {
             seen.push_back(o);
             const int kind=prop_light_kind(psx_mod_read_word(o+0x44));
             const bool club=club_on && prop_light_club_kind(kind),apt=apt_on && prop_light_hanging(kind);   // D57M: the bare bulb too
+            if(kind==prop_light_delorean) {if(!club_st.show[r]) ++club_st.shows;club_st.show[r]=1;continue;}   // D57B rev 2
             if(!club && !apt) continue;
             Fixture f{kind,{0,0,0},(int16_t)psx_mod_read_half(o+0x1c)*(2*3.14159265358979/4096),r};
             for(int k=0;k<3;++k) f.p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
@@ -150,6 +169,17 @@ static void club_apply() {
         }
     }
     if(club_st.apts) std::fprintf(stderr,"[TTK apartment] level %u: %u apartment rooms, %u window glows\n",level_lamps_level,club_st.apts,club_st.windows);
+    // D57B rev 2: the showcase room's own lamps (the file's) turned down before
+    // the bake reads them (they are baked: a change at publish time would not
+    // reach the bake); lamp save writes the file's values back.
+    unsigned show_dimmed=0;
+    if(club_st.shows) for(LevelLamp& l:level_lamps) {
+        if(l.room==-2) l.room=level_lamp_room(l);
+        if(l.club || l.room<0 || (size_t)l.room>=club_st.show.size() || !club_st.show[(size_t)l.room]) continue;
+        for(int c=0;c<3;++c) {l.file_rgb[c]=l.rgb[c];l.rgb[c]=std::round(l.rgb[c]*show_lamps_now()*100)/100;}
+        l.file_radius=l.radius;l.club=1;++show_dimmed;
+    }
+    if(club_st.shows) std::fprintf(stderr,"[TTK showcase] level %u: %u showcase rooms (the DeLorean's), %u of their lamps turned down\n",level_lamps_level,club_st.shows,show_dimmed);
     if(fx.empty()) {if(club_st.windows) {level_lamp_selected=-1;signal_cache_clear();}return;}
     // The file's lamps in club rooms: the scan lamps out, the rest to pools.
     for(size_t i=0;i<level_lamps.size();) {
@@ -189,7 +219,7 @@ static void club_update() {
     if(!club_st.done) {club_apply();level_lamp_snapshot();}
     // None yet: every 30 ticks for 30 s after the load (one walk of the
     // room lists, about 400 objects).
-    else if(!club_st.fixtures && !club_st.apts && light_ticks-club_st.loaded_tick<900 && light_ticks>=club_st.next_try) {
+    else if(!club_st.fixtures && !club_st.apts && !club_st.shows && light_ticks-club_st.loaded_tick<900 && light_ticks>=club_st.next_try) {
         club_st.next_try=light_ticks+30;club_apply();
         if(club_st.fixtures || club_st.windows) level_lamp_snapshot();
     }

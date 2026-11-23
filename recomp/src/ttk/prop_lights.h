@@ -126,6 +126,15 @@ inline bool (*prop_signal_now)(uint32_t mesh,float& level,float rgb[3])=nullptr;
 
 // Console "lamp props off|on" (session, for comparison).
 inline std::atomic<bool> prop_lights_enabled{true};
+// D57B rev 2: the props the DeLorean rests on reach the floor. A model copy
+// with its bottom corners lowered, in a block of mod memory (allocated on
+// the first live frame, before any redraw worker is forked; filled by the
+// live prop scan): +0 the level, +4 count, then (model, copy) pairs. The
+// near-clip object path draws the copy instead (prop_mesh_swap).
+inline uint32_t prop_stand_block=0;
+constexpr uint32_t prop_stand_block_size=0x800;
+inline bool prop_stand_owns(uint32_t address) {return prop_stand_block && address>=prop_stand_block && address<prop_stand_block+prop_stand_block_size;}
+inline uint32_t (*prop_mesh_swap)(uint32_t mesh)=nullptr;
 // D57A: lava pools give light ("lamp lava off|on", the session).
 inline std::atomic<bool> lava_lights_enabled{true};
 // D56: console "lamp pickups off|on" (glowing pickups, session).

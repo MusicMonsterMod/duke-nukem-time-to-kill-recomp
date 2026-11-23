@@ -713,7 +713,124 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     const double ca=std::cos(yaw),sa=std::sin(yaw);
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
+// D57B rev 2: the DeLorean's stands (the boxes it rests on, a prop model
+// whose top meets the car's underside, under its body) float above the cave
+// floor. Each such model gets a copy whose bottom corners go down to the
+// floor under the lowest of its copies (the others sink into the floor,
+// unseen); the car keeps its height. The floor: the nearest flat world face
+// of the room under the stand's centre. Developer: DNTTK_DELOREAN_STANDS=0
+// keeps them as they are; DNTTK_PROP_LIGHT_TRACE=1 reports them.
+bool stands_enabled() {const char* e=std::getenv("DNTTK_DELOREAN_STANDS");return !(e && e[0]=='0');}
+// The height (y, down positive) of the nearest flat face of the room at or
+// under y0 at (x, z); false when there is none.
+bool floor_below(uint32_t room,double x,double z,double y0,double& out) {
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(room>=rooms) return false;
+    const uint32_t a=table+88*room;
+    const double org[3]={(double)(int32_t)psx_mod_read_word(a),(double)(int32_t)psx_mod_read_word(a+4),(double)(int32_t)psx_mod_read_word(a+8)};
+    const unsigned n=psx_mod_read_byte(a+0x32);const uint32_t list=psx_mod_read_word(a+0x40);
+    if(!n || list<0x80010000u || list>0x80200000u-n*4 || (list&3)) return false;
+    bool found=false;
+    for(unsigned i=0;i<n;++i) {
+        const uint32_t piece=psx_mod_read_word(list+4*i);
+        if(piece<0x80010000u || piece>0x801f0000u || (piece&3)) continue;
+        const unsigned count=psx_mod_read_half(piece+0x14);
+        if(!count || count>2048 || piece+0x1c+8*count>0x80200000u) continue;
+        uint32_t cursor=piece+psx_mod_read_word(piece+0x18);
+        if(cursor<0x80010000u || cursor>0x801ffff0u) continue;
+        for(unsigned guard=0;guard<=256;++guard) {
+            const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+            const uint32_t type=header&0xffff,m=header>>16;
+            if(type==0xff || (type!=0x60 && type!=0x61) || !m || m>4096 || cursor+m*8>0x80200000u) break;
+            for(uint32_t k=0;k<m;++k,cursor+=8) {
+                const uint32_t word=psx_mod_read_word(cursor);const unsigned nc=type==0x60?3u:4u;
+                double c[4][3];bool ok=true,flat=true;
+                for(unsigned j=0;j<nc && ok;++j) {
+                    const unsigned idx=(word>>(8*j))&0xff;
+                    if(idx>=count) {ok=false;break;}
+                    const uint32_t w0=psx_mod_read_word(piece+0x1c+8*idx);
+                    c[j][0]=org[0]+(int16_t)(((w0&0xff)<<10)&0xffff);c[j][1]=org[1]+(int16_t)((((w0>>8)&0xff)<<7)&0xffff);c[j][2]=org[2]+(int16_t)((((w0>>16)&0xff)<<10)&0xffff);
+                    if(j) flat&=c[j][1]==c[0][1];
+                }
+                if(!ok || !flat || c[0][1]<y0-16 || (found && c[0][1]>=out)) continue;
+                // Inside the face (xz)? A GT4 is the triangles 0 1 2 and 1 3 2.
+                auto inside=[&](int p,int q,int r) {
+                    const double d1=(x-c[q][0])*(c[p][2]-c[q][2])-(c[p][0]-c[q][0])*(z-c[q][2]);
+                    const double d2=(x-c[r][0])*(c[q][2]-c[r][2])-(c[q][0]-c[r][0])*(z-c[r][2]);
+                    const double d3=(x-c[p][0])*(c[r][2]-c[p][2])-(c[r][0]-c[p][0])*(z-c[p][2]);
+                    return !((d1<0 || d2<0 || d3<0) && (d1>0 || d2>0 || d3>0));
+                };
+                if(inside(0,1,2) || (nc==4 && inside(1,3,2))) {out=c[0][1];found=true;}
+            }
+        }
+    }
+    return found;
+}
+void build_stands(uint32_t car,uint32_t room) {
+    if(!prop_stand_block) return;
+    const uint32_t level=psx_mod_read_word(0x800be570u);
+    psx_mod_write_word(prop_stand_block,~0u);psx_mod_write_word(prop_stand_block+4,0);
+    if(!stands_enabled()) return;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(room>=rooms) return;
+    double cp[3];for(int k=0;k<3;++k) cp[k]=(int32_t)psx_mod_read_word(car+4+4*k);
+    const double car_bottom=cp[1]+182;   // the car's floor line (model y 182)
+    struct Need {uint32_t mesh;double lowest;int32_t hi;};   // per model: how far down its bottom must go
+    std::vector<Need> needs;
+    for(uint32_t head_at:{0x48u,0x4cu}) {
+        uint32_t node=psx_mod_read_word(table+88*room+head_at);
+        for(unsigned guard=0;node && guard<1024;++guard) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+            const uint32_t o=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+            if(o==car || o<0x80010000u || o>0x801fff00u || (o&3) || psx_mod_read_byte(o+0x14)!=1) continue;
+            const uint32_t mesh=psx_mod_read_word(o+0x44);
+            if(mesh<0x80010000u || mesh>0x801ffff0u || (mesh&3)) continue;
+            const unsigned nv=psx_mod_read_byte(mesh+6);const uint32_t vp=psx_mod_read_word(mesh+0x10);
+            if(!nv || nv>64 || vp<0x80010000u || vp>0x801fff00u) continue;
+            int32_t lo=INT32_MAX,hi=INT32_MIN;
+            for(unsigned v=0;v<nv;++v) {const int32_t y=(int16_t)psx_mod_read_half(vp+8*v+2);lo=std::min(lo,y);hi=std::max(hi,y);}
+            double p[3];for(int k=0;k<3;++k) p[k]=(int32_t)psx_mod_read_word(o+4+4*k);
+            const double dx=p[0]-cp[0],dz=p[2]-cp[2];
+            if(dx*dx+dz*dz>1300.0*1300.0 || std::fabs(p[1]+lo-car_bottom)>64) continue;   // not under the car's body, or its top not at the car's underside
+            double floor;
+            if(!floor_below(room,p[0],p[2],p[1]+hi,floor)) continue;
+            const double gap=floor-(p[1]+hi);
+            if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) std::fprintf(stderr,"[TTK prop light] DeLorean stand %08x model %08x at %.0f %.0f %.0f: bottom %.0f, floor %.0f (gap %.0f)\n",o,mesh,p[0],p[1],p[2],p[1]+hi,floor,gap);
+            if(gap<=8 || gap>2000) continue;
+            bool known=false;
+            for(Need& nd:needs) if(nd.mesh==mesh) {nd.lowest=std::max(nd.lowest,gap);known=true;}
+            if(!known) needs.push_back({mesh,gap,hi});
+        }
+    }
+    uint32_t used=0x40,count=0;
+    for(const Need& nd:needs) {
+        if(count>=6) break;
+        const unsigned nv=psx_mod_read_byte(nd.mesh+6);const uint32_t vp=psx_mod_read_word(nd.mesh+0x10);
+        const uint32_t bytes=0x18+nv*8+nv*4+16;   // header, corners, the colour words after them
+        if(used+bytes>prop_stand_block_size) break;
+        const uint32_t copy=prop_stand_block+used,verts=copy+0x18;used+=(bytes+15)&~15u;
+        for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(nd.mesh+i));
+        psx_mod_write_word(copy+0x10,verts);   // the face list stays the model's own
+        for(uint32_t i=0;i<nv*12+16;i+=4) psx_mod_write_word(verts+i,psx_mod_read_word(vp+i));
+        const int32_t drop=nd.hi+(int32_t)std::lround(nd.lowest)+8;   // 8 into the floor: no seam
+        for(unsigned v=0;v<nv;++v) if((int16_t)psx_mod_read_half(vp+8*v+2)==nd.hi) psx_mod_write_half(verts+8*v+2,(uint16_t)(int16_t)drop);
+        psx_mod_write_word(prop_stand_block+8+8*count,nd.mesh);psx_mod_write_word(prop_stand_block+12+8*count,copy);++count;
+        if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) std::fprintf(stderr,"[TTK prop light] DeLorean stands: model %08x bottom %d -> %d (copy %08x)\n",nd.mesh,nd.hi,drop,copy);
+    }
+    psx_mod_write_word(prop_stand_block+4,count);psx_mod_write_word(prop_stand_block,level);
+}
+uint32_t stand_swap(uint32_t mesh) {
+    if(!prop_stand_block || !input_modernized() || ttk_world_classic()) return 0;
+    if(psx_mod_read_word(prop_stand_block)!=psx_mod_read_word(0x800be570u)) return 0;
+    const uint32_t n=std::min<uint32_t>(psx_mod_read_word(prop_stand_block+4),6);
+    for(uint32_t i=0;i<n;++i) if(psx_mod_read_word(prop_stand_block+8+8*i)==mesh) {
+        const uint32_t copy=psx_mod_read_word(prop_stand_block+12+8*i);
+        return prop_stand_owns(copy)?copy:0;
+    }
+    return 0;
+}
 void scan_props() {
+    uint32_t car=0,car_room=0;   // D57B rev 2
     emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=pendants=bulbs=candle_stands=deloreans=0;scan_sig=0;cages_pending=false;
     const uint32_t train_was=train.o;train.o=0;
     unsigned cage_models=0,globe_models=0;
@@ -830,6 +947,7 @@ void scan_props() {
                 place(e.p,p,yaw,candle_stand_at);e.tune=&candle_stand_light;emitters.push_back(e);++candle_stands;
             } else if(kind==prop_light_delorean) {
                 // D57B: the headlights and the vents.
+                if(!car) {car=o;car_room=r;}
                 place(e.p,p,yaw,delorean_head_at);e.tune=&delorean_head;e.steady=true;emitters.push_back(e);
                 place(e.p,p,yaw,delorean_vent_at);e.tune=&delorean_vent;e.seed=o+1;emitters.push_back(e);++deloreans;
             } else if(kind==prop_light_portal_top) {
@@ -846,6 +964,10 @@ void scan_props() {
                 place(e.p,p,yaw,fill_at);e.tune=&fill_light;e.seed=o+1;emitters.push_back(e);++chandeliers;
             }
         }
+    }
+    if(prop_stand_block) {
+        if(car) build_stands(car,car_room);
+        else if(psx_mod_read_word(prop_stand_block)!=~0u) psx_mod_write_word(prop_stand_block,~0u);
     }
     for(unsigned i=cage_models;i<16;++i) cage_slots[i].mesh.store(0,std::memory_order_relaxed);
     for(unsigned i=globe_models;i<8;++i) globe_slots[i].mesh.store(0,std::memory_order_relaxed);
@@ -1160,6 +1282,10 @@ void train_update() {
 void composition_hook(CPUState*,uint32_t) {
     if(psx_mod_replay_active()) return;
     if(!input_modernized()) {emitters.clear();pickups.clear();crystals.clear();lava.clear();lava_level_seen=~0u;scan_level=~0u;train.o=0;train_mesh_now.store(0);return;}   // Vanilla: nothing
+    if(!prop_stand_block) {   // D57B rev 2: before any redraw worker is forked
+        prop_stand_block=psx_mod_alloc_guest_memory(prop_stand_block_size,16);
+        if(prop_stand_block) {psx_mod_write_word(prop_stand_block,~0u);psx_mod_write_word(prop_stand_block+4,0);}
+    }
     ++frames;
     duke_tick_frame.store(duke_tick(now_ms()),std::memory_order_relaxed);   // D41AB
     const uint32_t level=psx_mod_read_word(0x800be570u);
@@ -1622,6 +1748,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::prop_light_kind=ttk::kind_of;
     ttk::prop_light_visuals=ttk::visuals;
     ttk::prop_light_publish=ttk::publish;
+    ttk::prop_mesh_swap=ttk::stand_swap;   // D57B rev 2
     ttk::prop_light_glows=ttk::glows;
     ttk::prop_light_tone=ttk::tone;
     if(const char* e=std::getenv("DNTTK_PROP_PORTAL_TOP")) std::sscanf(e,"%f %f %f %f",&ttk::portal_top_tone,&ttk::portal_top_halo,&ttk::portal_top_level,&ttk::portal_top_y);

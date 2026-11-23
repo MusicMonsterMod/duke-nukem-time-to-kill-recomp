@@ -2345,6 +2345,20 @@ three cheats; Vanilla's cheat path is the game's own (no trace line, flags
 untouched). Limit: a save that already holds the phantom key from an earlier
 cheat keeps it until the level is started again. Needs the user's check.
 
+User review, 2026-11-23: "working fine! accepted". Awaiting the closeout
+instruction. Side report: while testing, the HUD briefly showed the icons on
+black backgrounds without their frames (", ." panel / TTK HUD elements, "close
+to loading this slot"); `-` and `=` (status bar modes) set it right; not
+reproducible. A short look: the session log of the test
+(`build-local/logs/session-20261123-080716.log`, local) records nothing for
+the HUD around the slot loads or the cheat (no error, no HUD line). The look
+matches D19U2's Borderless icons when their keyed copies are not in use (the
+native icons' own black squares; note 350: copies made each frame only while
+the status records hold their exact original words and the guest stack is
+in range); a frame after a load or the cheat's inventory change falling
+outside those checks is a lead, not established. Not pursued further (the
+user's instruction: a short look only).
+
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 
 **Status: Done (user-accepted 2026-11-20: "lock it in and close us out"). Dependencies: D08A45.** [Note 516](../documentation/516-d60-family-jewels-any-order.md).

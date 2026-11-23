@@ -214,6 +214,9 @@ static bool club_room(int room);
 static float club_ambient_now();
 static bool apt_room(int room);          // D57L
 static float apt_ambient_now();
+static bool show_room(int room);         // D57B rev 2
+static float show_ambient_now();
+static float show_lamps_now();
 static void apt_console(const char* rest);
 // D41E (relit.inc): ambient directives in the lamp file.
 static bool relit_parse_line(const char* line);

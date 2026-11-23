@@ -108,6 +108,7 @@ static float relit_room_target(int room,const char** why) {
     for(const auto& r:relit_level.rooms) if(r.first==room) {*why="room";return r.second;}
     if(club_room(room)) {*why="club";return club_ambient_now();}   // D57J (club_lights.inc)
     if(apt_room(room)) {*why="apartment";return apt_ambient_now();}   // D57L (club_lights.inc)
+    if(show_room(room)) {*why="showcase";return show_ambient_now();}   // D57B rev 2 (club_lights.inc)
     const float indoor=relit_level.indoor>=0?relit_level.indoor:relit_default_indoor;
     if(relit_room_flags(room)&8) {*why="outdoor";return relit_level.outdoor>=0?relit_level.outdoor:relit_default_outdoor;}
     relit_count_lamps();

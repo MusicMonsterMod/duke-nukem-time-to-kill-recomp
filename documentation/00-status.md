@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - D08A49 key cheats and phantom mission items (Needs playtest)
+
+- D08A49 ([note 551](551-d08a49-key-cheats-givable.md)): in Modernized the key-granting cheats (`dnstuff`, `dnkeys`, `dnitems`) give only the mission items the level can give (the D08A48 scan): GOLD AND GUNS gets no phantom Skeleton Key (the panel stays MISSION / NONE); every level's fresh start gets exactly its own items; D60's used items stay used; Vanilla unchanged. Items already held from an earlier cheat are kept (a load's scan cannot tell them from legitimate ones).
+
 ## 2026-11-23 - D17BP cavern roof gap (Needs playtest)
 
 - D17BP ([note 550](550-d17bp-cavern-roof-gap.md)): the GOLD AND GUNS cavern's "patch of sky" is a gap in the original roof mesh (room 16, about 2000 across, nothing covers it) that D17BJ's always-on borrowed sky showed through. The borrowed sky is now drawn while a painted sky face is left out (D17AO1) or while a room with an open shaft top is shown (found from the level's mesh: level rims of wall edges at a room's top; GOLD AND GUNS: the cabin, room 45, only). Cavern: black, as the original; cabin and start shaft: sky as before; Classic the same. Test save: the user's UI slot 10.

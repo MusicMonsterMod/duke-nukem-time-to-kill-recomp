@@ -2302,7 +2302,7 @@ Work log, 2026-11-20 (note 517, "Fix (D08A48, built)"):
 
 ### D08A49 - Key cheats never give a mission item the level cannot give
 
-**Status: Todo (backlog; reported 2026-11-23). Dependencies: D08A48, D60.**
+**Status: Needs playtest ([note 551](../documentation/551-d08a49-key-cheats-givable.md)). Dependencies: D08A48, D60.**
 
 User, 2026-11-23: "when doing dnstuff etc on gold and guns, it gives you that
 mystery key remember? that key we prevented showing in the mission items
@@ -2327,6 +2327,23 @@ Acceptance: on GOLD AND GUNS the cheats leave no skeleton key and the mission
 panel stays empty (MISSION / NONE); every level with real mission items still
 gets them from the cheats (test over all levels' fresh starts); D60's used
 items stay used; Vanilla unchanged.
+
+Work log, 2026-11-23 overnight ([note 551](../documentation/551-d08a49-key-cheats-givable.md)):
+in Modernized the key grant (`0x8003d840`, behind `dnstuff`, `dnkeys` and
+`dnitems`) is wrapped: an item the level cannot give (the D08A48
+`mission_givable_scan` set, run at once when the cheat is typed; only a scan
+finished on this level or since the load counts) and that Duke did not hold
+goes back to its flag and amount from before; D60's used items stay used; an
+item already held is never taken away (after a load the scan only sees the
+pickups still in the world). Decision for unscanned levels: if the scan
+cannot finish the grant stays the original. Lab (`recomp/analysis/d08a49/`,
+every level's fresh start, each cheat): GOLD AND GUNS gets no item (the
+panel stays MISSION / NONE); level 0 gets items 6 7 11 12 13 and withholds
+8-10 and 14-16; every level with real items gets exactly its own; levels 8,
+12 and 21-29 get none; level 0's item 6 marked used stays used through all
+three cheats; Vanilla's cheat path is the game's own (no trace line, flags
+untouched). Limit: a save that already holds the phantom key from an earlier
+cheat keeps it until the level is started again. Needs the user's check.
 
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 

@@ -2848,7 +2848,7 @@ its normal job straight away.
 
 The three inventory cheats (`dnstuff`, `dninventory`, `dnitems`) treat steroids the same way: a running dose stops and comes back as a full held dose (Modernized portable steroids). Armor and steroids are separate, so the armor grant never changes the steroids.
 
-The key-granting cheats (`dnstuff`, `dnkeys`, `dnitems`) never give back a mission item you have already used at its lock (D60): a key used at its door, or a jewel already set into the FAMILY JEWELS wheel, stays marked USED in the mission inventory, and only the items you have not found yet are given. Vanilla keeps the original cheat.
+The key-granting cheats (`dnstuff`, `dnkeys`, `dnitems`) never give back a mission item you have already used at its lock (D60): a key used at its door, or a jewel already set into the FAMILY JEWELS wheel, stays marked USED in the mission inventory, and only the items you have not found yet are given. They also give only the mission items the level can actually give (D08A49): GOLD AND GUNS, which has none, stays at MISSION / NONE instead of showing a phantom Skeleton Key, and every other level gets exactly its own items. An item you already hold is never taken away. Vanilla keeps the original cheat.
 
 These use Time to Kill's inventory equivalents. Use a test save and show enemies
 again before saving or loading: hidden-enemy state is session/scene-local, and its

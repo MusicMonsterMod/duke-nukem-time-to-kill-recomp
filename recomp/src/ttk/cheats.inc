@@ -221,11 +221,34 @@ static void cheats_update(CPUState* cpu) {
         // item 6..16, used ones too, which handed a jewel already in the
         // FAMILY JEWELS wheel back (its socket then lost its colour, and it
         // could go in twice). An item used up at its lock (D08A19) stays used.
-        uint16_t before[17]{};
-        for(unsigned i=6;i<17;++i)before[i]=psx_mod_read_half(player+0x354+4*i);
+        // D08A49: and it gives only the mission items this level can give
+        // (the D08A48 scan): GOLD AND GUNS names a Skeleton Key (item 6) no
+        // pickup gives and no lock takes, and the grant made it "found". An
+        // item the level cannot give keeps its flag and amount as they were
+        // (one Duke already holds stays held). The scan is run now (a cheat
+        // typed in the first half second of a level or after a load); if
+        // it cannot finish (a pointer failed its checks) the grant stays as
+        // the original.
+        uint16_t before[17]{},amount_before[17]{};
+        for(unsigned i=6;i<17;++i) {
+            before[i]=psx_mod_read_half(player+0x354+4*i);
+            amount_before[i]=psx_mod_read_half(player+0x356+4*i);
+        }
+        const unsigned level=psx_mod_read_word(0x800be570);
+        givable_scan_tick=29;mission_givable_scan();   // the next call scans
+        const bool known=givable_scan_level==level && givable_scan_loads==psx_mod_savestate_loads() && givable_scan_ready;
+        const uint32_t givable=givable_scan_items;
         ok=original_call(cpu,0x8003d840,0);
-        for(unsigned i=6;i<17;++i)
-            if(!(before[i]&1) && (before[i]&mission_used_bit))psx_mod_write_half(player+0x354+4*i,before[i]);
+        unsigned withheld=0;
+        for(unsigned i=6;i<17;++i) {
+            if(!(before[i]&1) && (before[i]&mission_used_bit)) {psx_mod_write_half(player+0x354+4*i,before[i]);continue;}
+            if(known && input_modernized() && !((givable>>i)&1) && !(before[i]&1)) {
+                psx_mod_write_half(player+0x354+4*i,before[i]);psx_mod_write_half(player+0x356+4*i,amount_before[i]);
+                withheld|=1u<<i;
+            }
+        }
+        if(withheld || std::getenv("DNTTK_CHEAT_TRACE"))
+            std::fprintf(stderr,"[TTK cheat] level %u key grant: givable %05x, withheld %05x (scan %s)\n",level,givable,withheld,known?"ready":"not ready");
     }
     if(command==Cheat::Ammo)for(unsigned i=0;i<36;++i)
         if(psx_mod_read_half(player+0x2c4+4*i)&1)psx_mod_write_half(player+0x2c6+4*i,psx_mod_read_half(0x800c4594+44*i));

@@ -102,11 +102,12 @@ static bool usable_item(unsigned item) {
 // reads.
 static unsigned givable_scan_level=~0u,givable_scan_tick;
 static uint32_t givable_scan_loads,givable_scan_items;
+static bool givable_scan_ready;   // D08A49: a scan finished on this level since it began (or the load)
 static void mission_givable_scan() {
     const unsigned level=psx_mod_read_word(0x800be570);
     const uint32_t loads=psx_mod_savestate_loads();
     if(level!=givable_scan_level || loads!=givable_scan_loads) {
-        givable_scan_level=level;givable_scan_loads=loads;givable_scan_items=0;givable_scan_tick=0;
+        givable_scan_level=level;givable_scan_loads=loads;givable_scan_items=0;givable_scan_tick=0;givable_scan_ready=false;
     } else if(++givable_scan_tick<30)return;
     givable_scan_tick=0;
     auto valid=[](uint32_t address,uint32_t size){return address>=0x80010000u && address<=0x80200000u-size && !(address&3);};
@@ -126,7 +127,7 @@ static void mission_givable_scan() {
     const uint32_t enemies=psx_mod_read_word(0x800de720),records=psx_mod_read_word(0x800c56a0);
     if(records>256 || (records && !valid(enemies,48*records)))return;
     for(unsigned i=0;i<records;++i)items|=gives((int16_t)psx_mod_read_half(enemies+48*i+0x2c));
-    givable_scan_items=items;
+    givable_scan_items=items;givable_scan_ready=true;
     mission_givable(level,items);
 }
 // Share the original menu's remembered ID. Its list rebuild maps this ID to

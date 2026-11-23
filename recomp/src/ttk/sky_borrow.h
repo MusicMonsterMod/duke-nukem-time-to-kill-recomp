@@ -11,7 +11,11 @@
 // shaft) shows the same sky instead of black. Shared with near_clip.cpp, which is also linked into
 // the native tests, so the state lives here.
 #pragma once
+#include "mod_plugins.h"
 #include <atomic>
+#include <algorithm>
+#include <utility>
+#include <vector>
 #include <cstdint>
 
 namespace ttk {
@@ -63,6 +67,22 @@ inline bool sky_borrow_skip(uint32_t clut,uint32_t tpage,const uint32_t uv[4],un
 // found from the level's mesh). A gap in a roof (sloped edges, sloped
 // faces round it) is no shaft and stays black, as the original drew it.
 inline std::atomic<bool> sky_borrow_shaft_shown{false};
+// D17BP rev 2: roof gaps closed with rock (sky_borrow.cpp find_shafts). The
+// caps live in one block of mod memory, allocated on the first live frame
+// (before any redraw worker is forked, so every worker knows it) and filled
+// by the live game thread only; a redraw worker reads the table from its
+// frame's own image. Table: +0 the level it was built for, +4 count, then
+// (room, piece) pairs; the pieces follow at +0x100. host_visibility.inc
+// draws them with their room, near_clip accepts them.
+inline uint32_t roof_cap_block=0;
+constexpr uint32_t roof_cap_block_size=0x4000,roof_cap_table_max=30;
+inline bool roof_cap_owns(uint32_t address) {return roof_cap_block && address>=roof_cap_block && address<roof_cap_block+roof_cap_block_size;}
+inline unsigned roof_cap_count(uint32_t level) {
+    if(!roof_cap_block || psx_mod_read_word(roof_cap_block)!=level) return 0;
+    return std::min<unsigned>(psx_mod_read_word(roof_cap_block+4),roof_cap_table_max);
+}
+inline uint32_t roof_cap_room(unsigned i) {return psx_mod_read_word(roof_cap_block+8+8*i);}
+inline uint32_t roof_cap_piece(unsigned i) {return psx_mod_read_word(roof_cap_block+12+8*i);}
 inline bool sky_borrow_wanted() {
     return sky_borrow_ready && (sky_borrow_face_left.load(std::memory_order_relaxed) || sky_borrow_face_left_prev.load(std::memory_order_relaxed) ||
                                 sky_borrow_shaft_shown.load(std::memory_order_relaxed));

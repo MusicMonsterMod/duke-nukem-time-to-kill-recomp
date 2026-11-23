@@ -3325,7 +3325,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
     if(!enabled() && !object_filter) return;
     const uint32_t mesh=cpu->gpr[4];
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
-    if((mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) && !sky_borrow_owns(mesh) && !security_tv_owns(mesh)) return;   // D17AO1, D53 copies in mod memory
+    if((mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) && !sky_borrow_owns(mesh) && !security_tv_owns(mesh) && !roof_cap_owns(mesh)) return;   // D17AO1, D53 copies, D17BP roof caps in mod memory
     if(!identity()) {++refused;return;}
     if(object_filter) {third_person_mesh_begin(cpu);first_person_mesh_begin(cpu);filter_missing_animation(cpu);cowboy_hat_mesh_begin(cpu);}
     if(!clip_live || !enabled()) return;

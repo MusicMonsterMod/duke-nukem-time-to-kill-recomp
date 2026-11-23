@@ -74,11 +74,54 @@ Same saves, first person, offscreen 180 Hz (lab shots `n1..n3`, `c1..c3`):
 - Vanilla (`--vanilla`, the trace on): no sky scan (the borrowed sky needs
   the Modernized profile).
 
+## Revision 2 (2026-11-23): the gap closed with rock
+
+User, reviewing: "now it's just a black patch on the ceiling ... Either we
+add some depth to the rock around the side, and give it a great halo ... or
+we just patch it with the rock texture." (Their new UI slot 12, copy in
+`research/savestates/d17bp-idea/`, looks up the level start's deep rock
+shaft with the sky at its top.) The call: patch it with rock, the roof as
+the level clearly meant it.
+
+**The gap (MEASURED):** one missing cell of the roof's grid: its six corners
+lie on the room's 1024 grid round one missing grid point (59392, -46080),
+and the four pieces round it each hold some of them (no one piece could
+carry the patch).
+
+**Cap** (`sky_borrow.cpp` `find_shafts`, `sky_borrow.h`,
+`host_visibility.inc`, `near_clip.cpp`; game-wide, levels with a painted
+sky): the unshared edges that are not shaft rims are joined into closed
+loops; a loop is a roof gap when its corners are on the room's grid, it is
+near level (at most 1024 in height) and at least a tile across, it lies in
+the upper quarter of its room, and its corners ring one grid point. It is
+closed by a cap piece in the game's own world-piece format: the corners and
+that point (at their mean height), a fan of triangles each three corners of
+one 1024 tile, each textured with an entry of the level's texture table
+that has the page and palette of the roof face across its edge and corners
+that fit the tile (any mirror; within 2 texels; a triangle face's entry has
+no fourth corner), painted with the roof's own vertex colours. Doorways
+(vertical loops) and pit rims are not roof gaps (the trace lists every loop
+and the verdict). The caps and their table (level, room, piece) live in a
+block of mod memory allocated on the first live frame and filled by the
+live game thread only, so each redraw worker reads its frame's own table.
+`host_visibility.inc` draws a room's caps with its pieces; a cap is never
+given to the game's own walk. Developer: `DNTTK_ROOF_CAPS=0` leaves the gaps
+open; `DNTTK_SKY_SHAFT_TRACE=1`.
+
+**Evidence:** GOLD AND GUNS: one roof gap capped (room 16: 7 corners, 6
+triangles); 1 shaft top (room 45) as before; the scan 5.6 ms at the load.
+The cavern from the user's slot: sky (D17BJ), black (rev 1), rock (rev 2)
+from the same camera, no seam (`research/before-after/D17BP/rev2-*`); the
+same in Relit, Enhanced and Original; 40 consecutive presents at 180 Hz all
+show the cap (region mean 12.1 in every one). Cabin shaft and start shaft:
+sky as before. Vanilla: no cap, no scan.
+
 ## Limits
 
-- The gap now draws black, as in the original game, not as rock: filling it
-  would mean adding geometry (a cap in the roof's texture), a possible
-  follow-up if the user wants it.
+- The cap is drawn by the Polymorph host path: under the Classic renderer the
+  gap stays black (the original look).
+- A roof gap that does not ring a single grid point is left open (black),
+  reported by the trace; GOLD AND GUNS has none.
 - An opening the rule does not call a shaft (a hole in a roof, a crack)
   draws black; one it does call a shaft shows the sky whenever its room is
   shown, as D17BJ.

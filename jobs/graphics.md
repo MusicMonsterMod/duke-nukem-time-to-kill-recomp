@@ -3418,6 +3418,21 @@ game's portal walk in Classic). Cavern: black, as the original; cabin and
 start shaft: sky as before; Classic the same. Limit: the gap is black, not
 rock (filling it is geometry, a possible follow-up). Needs the user's look.
 
+Revision 2, 2026-11-23 ([note 550](../documentation/550-d17bp-cavern-roof-gap.md)):
+user: "now it's just a black patch on the ceiling" - either add depth and a
+halo, or patch it with the rock texture (their new UI slot 12 shows the
+start shaft's depth). The call: patch with rock. The gap is one missing
+cell of the roof's grid; `find_shafts` now also joins the non-rim unshared
+edges into loops and caps each roof gap (near level, upper quarter of the
+room, corners on the grid round one missing grid point) with a piece in the
+game's world format: a fan of tile triangles with the neighbouring roof's
+texture entries and painted colours, drawn with its room by the host
+visibility pass, in a mod-memory block the redraw workers read. GOLD AND
+GUNS: one cap (room 16); doorways and pit rims are not caps. The cavern now
+shows seamless rock in all three modes and in 40 consecutive 180 Hz
+presents; cabin and start shaft keep their sky; Classic keeps the black gap;
+Vanilla untouched. Needs the user's look (UI slot 10).
+
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
 **Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**

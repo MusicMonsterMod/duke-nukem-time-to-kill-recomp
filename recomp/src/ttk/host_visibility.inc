@@ -469,6 +469,16 @@ static bool host_vis_walk(CPUState* cpu) {
             if(lo[0]>hi[0] || lo[1]>hi[1] || lo[2]>hi[2] || !host_vis_box(c,lo,hi,sel[room].r)) continue;
             picks.push_back({d2,piece,room});
         }
+        // D17BP: the room's roof caps (sky_borrow.h), as its own pieces.
+        if(sky_borrow_ready) for(unsigned ci=0,cn=roof_cap_count(psx_mod_read_word(0x800be570u));ci<cn;++ci) if(roof_cap_room(ci)==room) {
+            const uint32_t piece=roof_cap_piece(ci);if(!roof_cap_owns(piece)) continue;
+            double lo[3],hi[3],d2=0;
+            for(int k=0;k<3;++k) {
+                lo[k]=origin[k]+(int16_t)psx_mod_read_half(piece+4+2*k);hi[k]=origin[k]+(int16_t)psx_mod_read_half(piece+12+2*k);
+                const double d=c.eye[k]<lo[k]?lo[k]-c.eye[k]:c.eye[k]>hi[k]?c.eye[k]-hi[k]:0;d2+=d*d;
+            }
+            if(host_vis_box(c,lo,hi,sel[room].r)) picks.push_back({d2,piece,room});
+        }
     }
     // Developer rooms' pieces after all others, each group nearest first.
     std::stable_sort(picks.begin(),picks.end(),[](const Pick& x,const Pick& y){
@@ -514,7 +524,7 @@ static bool host_vis_walk(CPUState* cpu) {
         cpu->gpr[4]=k.piece;cpu->gpr[5]=0x800d27a0u;cpu->gpr[6]=view_limits;cpu->gpr[7]=0x800d26a0u;cpu->gpr[31]=0x80062db8u;
         ++host_vis_selected;
         if(near_clip_host_world_piece(cpu)) {++pieces_drawn;if(vis_trace && k.room<256) ++trace_drawn[k.room];}
-        else if(host_vis_developer[k.room]) ++host_vis_developer_dropped;
+        else if(host_vis_developer[k.room] || roof_cap_owns(k.piece)) ++host_vis_developer_dropped;   // D17BP: a cap is never the game's to draw
         else {left.push_back(k.piece);left_room[k.room]=true;++host_vis_left;if(vis_trace && k.room<256) ++trace_left[k.room];}
     }
     if(vis_trace) {

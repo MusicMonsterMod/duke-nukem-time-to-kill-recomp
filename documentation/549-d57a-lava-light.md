@@ -127,6 +127,13 @@ where Duke crosses (`research/before-after/D57A/rev2-*`). 180 Hz Relit,
 walkway save, three pairs: pacing p50/p95 6 ms, max 7-8, none over 10; GPU
 off 16.4 / 17.7 / 16.9 %, on 23.7 / 22.4 / 24.3 % (+6.5 points; rev 1 +4.6).
 
+## Pools per room (2026-11-23, with D57N)
+
+The pools are now one per room (and height), not 4000 across: 5 on GOLD AND
+GUNS instead of 15, so the lit pools no longer change every few thousand
+units as Duke walks (the pit ledge's shadow slid; note 552), and the
+hand-off fade is 4000. Strength 1.4, radius 10000 and the two-pool cap stay.
+
 ## Limits
 
 - Lab-judged: the user's look on the real display decides (strength, reach

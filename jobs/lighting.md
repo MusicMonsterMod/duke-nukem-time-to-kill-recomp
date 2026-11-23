@@ -2281,6 +2281,16 @@ Both saves: the band now glows at the lava like its neighbours; stable over
 40 presents at 180 Hz. Vanilla and Classic unchanged. Needs the user's look
 (UI slots 10 and 12).
 
+Follow-up, 2026-11-23 ([note 552](../documentation/552-d57n-lava-glow-upright.md)):
+user: "it looks great!", then the pit ledge's shadow (new UI slot 12) shifts
+as Duke walks, and the atomic health's glow is swallowed by the lava's. The
+shadow: the nearest two of 15 lava pools changed every few thousand units as
+Duke walked; the pools are now one per room (5 on GOLD AND GUNS) with a 4000
+hand-off, so along the ledge the same two lights cast it. The atomic health
+(found by both its models) is a glowing item: its own cyan and red keep
+their glow in Relit and a soft cyan halo breathes round it. 180 Hz pacing
+unchanged, lava about +4 GPU points at that view. Needs the user's look.
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**

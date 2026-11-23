@@ -45,10 +45,13 @@ namespace ttk {
 enum {prop_light_none=0,prop_light_stove=1,prop_light_chandelier=2,prop_light_ring=3,prop_light_portal_top=4,prop_light_barricade=5,
       prop_light_cage=6,prop_light_train=7,prop_light_globe=8,prop_light_street=9,
       prop_light_neon_bar=10,prop_light_canopy=11,prop_light_club_bar=12,prop_light_table_lamp=13,prop_light_pendant=14,prop_light_bulb=15,
-      prop_light_candle_stand=16,prop_light_delorean=17};
+      prop_light_candle_stand=16,prop_light_delorean=17,prop_light_atomic=18};
 // D57H: prop_light_candle_stand, the red candle on a tall iron stand (prop
 // type 361; level 8, 22 copies): a small warm candle light at its flame and
 // a soft halo over the flame (its flame is the model's own animated quads).
+// D57N: prop_light_atomic, the atomic health pickup (type 581, both of its
+// model records): a light fixture for D41AC (its cyan and red keep their
+// glow) and a soft cyan halo; its light is D56's.
 // D57B: prop_light_delorean, the secret DeLorean (prop type 238; GOLD AND
 // GUNS room 37): its headlights left on and its rear vents aglow; halos on
 // the headlamps and the vents.

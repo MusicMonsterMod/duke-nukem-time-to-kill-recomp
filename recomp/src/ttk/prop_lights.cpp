@@ -232,6 +232,14 @@ bool delorean_mesh(uint32_t mesh) {
     return mesh_header(mesh,67,vp,list) && psx_mod_read_word(vp)==0x008dfedbu && psx_mod_read_half(vp+4)==0xfbf8u &&
            psx_mod_read_word(vp+8*66)==0xffc700e6u && psx_mod_read_half(vp+8*66+4)==0x03fcu;
 }
+// D57N: the atomic health pickup (type 581; two model records, one per
+// way it is turned): 53 vertices, a red and blue atom in cyan orbits, first
+// vertex (0, -60, 0), the last at y 81 (x and z differ between the two).
+bool atomic_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,53,vp,list) && psx_mod_read_word(vp)==0xffc40000u && psx_mod_read_half(vp+4)==0 &&
+           psx_mod_read_half(vp+8*52+2)==0x0051u;
+}
 bool lit_mesh(uint32_t mesh) {return delorean_mesh(mesh) || candle_stand_mesh(mesh) || barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh) || pendant_mesh(mesh) || bulb_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
@@ -253,6 +261,7 @@ int kind_of(uint32_t mesh) {
     if(bulb_mesh(mesh)) return prop_light_bulb;   // D57M
     if(candle_stand_mesh(mesh)) return prop_light_candle_stand;   // D57H
     if(delorean_mesh(mesh)) return prop_light_delorean;   // D57B
+    if(atomic_mesh(mesh)) return prop_light_atomic;   // D57N
     if(neon_bar_mesh(mesh)) return prop_light_neon_bar;   // D57J
     if(canopy_mesh(mesh)) return prop_light_canopy;
     if(club_bar_mesh(mesh)) return prop_light_club_bar;
@@ -465,13 +474,13 @@ float delorean_head_halo[2]={260,90},delorean_vent_halo[2]={320,55};
 // bottom of the walls only, unseen from the hall's rim; 9000 warms the walls
 // up to the rim and, faintly, the cave ceiling, as a pool of lava would.
 Tune lava_light{{1.0f,0.42f,0.10f},1.4f,10000};   // user 2026-11-23: "turned up a notch" (was 1.0 / 9000)
-float lava_lift=900,lava_pool=4000,lava_throb_depth=0.15f,lava_throb_s=3.6f;
+float lava_lift=900,lava_pool=12000,lava_throb_depth=0.15f,lava_throb_s=3.6f;
 // At most lava_max pools light at once, the nearest; the last of them fades
 // as the next one comes as near (over lava_handoff), so walking the hall
 // hands the light on without a pop. Each pool light is a shadowed prop light
 // (about 2.7 points of GPU at 180 Hz): six cost 16 points in the GOLD AND
 // GUNS hall, two cost 5 (developer: DNTTK_LAVA_MAX="n handoff").
-unsigned lava_max=2;float lava_handoff=2000;
+unsigned lava_max=2;float lava_handoff=4000;
 constexpr unsigned lava_paint_min=200;
 float lava_level(uint32_t ms,uint32_t seed) {
     const float t=ms/1000.0f,ph=(float)(seed%997)*0.37f;
@@ -637,6 +646,7 @@ Tune ring_fill{{1.0f,0.74f,0.46f},0.6f,6000};
 // in every level, dropped or spawned, takes part. The atomic health (581):
 // a red and blue atom in cyan orbits; a cool cyan-blue light, a slow throb.
 Tune atomic_light{{0.42f,0.82f,1.30f},0.85f,1700};
+float atomic_halo[2]={380,90};   // D57N: size, level (developer DNTTK_ATOMIC_HALO="size level")
 // D57F: an energy crystal away from its first holder, when the level binds
 // no lamp of its type (a custom level): the D41D1 sign scan's colours.
 Tune crystal_red{{1.00f,0.09f,0.36f},1.0f,1791},crystal_blue{{0.26f,0.19f,1.00f},1.0f,1758},crystal_green{{0.31f,1.00f,0.25f},1.0f,1710};
@@ -1235,14 +1245,17 @@ void scan_lava() {
     if(!unreadable) scan_glow_flips(lava_level_seen);   // D57N: the same snapshot
     lava_vram.reset();
     if(unreadable) lava_pending=true;   // a candidate's texture not in VRAM yet: again (up to 20 tries)
-    // Pools: each face joins the first pool within lava_pool (across, at its height).
+    // Pools: one per room and height (D57N: pools by distance made the lit
+    // pools change every few thousand units as Duke walked, so shadows, the
+    // pit ledge's among them, slid; a room's pool stands still), split only
+    // where a room's lava runs further than lava_pool from its pool's middle.
     struct Pool {double sum[3],w;uint32_t room;unsigned n;};
     std::vector<Pool> pools;
     for(const Face& f:faces) {
         Pool* hit=nullptr;
         for(Pool& p:pools) {
             const double dx=p.sum[0]/p.w-f.c[0],dz=p.sum[2]/p.w-f.c[2];
-            if(std::fabs(p.sum[1]/p.w-f.c[1])<64 && dx*dx+dz*dz<lava_pool*lava_pool/4) {hit=&p;break;}
+            if(p.room==f.room && std::fabs(p.sum[1]/p.w-f.c[1])<64 && dx*dx+dz*dz<lava_pool*lava_pool) {hit=&p;break;}
         }
         if(!hit) {pools.push_back({{0,0,0},0,f.room,0});hit=&pools.back();}
         for(int q=0;q<3;++q) hit->sum[q]+=f.c[q]*f.area;
@@ -1716,6 +1729,12 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
         }
     } else if(prop_light_club_kind(kind)) {
         n=club_glows(kind,out,max);
+    } else if(kind==prop_light_atomic) {
+        // D57N: a soft cyan halo round the atom, breathing with its D56 light
+        // (user, 2026-11-23: its glow was swallowed by the lava's).
+        const float k=pickup_level(ms,mesh)*atomic_halo[1];
+        if(n<max) out[n++]=billboard(0,5,0,atomic_halo[0],atomic_halo[0],0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     k*atomic_light.rgb[0]/1.30f,k*atomic_light.rgb[1]/1.30f,k*atomic_light.rgb[2]/1.30f);
     } else if(kind==prop_light_delorean && max>=3) {
         // D57B: a warm-white glow on each pair of headlamps, an orange one on the vents.
         for(const float* a:delorean_lamp_at)
@@ -1820,6 +1839,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     if(const char* e=std::getenv("DNTTK_PROP_BULB_AT")) ttk::bulb_at[1]=(float)std::atof(e);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLE_STAND",ttk::candle_stand_light);   // D57H
     ttk::tune("DNTTK_LAVA_LIGHT",ttk::lava_light);   // D57A
+    if(const char* e=std::getenv("DNTTK_ATOMIC_HALO")) std::sscanf(e,"%f %f",&ttk::atomic_halo[0],&ttk::atomic_halo[1]);   // D57N
     if(const char* e=std::getenv("DNTTK_LAVA_AT")) std::sscanf(e,"%f %f",&ttk::lava_lift,&ttk::lava_pool);
     if(const char* e=std::getenv("DNTTK_LAVA_THROB")) std::sscanf(e,"%f %f",&ttk::lava_throb_depth,&ttk::lava_throb_s);
     if(const char* e=std::getenv("DNTTK_LAVA_MAX")) std::sscanf(e,"%u %f",&ttk::lava_max,&ttk::lava_handoff);

@@ -794,7 +794,7 @@ any level's lava does the same. LIGHTING ORIGINAL, Vanilla and Classic keep
 the original look; `lamp lava off` / `lamp lava on` compares (`lamp props
 off` also turns it off). The pit's painted glow, which a few of its wall
 panels had upside down (bright at the top), now runs bright at the lava on
-every panel in Modernized (D57N).
+every panel in Modernized (D57N). The atomic health glows cyan with a soft halo, so it still shows up against the lava's orange.
 
 **The secret DeLorean (D57B).** Found it in GOLD AND GUNS? In Modernized
 (Polymorph) with LIGHTING ENHANCED or RELIT it has its headlights on, a

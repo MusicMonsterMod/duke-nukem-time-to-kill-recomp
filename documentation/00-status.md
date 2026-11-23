@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - D57N follow-up (Needs playtest)
+
+- D57N ([note 552](552-d57n-lava-glow-upright.md)): user "it looks great!". Follow-up: the lava pools are one per room (5 on GOLD AND GUNS, a 4000 hand-off), so the pit ledge's shadow no longer slides as Duke walks; the atomic health (by model, game-wide) keeps its own cyan and red glow in Relit and gets a soft cyan halo, so it reads over the lava. 180 Hz pacing unchanged.
+
 ## 2026-11-23 - D57N lava-glow walls turned upright (Needs playtest)
 
 - D57N ([note 552](552-d57n-lava-glow-upright.md)): GOLD AND GUNS's lava pit glow texture (page `0x18`, palette `0x278`) is laid upside down on 18 of its 98 wall faces (the two under the user's crosshair in UI slots 10 and 12 among them). By rule, game-wide: a baked-glow wall texture (strong gradient, fiery bright end) mostly laid one way up has its other faces drawn flipped vertically (list in mod memory for the redraw workers). The band now glows at the lava like its neighbours. Modernized; Vanilla and Classic unchanged.

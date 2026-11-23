@@ -72,6 +72,38 @@ Classic unchanged. By rule, game-wide:
   looked at), so the rule now needs 12 faces or more and leaves it alone;
   every other level: none.
 
+## Follow-up (2026-11-23): the ledge's shadow, the atomic health's glow
+
+User: "it looks great! now just 2 things - the shadow of the ledge my NEW
+slot 12 is pointing to seems to shift when you walk around it. furthermore,
+the glow of the atomic health seems to be swallowed up by the glow of the
+lava itself. if that's just a simple limitation of how lighting works, so be
+it. but can you review". The new UI slot 12 (12:59) is copied to
+`research/savestates/d57n-shadow/`: the crosshair is on a flat ledge in the
+pit (room 49, y 4096, about 2700 over the lava) with an atomic health on it.
+
+- **The shadow (cause).** D57A lit the nearest two of 15 lava pools (about
+  2000-4000 apart) by distance to Duke; walking the hall changed which pools
+  were lit, so the ledge's shadow on the wall above it was cast from a
+  different point every few thousand units and slid. **Fix:** one pool per
+  room (and height), split only past 12000: GOLD AND GUNS now has 5 pool
+  lights (rooms 49-53), and the hand-off fade is 4000. Along the ledge's
+  stretch of walkway the two nearest are always room 49's and room 50's, so
+  the shadow stands still; a hand-off happens once a room, and fades.
+- **The atomic health (cause).** D41AC dims pickups with their room in
+  Relit, so its cyan and red texels sank under the lava's strong orange
+  light; its D56 light is a small cyan light (0.85, 1700). **Fix:** the atomic
+  health is found by its model (both model records: 53 vertices, first
+  vertex (0, -60, 0), the last at y 81) as a glowing item: its own colours
+  keep their glow, and a soft cyan halo (380 across, level 90) breathes round
+  it with its light. Game-wide (every atomic health, Enhanced and Relit).
+  Developer: `DNTTK_ATOMIC_HALO="size level"`.
+- Evidence: the slot 12 view before and after
+  (`research/before-after/D57N/slot12new-*`): the atom reads as a cyan point
+  on the ledge. 180 Hz Relit at that view, `lamp lava off|on`, three pairs:
+  pacing p50/p95 6 ms, max 7-8, none over 10; GPU off 13.5 / 18.0 / 15.9 %,
+  on 20.1 / 19.5 / 19.6 % (about +4 points).
+
 ## Limits
 
 - The user's look decides; the texture itself ("i dont actually think this

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-23 - D57B the DeLorean's lights (Needs playtest)
+
+- D57B ([note 548](548-d57b-delorean-lights.md)): the secret DeLorean in GOLD AND GUNS (prop type 238, model `0x80128108`, by model; level 3 room 37 only) has its headlights on (a warm-white light just before the nose) and its rear vents aglow (orange, behind the tail), steady, with small halos, in ENHANCED and RELIT. User's UI slot 9: Relit 29.8 -> 45.7, Enhanced 32.0 -> 38.5, Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about +2.5 points). Waits for the user's look (UI slot 9).
+
 ## 2026-11-23 - D57H red candle stands (Needs playtest)
 
 - D57H ([note 547](547-d57h-red-candle-stands.md)): the red candle on an iron stand (prop type 361, model `0x80131bd8`, by model; level 8 only, 22 copies) gives a small warm candle light just over its flame with the chandeliers' gentle flicker, and a soft warm halo, in ENHANCED and RELIT. Slot view Relit 45.9 -> 70.3, Enhanced 41.5 -> 54.9, Original identical; Vanilla untouched; 180 Hz pacing unchanged (GPU about 16% -> 21% with two candles in view). Waits for the user's look on the real display (UI slot 9).

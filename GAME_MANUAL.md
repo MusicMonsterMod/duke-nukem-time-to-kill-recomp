@@ -751,7 +751,7 @@ The backtick console edits them:
   restores the rule.
 - `lamp props off` / `lamp props on` darkens and relights the woodburners,
   chandeliers (both kinds), fire barrels, barricade lamps, caged wall
-  lamps, candle stands and the subway train's lights for the session
+  lamps, candle stands, the DeLorean and the subway train's lights for the session
   (to compare).
 - `lamp ambient` tells how far RELIT turns down the painted light in the room
   the camera is in, and why. `lamp ambient P` (20 to 100 percent) sets it for
@@ -778,6 +778,13 @@ Classic keep the original look.
 (LEVEL 8's halls) give light in Modernized (Polymorph) with LIGHTING ENHANCED
 or RELIT: a small warm pool on the wall and floor round each candle that
 flickers gently with its flame, and a soft glow round the flame. LIGHTING
+ORIGINAL, Vanilla and Classic keep the original look; `lamp props off`
+compares.
+
+**The secret DeLorean (D57B).** Found it in GOLD AND GUNS? In Modernized
+(Polymorph) with LIGHTING ENHANCED or RELIT it has its headlights on, a
+warm-white pool on the bonnet and the rock ahead, and its rear vents glow
+orange on the cave wall behind it, with a soft glow on the lamps. LIGHTING
 ORIGINAL, Vanilla and Classic keep the original look; `lamp props off`
 compares.
 

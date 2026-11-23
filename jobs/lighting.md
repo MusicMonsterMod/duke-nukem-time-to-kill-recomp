@@ -1452,7 +1452,7 @@ performance budget.
 
 ### D57B - Light for the secret DeLorean (GOLD AND GUNS)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D57.**
+**Status: Needs playtest ([note 548](../documentation/548-d57b-delorean-lights.md)). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the secret DeLorean in GOLD AND GUNS is in an almost
@@ -1469,6 +1469,21 @@ are copied read only, hash-checked, to `research/savestates/d57b/`. Lab
 -50050), yaw 1507. Prefer a rule by model (a prop light, as D57D/K/M) over
 a per-level lamp file entry (the original plan above), per the
 fix-the-system rule.
+
+Work log, 2026-11-23 overnight ([note 548](../documentation/548-d57b-delorean-lights.md)):
+by model, not a lamp file entry (the note above). New prop-light kind
+`prop_light_delorean` (model `0x80128108`, 67 vertices; survey of all 21
+levels: level 3 room 37 only): the car's headlights are on (a warm-white
+halogen light, 0.6 / 2200, just before the nose at hood height: the bonnet,
+the front wings and the rock ahead) and its rear vents glow (orange, 0.55 /
+2000, behind the tail), both steady and not switched with the room, with
+small halos on the headlamps and the vents. Three tunings at the user's UI
+slot 9: a headlight 1800 out ahead lit only the rock (body dim); strength
+1.0 at the nose took the cave's gloom (Relit 31 -> 57); 0.6 kept it (31 ->
+45). Slot view Relit 29.8 -> 45.7, Enhanced 32.0 -> 38.5, Original identical
+but for the weapon's bob; UI slot 12 (outside the doors) unchanged in every
+mode. 180 Hz pacing unchanged; GPU about +2.5 points. Before/after:
+`research/before-after/D57B/` (local). Needs the user's look (UI slot 9).
 
 ### D57C - LA subway entrance globe lights give light
 

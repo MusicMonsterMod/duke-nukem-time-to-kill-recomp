@@ -218,7 +218,19 @@ bool candle_stand_mesh(uint32_t mesh) {
     return mesh_header(mesh,59,vp,list) && psx_mod_read_word(vp)==0x0129fff5u && psx_mod_read_half(vp+4)==0xfff5u &&
            psx_mod_read_word(vp+8*58)==0xfe930000u && psx_mod_read_half(vp+8*58+4)==0x000bu;
 }
-bool lit_mesh(uint32_t mesh) {return candle_stand_mesh(mesh) || barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh) || pendant_mesh(mesh) || bulb_mesh(mesh);}
+// D57B: the secret DeLorean (prop type 238; GOLD AND GUNS room 37, in a
+// dark cave): 67 vertices, 756 x 463 x 2112. Its nose is at model -z (z
+// -1032: the front panel, a pair of square headlamps at each end of a black
+// DMC grille, x +-200..+-290, y 26..141), its tail at +z (z 1080: the time
+// machine's vents and an orange louvered panel, y -57..53), its floor at y
+// 182, the roof y -233. First vertex (-293, 141, -1032), the last (230, -57,
+// 1020).
+bool delorean_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,67,vp,list) && psx_mod_read_word(vp)==0x008dfedbu && psx_mod_read_half(vp+4)==0xfbf8u &&
+           psx_mod_read_word(vp+8*66)==0xffc700e6u && psx_mod_read_half(vp+8*66+4)==0x03fcu;
+}
+bool lit_mesh(uint32_t mesh) {return delorean_mesh(mesh) || candle_stand_mesh(mesh) || barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh) || pendant_mesh(mesh) || bulb_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -238,6 +250,7 @@ int kind_of(uint32_t mesh) {
     if(pendant_mesh(mesh)) return prop_light_pendant;   // D57K
     if(bulb_mesh(mesh)) return prop_light_bulb;   // D57M
     if(candle_stand_mesh(mesh)) return prop_light_candle_stand;   // D57H
+    if(delorean_mesh(mesh)) return prop_light_delorean;   // D57B
     if(neon_bar_mesh(mesh)) return prop_light_neon_bar;   // D57J
     if(canopy_mesh(mesh)) return prop_light_canopy;
     if(club_bar_mesh(mesh)) return prop_light_club_bar;
@@ -412,6 +425,24 @@ Tune candle_stand_light{{1.0f,0.70f,0.30f},0.7f,1400};   // 0.9 1500 tried first
 float candle_stand_at[3]={0,-390,0};   // just over the flame's tip (y -365)
 constexpr float candle_flame_at[3]={0,-352,0};
 float candle_stand_halo_size=200,candle_stand_halo_level=70;
+// D57B: the DeLorean, found: its headlights are on (a warm-white halogen
+// pool on the cave floor ahead of the nose, which also lights the nose and
+// the front of the body) and its rear vents glow orange (a low warm light
+// behind the tail). Steady. The renderer's lights are points, so the
+// headlight is a light out ahead of the nose, low over the floor.
+// Developer: DNTTK_PROP_LIGHT_DELOREAN_HEAD / _VENT="r g b strength radius",
+// DNTTK_PROP_DELOREAN_HEAD_AT / _VENT_AT="x y z" (model space),
+// DNTTK_PROP_DELOREAN_HALO="head_size head_level vent_size vent_level".
+// Tuned at the user's UI slot 9 (in the cave, looking at the car): the
+// headlight 1800 out ahead lit only the rock the car faces, so it stands just
+// before the nose at hood height and reaches the bonnet and front wings too;
+// at strength 1.0 the cave lost its gloom (Relit mean 31 -> 57), at 0.6 it
+// keeps it (31 -> 45) while the body reads.
+Tune delorean_head{{1.0f,0.92f,0.78f},0.6f,2200};
+Tune delorean_vent{{1.0f,0.48f,0.20f},0.55f,2000};
+float delorean_head_at[3]={0,-40,-1350},delorean_vent_at[3]={0,-120,1300};
+constexpr float delorean_lamp_at[2][3]={{-245,84,-1050},{245,84,-1050}},delorean_vents_at[3]={0,0,1090};
+float delorean_head_halo[2]={260,90},delorean_vent_halo[2]={320,55};
 // D57L (documentation/544-d57l-apartment-mood-lighting.md): lamps follow their
 // room's switch, and the LA apartment's mood.
 // - The game dims a room by its light colour (room record +0x54, 80 80 80 a
@@ -619,11 +650,12 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
                bool crystal=false;Tune own{};bool portal=false;bool cage=false;   // D41Z: steady, as its texture
                uint32_t blink_mesh=0;uint32_t lit_ms=0;   // D41Y: a barricade lamp: its model, when it last showed lit   // D57F: own = the crystal's light (its level lamp's look)
                float train_k=-1;   // D41AA: a train light's level this image (-1: not a train light)
-               int lamp=0;bool apartment=false,dark=false;};   // D57L: table lamp / hanging lamp kind; in an apartment room; its room switched off
+               int lamp=0;bool apartment=false,dark=false;   // D57L: table lamp / hanging lamp kind; in an apartment room; its room switched off
+               bool steady=false;};   // D57B: no flicker, and not an electric fixture of its room
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0,table_lamps=0,pendants=0,bulbs=0,candle_stands=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0,table_lamps=0,pendants=0,bulbs=0,candle_stands=0,deloreans=0;
 // D41AA: the train (one a level; game thread): its record, its room (it
 // relinks as it runs) and the overlay state last seen (~0u: none yet).
 struct Train {uint32_t o=0,mesh=0,room=0,state=~0u,room_frame=0;int32_t crash_p[3]={0,0,0};bool crashed_here=false;};
@@ -646,7 +678,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=pendants=bulbs=candle_stands=0;scan_sig=0;cages_pending=false;
+    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=pendants=bulbs=candle_stands=deloreans=0;scan_sig=0;cages_pending=false;
     const uint32_t train_was=train.o;train.o=0;
     unsigned cage_models=0,globe_models=0;
     for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
@@ -760,6 +792,10 @@ void scan_props() {
             } else if(kind==prop_light_candle_stand) {
                 // D57H: a flame: the candle flicker (not cage: not steady, not switched).
                 place(e.p,p,yaw,candle_stand_at);e.tune=&candle_stand_light;emitters.push_back(e);++candle_stands;
+            } else if(kind==prop_light_delorean) {
+                // D57B: the headlights and the vents.
+                place(e.p,p,yaw,delorean_head_at);e.tune=&delorean_head;e.steady=true;emitters.push_back(e);
+                place(e.p,p,yaw,delorean_vent_at);e.tune=&delorean_vent;e.seed=o+1;emitters.push_back(e);++deloreans;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -779,7 +815,7 @@ void scan_props() {
     for(unsigned i=globe_models;i<8;++i) globe_slots[i].mesh.store(0,std::memory_order_relaxed);
     if(!train.o) {train.mesh=0;train.state=~0u;train_mesh_now.store(0,std::memory_order_relaxed);}
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu table lamps, %zu hanging lamps, %zu bare bulbs, %zu candle stands, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,table_lamps,pendants,bulbs,candle_stands,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu table lamps, %zu hanging lamps, %zu bare bulbs, %zu candle stands, %zu DeLoreans, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,table_lamps,pendants,bulbs,candle_stands,deloreans,emitters.size());
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
         std::fprintf(stderr,"[TTK prop light] caged lamp model %08x colour %.2f %.2f %.2f\n",m,c.rgb[0].load(),c.rgb[1].load(),c.rgb[2].load());
     for(Emitter& e:emitters) if(e.blink_mesh || e.cage) e.tune=&e.own;   // after the moves
@@ -1066,7 +1102,7 @@ unsigned publish(PSXModLight* out,unsigned room,bool (*shown)(uint32_t)) {
             k*=on;   // dark: published at 0, so the light list does not change with the blink
         } else if(e.train_k>=0) k*=e.train_k;
         else
-        k*=e.portal?portal_breath(ms):e.crystal||e.cage?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
+        k*=e.portal?portal_breath(ms):e.crystal||e.cage||e.steady?1.0f:e.pickup?pickup_level(ms,e.seed):e.fire?prop_fire_level(ms,e.seed):prop_candle_level(ms,e.seed);   // D57F: steady, as its sign lamp
         if(!e.standing) k*=prop_dying_level((ms-e.broke_ms)/34u,e.seed);
         PSXModLight& l=out[n++];
         l.x=(float)e.p[0];l.y=(float)e.p[1];l.z=(float)e.p[2];l.radius=tune->radius;
@@ -1257,6 +1293,13 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
         }
     } else if(prop_light_club_kind(kind)) {
         n=club_glows(kind,out,max);
+    } else if(kind==prop_light_delorean && max>=3) {
+        // D57B: a warm-white glow on each pair of headlamps, an orange one on the vents.
+        for(const float* a:delorean_lamp_at)
+            out[n++]=billboard(a[0],a[1],a[2],delorean_head_halo[0],delorean_head_halo[0],0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                               delorean_head_halo[1]*delorean_head.rgb[0],delorean_head_halo[1]*delorean_head.rgb[1],delorean_head_halo[1]*delorean_head.rgb[2]);
+        out[n++]=billboard(delorean_vents_at[0],delorean_vents_at[1],delorean_vents_at[2],delorean_vent_halo[0],delorean_vent_halo[0],0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                           delorean_vent_halo[1]*delorean_vent.rgb[0],delorean_vent_halo[1]*delorean_vent.rgb[1],delorean_vent_halo[1]*delorean_vent.rgb[2]);
     } else if(kind==prop_light_candle_stand) {
         // D57H: a soft warm halo round the flame, flickering with its light.
         // The prop is not known here: one seed per model (the copies breathe together, as a model's flames do).
@@ -1353,6 +1396,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     ttk::tune("DNTTK_PROP_LIGHT_BULB",ttk::bulb_light);ttk::tune("DNTTK_APARTMENT_BULB",ttk::apartment_bulb);   // D57M
     if(const char* e=std::getenv("DNTTK_PROP_BULB_AT")) ttk::bulb_at[1]=(float)std::atof(e);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLE_STAND",ttk::candle_stand_light);   // D57H
+    ttk::tune("DNTTK_PROP_LIGHT_DELOREAN_HEAD",ttk::delorean_head);ttk::tune("DNTTK_PROP_LIGHT_DELOREAN_VENT",ttk::delorean_vent);   // D57B
+    if(const char* e=std::getenv("DNTTK_PROP_DELOREAN_HEAD_AT")) std::sscanf(e,"%f %f %f",&ttk::delorean_head_at[0],&ttk::delorean_head_at[1],&ttk::delorean_head_at[2]);
+    if(const char* e=std::getenv("DNTTK_PROP_DELOREAN_VENT_AT")) std::sscanf(e,"%f %f %f",&ttk::delorean_vent_at[0],&ttk::delorean_vent_at[1],&ttk::delorean_vent_at[2]);
+    if(const char* e=std::getenv("DNTTK_PROP_DELOREAN_HALO")) std::sscanf(e,"%f %f %f %f",&ttk::delorean_head_halo[0],&ttk::delorean_head_halo[1],&ttk::delorean_vent_halo[0],&ttk::delorean_vent_halo[1]);
     if(const char* e=std::getenv("DNTTK_PROP_CANDLE_STAND_AT")) ttk::candle_stand_at[1]=(float)std::atof(e);
     if(const char* e=std::getenv("DNTTK_PROP_CANDLE_STAND_HALO")) std::sscanf(e,"%f %f",&ttk::candle_stand_halo_size,&ttk::candle_stand_halo_level);
     if(const char* e=std::getenv("DNTTK_PROP_BULB_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::bulb_halo_size,&ttk::bulb_halo_level,&ttk::bulb_halo_rgb[0],&ttk::bulb_halo_rgb[1],&ttk::bulb_halo_rgb[2]);

@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-23 - D57M closed out (Done)
+
+- D57M ([note 546](546-d57m-dangling-bulb.md)): user "10/10 lock it in and close it out." Done. The bare bulb in level 5's apartment (prop type 929, by model; level 5 only) lights the room in ENHANCED and RELIT with the D57L apartment mood (warm low pool, hot glow on the bulb, Relit ambient 45%, sodium glow at the window) and follows its room's switch. Original and Vanilla unchanged, 180 Hz unchanged.
+
+## 2026-11-23 - D57M level 5 apartment dangling bulb (Needs playtest)
+
+- D57M ([note 546](546-d57m-dangling-bulb.md)): the bare bulb in level 5's apartment (prop type 929, room 8, by model; level 5 only) lights the room in ENHANCED and RELIT with the D57L apartment mood: a low warm pool, a hot glow on the bulb, Relit ambient 45%, the street's sodium glow at the window; it follows its room's switch. Original identical, 180 Hz unchanged. Waits for the user's look on the real display (UI slot 12).
+
 ## 2026-11-23 - D41AC closed out (Done); new D57M
 
 - D41AC ([note 545](545-d41ac-model-emitters.md)): user "lock it in and close it out. the signs look amazing!" Done. Only light fixtures, glowing sign props and world signs keep the Relit emitter glow; Duke's shirt and the medkit dim with the room; EXIT and Bootylicious signs right in every 180 Hz image (neon faces and glowing props reach the redraw workers). World floors and walls left as they are (user: the gold catching the light is good). New job D57M: level 5's apartment dangling bulb with the D57L mood (save copy in `research/savestates/d57m/`).

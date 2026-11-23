@@ -196,7 +196,17 @@ bool pendant_mesh(uint32_t mesh) {
     return mesh_header(mesh,16,vp,list) && psx_mod_read_word(vp)==0x01d6000du && psx_mod_read_half(vp+4)==0x000du &&
            psx_mod_read_word(vp+8*15)==0x01c30088u && psx_mod_read_half(vp+8*15+4)==0x0089u;
 }
-bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh) || pendant_mesh(mesh);}
+// D57M: the bare bulb dangling on its cord (prop type 929; level 5 room 8,
+// the LA apartment in Obey or Die): 16 vertices, 84 x 604 x 84; a cord of two
+// crossed quads 22 wide from the ceiling (model y -302) down to y 181, and the
+// bulb, two crossed quads 84 wide at y 181..302. First vertex (-42, 181, 0),
+// the last (0, 181, -11).
+bool bulb_mesh(uint32_t mesh) {
+    uint32_t vp,list;
+    return mesh_header(mesh,16,vp,list) && psx_mod_read_word(vp)==0x00b5ffd6u && psx_mod_read_half(vp+4)==0x0000u &&
+           psx_mod_read_word(vp+8*15)==0x00b50000u && psx_mod_read_half(vp+8*15+4)==0xfff5u;
+}
+bool lit_mesh(uint32_t mesh) {return barrel_mesh(mesh) || barricade_mesh(mesh) || cage_mesh(mesh) || train_mesh(mesh) || globe_mesh(mesh) || street_lamp_mesh(mesh) || table_lamp_mesh(mesh) || pendant_mesh(mesh) || bulb_mesh(mesh);}
 bool portal_top_mesh(uint32_t mesh) {
     uint32_t vp,list;
     return mesh_header(mesh,40,vp,list) && psx_mod_read_word(list)==0x0018002cu && psx_mod_read_word(vp)==0xfd05fdb2u &&
@@ -214,6 +224,7 @@ int kind_of(uint32_t mesh) {
     if(street_lamp_mesh(mesh)) return prop_light_street;
     if(table_lamp_mesh(mesh)) return prop_light_table_lamp;   // D57D
     if(pendant_mesh(mesh)) return prop_light_pendant;   // D57K
+    if(bulb_mesh(mesh)) return prop_light_bulb;   // D57M
     if(neon_bar_mesh(mesh)) return prop_light_neon_bar;   // D57J
     if(canopy_mesh(mesh)) return prop_light_canopy;
     if(club_bar_mesh(mesh)) return prop_light_club_bar;
@@ -369,6 +380,14 @@ Tune pendant_light{{1.0f,0.78f,0.50f},0.5f,2200};
 float pendant_at[3]={0,520,0};
 constexpr float pendant_bulb_at[3]={0,455,0};
 float pendant_halo_size=300,pendant_halo_level=40,pendant_halo_rgb[3]={1.0f,0.90f,0.66f};
+// D57M: the bare bulb: its light just under the glass, and a glow on the
+// bulb (model y 181..302, its centre y 241). Outside an apartment room the
+// shaded lamp's warm tungsten. Developer: DNTTK_PROP_LIGHT_BULB="r g b
+// strength radius", DNTTK_PROP_BULB_AT="y", DNTTK_PROP_BULB_HALO="size level r g b".
+Tune bulb_light{{1.0f,0.78f,0.50f},0.5f,2200};
+float bulb_at[3]={0,420,0};   // just under the glass: a softer pool on the ceiling
+constexpr float bulb_glass_at[3]={0,245,0};
+float bulb_halo_size=300,bulb_halo_level=100,bulb_halo_rgb[3]={1.0f,0.90f,0.66f};
 // D57L (documentation/544-d57l-apartment-mood-lighting.md): lamps follow their
 // room's switch, and the LA apartment's mood.
 // - The game dims a room by its light colour (room record +0x54, 80 80 80 a
@@ -390,6 +409,11 @@ constexpr unsigned room_dark_below=0x40;
 Tune apartment_pendant{{1.0f,0.45f,0.42f},0.40f,1700};
 float apartment_pendant_halo[5]={300,60,1.0f,0.90f,0.66f};   // a warm-white bulb glow that reads against the rose (user 2026-11-22: "bring the halo back when the light is on")
 Tune apartment_table{{1.0f,0.60f,0.32f},0.9f,2300};
+// D57M: the bare bulb in an apartment room (level 5 room 8, its one light):
+// a low, warm dimmed-tungsten pool, dark at the walls. Developer
+// DNTTK_APARTMENT_BULB="r g b strength radius", DNTTK_APARTMENT_BULB_HALO="size level r g b".
+Tune apartment_bulb{{1.0f,0.58f,0.34f},0.45f,2000};
+float apartment_bulb_halo[5]={300,140,1.0f,0.86f,0.58f};   // hot: Relit's low ambient greys the bulb's own texture
 Tune dark_table{{1.0f,0.55f,0.22f},0.80f,2200};
 float dark_table_halo[4]={45,1.0f,0.62f,0.30f};
 // The look each lamp's halo takes, worked out by the draw itself (1 an
@@ -575,7 +599,7 @@ struct Emitter {double p[3];const Tune* tune;bool fire;uint32_t seed;uint32_t ro
 uint64_t scan_sig=0;   // the level the emitters were found on (prop_state.h)
 std::vector<Emitter> emitters;
 uint32_t scan_level=~0u,scan_frame=0,frames=0,vis_ms=0,scan_loads=~0u;
-size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0,table_lamps=0,pendants=0;
+size_t stoves=0,chandeliers=0,rings=0,barrels=0,barricades=0,cages=0,cages_bound=0,globes=0,street_lamps=0,table_lamps=0,pendants=0,bulbs=0;
 // D41AA: the train (one a level; game thread): its record, its room (it
 // relinks as it runs) and the overlay state last seen (~0u: none yet).
 struct Train {uint32_t o=0,mesh=0,room=0,state=~0u,room_frame=0;int32_t crash_p[3]={0,0,0};bool crashed_here=false;};
@@ -598,7 +622,7 @@ void place(double out[3],const double prop[3],double yaw,const float m[3]) {
     out[0]=prop[0]+m[0]*ca+m[2]*sa;out[1]=prop[1]+m[1];out[2]=prop[2]-m[0]*sa+m[2]*ca;
 }
 void scan_props() {
-    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=pendants=0;scan_sig=0;cages_pending=false;
+    emitters.clear();stoves=chandeliers=rings=barrels=barricades=cages=cages_bound=globes=street_lamps=table_lamps=pendants=bulbs=0;scan_sig=0;cages_pending=false;
     const uint32_t train_was=train.o;train.o=0;
     unsigned cage_models=0,globe_models=0;
     for(BlinkSlot& b:blink_slots) {b.mesh.store(0,std::memory_order_relaxed);b.level.store(0,std::memory_order_relaxed);}
@@ -701,6 +725,14 @@ void scan_props() {
                 if(bound==2) continue;
                 place(e.p,p,yaw,pendant_at);e.own=pendant_light;e.tune=&e.own;e.cage=true;   // steady
                 e.lamp=kind;emitters.push_back(e);++pendants;
+            } else if(kind==prop_light_bulb) {
+                // D57M: as the hanging lamp.
+                const int32_t at[3]={(int32_t)p[0],(int32_t)p[1],(int32_t)p[2]};
+                const int bound=level_lamp_bound ? level_lamp_bound((uint16_t)psx_mod_read_half(o+0x2c),at,nullptr) : 0;
+                if(bound<0) {cages_pending=true;continue;}
+                if(bound==2) continue;
+                place(e.p,p,yaw,bulb_at);e.own=bulb_light;e.tune=&e.own;e.cage=true;   // steady
+                e.lamp=kind;emitters.push_back(e);++bulbs;
             } else if(kind==prop_light_portal_top) {
                 // D57F: the light is the centre between the claws, not the metal.
                 const float at[3]={0,portal_top_y,0};
@@ -720,13 +752,13 @@ void scan_props() {
     for(unsigned i=globe_models;i<8;++i) globe_slots[i].mesh.store(0,std::memory_order_relaxed);
     if(!train.o) {train.mesh=0;train.state=~0u;train_mesh_now.store(0,std::memory_order_relaxed);}
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE"))
-        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu table lamps, %zu hanging lamps, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,table_lamps,pendants,emitters.size());
+        std::fprintf(stderr,"[TTK prop light] level %u: %zu stoves, %zu chandeliers, %zu rings, %zu fire barrels, %zu barricades, %zu caged lamps (%zu lit by the level file), %zu globes, %zu street lamps, %zu table lamps, %zu hanging lamps, %zu bare bulbs, %zu lights\n",scan_level,stoves,chandeliers,rings,barrels,barricades,cages,cages_bound,globes,street_lamps,table_lamps,pendants,bulbs,emitters.size());
     if(std::getenv("DNTTK_PROP_LIGHT_TRACE")) for(const CageSlot& c:cage_slots) if(const uint32_t m=c.mesh.load(std::memory_order_relaxed))
         std::fprintf(stderr,"[TTK prop light] caged lamp model %08x colour %.2f %.2f %.2f\n",m,c.rgb[0].load(),c.rgb[1].load(),c.rgb[2].load());
     for(Emitter& e:emitters) if(e.blink_mesh || e.cage) e.tune=&e.own;   // after the moves
-    // D57L: apartment rooms (holding a hanging lamp) and the halo slots.
+    // D57L: apartment rooms (holding a hanging lamp, D57M: or a bare bulb) and the halo slots.
     std::vector<uint32_t> apt;
-    for(const Emitter& e:emitters) if(e.lamp==prop_light_pendant) apt.push_back(e.room);
+    for(const Emitter& e:emitters) if(prop_light_hanging(e.lamp)) apt.push_back(e.room);
     unsigned slots=0;
     for(Emitter& e:emitters) {
         e.apartment=e.lamp && std::find(apt.begin(),apt.end(),e.room)!=apt.end();
@@ -747,7 +779,7 @@ unsigned room_light(uint32_t table,uint32_t rooms,uint32_t room) {
 const Tune* tune_now(const Emitter& e) {
     if(!e.lamp || !apartment_lights_enabled.load(std::memory_order_relaxed)) return e.tune;
     if(e.dark) return e.lamp==prop_light_table_lamp?&dark_table:nullptr;   // the hanging lamp is out
-    if(e.apartment) return e.lamp==prop_light_pendant?&apartment_pendant:&apartment_table;
+    if(e.apartment) return e.lamp==prop_light_pendant?&apartment_pendant:e.lamp==prop_light_bulb?&apartment_bulb:&apartment_table;
     return e.tune;
 }
 // D41Y: each frame, every barricade model's lamp level from the frame the
@@ -1159,6 +1191,15 @@ unsigned glows(uint32_t mesh,int kind,PropGlow* out,unsigned max) {
                                      a[1]*a[2],a[1]*a[3],a[1]*a[4]);
         else if(look==0 && n<max) out[n++]=billboard(pendant_bulb_at[0],pendant_bulb_at[1],pendant_bulb_at[2],pendant_halo_size,pendant_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
                                      pendant_halo_level*pendant_halo_rgb[0],pendant_halo_level*pendant_halo_rgb[1],pendant_halo_level*pendant_halo_rgb[2]);
+    } else if(kind==prop_light_bulb) {
+        // D57M: the bare bulb glows warm (low and warmer in an apartment
+        // room, none with its room switched off).
+        const int look=look_of(prop_glow_object,mesh);
+        const float* a=apartment_bulb_halo;
+        if(look==1 && n<max) out[n++]=billboard(bulb_glass_at[0],bulb_glass_at[1],bulb_glass_at[2],a[0],a[0],0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     a[1]*a[2],a[1]*a[3],a[1]*a[4]);
+        else if(look==0 && n<max) out[n++]=billboard(bulb_glass_at[0],bulb_glass_at[1],bulb_glass_at[2],bulb_halo_size,bulb_halo_size,0.5f,0,prop_white_halo_u,0,prop_white_halo_w,prop_white_halo_h,
+                                     bulb_halo_level*bulb_halo_rgb[0],bulb_halo_level*bulb_halo_rgb[1],bulb_halo_level*bulb_halo_rgb[2]);
     } else if(kind==prop_light_train && train_mesh_now.load(std::memory_order_relaxed)==mesh) {
         // D41AA: a glow on each bumper lamp (amber, red, amber), the beacon,
         // the headlight while it shines, the impact and the skid sparks.
@@ -1276,6 +1317,10 @@ PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
     if(const char* e=std::getenv("DNTTK_PROP_TABLE_LAMP_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::table_halo_size,&ttk::table_halo_level,&ttk::table_halo_rgb[0],&ttk::table_halo_rgb[1],&ttk::table_halo_rgb[2]);
     ttk::tune("DNTTK_PROP_LIGHT_PENDANT",ttk::pendant_light);   // D57K
     if(const char* e=std::getenv("DNTTK_PROP_PENDANT_AT")) ttk::pendant_at[1]=(float)std::atof(e);
+    ttk::tune("DNTTK_PROP_LIGHT_BULB",ttk::bulb_light);ttk::tune("DNTTK_APARTMENT_BULB",ttk::apartment_bulb);   // D57M
+    if(const char* e=std::getenv("DNTTK_PROP_BULB_AT")) ttk::bulb_at[1]=(float)std::atof(e);
+    if(const char* e=std::getenv("DNTTK_PROP_BULB_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::bulb_halo_size,&ttk::bulb_halo_level,&ttk::bulb_halo_rgb[0],&ttk::bulb_halo_rgb[1],&ttk::bulb_halo_rgb[2]);
+    if(const char* e=std::getenv("DNTTK_APARTMENT_BULB_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::apartment_bulb_halo[0],&ttk::apartment_bulb_halo[1],&ttk::apartment_bulb_halo[2],&ttk::apartment_bulb_halo[3],&ttk::apartment_bulb_halo[4]);
     ttk::tune("DNTTK_APARTMENT_PENDANT",ttk::apartment_pendant);ttk::tune("DNTTK_APARTMENT_TABLE",ttk::apartment_table);ttk::tune("DNTTK_DARK_TABLE",ttk::dark_table);   // D57L
     if(const char* e=std::getenv("DNTTK_APARTMENT_PENDANT_HALO")) std::sscanf(e,"%f %f %f %f %f",&ttk::apartment_pendant_halo[0],&ttk::apartment_pendant_halo[1],&ttk::apartment_pendant_halo[2],&ttk::apartment_pendant_halo[3],&ttk::apartment_pendant_halo[4]);
     if(const char* e=std::getenv("DNTTK_DARK_TABLE_HALO")) std::sscanf(e,"%f %f %f %f",&ttk::dark_table_halo[0],&ttk::dark_table_halo[1],&ttk::dark_table_halo[2],&ttk::dark_table_halo[3]);

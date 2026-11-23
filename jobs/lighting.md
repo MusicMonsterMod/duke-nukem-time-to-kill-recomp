@@ -2104,7 +2104,7 @@ not this job: new job D41AC. Lab trimmed to its scripts and results.
 
 ### D57M - Obey or Die apartment: dangling bulb
 
-**Status: Todo (user 2026-11-23). Dependencies: D57L.**
+**Status: Done (user-accepted 2026-11-23: "10/10 lock it in and close it out"). Dependencies: D57L.**
 
 User, 2026-11-23: "first take a copy of the new slot 12 - this is the same
 apartment but in level 5 obey or die. there's this lightbulb dangling here.
@@ -2123,6 +2123,22 @@ cost at 180 Hz; a before/after shot.
 
 Acceptance: the bulb lights the room with the apartment's mood, judged by
 the user on the real display.
+
+Work log, 2026-11-23 ([note 546](../documentation/546-d57m-dangling-bulb.md)):
+the bulb is prop type 929 (model `0x80141e40`, a cord and two crossed bulb
+quads, 84 x 604 x 84) in level 5 room 8, the apartment set; it gave no light
+and the D57L rule found no apartment room in level 5. New prop-light kind
+`prop_light_bulb`, by model and game-wide (survey: level 5 only), a hanging
+lamp in every rule: it follows its room's switch, marks its room as an
+apartment room (Relit ambient 45%, the street's sodium glow at the window,
+which level 5's apartment has) and gets a low warm dimmed-tungsten pool
+(1.00 0.58 0.34, 0.45, 2000) just under the glass with a hot glow on the bulb
+(the Relit ambient greys its texture otherwise). ENHANCED and RELIT; Original
+identical (slot view 64.7 before and after), Vanilla and Classic not touched.
+Slot view Relit 55 -> 72, Enhanced 65 -> 77; 180 Hz pacing unchanged, no
+measurable GPU cost. Lab only: the user's look on the real display decides.
+
+Closed out 2026-11-23: user "10/10 lock it in and close it out". Done.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

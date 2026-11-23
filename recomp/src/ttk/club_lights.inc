@@ -110,7 +110,7 @@ static void club_apply() {
             if(std::find(seen.begin(),seen.end(),o)!=seen.end()) continue;
             seen.push_back(o);
             const int kind=prop_light_kind(psx_mod_read_word(o+0x44));
-            const bool club=club_on && prop_light_club_kind(kind),apt=apt_on && kind==prop_light_pendant;
+            const bool club=club_on && prop_light_club_kind(kind),apt=apt_on && prop_light_hanging(kind);   // D57M: the bare bulb too
             if(!club && !apt) continue;
             Fixture f{kind,{0,0,0},(int16_t)psx_mod_read_half(o+0x1c)*(2*3.14159265358979/4096),r};
             for(int k=0;k<3;++k) f.p[k]=(int32_t)psx_mod_read_word(o+4+4*k);

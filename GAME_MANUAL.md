@@ -661,7 +661,9 @@ ORIGINAL shows the club as the game drew it. The shaded table lamps (the
 dressing room behind the club's stage, and a room off the LA street; levels
 0, 5 and 9) give a warm light over the table, the wall behind and the room
 round them, and their shades glow. The furnished apartment off the LA street
-(levels 0 and 9) is lit low and warm: its hanging lamp throws a dim rose pool
+(levels 0 and 9, and its wrecked copy in level 5, where a bare bulb hangs
+from the ceiling on its cord and gives a low, warm light with a hot glow on
+the glass) is lit low and warm: its hanging lamp throws a dim rose pool
 instead of a bright light from above, its table lamp glows warm, and in level
 0 a faint orange glow from the street lamps comes in at the window; in RELIT
 the room's own light is turned down so these carry it. Flick the light switch

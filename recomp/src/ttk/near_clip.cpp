@@ -3164,7 +3164,7 @@ void object(CPUState* cpu) {
             // D57L: a lamp whose halo follows its own room: the prop record
             // being drawn, found in the draw's registers (its model +0x44).
             prop_glow_object=0;
-            if(kind==prop_light_table_lamp || kind==prop_light_pendant) {
+            if(kind==prop_light_table_lamp || prop_light_hanging(kind)) {
                 for(int r:{16,17,18,19,20,21,22,23,4,5,6,7}) {
                     const uint32_t o=cpu->gpr[r];
                     if(o>=0x80010000u && o<=0x801fff00u && !(o&3) && psx_mod_read_word(o+0x44)==mesh && psx_mod_read_byte(o+0x14)==1) {prop_glow_object=o;break;}

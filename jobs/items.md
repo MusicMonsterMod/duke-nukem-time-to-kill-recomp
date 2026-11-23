@@ -2302,7 +2302,7 @@ Work log, 2026-11-20 (note 517, "Fix (D08A48, built)"):
 
 ### D08A49 - Key cheats never give a mission item the level cannot give
 
-**Status: Needs playtest ([note 551](../documentation/551-d08a49-key-cheats-givable.md)). Dependencies: D08A48, D60.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 551](../documentation/551-d08a49-key-cheats-givable.md)). Dependencies: D08A48, D60.**
 
 User, 2026-11-23: "when doing dnstuff etc on gold and guns, it gives you that
 mystery key remember? that key we prevented showing in the mission items
@@ -2360,6 +2360,8 @@ outside those checks is a lead, not established. Not pursued further (the
 user's instruction: a short look only).
 
 User, 2026-11-23 (second review): "accepted". Awaiting the closeout instruction.
+
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 

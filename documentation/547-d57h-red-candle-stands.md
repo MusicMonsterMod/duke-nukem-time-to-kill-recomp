@@ -1,6 +1,6 @@
 # D57H - Red candles on iron stands give light
 
-2026-11-23 (overnight session). **Needs playtest.** Job:
+2026-11-23 (overnight session). **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D57H](../jobs/lighting.md#d57h---red-candles-on-iron-stands-give-light-ui-slot-9).
 
 User, 2026-11-18, from their UI slot 9 save (level 8): "this kind of candle

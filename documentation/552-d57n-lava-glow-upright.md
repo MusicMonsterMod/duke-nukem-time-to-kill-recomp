@@ -1,6 +1,6 @@
 # D57N - GOLD AND GUNS: the lava-glow walls laid upside down, turned upright
 
-2026-11-23. **Needs playtest.** Job:
+2026-11-23. **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D57N](../jobs/lighting.md#d57n---gold-and-guns-lava-glow-texture-upside-down-ui-slots-10-and-12).
 
 User, 2026-11-23: "can you take a look at save slots 12 and slot 10. this

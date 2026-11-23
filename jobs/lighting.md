@@ -1441,7 +1441,7 @@ light left behind; measured cost at 180 Hz.
 
 ### D57A - Lava gives light (GOLD AND GUNS)
 
-**Status: Needs playtest ([note 549](../documentation/549-d57a-lava-light.md)). Dependencies: D57.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 549](../documentation/549-d57a-lava-light.md)). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: lava in GOLD AND GUNS looks bright but contributes no
@@ -1489,9 +1489,11 @@ the channel at the hall's level 42.2 -> 50.5, in the pit 35.0 -> 40.4
 Relit at the walkway save: pacing p50/p95 6 ms, max 7-8, none over 10; GPU
 off about 17.0%, on 23.5% (+6.5 points; rev 1 +4.6). Needs the user's look.
 
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
+
 ### D57B - Light for the secret DeLorean (GOLD AND GUNS)
 
-**Status: Needs playtest ([note 548](../documentation/548-d57b-delorean-lights.md)). Dependencies: D57.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 548](../documentation/548-d57b-delorean-lights.md)). Dependencies: D57.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: the secret DeLorean in GOLD AND GUNS is in an almost
@@ -1540,6 +1542,8 @@ unchanged, GPU as rev 1; Vanilla untouched. Needs the user's look (UI slot 9).
 
 User review of revision 2, 2026-11-23: "accepted fully. looks amazing!"
 Awaiting the closeout instruction.
+
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
 ### D57C - LA subway entrance globe lights give light
 
@@ -1828,7 +1832,7 @@ and close it out").
 
 ### D57H - Red candles on iron stands give light (UI slot 9)
 
-**Status: Needs playtest ([note 547](../documentation/547-d57h-red-candle-stands.md)). Dependencies: D57G.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 547](../documentation/547-d57h-red-candle-stands.md)). Dependencies: D57G.**
 
 User, 2026-11-18 (desktop), from their UI slot 9 save: "this kind of
 candle doesnt emit light (i dont think) so make it emit". Backlog only; no
@@ -1872,6 +1876,8 @@ nothing and was not kept). Before/after: `research/before-after/D57H/`
 
 User review, 2026-11-23: "perfect, accepted." Awaiting the closeout
 instruction (status kept until then).
+
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
 ### D57I - Street lamp posts give sodium-vapour light (LA levels)
 
@@ -2247,7 +2253,7 @@ Closed out 2026-11-23: user "10/10 lock it in and close it out". Done.
 
 ### D57N - GOLD AND GUNS lava-glow texture upside down (UI slots 10 and 12)
 
-**Status: Needs playtest ([note 552](../documentation/552-d57n-lava-glow-upright.md)). Dependencies: D57A.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 552](../documentation/552-d57n-lava-glow-upright.md)). Dependencies: D57A.**
 
 User, 2026-11-23: "can you take a look at save slots 12 and slot 10. this
 texture appears to be upside down. it is a baked in light, to give an extreme
@@ -2290,6 +2296,8 @@ hand-off, so along the ledge the same two lights cast it. The atomic health
 (found by both its models) is a glowing item: its own cyan and red keep
 their glow in Relit and a soft cyan halo breathes round it. 180 Hz pacing
 unchanged, lava about +4 GPU points at that view. Needs the user's look.
+
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 

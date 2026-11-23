@@ -1,6 +1,6 @@
 # D08A49 - Key cheats give only the mission items the level can give
 
-2026-11-23 (overnight session). **Needs playtest.** Job:
+2026-11-23 (overnight session). **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D08A49](../jobs/items.md#d08a49---key-cheats-never-give-a-mission-item-the-level-cannot-give).
 
 User, 2026-11-23: "when doing dnstuff etc on gold and guns, it gives you that

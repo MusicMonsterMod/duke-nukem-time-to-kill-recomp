@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-23 - closed out: D57H, D57B, D57A, D17BP, D08A49, D57N (Done)
+
+- User: "solid work!!! lock it in and close it out." All six Done (notes 547-552): the red candle stands (level 8), the DeLorean's lights with its showcase cave and floor-standing crates, the lava light (strength 1.4, radius 10000, one pool per room, two at once), the GOLD AND GUNS cavern roof gap capped with rock (shaft tops keep the borrowed sky), the key cheats giving only a level's own mission items, and the pit's lava-glow walls upright with a steady ledge shadow and the atomic health's cyan glow. Modernized only; Vanilla unchanged.
+
 ## 2026-11-23 - D57N follow-up (Needs playtest)
 
 - D57N ([note 552](552-d57n-lava-glow-upright.md)): user "it looks great!". Follow-up: the lava pools are one per room (5 on GOLD AND GUNS, a 4000 hand-off), so the pit ledge's shadow no longer slides as Duke walks; the atomic health (by model, game-wide) keeps its own cyan and red glow in Relit and gets a soft cyan halo, so it reads over the lava. 180 Hz pacing unchanged.

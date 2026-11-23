@@ -1,6 +1,6 @@
 # D57B - The secret DeLorean lights its cave
 
-2026-11-23 (overnight session). **Needs playtest.** Job:
+2026-11-23 (overnight session). **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D57B](../jobs/lighting.md#d57b---light-for-the-secret-delorean-gold-and-guns).
 
 User, 2026-11-14 playthrough: the secret DeLorean in GOLD AND GUNS sits in

@@ -1,6 +1,6 @@
 # D57A - Lava gives light
 
-2026-11-23 (overnight session). **Needs playtest.** Job:
+2026-11-23 (overnight session). **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D57A](../jobs/lighting.md#d57a---lava-gives-light-gold-and-guns).
 
 User, 2026-11-14 playthrough: the lava in GOLD AND GUNS looks bright but

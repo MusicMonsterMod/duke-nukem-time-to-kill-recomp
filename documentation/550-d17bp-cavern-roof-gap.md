@@ -1,6 +1,6 @@
 # D17BP - GOLD AND GUNS: no sky through the cavern roof's gap
 
-2026-11-23 (overnight session). **Needs playtest.** Job:
+2026-11-23 (overnight session). **Done, user-accepted** ("solid work!!! lock it in and close it out"). Job:
 [D17BP](../jobs/graphics.md#d17bp---gold-and-guns-sky-patch-in-the-cavern-ceiling-ui-slot-10).
 (The user's overnight list named "D17BJ", which is Done; the new D17BP, whose
 lead is D17BJ, was taken as meant.)

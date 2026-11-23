@@ -3384,7 +3384,7 @@ Closed out, 2026-11-22: the user accepted it and authorized the closeout
 lamps in the new UI slot 12 give no light).
 ### D17BP - GOLD AND GUNS sky patch in the cavern ceiling (UI slot 10)
 
-**Status: Needs playtest ([note 550](../documentation/550-d17bp-cavern-roof-gap.md)). Dependencies: -.**
+**Status: Done (user-accepted 2026-11-23; closed out: "solid work!!! lock it in and close it out"; [note 550](../documentation/550-d17bp-cavern-roof-gap.md)). Dependencies: -.**
 
 User, 2026-11-23: "there's a patch of sky which has opened up in the cavern
 on gold and guns". Evidence: the user's UI slot 10 savestate (runtime file
@@ -3435,6 +3435,8 @@ Vanilla untouched. Needs the user's look (UI slot 10).
 
 User review of revision 2, 2026-11-23: "accepted". Awaiting the closeout
 instruction.
+
+Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 

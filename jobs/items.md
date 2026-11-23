@@ -2359,6 +2359,8 @@ in range); a frame after a load or the cheat's inventory change falling
 outside those checks is a lead, not established. Not pursued further (the
 user's instruction: a short look only).
 
+User, 2026-11-23 (second review): "accepted". Awaiting the closeout instruction.
+
 ### D60 - FAMILY JEWELS device takes the jewels in any order
 
 **Status: Done (user-accepted 2026-11-20: "lock it in and close us out"). Dependencies: D08A45.** [Note 516](../documentation/516-d60-family-jewels-any-order.md).

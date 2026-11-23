@@ -1,5 +1,10 @@
 # Next-session handoff
 
+## 2026-11-23 - second review: D57B, D17BP, D08A49 accepted; D57A bolder (Needs playtest)
+
+- D57B rev 2, D17BP rev 2, D08A49: user-accepted; closeouts wait for the user's instruction (D57H too, accepted earlier).
+- D57A rev 2 ([note 549](549-d57a-lava-light.md)): lava bolder at the user's request (strength 1.4, radius 10000): Relit over the channel 42.2 -> 50.5, in the pit 35.0 -> 40.4; 180 Hz pacing unchanged, GPU about +6.5 points with the lava in view.
+
 ## 2026-11-23 - review: D57H, D57A, D08A49 accepted; D57B and D17BP revision 2 (Needs playtest)
 
 - D57H, D57A, D08A49: user-accepted; closeouts wait for the user's instruction.

@@ -3433,6 +3433,9 @@ shows seamless rock in all three modes and in 40 consecutive 180 Hz
 presents; cabin and start shaft keep their sky; Classic keeps the black gap;
 Vanilla untouched. Needs the user's look (UI slot 10).
 
+User review of revision 2, 2026-11-23: "accepted". Awaiting the closeout
+instruction.
+
 ### D53C - Duke's hand goes into the security screen (UI slot 10)
 
 **Status: Done (user-accepted 2026-11-21: "lock it in and close it out, perfect"; [note 526](documentation/526-d53c-no-reach-at-tv.md)). Dependencies: D53.**

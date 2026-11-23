@@ -1479,6 +1479,16 @@ first-person dimming of lava light was built and tested, then removed again
 (it would take away the gain the user named). Unchanged; awaiting the
 closeout instruction.
 
+Revision 2, 2026-11-23 ([note 549](../documentation/549-d57a-lava-light.md)):
+user: "i wanted the lava boldness turned up a notch - when duke jumps over
+the cavern, would look cool if you could see more of it" (the earlier note
+was a wish for more, not less). The pool light goes from strength 1.0 /
+radius 9000 to 1.4 / 10000 (the same two pools, no new light). Relit: over
+the channel at the hall's level 42.2 -> 50.5, in the pit 35.0 -> 40.4
+(lava on; off 24 and 33); Enhanced 37.9 -> 40.5 and 31.5 -> 36.5. 180 Hz
+Relit at the walkway save: pacing p50/p95 6 ms, max 7-8, none over 10; GPU
+off about 17.0%, on 23.5% (+6.5 points; rev 1 +4.6). Needs the user's look.
+
 ### D57B - Light for the secret DeLorean (GOLD AND GUNS)
 
 **Status: Needs playtest ([note 548](../documentation/548-d57b-delorean-lights.md)). Dependencies: D57.**
@@ -1527,6 +1537,9 @@ the car whose tops meet its underside), in mod memory for the redraw
 workers. Relit 25.5 -> 35.1 (rev 1 45.7), Enhanced 31.1 -> 38.3, Original
 30.4 / 30.4; crates on the floor in 40 consecutive 180 Hz presents; pacing
 unchanged, GPU as rev 1; Vanilla untouched. Needs the user's look (UI slot 9).
+
+User review of revision 2, 2026-11-23: "accepted fully. looks amazing!"
+Awaiting the closeout instruction.
 
 ### D57C - LA subway entrance globe lights give light
 

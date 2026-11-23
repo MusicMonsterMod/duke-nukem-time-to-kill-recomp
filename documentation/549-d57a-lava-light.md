@@ -115,6 +115,18 @@ build: two pools at once):
 - Vanilla (`--vanilla` on the walkway save, traces on): no lava, prop-light
   or sky-scan activity.
 
+## Revision 2 (2026-11-23): bolder
+
+User: "i wanted the lava boldness turned up a notch - when duke jumps over
+the cavern, would look cool if you could see more of it". The pool light is
+now strength 1.4, radius 10000 (was 1.0 / 9000); still the two nearest
+pools. Relit, lava on, rev 1 -> rev 2: over the channel at the hall's level
+42.2 -> 50.5 (lava off 33), in the pit 35.0 -> 40.4 (off 24); Enhanced 37.9
+-> 40.5 and 31.5 -> 36.5. The rim and the pit's upper walls now glow orange
+where Duke crosses (`research/before-after/D57A/rev2-*`). 180 Hz Relit,
+walkway save, three pairs: pacing p50/p95 6 ms, max 7-8, none over 10; GPU
+off 16.4 / 17.7 / 16.9 %, on 23.7 / 22.4 / 24.3 % (+6.5 points; rev 1 +4.6).
+
 ## Limits
 
 - Lab-judged: the user's look on the real display decides (strength, reach

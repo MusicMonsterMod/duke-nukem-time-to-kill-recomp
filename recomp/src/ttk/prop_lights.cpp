@@ -464,7 +464,7 @@ float delorean_head_halo[2]={260,90},delorean_vent_halo[2]={320,55};
 // Tuned in the GOLD AND GUNS pit (its walls 6800 tall): radius 3600 lit the
 // bottom of the walls only, unseen from the hall's rim; 9000 warms the walls
 // up to the rim and, faintly, the cave ceiling, as a pool of lava would.
-Tune lava_light{{1.0f,0.42f,0.10f},1.0f,9000};
+Tune lava_light{{1.0f,0.42f,0.10f},1.4f,10000};   // user 2026-11-23: "turned up a notch" (was 1.0 / 9000)
 float lava_lift=900,lava_pool=4000,lava_throb_depth=0.15f,lava_throb_s=3.6f;
 // At most lava_max pools light at once, the nearest; the last of them fades
 // as the next one comes as near (over lava_handoff), so walking the hall

@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-23 - D41AD closed out (Done)
+
+- D41AD ([note 553](553-d41ad-budget-lighting-research.md)): user "thats the one!!! now lock it in and close it out". Done. LIGHTING ENHANCED is the budget mode: the bake's chart read per vertex (one lightmap read a pixel), the cheapest shader program per batch with batches split by light class, surfaces no lamp lights off the bake, the 8 most important live lights, the added light fading from 5000 to 8000 units (Build-style distance shade; emitters keep their glow), no live shadows (MODEL SHADOWS and GLOWS instead; LIVE SHADOWS grey under ENHANCED). Field laptop (BALANCED 60): +2.5 GPU points over ORIGINAL, from +11.9; desktop 180 Hz holds in every mode. RELIT, ORIGINAL, Vanilla, Classic unchanged; `light budget off` shows the old ENHANCED. Open for the laptop: level 22's worker-bound dips (CPU).
+
 ## 2026-11-23 - closed out: D57H, D57B, D57A, D17BP, D08A49, D57N (Done)
 
 - User: "solid work!!! lock it in and close it out." All six Done (notes 547-552): the red candle stands (level 8), the DeLorean's lights with its showcase cave and floor-standing crates, the lava light (strength 1.4, radius 10000, one pool per room, two at once), the GOLD AND GUNS cavern roof gap capped with rock (shaft tops keep the borrowed sky), the key cheats giving only a level's own mission items, and the pit's lava-glow walls upright with a steady ledge shadow and the atomic health's cyan glow. Modernized only; Vanilla unchanged.

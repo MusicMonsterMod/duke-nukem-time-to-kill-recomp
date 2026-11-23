@@ -47,6 +47,7 @@ static bool shadow_edges_off() {
     return t && !std::strcmp(t,"off");
 }
 static bool shadows_on() {
+    if(light_budget_on()) return false;   // D41AD: LIGHTING ENHANCED has no live shadows
     const int o=light_shadow_mode.load(std::memory_order_relaxed);
     if(o>=0) return o!=0;
     if(shadow_edges_off()) return false;

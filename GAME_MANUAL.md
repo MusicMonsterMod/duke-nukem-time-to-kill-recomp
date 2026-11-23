@@ -511,7 +511,18 @@ they are all off, and OPTIONS shows their rows grey with "NEEDS DRAW
 DISTANCE EXTENDED" (making them work at ORIGINAL is backlog job D41V).
 
 - **ENHANCED** (the default): the dynamic lights below on top of the game's
-  own painted lighting, which stays as it was.
+  own painted lighting, which stays as it was. It is the fast setting, made
+  for weak graphics chips such as a laptop's: the steady lamps' baked light,
+  the lamps that flicker, pulse or break, blasts, shots, fires and the lights
+  of props are all there, but there are no live shadows (whatever LIVE
+  SHADOWS says; MODEL SHADOWS and GLOWS take their place), and the light is
+  drawn the cheapest way for each part of the picture. It keeps the 8 most
+  important moving lights at once (the brightest and nearest to Duke), and
+  its light fades with distance the way Duke Nukem 3D's rooms darken toward
+  their far end: whole up to about 5000 units from the camera, gone by about
+  8000, where walls and floors keep the original light. Signs and other
+  glowing parts keep their glow. On the HD Graphics 5500 test laptop it costs the
+  graphics chip about what ORIGINAL does.
 - **RELIT**: the painted lighting is turned down so the lamps, signs,
   lanterns, fires, shots and blasts carry the scene, with deeper shadows
   between the pools of light. The level's lamps are stronger and reach a
@@ -558,6 +569,8 @@ LIGHTING ORIGINAL turns all of this off.
 
 The backtick console's `light mode enhanced|relit|original` switches
 LIGHTING for the session without saving it (to compare; the menu saves).
+`light budget off` draws ENHANCED the old, slower way (live shadows and
+all) for the session, to compare; `light budget on` goes back.
 `light` places a warm test light above Duke where he
 stands; `light <r> <g> <b> [radius]` picks its colour (0 to 4 for each, 1 is
 about as strong as a lamp) and reach (500 to 30000 units, 4000 by default),
@@ -588,14 +601,15 @@ muzzle flashes and wall sparks always have, the way Doom 3 and Duke Nukem 3D's
 Polymer treat their effect lights: a shadow for a moving light had to be
 drawn again every frame, and a Necro fight cost more than twice the GPU time
 for the same picture. The room walls cast shadows; props, enemies and Duke do not
-yet. Shadows come with LIGHTING ENHANCED or RELIT on the Polymorph renderer. In the
+yet. Live shadows come with LIGHTING RELIT on the Polymorph renderer (ENHANCED,
+the fast setting, has none). In the
 backtick console, `light shadows off` / `light shadows on` compares without
 and with shadows for the session, `light shadows moving on` / `light shadows
 moving off` gives moving lights shadows again for a comparison (not saved),
 and `light shadows` shows their state.
 
-**OPTIONS > DISPLAY > LIVE SHADOWS** sets how the edges of live shadows are
-drawn: the shadows of lamps that change while you play
+**OPTIONS > DISPLAY > LIVE SHADOWS** (LIGHTING RELIT; with ENHANCED the row
+is grey) sets how the edges of live shadows are drawn: the shadows of lamps that change while you play
 (flickering, pulsing, traffic lights, lamps whose prop can break). The
 level's steady lamps are baked (see Baked lamps below) and keep their slightly
 soft edges whatever this says. It switches at once and is saved:
@@ -614,10 +628,10 @@ The launcher saves it with `--shadow-edges smooth|simple|off` (smooth is
 SHARP), and the backtick console `light shadows sharp`, `light shadows simple`
 or `light shadows off` switches it for the session without saving it.
 
-With LIVE SHADOWS OFF two cheap effects in the style of the Quake and
-Hexen II ports take their place (OPTIONS > DISPLAY, saved, both ON by
-default; they do nothing with SHARP or SIMPLE, LIGHTING ORIGINAL or the
-CLASSIC renderer):
+With LIGHTING ENHANCED, or RELIT with LIVE SHADOWS OFF, two cheap effects in
+the style of the Quake and Hexen II ports take the live shadows' place
+(OPTIONS > DISPLAY, saved, both ON by default; they do nothing in RELIT with
+SHARP or SIMPLE, with LIGHTING ORIGINAL or with the CLASSIC renderer):
 
 - **MODEL SHADOWS**: a dark shadow on the floor under each enemy. **SHAPE**
   (default) is the enemy's own flattened shape, as Quake's model shadows;

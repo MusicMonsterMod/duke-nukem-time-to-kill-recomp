@@ -2879,3 +2879,168 @@ Work log:
 
 Closed out, 2026-11-23: user "lock it in and close it out. the signs look
 amazing!" Done. Lab trimmed to its scripts and results.
+
+### D41AD - LIGHTING ENHANCED becomes the budget lighting mode
+
+**Status: Done (note 553; user-accepted 2026-11-23). Dependencies: D41M, D41P2.**
+
+User, 2026-11-23, after the field-laptop check of D57A/B/H/N: "i take it that
+enhanced lighting is easier on the system than relit right?" (it is not), then
+"ok so im thinking we stand up a backlog job to reframe "enhanced" as a
+budget-friendly lighting solution. because it seems a bit confusing/pointless
+for it to exist. do some research, see what we could hypothetically do, and
+then add it to the backlog. that is what we will work on next, thus replacing
+the existing enhanced solution".
+
+**Why (what ENHANCED is today, from the notes).** ENHANCED and RELIT run the
+same pipeline: the game's painted vertex light underneath; per-pixel dynamic
+lights in the textured shader (falloff `(1-d/r)^2`, a light mask per triangle,
+24 sources and 32 per image; level lamps capped at 12, prop lights at 6);
+flat world normals from `dFdx/dFdy` and smoothed model normals on the CPU
+(D41H); cube-map shadows for up to 16 still lights (D41F/D41N; SIMPLE or
+SHARP edges); the D41M lamp bake (a lightmap at 32 units a texel, 34-90 MB a
+level) through which fixed lamps light since D41P2, models taking the
+floor's bake (D41P); model shadows and glows (D41S); the emitter rule (D41D,
+D41AC). RELIT only adds a per-room dimming of the painted light, a
+readability curve and lamps 1.7x as strong reaching 1.35x as far (note 441).
+So ENHANCED costs about what RELIT does (notes 413, 439, 441, 446, 470, 471,
+509).
+
+**Where the cost goes (MEASURED, earlier notes).**
+- Field laptop (i7-5600U / HD 5500, 15 W, BALANCED 2x, 60), levels 6 / 8
+  (note 509 section 3): BALANCED GPU 54% (clock-weighted), redraw worker 92 /
+  78%; LIGHTING ORIGINAL 37-41%, 80 / 54%: ENHANCED costs about 15 GPU points
+  and 10-25 worker points, and on this 15 W package the GPU's share of power is
+  taken from the CPU (the D57 laptop check of 2026-11-23 saw the clock drop
+  from 2.3-2.4 to 1.6-2.1 GHz with the lava and candles lit, still 60 game
+  frames a second).
+- LIVE SHADOWS OFF saves little at SIMPLE (49-53%; only the heaviest view
+  gained, note 470 section 1); SHARP edges cost more (desktop: off 28%, RELIT
+  31%, SIMPLE 37%, SHARP 42%, note 439 section 5).
+- The shader's lighting layer itself is about 1.4 ms a redraw on the desktop
+  (ORIGINAL 3.3 ms, lit 4.7-5.2 ms; note 446 section 3); unexecuted shader code
+  still costs registers (2-4 points, note 439 section 5). The bake alone is not a
+  GPU win while the full shader runs.
+
+**What a budget mode could be (PROPOSED; to research and measure first).**
+1. *Bake-led lean shader* (note 446 rec. 3, never built): a second shader
+   variant with no live-light loop and no shadow code for every batch no live
+   light reaches; fixed lamps, fixtures and the D57 prop lights only through
+   the bake (and halos); live lights kept only for the short, moving ones
+   (muzzle flashes, blasts, burning things, rounds in flight), unshadowed.
+   Likely the largest saving (most of the 1.4 ms on most batches).
+2. *Quake-style dynamic light into the lightmap*: short lights added into the
+   bake's lightmap texels near them (Quake adds its dlights to surface
+   lightmaps at lightmap resolution, not per pixel; general knowledge, to be
+   checked against id's released source as D41T did), so even flashes cost
+   per lightmap texel instead of per pixel per light.
+3. *Smaller budgets*: a low light cap (e.g. 4 live lights, 2 prop lights), no
+   live shadow maps at all, flat model normals (no D41H smoothing), the lava
+   one pool, the Relit-only moods left as they are (Relit only).
+4. *Not again*: per-vertex world lighting (TTK's 1024-unit polygons are too
+   coarse, notes 413 section 4, 446 section 2 D) and a world light volume (leaks
+   through single-panel walls, note 446 section 2 B).
+Known limits to keep in mind: without shadow maps live lights pass through
+walls (the bake keeps its walls); every lighting effect needs DRAW DISTANCE
+EXTENDED (D41V).
+
+**Work.** Research: measure, on the field laptop (build on the desktop, copy
+the binary; real screen, BALANCED 60), the parts of today's ENHANCED one at a
+time (`PSX_SHADER_STRIP`, `DNTTK_SHADOWS=off`, `DNTTK_SMOOTH_LIGHT=0`,
+`DNTTK_D41P`, the caps), on the census route and the D57 saves; check
+Quake's and GZDoom's budget light paths. Then present two or three concrete
+budget designs with their measured or estimated cost and a look comparison
+(the user chooses), and build the chosen one as the new ENHANCED (RELIT and
+ORIGINAL unchanged; Vanilla and Classic unchanged). Decide with the user
+whether the name stays ENHANCED (or e.g. LITE / FAST), and update the
+GRAPHICS grades (BALANCED uses ENHANCED; SIMPLE uses ORIGINAL) and the
+manual.
+
+**Acceptance.** The new ENHANCED keeps lamps, fixtures and blasts visibly
+lit, costs close to LIGHTING ORIGINAL on the field laptop (target: within
+about a third of today's ENHANCED cost over ORIGINAL, GPU and worker), holds
+BALANCED 60 where ORIGINAL does, and the user prefers it to today's
+ENHANCED on the laptop.
+
+Work log:
+
+2026-11-23, research ([note 553](../documentation/553-d41ad-budget-lighting-research.md)).
+MEASURED on the field laptop (real screen, BALANCED 60, third person, census
+route on levels 6, 8, 22, 27, two repetitions, four rounds; desktop-built
+binary copied, the laptop's own restored afterwards): LIGHTING ORIGINAL 36.7%
+GPU (clock-weighted), today's ENHANCED 48.6% (+11.9). With every CPU part of
+ENHANCED running but the shader's lit path compiled out: +2.4. LIVE SHADOWS
+OFF, model shadows and glows off, smooth normals off, the shadow code
+compiled out: no measurable saving. The bake alone with the live-light loop
+compiled out (`loop`): +9.5; the lit path with a constant instead of the bake
+(`bake0`): +3.5. So the cost is the per-pixel bake lookup (four RGBA32F chart
+fetches and up to eight more texture reads) on every textured batch, the
+lean program never running once the bake is on; ENHANCED's extra worker CPU
+follows the GPU's share of the 15 W package. Mesa compiles every textured
+program SIMD8 (ORIGINAL's too): not the difference. Look: the bake alone
+matches today's ENHANCED at a lamp-lit platform (0.3% of pixels differ),
+keeps about 60% of it where live prop lights shine (the train). Quake's two
+paths checked in id's released source (one lightmap texel a pixel, CPU
+rebuild of touched surfaces and dirty-row uploads; `gl_flashblend` additive
+glow discs). Three designs for the user: A Quake-style one-fetch lightmap
+(recommended, estimated +3 to +5), B glows only (+0.5 to +1, no lit
+surfaces), C today's pipeline trimmed (measured +9.5, misses the target).
+New developer cost switches `PSX_SHADER_STRIP=loop|bake1|bake0` (wrong
+pictures except `loop`; runtime patch exported). Remaining: the user's
+choice of design and name, then the build, laptop and 180 Hz validation.
+
+2026-11-23, design A built (user: "your recommendation!"; [note 553](../documentation/553-d41ad-budget-lighting-research.md)
+section 7). LIGHTING ENHANCED is now the budget mode: the bake's chart read
+per vertex (one lightmap read a pixel; the channel and lamp reads only where
+flickering or breakable lamps are), the cheapest of the lean, bake-only and
+bake-with-live-lights programs chosen per batch, surfaces no lamp lights
+dropped from the bake in that mode (a dark table published with the
+lightmap), no live shadows (MODEL SHADOWS and GLOWS take their place, as with
+LIVE SHADOWS OFF). RELIT, ORIGINAL, Vanilla and Classic unchanged (they never
+set the flag; their shaders' source is unchanged). Console `light budget
+off|on` shows the old ENHANCED. Menu: LIVE SHADOWS grey under ENHANCED
+("NEEDS LIGHTING RELIT: ENHANCED HAS NONE"); help texts, launcher summary and
+manual updated. MEASURED: the replay validator exact but for one edge pixel
+and a bake rebuild mid-check; the vertex-stage bake matches the old per-pixel
+one (0.06-0.07% of the still pixels over 8 levels). Field laptop (BALANCED
+60, levels 6/8/22/27, three rounds): +5.6 GPU points over ORIGINAL against
+the old +11.9 (about half), worker 59.6% against 63.1%; the budget mode's CPU
+work costs nothing measurable, the rest is the shader's lit path (neither the
+lightmap read nor the live-light loop: `nofetch` / `noloop` bounds within the
+spread). Desktop at 180: every mode 179.9 pictures a second, GPU 11.5-12.9%.
+Remaining: the acceptance target (about +4) is close but not clearly met; the
+low-tenth dips on levels 6, 22, 27 stay as with the old ENHANCED; the user's
+laptop playtest (the laptop runs this build, its own binary kept as
+`.pre-d41ad`); the name (ENHANCED, or LITE / FAST). Next levers in note 553
+section 7.
+
+2026-11-23, trimmed (user: "trim what it does by 25%... serious budget cuts";
+note 553 section 8): batches split by the triangle's light class (exact:
+7360 redraws, 0 failures; 95% of textured vertices lean at the subway save),
+8 live lights (the D41T importance ranking), lighting only within 8000 units
+of the eye. Field laptop round 8: ORIGINAL 37.6% GPU, previous budget 40.1
+(+2.5), trimmed 37.8 (+0.2): the GPU cost of ORIGINAL; worker 58.2% against
+54.5 (previous 61.7). The laptop runs this build. Remaining: the user's look
+check of the cap and the distance; level 22's worker-bound dips (CPU, not
+these cuts).
+
+2026-11-23, the light distance faded (note 553 section 9). Round 9: without a
+distance limit the trimmed mode costs +6.9 over ORIGINAL (THE REAPER +12), with
+the 8000 cut +4.0, so the limit stays. User: the cut's edge "looks like a huge
+hard shadow that just creeps around the surface"; reference EDuke32's smooth
+distance darkening. Now the added light fades per vertex from 5000 to 8000
+units (smoothstep), emitters untouched, the CPU dropping only triangles wholly
+past 8000. Round 10: ORIGINAL 37.3%, ENHANCED 39.8 (+2.5); THE REAPER +2.5.
+The laptop runs this build. Remaining: the user's look at the fade; level 22's
+worker-bound dips.
+
+Closed out, 2026-11-23: user "thats the one!!! now lock it in and close it
+out". Done: LIGHTING ENHANCED is the budget mode (the bake read per vertex,
+the cheapest program per batch and batches split by light class, dark
+surfaces off the bake, 8 live lights, the light fading from 5000 to 8000
+units, no live shadows with model shadows and glows in their place); on the
+field laptop +2.5 GPU points over ORIGINAL against +11.9. RELIT, ORIGINAL,
+Vanilla and Classic unchanged. The name stays ENHANCED. The laptop runs the
+accepted build (its earlier binary kept as `.pre-d41ad`). Labs trimmed to
+their scripts and results. Not covered: level 22's worker-bound dips (CPU,
+note 553 section 9).

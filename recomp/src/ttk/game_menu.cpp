@@ -425,8 +425,9 @@ std::vector<Screen> make_screens() {
         {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",true,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
          {{"POLYMORPH","polymorph","\"polymorph\""},{"CLASSIC","classic","\"classic\""}},0},
         // D41A: real light from blasts and muzzle flashes (Polymorph). D41E:
-        // LIGHTING, with RELIT (the painted light dimmed, relit.inc).
-        {"LIGHTING",Section::Controls,"dynamic_lights","DNTTK_LIGHTS",true,"ENHANCED: REAL LIGHTS ADDED. RELIT: LAMPS CARRY THE SCENE",
+        // LIGHTING, with RELIT (the painted light dimmed, relit.inc). D41AD:
+        // ENHANCED is the budget mode (no live shadows; dynamic_lights.inc).
+        {"LIGHTING",Section::Controls,"dynamic_lights","DNTTK_LIGHTS",true,"ENHANCED: REAL LIGHTS, FAST. RELIT: LAMPS CARRY THE SCENE",
          {{"ENHANCED","on","\"on\""},{"RELIT","relit","\"relit\""},{"ORIGINAL","off","\"off\""}},0},
         // D41F1: the shadow edge (light_shadows.inc, the GL renderer's shadow_vis).
         // D41O: since the D41M bake it only changes live lights (blasts, flickering
@@ -435,9 +436,9 @@ std::vector<Screen> make_screens() {
         {"LIVE SHADOWS",Section::Controls,"shadow_edges","DNTTK_SHADOW_EDGES",true,"FLICKERING LAMPS. STEADY LAMPS ARE BAKED",
          {{"SHARP","smooth","\"smooth\""},{"SIMPLE","simple","\"simple\""},{"OFF","off","\"off\""}},0},
         // D41S: Quake-style effects for LIVE SHADOWS OFF (near_clip.cpp model_shade, scene_glows).
-        {"MODEL SHADOWS",Section::Controls,"model_shadows","DNTTK_MODEL_SHADOWS",true,"LIVE SHADOWS OFF: SHAPE OF EACH ENEMY, OR A ROUND SHADOW",
+        {"MODEL SHADOWS",Section::Controls,"model_shadows","DNTTK_MODEL_SHADOWS",true,"NO LIVE SHADOWS: SHAPE OF EACH ENEMY, OR A ROUND SHADOW",
          {{"SHAPE","on","\"on\""},{"ROUND","round","\"round\""},{"OFF","off","\"off\""}},0},
-        {"GLOWS",Section::Controls,"glows","DNTTK_GLOWS",true,"LIVE SHADOWS OFF: HALOS AT FLAMES AND SHOTS IN FLIGHT",
+        {"GLOWS",Section::Controls,"glows","DNTTK_GLOWS",true,"NO LIVE SHADOWS: HALOS AT FLAMES AND SHOTS IN FLIGHT",
          {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
@@ -1936,6 +1937,8 @@ const char* needs(const Row& r) {
     // DRAW DISTANCE EXTENDED (draw_distance.inc): at ORIGINAL every lighting
     // effect is off (user report 2026-11-14; making them work there is D41V).
     if((k=="dynamic_lights" || k=="shadow_edges" || k=="model_shadows" || k=="glows") && is("draw_distance","original")) return "NEEDS DRAW DISTANCE EXTENDED, IN ADVANCED";
+    // D41AD: LIGHTING ENHANCED draws no live shadows (the budget mode).
+    if(k=="shadow_edges" && is("dynamic_lights","on")) return "NEEDS LIGHTING RELIT: ENHANCED HAS NONE";
     // D08A44: the look is drawn by Polymorph (present lookup, creature remap).
     if(k=="night_vision_look" && is("world_renderer","classic")) return "NEEDS RENDERER POLYMORPH, IN ADVANCED";
     // D53B: with DUKE TALK OFF Duke never speaks: VOICE ONLY is an OFF, and

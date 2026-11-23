@@ -2584,7 +2584,15 @@ std::vector<std::array<float,8>> glow_src;
 uint32_t glow_serial=~0u;
 uint64_t shade_seen=0,shade_emitted=0;
 uint64_t glow_quads=0,shade_meshes=0,shade_faces=0,shade_dropped=0,shade_skipped=0;
-bool d41s_base() {const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");return t && !std::strcmp(t,"off");}
+bool d41s_base() {
+    const char* t=ttk_live_env("DNTTK_SHADOW_EDGES");
+    if(t && !std::strcmp(t,"off")) return true;
+    // D41AD: LIGHTING ENHANCED (the budget mode, dynamic_lights.inc
+    // light_budget_on) has no live shadows whatever LIVE SHADOWS says, so
+    // these take their place there too. RELIT and ORIGINAL as before.
+    const char* l=ttk_live_env("DNTTK_LIGHTS");const char* b=ttk_live_env("DNTTK_LIGHT_BUDGET");
+    return !(l && (!std::strcmp(l,"relit") || !std::strcmp(l,"off"))) && !(b && !std::strcmp(b,"off"));
+}
 bool d41s_switch(const char* name) {const char* t=ttk_live_env(name);return !(t && !std::strcmp(t,"off"));}
 bool model_shades_on() {return d41s_base() && d41s_switch("DNTTK_MODEL_SHADOWS");}
 // D41S2: MODEL SHADOWS ROUND ("round"): one soft round shadow per enemy.

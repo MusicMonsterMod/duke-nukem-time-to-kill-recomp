@@ -70,6 +70,19 @@ static bool lights_enabled() {
     const char* t=ttk_live_env("DNTTK_LIGHTS");
     return input_modernized() && !ttk_world_classic() && !(t && !std::strcmp(t,"off"));
 }
+// D41AD: LIGHTING ENHANCED is the budget mode (note 553): the renderer reads
+// the bake once a pixel through a chart worked out per vertex, uses the lean
+// program wherever nothing lights a batch, and the live lights (flashes,
+// blasts, rounds, fires, prop lights) only where they reach; no live shadows.
+// RELIT keeps the full pipeline. "light budget on|off" (session, live env
+// DNTTK_LIGHT_BUDGET) shows today's ENHANCED as before, for comparisons.
+static bool light_budget_on() {
+    if(!lights_enabled()) return false;
+    const char* t=ttk_live_env("DNTTK_LIGHTS");
+    if(t && !std::strcmp(t,"relit")) return false;
+    const char* b=ttk_live_env("DNTTK_LIGHT_BUDGET");
+    return !(b && !std::strcmp(b,"off"));
+}
 // D41E (relit.inc): the painted light's scale for this tick: 1 in Enhanced,
 // the camera room's eased value in Relit; DNTTK_LIGHT_AMBIENT fixes it.
 static float light_relit_amb=1.0f;
@@ -423,13 +436,17 @@ static void lights_publish() {
         for(unsigned i=0;i<v.n;++i) if(std::max({v.l[i].r,v.l[i].g,v.l[i].b})>=0.01f) v.l[k++]=v.l[i];
         light_cut_dark+=v.n-k;v.n=k;
     }
-    if(v.n>PSX_MOD_MAX_LIGHTS) {
+    // D41AD: the budget mode (ENHANCED) keeps the light_budget_max most
+    // important (developer DNTTK_LIGHT_BUDGET_MAX, 1..32).
+    static const unsigned budget_max=[]{const char* t=std::getenv("DNTTK_LIGHT_BUDGET_MAX");const int n=t?std::atoi(t):8;return (unsigned)std::clamp(n,1,(int)PSX_MOD_MAX_LIGHTS);}();
+    const unsigned keep_max=light_budget_on() ? budget_max : (unsigned)PSX_MOD_MAX_LIGHTS;
+    if(v.n>keep_max) {
         const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
         struct R {unsigned i;double s;} rank[light_stage_max];
         for(unsigned i=0;i<v.n;++i) rank[i]={i,light_importance(v.l[i],duke)};
         std::stable_sort(rank,rank+v.n,[](const R& a,const R& b){return a.s>b.s;});
         bool keep[light_stage_max]={};
-        for(unsigned j=0;j<PSX_MOD_MAX_LIGHTS;++j) keep[rank[j].i]=true;
+        for(unsigned j=0;j<keep_max;++j) keep[rank[j].i]=true;
         unsigned k=0;
         for(unsigned i=0;i<v.n;++i) if(keep[i]) v.l[k++]=v.l[i];
         light_cut_rank+=v.n-k;v.n=k;
@@ -707,6 +724,7 @@ static void lights_upload(bool valid,const double m[9],const double eye[3]) {
     // emulation thread (the loading logo up to 11 levels apart at RELIT).
     // None here is the bake's own inactive state: no channel lamps, gain 1.
     static const float no_eye[3]={0,0,0};
+    psx_mod_gpu_set_light_budget(light_budget_on() ? 1 : 0);   // D41AD
     if(!valid || !lights_enabled()) {psx_mod_gpu_set_shadows(nullptr,0);psx_mod_gpu_set_lights(nullptr,0,1.0f);psx_mod_gpu_set_lamp_levels(no_eye,1.0f,nullptr,0);near_clip_glow_sources(nullptr,0);return;}
     for(int i=0;i<3;++i) shadow_probe_eye[i]=eye[i];   // D41F developer probe
     PSXModLight l[PSX_MOD_MAX_LIGHTS];
@@ -750,6 +768,17 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
         else if(*v) {say("Light: light mode enhanced|relit|original");return true;}
         const char* t=ttk_live_env("DNTTK_LIGHTS");
         say(!t||!std::strcmp(t,"on")?"Light: LIGHTING enhanced":!std::strcmp(t,"relit")?"Light: LIGHTING relit (this session; the menu saves it)":"Light: LIGHTING original (this session; the menu saves it)");
+        return true;
+    }
+    // D41AD: "light budget [on|off]" - LIGHTING ENHANCED as the budget mode
+    // (default) or the full pipeline as before, this session.
+    if(!std::strncmp(arg,"budget",6) && (!arg[6] || arg[6]==' ')) {
+        const char* v=arg+6;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) ttk_live_env_set("DNTTK_LIGHT_BUDGET","on");   // literals: the live env keeps the pointer
+        else if(!std::strcmp(v,"off")) ttk_live_env_set("DNTTK_LIGHT_BUDGET","off");
+        else if(*v) {say("Light: light budget [on|off]");return true;}
+        const char* b=ttk_live_env("DNTTK_LIGHT_BUDGET");
+        say(b && !std::strcmp(b,"off")?"Light: ENHANCED draws the full pipeline (this session)":"Light: ENHANCED is the budget mode (Relit keeps the full pipeline)");
         return true;
     }
     // D41F: "light shadows [on|off|default]" (light_shadows.inc).

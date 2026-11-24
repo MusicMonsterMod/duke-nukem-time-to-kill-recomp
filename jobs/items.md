@@ -2450,9 +2450,38 @@ cheats never give back a mission item already used. Recorded in
 
 ### D08A50 - Shadows do not glow in night vision
 
-**Status: Todo (backlog only). Dependencies: D08A44 (Done).**
+**Status: Done, user-accepted 2026-11-24 ("fixed! lock it in and close it out"). Dependencies: D08A44 (Done).**
 
 User, 2026-11-24 (mid-session note during D53H): "shadows should not glow in
 the new night vision mode. dont work on it, just scribble it in. we'll look at
 it in the next sesh". In the D08A44 night vision look, shadows currently glow;
-they should stay dark. Not investigated yet.
+they should stay dark.
+
+Work log, 2026-11-24 (implemented, Needs playtest):
+- User: "load up slot 10. it appears to only be an issue with enhanced
+  lighting on". UI slot 10 is savestate slot 9 (saved 2026-11-24 21:10, the
+  goggles on, two enemies ahead).
+- Cause: the shadows are D41S's MODEL SHADOWS (SHAPE and ROUND), which only
+  draw with LIGHTING ENHANCED (or RELIT with LIVE SHADOWS OFF). Both builders
+  in `near_clip.cpp` (`model_shade`, `model_round`) start from a copy of the
+  enemy's frame, which carries D08A44's night-vision creature flag, so the
+  black shadow patch went through the enemy remap (inverted luma onto the
+  pale-lime ramp) and glowed like the enemy.
+- Fix (title only, Modernized, Polymorph): the shadow frames clear the flag,
+  so a shadow draws exactly as with the goggles off; `prop_glows` halos (light,
+  not a creature) also never take it. No framework change.
+- Evidence, lab `recomp/analysis/d08a50/` (local; its own card copy, offscreen
+  on the GTX 1080 Ti, debug port; the player's saves and settings hashed
+  unchanged after every run): UI slot 10, LIGHTING ENHANCED, the pre-fix
+  LTO+PGO build (`DNTTK_EXE`) shows a lime flattened enemy (SHAPE) or a lime
+  oval (ROUND) under both enemies, floor under them about (75, 120, 48); the
+  fixed build shows none, floor (26, 40, 15), the same as with MODEL SHADOWS
+  OFF. The D41S trace still counts shadow faces emitted (about 3300-3700 per
+  300 images). RELIT and ORIGINAL draw no model shadows there. Python 270 OK
+  (2 skipped), `ttk-near-test` PASS. LTO+PGO rebuilt (`use`) and installed;
+  the installed build checked in the same spot. Before/after:
+  `research/before-after/D08A50/` (local).
+- Not checked: on this very dark floor the shadow itself is hardly visible
+  (as without the goggles); a brighter floor with the goggles on was not
+  tested. Field laptop and citadel not updated.
+- 2026-11-24, user: "fixed! lock it in and close it out". Done.

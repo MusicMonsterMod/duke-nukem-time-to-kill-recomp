@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-24 - D08A50 closed out (Done)
+
+- D08A50: user-accepted ("fixed! lock it in and close it out"). In the Duke 3D night vision, MODEL SHADOWS (LIGHTING ENHANCED, or RELIT with LIVE SHADOWS OFF) copied the enemy's night-vision flag and glowed lime; they now draw as with the goggles off (Modernized, title only). UI slot 10 before/after on a private card copy. LTO+PGO installed on the desktop; the field laptop and citadel not updated.
+
 ## 2026-11-24 - D53H closed out (Done)
 
 - D53H ([note 558](558-d53h-security-monitors-citadel.md)): user-accepted ("lock it in and close it out"). TV screen lights cast no live shadows (Modernized); citadel 58-60 presents and 60 game frames at the TVs (was 35 and 50-55); citadel's checkout synced to main. LTO+PGO installed on the desktop, citadel and the field laptop. D08A50 (night vision shadows) waits in the backlog.

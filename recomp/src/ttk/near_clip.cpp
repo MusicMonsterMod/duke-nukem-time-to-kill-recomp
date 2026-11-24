@@ -2559,6 +2559,8 @@ NearProjected project_view(const NearGte& g,const double view[3]) {
 // the projected anchor.
 uint64_t prop_glow_quads=0;
 void prop_glows(Frame& f,uint32_t mesh,int kind) {
+    // D08A50: a halo is light, not a creature's skin: no night-vision remap.
+    struct NvKeep {Frame& f;bool was;~NvKeep(){f.nv_glow=was;}} nv_keep{f,f.nv_glow};f.nv_glow=false;
     PropGlow glows[32];
     const unsigned n=prop_light_glows(mesh,kind,glows,32);
     for(unsigned i=0;i<n;++i) {
@@ -2697,7 +2699,9 @@ void model_shade(Frame& f,const std::vector<Poly>& polys) {
     if(!found || fy-low>4096) {++shade_skipped;return;}
     auto plane_at=[&](double x,double z){return fy+sl[0]*(x-cx)+sl[1]*(z-cz);};
     static const int debug=env_int("DNTTK_SHADE_DEBUG",0,0,1);   // developer: opaque red, no ground check
-    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;
+    // D08A50: a shadow is not the creature: never the night-vision remap
+    // (it inverts luma, so the black patch would glow pale lime).
+    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;s.nv_glow=false;
     std::vector<Poly> out;out.reserve(polys.size());
     double zsum=0;unsigned zn=0;
     for(const Poly& p:polys) {
@@ -2783,7 +2787,9 @@ void model_round(Frame& f,const std::vector<Poly>& polys,uint32_t obj) {
     const double R=std::clamp((r.last>0?r.last:round_first)*round_scale,round_min,round_max);
     float fy=0,sl[2]={0,0};
     if(!lamp_bake_floor_height((float)ox,(float)oy,(float)oz,&fy,sl,true) || fy-oy>4096) {++shade_skipped;return;}
-    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;
+    // D08A50: a shadow is not the creature: never the night-vision remap
+    // (it inverts luma, so the black patch would glow pale lime).
+    Frame s=f;s.verts.clear();s.floor_surf=-1;s.glow=true;s.nv_glow=false;
     bool ok[round_sides+1];double zsum=0;unsigned zn=0;
     for(int i=0;i<=round_sides;++i) {   // 0: the centre, then the rim
         const double a=2*3.14159265358979*(i-1)/round_sides;

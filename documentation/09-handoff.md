@@ -1,5 +1,14 @@
 # Next-session handoff
 
+## 2026-11-24 - D53H closed out (Done)
+
+- D53H ([note 558](558-d53h-security-monitors-citadel.md)): user-accepted ("lock it in and close it out"). TV screen lights cast no live shadows (Modernized); citadel 58-60 presents and 60 game frames at the TVs (was 35 and 50-55); citadel's checkout synced to main. LTO+PGO installed on the desktop, citadel and the field laptop. D08A50 (night vision shadows) waits in the backlog.
+
+## 2026-11-24 - D53H security monitors on citadel; D08A50 filed
+
+- D53H ([note 558](558-d53h-security-monitors-citadel.md)): at the LEVEL00 cell-block TVs citadel fell to 36-42 game frames and the feed stopped. Causes: citadel's checkout was a week behind its executable (no D23AO no-fallback defaults; synced to main), and the TV screens' light cast live shadows sampled by every pixel of the TV wall (now unshadowed, Modernized; `DNTTK_SECURITY_LIGHT_SHADOWS=1` developer). Citadel real screen after the camera at the TV: 58-60 presents, 60 game frames, GPU 66-78 % (was 35, 50-55, 86-96 %). Pictures unchanged on the desktop. Field laptop: new build and a "citadel monitor scene" desktop icon (separate save folder). Waits on the user's test at the spot.
+- D08A50 filed (backlog only): shadows should not glow in the Duke 3D-style night vision.
+
 ## 2026-11-24 - D19Z4 closed out (Done)
 
 - D19Z4 ([note 557](557-d19z4-cursor-square-wayland-scale.md)): on scaled Wayland screens (citadel, KDE 145 %) the game window now draws at the screen's real pixels (`SDL_WINDOW_HIGH_PIXEL_DENSITY`, framework `main.cpp`); before, a 1324x745 buffer scaled by the display hardware put a light 256x256 square behind the pointer. User A/B on citadel's TV confirmed the cause and the fix. Citadel cost: GPU +3.5 points, 60 fps unchanged. X11 and Windows unchanged. Installed on citadel (old build kept as `.citadel-1118`) with a desktop icon; desktop LTO+PGO rebuilt and installed. User: "lock it in and close it out!". Done.

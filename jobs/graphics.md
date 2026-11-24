@@ -3625,3 +3625,63 @@ above ready (turned while dropped, bounced below, lowered rest); 13 stills
 through the three show the arm running off the bottom. Controls test 159 and
 unit tests 269 OK.
 
+### D53H - Security monitors slow the game on citadel, third TV shows no feed
+
+**Status: Done (user-accepted 2026-11-24: "lock it in and close it out"; [note 558](../documentation/558-d53h-security-monitors-citadel.md)). Dependencies: D53A (Done).**
+
+User, 2026-11-24, on citadel (Ryzen 3 3200GE, Vega 8 iGPU, KDE Wayland
+1080p60, the D19Z4 build): "i had some weird problems/dropouts when
+interacting with the security monitor ... it started running very poorly. the
+third monitor doesnt even show the video feed. it only happened this bad when
+i interacted with the third monitor, but i think all 3 werent completely
+happy." The user left the game paused at the spot and asked for the same
+scene on the field laptop as well.
+
+Acceptance: using each of the three LEVEL00 cell-block TVs on citadel keeps
+the game at full speed (60 game frames a second, no audio underruns) and the
+TV last used shows its feed afterwards; the field laptop checked at the same
+scene; the desktop, Vanilla and the TTK monitor look unchanged.
+
+Work log, 2026-11-24 (report and first evidence). Citadel's session log
+(copied to `research/savestates/d53h/`, local): the level ran 60 game frames
+a second until the monitors; at the TVs (Duke near 3361, -6647, 36029) it fell
+to 52-53, then 42, 40 and 36 frames a second with audio underruns, and the
+pacer switched to the original presentation ("redraws again in 120 s"), which
+stops the redraw workers that draw the D53A feed, so every TV showed
+SECURITY. Host idle throughout (load 0.3, no CPU, memory or IO pressure, no
+updates or backups); the GPU read 100 % busy even while paused, the swap call
+blocked 16 ms at the median and 36 ms at p95, and the workers' jobs averaged
+9.8 ms (69 ms max) against about 2.5 ms on the desktop: the iGPU is the
+bottleneck. The user's slot-1 save from that spot is copied (never the
+original) to `research/savestates/d53h/` and to the laptop's separate
+`recomp/saves/citadel-scene/` folder with its own desktop icon; the laptop
+runs the desktop's LTO+PGO D19Z4 build (previous kept as `.pre-d53h`).
+
+Work log, 2026-11-24 (Needs playtest). Two causes
+([note 558](../documentation/558-d53h-security-monitors-citadel.md)).
+Deployment: citadel ran the new executable with a launcher and data from
+2026-11-17 (checkout fe18de2 plus lab files), so the D23AO no-fallback
+defaults and the D23AK lighter worker were missing; the switch to the original
+presentation was that launcher's. Citadel's checkout is now at main with the
+current runtime patch (its lab files kept as a git stash and a diff in
+`~/ttk-ab/d53h/` there). Slowdown: the TV screens' (and power sign's) light
+cast live shadows, and at a TV wall they took shadow slots that every pixel of
+the wall sampled (10 shadowed lights instead of 6). Citadel A/B with the
+synced launcher: feed off barely helped, live shadows off did. Change
+(Modernized, Polymorph): those lights no longer cast live shadows (as in
+Duke 3D); developer `DNTTK_SECURITY_LIGHT_SHADOWS=1` keeps the old way.
+MEASURED on citadel's TV, same build interleaved, after the camera at the TV:
+TV3 60 game frames / 58 presents / GPU 69-70 % against 50-53 / 35-37 /
+86-96 %; TV2 60 / 59-60 against 54-55 / 35-36; the feed kept running (107
+pictures). Desktop pictures at the TV: identical (0 pixels over 24 levels).
+Observed, not changed: the first E at a TV is ignored and E does not leave the
+camera view (jump does); the feed redraw is full resolution for a 96x96
+picture (a follow-up if wanted). Waits on the user at the spot on citadel and
+the field laptop.
+
+Closeout, 2026-11-24 (Done). User: "lock it in and close it out". The LTO+PGO build with the change
+is installed on the desktop, citadel and the field laptop (each previous
+executable kept as `.pre-d53h`); the laptop keeps its "citadel monitor scene"
+icon and save folder. Lab trimmed to its scripts and results. Follow-ups
+noted, not filed: the first E at a TV is ignored and E does not leave the
+camera view; a smaller feed redraw.

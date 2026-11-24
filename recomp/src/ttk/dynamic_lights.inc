@@ -373,6 +373,7 @@ static void lights_publish() {
     v.n+=level_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41D: placed lamps (8 slots kept as before; D41T stages the rest and cuts to 32 by importance)
     const unsigned lamps_end=v.n;
     if(security_tv_lights) v.n+=security_tv_lights(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D53: TV screens
+    const unsigned screens_end=v.n;
     v.n+=prop_lamps_publish(v.l+v.n,PSX_MOD_MAX_LIGHTS-v.n-8); // D41L: woodburners, chandeliers
     // D41E: in Relit the scene's own lights (lamps, signs, screens, prop
     // lamps) are stronger, as they carry the dimmed level (relit.inc).
@@ -399,6 +400,13 @@ static void lights_publish() {
     // screens, prop lamps and test lights keep their (cached) maps (D41T: not blasts).
     const bool moving_shadows=shadow_moving_on();
     for(unsigned i=0;i<v.n;++i) cand[i]=moving_shadows || (i>=scene0 && i<fire0);
+    // D53H: the TV screens' soft olive light and the power sign's light cast
+    // no live shadows (as in Duke 3D). Standing at a TV wall they were among
+    // the strongest lights, so every pixel of the wall sampled their shadow
+    // maps: on citadel (Vega 8, scale 4) that alone took the GPU from about
+    // 75 to 95 % busy. DNTTK_SECURITY_LIGHT_SHADOWS=1 (developer) keeps them.
+    static const bool screen_shadows=[]{const char* t=std::getenv("DNTTK_SECURITY_LIGHT_SHADOWS");return t && t[0]=='1';}();
+    if(!screen_shadows) for(unsigned i=lamps_end;i<screens_end;++i) cand[i]=0;
     for(unsigned i=0;i<light_src_count && v.n<light_stage_max;++i) {
         const LightSrc& s=light_srcs[i];
         const double e=light_envelope(s);

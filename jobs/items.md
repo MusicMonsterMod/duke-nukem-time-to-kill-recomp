@@ -2447,3 +2447,12 @@ complete the wheel). `ttk-controls-test` 155 groups, Python 266 OK.
 User, 2026-11-20: made it a standing rule ("yeah go for it"): inventory
 cheats never give back a mission item already used. Recorded in
 `GAME_MANUAL.md` (cheats) and `AGENTS.md` (game work).
+
+### D08A50 - Shadows do not glow in night vision
+
+**Status: Todo (backlog only). Dependencies: D08A44 (Done).**
+
+User, 2026-11-24 (mid-session note during D53H): "shadows should not glow in
+the new night vision mode. dont work on it, just scribble it in. we'll look at
+it in the next sesh". In the D08A44 night vision look, shadows currently glow;
+they should stay dark. Not investigated yet.

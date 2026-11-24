@@ -374,6 +374,50 @@ well on GitHub in light and dark and on a phone; every image is our capture
 or public domain/open licence and credited;
 `scripts/ci/check_repo.py` passes.
 
+**Concept 10 (2026-11-24).** User: the README had got ahead of
+the concept ("the FPS's mentioned are totally off using our old scale, and the
+artifact doesnt have our cool buttons up the top"). Republished to the same
+artifact (version 10): the README's three live badges (CI, recomp.board,
+PlayPorted) and listing links; frame rates on the D23AG scale (AUTO one new
+picture per refresh up to 240, the rate holds in play, D23AO) instead of
+"120 primary target" and `--frame-rate 120`; quick start is plain `run.py`
+(no F10 note, mouse capture is automatic) plus the optional LTO+PGO build;
+GRAPHICS grades, LIGHTING ENHANCED/RELIT, first-person arms, controller,
+quick kick and console in the comparison table; a LIGHTING ORIGINAL/RELIT
+same-frame pair; full README credits. Captures retaken in the player build
+(LTO+PGO) on the real display at 1920x1080 borderless (user: "you can use the
+monitor"; offscreen SDL presents only 1024x576 and Polymorph's picture is not
+in the internal `screenshot`), GRAPHICS ULTRA, from copies of the user's 12
+savestates in a private card folder (`recomp/analysis/d31-readme/v10/`,
+port 9371; the player's saves hashed before and after: unchanged). Exports in
+`research/artwork/d31-concept10/img/` (about 2.1 MB). D32 icon proposal in the
+same page: full portrait at 256/128/64, a head crop at 48/32/24/16
+(`research/artwork/d32-icon/`). Artifact version 11 adds the review below.
+
+**User review of concept 10 (2026-11-24), parked until D61.** User: "take
+notes about what we want to improve with this one put it to one side for now
+... I think we should work on the atlas". The README stays as it is. For the
+next pass:
+
+- Hero banner, redo: the "RECOMPILED" lettering does not read as Duke; texture
+  the type to resemble the original Duke Nukem logo and the Time to Kill logo
+  (our own type, never the official logo). The capture is outdated: today's
+  build lights that street (the lamp casts light, the atomic health glows);
+  reshoot it in the current build.
+- Badges: bring back platform (Linux) and disc (SLUS-00583) beside CI,
+  recomp.board and PlayPorted; say on the README that Windows comes later.
+- Screenshots: the concept 2-9 set was preferred; build on it. Restore the
+  eras strip (Duke's four outfits). Drop the Wild West mine shot (Duke floats in
+  mid-air). Show more first person, like the earlier gadgets and power-ups set.
+- Every screenshot with the HUD boxes in a minimal style, without outlines.
+  The manual has no such HUD option today, so this may need a setting first.
+- Wording: ENHANCED is for older (legacy) hardware, not "for laptops";
+  "graphics card", not "graphics chip"; mantling is our own work (never in
+  EDuke32 or Duke 3D), listed apart from the EDuke32-style keys. Fixed in the
+  artifact.
+- Shoot it with the level atlas (D61): put Duke at any spot to frame shots
+  instead of working from savestates.
+
 ### D32 - Game icon from the D31 in-engine portrait
 
 **Todo. Opened 2026-10-20 at the user's request** ("this will use the

@@ -1960,7 +1960,7 @@ Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 opti
 
 ### D23N5 - One host pass per game frame for a frame's redraws
 
-**Status: Needs playtest (2026-11-16, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): built off by default, exact, measured on the desktop, the field laptop and citadel; default on is the user's decision). Dependencies: D23N4 (note 487).**
+**Status: Done (closed out 2026-11-18 with D23AK, a139fa3: "lock in the way the game plays right now, and then close us out"; on by default in Modernized, `run.py` MODERNIZED_REDRAW_DEFAULTS; board corrected 2026-11-24). Earlier: (2026-11-16, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): built off by default, exact, measured on the desktop, the field laptop and citadel; default on is the user's decision). Dependencies: D23N4 (note 487).**
 
 Note 487 found that a redraw worker job is mostly our own host work (the
 Polymorph draws, the near clip, the D36 joint callbacks, the world pass,
@@ -3204,7 +3204,7 @@ within the spread. Needs playtest: default on is the user's decision.
 
 ### D23Y10 - Publish the worker image without a copy
 
-**Status: Needs playtest (2026-11-16, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact, measured on all three machines; default on is the user's decision). Dependencies: D23Y5.**
+**Status: Done (closed out 2026-11-18 with D23AK, a139fa3: "lock in the way the game plays right now, and then close us out"; on by default in Modernized, `run.py` MODERNIZED_REDRAW_DEFAULTS; board corrected 2026-11-24). Earlier: (2026-11-16, [note 495](../documentation/495-d23y10-tracked-publish.md): built off by default, exact, measured on all three machines; default on is the user's decision). Dependencies: D23Y5.**
 
 D23Y5 (notes 490, 492): the emulation thread copies its image for the redraw
 workers every published frame. Replace the copy with a copy-on-write fork or
@@ -4088,7 +4088,7 @@ D23AF1 and D23AF8 (user: "turn the bake yield on by default too, then lock it in
 
 ### D23AF3 - Cheaper worker forks
 
-**Status: Needs playtest (2026-11-17/18, built off by default; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23AF2.**
+**Status: Done (closed out 2026-11-17 in the performance chain, 4344886: "lock it in and close it out"; `PSX_FORK_WIPE` and `PSX_FORK_DEV` kept as off-by-default options; board corrected 2026-11-24). Earlier: (2026-11-17/18, built off by default; [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23AF2.**
 
 After D23AF2's asynchronous reap a restart still costs about 15 ms on the
 desktop: three forks, each copying the page tables of the game process's

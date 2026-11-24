@@ -1,4 +1,5 @@
 #include <chrono>
+#include "ttk_register.h"
 // D11B: near clipping for the Modernized eye view.
 //
 // Two hand-written mesh renderers draw the level:
@@ -3691,7 +3692,7 @@ const char* near_clip_debug_json() {
     return buffer;
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
+TTK_REGISTER(register_ttk_near_clip, TTK_RANK_NEAR_CLIP) {
     (void)ttk::host_arena();
     ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::mask_blocks,16);
     for(uint32_t address:{0x8001fba0u,0x8002bc18u,0x800b4d2cu,0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu,0x8002d848u,0x8002bd48u,0x800a2690u})

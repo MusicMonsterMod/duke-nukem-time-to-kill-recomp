@@ -1361,7 +1361,7 @@ Closed 2026-11-12 with D23T and D23U ("close it out"); the build is D23M3B.
 
 ### D23M3B - Build the output-sized redraw target
 
-**Status: Blocked (2026-11-16 overnight, [note 491](../documentation/491-d23m3b-shifted-viewport-not-exact.md): not exact on the desktop GPU, reverted; split from D23M3 2026-11-12, [note 460](../documentation/460-d23m3-output-sized-redraws.md)). Dependencies: D23M3, D23V.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; not exact, about 0.5 ms a redraw at best, note 491). Dependencies: D23M3, D23V.**
 Build the design of note 460 section 4: a render thread draws a redraw's
 centre into the cache image with the canonical projection and a viewport
 shifted by whole pixels, its margins with the mirror mapping, one
@@ -1392,9 +1392,12 @@ the margins as well as the centre. The shifted viewport origin changes how
 the GPU rounds window coordinates (INFERRED), so a target drawn at another
 origin than the canonical surface cannot be exact this way. Reverted (the
 diff kept in the local lab); the laptop measurement was not run. Blocked.
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): not exact, about 0.5 ms a redraw at best, note 491.
+
 ### D23N - Captured redraws: replay a recorded frame instead of re-running game code
 
-**Status: In progress (D23N1 done, D23N2 inventory done 2026-11-12, notes 454-455; N0 measured, note 449 section 7; design corrected before building, [note 449](../documentation/449-d23n-captured-redraws-research.md) section 6; research and design 2026-11-11; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23K.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; the captured-redraws line ends with D23N4; D23N1-N3 and N2B stay done, D23N5 stays open as its own switch). Dependencies: D23K.**
 At 180 Hz three worker processes re-run the game's drawing code for every
 redraw with the late camera: about 10 ms of CPU each, 1.5 cores in all (note
 444). RT64 (Zelda64Recomp) records a frame's draw calls once and replays them
@@ -1452,6 +1455,8 @@ quad and about two textured quads a job. Drawing modes, flat quads and VRAM
 uploads never change. So N1 can skip the game's code if the few
 camera-dependent packets get host equivalents; note 449 section 7. Next:
 identify those packets' routines, then build N1.
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): the captured-redraws line ends with D23N4; D23N1-N3 and N2B stay done, D23N5 stays open as its own switch.
 
 ### D23N1 - Same-job capture and rebuild
 
@@ -1818,7 +1823,7 @@ detectors (falls back). One FAMILY JEWELS host difference remains unexplained.
 
 ### D23N4 - Later jobs skip the game's code
 
-**Status: Blocked (2026-11-16 overnight, desktop, [note 487](../documentation/487-d23n4-cost-decision.md): N4b cannot pay at any number of workers; earlier 2026-11-16, [note 483](../documentation/483-d23n4b-exactness-desktop.md): N4b nearly exact, not cheaper, off; earlier 2026-11-15 late, desktop, [note 481](../documentation/481-d23n2b-d23n3-d23n4-desktop.md) section 5: groundwork done, the culling tests named; not built, not switched on; 2026-11-15 night, not switched on: 1-8% of later jobs have another hook list, which a rebuild cannot tell, [note 480](../documentation/480-d23n2b-d23n3-field-laptop.md) section 5). Dependencies: D23N3.** Switch the rebuild on: the first job
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; cannot pay at any number of workers, 4-18% dearer than plain, note 487). Dependencies: D23N3.** Switch the rebuild on: the first job
 of a frame captures (with a culling margin wide enough for the late
 camera's turn within the frame, or falls back), the capture is shared
 between worker processes, later jobs rebuild instead of running the game.
@@ -1951,6 +1956,8 @@ accepted rebuilds exact (before 3,122/3,248). The ordinary redraw path does
 not nest and is unchanged (Vanilla shots 6/6, validator 914/915 with the
 level-load frame).
 
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): cannot pay at any number of workers, 4-18% dearer than plain, note 487.
+
 ### D23N5 - One host pass per game frame for a frame's redraws
 
 **Status: Needs playtest (2026-11-16, [note 493](../documentation/493-d23n5-shared-frame-work-desktop.md): built off by default, exact, measured on the desktop, the field laptop and citadel; default on is the user's decision). Dependencies: D23N4 (note 487).**
@@ -2001,6 +2008,8 @@ pinned checkout. Next: the field laptop (one worker, slower memory) and
 citadel. Limitations: offscreen only; the restore needs Linux 6.7+.
 
 Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 5, pure AUTO, real screens, two runs): the emulation thread 0-6 points lower on the field laptop, 0-3 on citadel; game and pictures unchanged (60, lowest tenth 58.1-59.6). The default stays the user's decision.
+
+Work log, 2026-11-23 (found during D23AH): this switch has been on by default in Modernized since the D23AK closeout (2026-11-18, `run.py` MODERNIZED_REDRAW_DEFAULTS); the "built off by default" wording above predates that. The player's field-laptop sessions of 2026-11-23 ran with it on.
 
 ### D23O - Leaner render-thread submission
 
@@ -2396,7 +2405,7 @@ capture instead of half; the rest is D23V3.
 
 ### D23V3 - Leave the frame bands out of the capture
 
-**Status: Blocked (2026-11-16 evening: no gain on the real screens of the field laptop and citadel with D23AD, [note 497](../documentation/497-d23v3-three-machines.md) section 6b; not proposed for default on); earlier 2026-11-16, [note 497](../documentation/497-d23v3-three-machines.md): exact, lighter on the GPU at 2x on the field laptop, worse on citadel at AUTO's three workers; revisit after D23AC); earlier 2026-11-16 overnight, field laptop, [note 488](../documentation/488-d23v3-needed-tiles-capture.md): built off by default, `PSX_REPLAY_CAPTURE_NEED=1`; split from D23V2 2026-11-15, [note 479](../documentation/479-d23v2-field-laptop.md) sections 2 and 5). Dependencies: D23V2.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; no gain on the real screens, more GPU work on the field laptop, note 497). Dependencies: D23V2.**
 After D23V2 the capture is 1.04-1.08 ms of GPU a game frame on the field
 laptop: 245 of 512 canonical tiles a capture, nearly all of them the game's
 two frame bands (rewritten every frame), and about 0.55 ms (INFERRED) of raw
@@ -2452,6 +2461,8 @@ tiles; whole-GPU work with `need` 6-9% higher on the laptop in four of five
 scenes, equal on citadel; at ULTRA 120 on citadel equal in four scenes, one
 `need` run at the FAMILY JEWELS start dipped (48 pictures). No gain where it
 matters; stays off and Blocked, not proposed for default on.
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): no gain on the real screens, more GPU work on the field laptop, note 497.
 
 ### D23W - Field laptop: measure on real weak hardware
 
@@ -2723,7 +2734,7 @@ second at the guest's own rate, an OPTIONS row, and whether 3x should warp at
 
 ### D23Y4 - Thread placement on 2 cores
 
-**Status: Blocked (2026-11-13, measured: placement does not win and no placement reaches the bar; the redraws' power is the wall, [note 466](../documentation/466-d23y4-thread-placement.md); D23Y plan). Dependencies: D23Y.** With redraws on a
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; placement made no measurable difference, the 15 W package is the wall, note 466). Dependencies: D23Y.** With redraws on a
 2-core, 4-thread CPU, keep the emulation thread's physical core free of
 redraw workers (affinity), one worker on the other core; A/B against the
 default over five runs each (the laptop's clock varies run to run).
@@ -2754,9 +2765,11 @@ reduce the work or the power. Unblocked by less redraw work: D23Y2/D23Y3
   59): it is now the default on 2-core SMT CPUs once workers start, with one
   worker. This job's status is unchanged (its 3x Relit bar is still not met).
 
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): placement made no measurable difference, the 15 W package is the wall, note 466.
+
 ### D23Y5 - A lighter emulation thread
 
-**Status: Blocked (2026-11-18, host-world prune built, target still not met; [note 508](../documentation/508-d23y5-host-world-caches.md); earlier [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)). Dependencies: D23Y; coordinate D23Z.** The
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; no exact cut of the needed size left, note 508; PGO/LTO (D23AH) is what moves the emulation thread now). Dependencies: D23Y; coordinate D23Z.** The
 original 60 presentation's emulation thread takes 55-70% of a core at
 3.1 GHz on the field laptop; profile it (`PSX_PROF`, `recomp/analysis/d23x/sym.py`)
 and cut its largest shares (memory access, dispatch lookups, SPU reverb,
@@ -2880,6 +2893,8 @@ in UI 9: a cheaper pair visit for the 196-face model (about 2 points).
 Also seen: modern controls' step probe (`terrain_step_probe`, game
 collision code, 1-2%) is gameplay, left alone.
 
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): no exact cut of the needed size left, note 508; PGO/LTO (D23AH) is what moves the emulation thread now.
+
 ### D23Y6 - 120 fps playable on the field laptop, SIMPLE at 2x
 
 **Status: Done (user-accepted 2026-11-14, closeout authorized; [note 468](../documentation/468-d23y6-120-on-the-field-laptop.md)). Dependencies: D23Y; coordinate D23Y5, D23N2B-N4, D23P2.**
@@ -2983,7 +2998,7 @@ less GPU per picture; the emulation thread's share (D23Y5).
 
 ### D23Y7 - The remaining dips at 120 (Duke Hill)
 
-**Status: Blocked (2026-11-16, re-measured, field laptop, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md): SIMPLE holds 120 in the town; at ULTRA the dips follow the CPU clock (1.1-1.2 GHz with the 4x GPU 90% busy); earlier 2026-11-15, re-measured on top of D23V, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 4; [note 470](../documentation/470-d41r-d41p-d23y8-field-laptop.md) section 5; [note 469](../documentation/469-d23y7-d23y5-d23n2b-field-laptop.md) sections 2-3). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; the 15 W package limit, no single code path, note 494; struggle points go to D23AQ and D23AH). Dependencies: D23Y6; coordinate D23Y5, D23N2B-N4, D23Y8.**
 After D23Y6 FRAME RATE 120 on the field laptop holds 60 even pictures a
 second in TIME TO KILL and the measured scenes, but DUKE HILL (level 1) steps
 to 30 a second and falls back to the original presentation for minutes
@@ -3058,6 +3073,8 @@ emulation-thread work (D23Y5, D23Y8) or less GPU power a frame would help.
 Real-display look at ULTRA and PRETTY in the town queued for the user.
 
 Re-measured, 2026-11-17/18 ([note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): pure AUTO holds 60 / 60 in the town on both machines; ULTRA 120 on the field laptop 41.8-44.3 (lowest tenth 22.7-24.6) in every configuration, the 4x GPU 84-89% busy: still the package. Still Blocked.
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): the 15 W package limit, no single code path, note 494; struggle points go to D23AQ and D23AH.
 
 ### D23Y8 - Emulated GPU commands on their own thread
 
@@ -3225,6 +3242,8 @@ user's decision.
 
 Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md) section 5): 0-6 points lower on the field laptop, 1-5 on citadel; its write tracking costs 1,800-2,250 page faults a second on the emulation thread (90-190 without), and one laptop run at FAMILY JEWELS fell back to the original presentation (lowest tenth 55.7). The default stays the user's decision.
 
+Work log, 2026-11-23 (found during D23AH): this switch has been on by default in Modernized since the D23AK closeout (2026-11-18, `run.py` MODERNIZED_REDRAW_DEFAULTS); the "built off by default" wording above predates that. The player's field-laptop sessions of 2026-11-23 ran with it on.
+
 ### D23Z - One-off CPU spikes on the emulation thread
 
 **Status: Done (user-accepted 2026-11-19: "this work is accepted ... lock it in and close it out"; [note 465](../documentation/465-d23z-emulation-thread-spikes.md); found in D23W 2026-11-13). Dependencies: D23W.** On
@@ -3287,7 +3306,7 @@ Remaining: D23AQ (the heavy views).
 Done: no one-off spike left; the walks' remaining slow seconds are D23AQ's.
 ### D23R - Parity benchmark and acceptance
 
-**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23N4, D23P2, D23U.**
+**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23P2, D23U.**
 The programme's acceptance: re-run the note 444 comparison (EDuke32 Polymost
 and Polymer against our game, same display, windowed and fullscreen, the
 same views, CPU and the 4-CPU test) and check the parity bar in section 5:
@@ -3732,7 +3751,7 @@ User playtest, 2026-11-15, at UI slot 6: "looks to be working!! lock it in and c
 
 ### D23AA - FAMILY JEWELS start stutters until the drawbridge is lowered
 
-**Status: Blocked (2026-11-16, re-measured, field laptop, [note 494](../documentation/494-d23y7-d23aa-field-laptop-today.md): SIMPLE holds 120 at the start; at ULTRA the worst seconds run at 1.2-1.8 GHz, the package limit; earlier 2026-11-15, measured, [note 476](../documentation/476-d23v-d23n2b-d23y7-d23aa-field-laptop.md) section 5; backlog from the user's playthrough commentary 2026-11-14). Dependencies: D23N4.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; the 15 W package limit, waited on the cancelled D23N4, note 494; struggle points go to D23AQ and D23AH). Dependencies: D23N4.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: noticeable stuttering right at the start of FAMILY
@@ -3778,6 +3797,8 @@ timing edges, GP0 and our world pass in about the clock's proportion: the
 package limit again, not the drawbridge view's own code. Blocked as before.
 
 Re-measured, 2026-11-17/18 ([note 506](../documentation/506-d23y-chain-baseline.md), [note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): pure AUTO holds 60 / 60 at the start on both machines; ULTRA 120 on the field laptop 50-56 (GPU-bound), citadel 52.5-60 with occasional fallbacks. Still Blocked.
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): the 15 W package limit, waited on the cancelled D23N4, note 494; struggle points go to D23AQ and D23AH.
 
 ### D23AB - Three-machine baseline (desktop, field laptop, citadel)
 
@@ -4129,7 +4150,7 @@ Data, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af
 
 ### D23AF5 - FAMILY JEWELS start in first person at 180
 
-**Status: Todo (with D23AA; [note 503](../documentation/503-d23af-campaign-census.md)). Dependencies: D23AA.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; desktop first person at 180, hung off the cancelled D23AA, note 503). Dependencies: D23AA.**
 
 The only desktop census cell under its target: FAMILY JEWELS at 180 in
 first person, fresh pictures p10 140 with three workers saturated (300%).
@@ -4140,6 +4161,8 @@ the eye-height camera sees more of the castle and moat). D23AA's geometry
 finding; no new exact cut found.
 
 Re-measured on the field laptop and citadel, 2026-11-17/18 ([note 507](../documentation/507-d23y8-gl-server-d23y5-d23af3.md)): FAMILY JEWELS start (each machine's own view setting) holds 60 / 60 at the original 60 and pure AUTO on both. The first-person 180 Hz desktop case was not re-run (the desktop was background-only this session).
+
+Work log, 2026-11-23: cancelled in the optimization triage (user 2026-11-23 optimization triage: "close the whole manure pile"): desktop first person at 180, hung off the cancelled D23AA, note 503.
 
 ### D23AF6 - Render-thread validator differs at ULTRA with three workers
 
@@ -4326,7 +4349,7 @@ say so in the menu), so the label equals the measured new pictures.
 
 ### D23AH - Profile-guided and link-time optimized build
 
-**Status: Blocked (2026-11-18 overnight, on the user's choice of an opt-in build; [note 509](../documentation/509-d23ag-overnight-chain.md) sections 4 and 6). Dependencies: D23AF.**
+**Status: Done (2026-11-24, user: "the performance increase on d23ah is significant, lock it in and close it out"; [note 554](../documentation/554-d23ah-lto-pgo-build.md): opt-in LTO and LTO+PGO builds, `optimized_build.py`; exact (Vanilla identical; an LTO-only difference traced to the title's constructor order and pinned for every build); field laptop LTO+PGO emulation thread -13 to -32%; both the laptop and the desktop run the LTO+PGO build). Dependencies: D23AF.**
 
 User, 2026-11-18: "new jobs D23AH (PGO/LTO build) ... Goal: BALANCED at 60
 new pictures a second on the laptop". The field laptop (i7-5600U, 2 cores,
@@ -4360,6 +4383,42 @@ write profile counts first (`worker_exit`, weak `__gcov_dump`, a no-op
 outside an instrumented build). Builds: desktop 7-10 min, 1.8-3.6 GB;
 citadel LTO 34 min, 5.7 GB (its RAM). Not done: image-by-image exactness of
 the LTO/PGO executables. Proposed: opt-in `build.py --lto` / `--pgo`.
+
+Work log, 2026-11-23/24 ([note 554](../documentation/554-d23ah-lto-pgo-build.md)).
+User: "let's go in HARD with your suggestion now ... the gold and guns ones by
+the lava pit are grizzly feeling too, and maybe even some of time to kill".
+Built: `recomp/tools/local/optimized_build.py` (lto, instrument, train, use,
+pgo, install in build-lto / build-pgo; the player build untouched),
+`pgo_train.py` (the training route, every level in both views and Vanilla),
+`build_compare.py` (RAM, VRAM and pictures at +60/+200/+400 after a
+savestate load, two interleaved runs an executable), `run.py` developer
+`DNTTK_EXE`, the runtime's exactness hook now also dumps guest RAM
+(framework patch exported), developer `PSX_NO_LTO_GLOB` in CMakeLists.
+Found: an LTO executable played Vanilla differently from the same savestate;
+bisected to the title's hook registrations, whose constructors allocate the
+GPU DMA arenas (savestates restore that aperture only up to the first
+allocation that differs) and share hook addresses, in link order that LTO does
+not keep. Fixed for every build: `src/ttk/ttk_register.h`, the 17 registering
+sources with explicit constructor priorities in the normal build's order
+(normal build identical before and after). Exact: Vanilla identical for LTO
+and LTO+PGO (a second-load difference for PGO traced to host timing, not
+code: the same executable matches under load); Modernized VRAM identical,
+its RAM not repeatable within any build. Field laptop, three rounds: LTO+PGO
+-16% level 0, -13% level 3, -32% level 22, -16% / -25% at the lava pit (UI 10
+/ 12), game speed 60 throughout; LTO alone -0 to -13%. The laptop runs
+LTO+PGO for the playtest (`.pre-d23ah` kept). Remaining: the user's playtest
+on the laptop; the desktop's default (opt-in install); citadel untested.
+
+Closeout, 2026-11-24. User, after playing GOLD AND GUNS on the field laptop
+with the LTO+PGO build: "am i tripping? because it feels like it's playing
+significantly better", then "the performance increase on d23ah is significant, lock it in and close it out". The laptop's session log agrees: 5 min
+29 s of GOLD AND GUNS with 2 seconds under 57 game frames (one a pause) and no
+audio underrun, against 33 seconds (31 under 50) and 44 underruns in 3 min 11 s
+on 2026-11-23. Done. Both machines run the LTO+PGO executable
+(`optimized_build.py install --from pgo`; the normal one kept as
+`build-local/...Recompiled.normal` on the desktop and `.pre-d23ah` on the
+laptop); a normal rebuild of build-local replaces it until
+`optimized_build.py pgo` and `install` again (retrain after large changes).
 
 ### D23AI - BALANCED GPU passes on the field laptop's HD 5500
 
@@ -4740,6 +4799,29 @@ seconds down to 45.3, in every run; the cost is spread over the whole update
 (no plugin hook above 6.4 ms). UI slot 9: the first three seconds after the
 load at 40-43 game frames in one run of three. Reproduce with the D23Z lab's
 walk (`CASES=rates`, the player's profile).
+
+### D23AR - GOLD AND GUNS top level in shot
+
+**Status: Todo (backlog, user 2026-11-24; research in progress). Dependencies: D23AH; coordinate D23AQ.**
+
+User, 2026-11-24, playing GOLD AND GUNS (level 3) on the field laptop with
+the D23AH build: "for me that's been the heaviest going part. it's
+interesting to note that it's not the lava pit that causes the slowdowns. if
+duke is just looking over the ledge down at the lava pit, the frame rate is
+consistently high. it's the top level, when it's in shot, that causes the
+slowdowns in that area." The player's slot 8 (UI 9) is that view (copied
+read only into the labs as `top08`). "here's an observation for a research
+piece, and we can see what kind of solutions are available really. maybe
+with an artifact. it can go into the backlog happily for now but you may do
+a little research."
+
+Work: measure the view against the lava pit looked down on (which threads,
+how much: emulation thread, redraw worker, GPU), split the cost by DRAW
+DISTANCE and redraws, and list the solutions available with their expected
+gain, exactness and effort; publish the findings as a page.
+
+Acceptance: a measured cost breakdown of the top-level view on the field
+laptop and a ranked list of solutions for the user to choose from.
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

@@ -16,6 +16,7 @@
 // then take the usual water path (D17AF clip, D17AN depth).
 // DNTTK_WATER_POCKET=0 (developer) keeps the authored data.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "code_identity.h"
@@ -101,7 +102,7 @@ void water_pocket(CPUState* cpu,uint32_t) {
     cleared_epoch=psx_mod_savestate_loads();
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_water_pocket) {
+TTK_REGISTER(register_ttk_water_pocket, TTK_RANK_WATER_POCKET) {
     psx_mod_register_function_entry_plugin("ttk.water.pocket",0x8002ef90u,water_pocket);
     psx_mod_register_function_entry_plugin("ttk.water.pocket.frame",0x8001fba0u,frame_restore);
 }

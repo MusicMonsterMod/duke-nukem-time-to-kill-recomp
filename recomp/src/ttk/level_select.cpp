@@ -15,6 +15,7 @@
 // the init's own teardown call (8002B9F4 from 8002546C), after its saved-game
 // check and before 800254D0 reads the index for the loader.
 #include "level_select.h"
+#include "ttk_register.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
@@ -203,6 +204,6 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
 }
 }
 
-PSX_MOD_CONSTRUCTOR(register_ttk_level_select) {
+TTK_REGISTER(register_ttk_level_select, TTK_RANK_LEVEL_SELECT) {
     psx_mod_register_function_entry_plugin("ttk.level.select",0x8002b9f4,ttk::init_hook);
 }

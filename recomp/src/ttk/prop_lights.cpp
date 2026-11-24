@@ -26,6 +26,7 @@
 // path from the second texture bank (x 256..335, painted here). Classic and
 // Vanilla: nothing changes.
 #include "prop_lights.h"
+#include "ttk_register.h"
 #include "prop_state.h"
 #include "near_clip.h"
 #include "duke_flicker.h"
@@ -1819,7 +1820,7 @@ void paint(uint16_t* bank) {
 }  // namespace
 }  // namespace ttk
 
-PSX_MOD_CONSTRUCTOR(register_ttk_prop_lights) {
+TTK_REGISTER(register_ttk_prop_lights, TTK_RANK_PROP_LIGHTS) {
     ttk::tune("DNTTK_PROP_LIGHT_FIRE",ttk::fire_light);
     ttk::tune("DNTTK_PROP_LIGHT_CANDLES",ttk::candle_light);
     ttk::tune("DNTTK_PROP_LIGHT_FILL",ttk::fill_light);

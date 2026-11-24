@@ -4,6 +4,7 @@
 // +/-256. Change the completed packet, leaving all simulation and material
 // fields intact. Replay workers execute the same hook with their live margin.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "code_identity.h"
@@ -43,6 +44,6 @@ void gas_widescreen(CPUState* cpu,uint32_t) {
     }
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_gas_widescreen) {
+TTK_REGISTER(register_ttk_gas_widescreen, TTK_RANK_GAS_WIDESCREEN) {
     psx_mod_register_function_entry_plugin("ttk.gas.widescreen",0x8002bc18u,gas_widescreen);
 }

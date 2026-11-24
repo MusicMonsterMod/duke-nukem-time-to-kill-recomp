@@ -2,6 +2,7 @@
  * No decoder, guest instruction, CD cadence, or video frame is replaced.
  * See documentation/13-fmv-fidelity-pass.md for the disassembly evidence. */
 #include <stdint.h>
+#include "ttk_register.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,6 +166,6 @@ static void ttk_movie_poll(CPUState *cpu,uint32_t address) {
     previous=*cpu;last_cycle=psx_cycle_count+g_psx_overclock_rewound;
     last_mmio=g_mmio_access_count;have_previous=1;
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_movie_poll) {
+TTK_REGISTER(register_ttk_movie_poll, TTK_RANK_MOVIE_POLL) {
     psx_mod_register_function_entry_plugin("ttk.fmv.empty_ring",0x800b81bcu,ttk_movie_poll);
 }

@@ -21,6 +21,7 @@
 // no replays), 120, 144, 165, 180, 240 or unlimited. Vanilla always runs 60.
 // DNTTK_FRAME_INTERP=off disables the redraws (developer, documentation/80).
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "game_menu.h"
 #include "pc_input.h"
@@ -3304,7 +3305,7 @@ bool bolt_barrel_console_command(const char* line,void (*say)(const char*),bool&
 }
 } // namespace ttk
 
-PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
+TTK_REGISTER(register_ttk_frame_replay, TTK_RANK_FRAME_REPLAY) {
     psx_mod_register_activation_plugin("ttk.frame_rate",ttk::activate);
     psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::composition,ttk::composition_entry);
     psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::logo_draw,ttk::logo_entry);

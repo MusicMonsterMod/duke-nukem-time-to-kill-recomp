@@ -383,3 +383,15 @@ if(TARGET SDL3::SDL3)
     target_compile_definitions(ttk-loading-test PRIVATE PSX_SDL3=1)
     target_link_libraries(ttk-loading-test PRIVATE SDL3::SDL3)
 endif()
+
+# D23AH (developer): PSX_NO_LTO_GLOB is a list of file patterns compiled without
+# link-time optimization in an LTO build (tools/local/optimized_build.py), to
+# find which sources change behaviour under LTO. Empty (the default): no effect.
+if(PSX_NO_LTO_GLOB)
+    file(GLOB _ttk_no_lto ${PSX_NO_LTO_GLOB})
+    foreach(_ttk_source IN LISTS _ttk_no_lto)
+        set_property(SOURCE "${_ttk_source}" APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+    endforeach()
+    list(LENGTH _ttk_no_lto _ttk_no_lto_n)
+    message(STATUS "PSX_NO_LTO_GLOB: ${_ttk_no_lto_n} sources without LTO")
+endif()

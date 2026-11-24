@@ -2,6 +2,7 @@
 // This implements the no-callback list release at 8001C83C/8001C6AC.
 // It never suppresses an object update or repairs an object's handler index.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include <array>
@@ -68,6 +69,6 @@ void reset_hook(CPUState* cpu,uint32_t address) {
 }
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_scene_lifetime) {
+TTK_REGISTER(register_ttk_scene_lifetime, TTK_RANK_SCENE_LIFETIME) {
     psx_mod_register_function_entry_plugin("ttk.scene.lifetime",0x8002b9f4,ttk::reset_hook);
 }

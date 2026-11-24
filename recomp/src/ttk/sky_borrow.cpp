@@ -22,6 +22,7 @@
 // unauthenticated routine: nothing changes. DNTTK_SKY_BORROW=0 (developer)
 // turns it off.
 #include "sky_borrow.h"
+#include "ttk_register.h"
 #include "security_monitor.h"
 #include "prop_lights.h"
 #include "sky_render.h"
@@ -517,7 +518,7 @@ extern "C" const uint16_t* ttk_foreign_vram(void) {
 }
 }
 
-PSX_MOD_CONSTRUCTOR(register_ttk_sky_borrow) {
+TTK_REGISTER(register_ttk_sky_borrow, TTK_RANK_SKY_BORROW) {
     for(uint32_t address:{0x80026164u,0x8001fc44u,0x8002e850u})
         psx_mod_register_function_entry_plugin("ttk.sky.borrow",address,ttk::hook);
 }

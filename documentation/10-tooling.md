@@ -760,3 +760,17 @@ that differ from both neighbours while the neighbours match.
 Developer switches from the same job: `DNTTK_EXACT_ORIGIN=0` (static props
 find their D41P floor from the view's snapped origin, as before) and
 `DNTTK_EXACT_ORIGIN_TRACE=1` (stderr: fallbacks and a per-process tally).
+
+## Optimized builds (D23AH)
+
+`python3 recomp/tools/local/optimized_build.py lto` builds the player build with
+link-time optimization in `recomp/build-lto`; `pgo` builds an instrumented
+executable in `recomp/build-pgo`, trains it (`pgo_train.py`: every level in both
+views and a Vanilla pass, offscreen, private settings and card copy, about an
+hour) and rebuilds it from the profile. `install --from lto|pgo` copies the
+result into `recomp/build-local` (`install --restore` puts the normal one back);
+a later normal rebuild replaces it. `build_compare.py --exe A --exe B` checks
+two executables play the same game (guest RAM, VRAM and pictures after
+savestate loads). Both lab tools run another tree's executable from
+`build-local` (the overlay shard cache is the executable's directory). See
+[note 554](554-d23ah-lto-pgo-build.md).

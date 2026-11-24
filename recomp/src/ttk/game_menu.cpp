@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include "ttk_register.h"
 #include <cctype>
 #include <cmath>
 #include "host_osd.h"
@@ -3732,7 +3733,7 @@ void card_text_entry(CPUState* cpu) {
 }
 }
 
-PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
+TTK_REGISTER(register_ttk_game_menu, TTK_RANK_GAME_MENU) {
     ttk::input_set_menu_handler(ttk::game_menu_input);
     ttk::input_set_quick_handler(ttk::game_menu_quick);
     // Each context's tick, just before its screen dispatch: the frontend's

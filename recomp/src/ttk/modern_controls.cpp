@@ -1,4 +1,5 @@
 #include "tight_camera.h"
+#include "ttk_register.h"
 #include <cstdarg>
 #include <ctime>
 #include <deque>
@@ -2814,7 +2815,7 @@ const char* controls_debug_json() {
     return buffer;
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
+TTK_REGISTER(register_ttk_controls, TTK_RANK_CONTROLS) {
     ttk::level_lamp_bound=ttk::level_lamp_bound_to;   // D57F (prop_lights.cpp)
     ttk::prop_signal_now=ttk::signal_now;              // D41Y (prop_lights.cpp)
     psx_mod_register_activation_plugin("ttk.widescreen",ttk::widescreen_activate);

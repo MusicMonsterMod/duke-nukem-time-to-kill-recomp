@@ -25,6 +25,7 @@
 // whose buffer does not survive restore is put back on the originals using
 // validated metadata from the immutable saved allocation, not cleared live DMA.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include "pc_input.h"
@@ -320,7 +321,7 @@ void hook(CPUState* cpu,uint32_t) {
 }
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_anim_override) {
+TTK_REGISTER(register_ttk_anim_override, TTK_RANK_ANIM_OVERRIDE) {
     // Player update (a0 = player), a gameplay-only point after the level's tables are loaded.
     psx_mod_register_function_entry_plugin("ttk.anim.override",0x8005a210,ttk::hook);
 }

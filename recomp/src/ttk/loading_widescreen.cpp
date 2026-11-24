@@ -2,6 +2,7 @@
 // Keep the original FT4, texture window and spinner unchanged. Insert two
 // translated copies before the texture-window reset in the native DMA chain.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "live_env.h"
@@ -59,7 +60,7 @@ void extend(CPUState* cpu,uint32_t) {
     psx_mod_write_word(quad,0x09000000u|(left&0xffffff));
 }
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_loading_widescreen) {
+TTK_REGISTER(register_ttk_loading_widescreen, TTK_RANK_LOADING_WIDESCREEN) {
     reserve();
     psx_mod_register_function_entry_plugin("ttk.loading.widescreen",0x8002bc18u,extend);
 }

@@ -9,6 +9,7 @@
 // while guest RAM still holds the saved state; slots saved before this show the
 // slot number and time only.
 #include "ttk_font.h"
+#include "ttk_register.h"
 #include "level_select.h"
 #include "savestate_slots.h"
 #include "pc_input.h"
@@ -235,6 +236,6 @@ extern "C" void ttk_savestate_saved(int slot) {
     else if(resume) file<<"resume 1\n";
 }
 
-PSX_MOD_CONSTRUCTOR(register_ttk_savestate_panel) {
+TTK_REGISTER(register_ttk_savestate_panel, TTK_RANK_SAVESTATE_PANEL) {
     psx_savestate_menu_set_panel_renderer(render);
 }

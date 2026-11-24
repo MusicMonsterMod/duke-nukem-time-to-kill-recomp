@@ -976,7 +976,7 @@ driven by eye. Needs playtest.
 
 ### D41S3 - D41S follow-ups
 
-**Status: Todo. Dependencies: D41S.**
+**Status: Cancelled (user 2026-11-23 optimization triage: "close the whole manure pile"; a cosmetic pause-frame shadow and a cost check already within the noise offscreen). Dependencies: D41S.**
 
 Two items left open when D41S closed ([note 471](../documentation/471-d41p2-d41s-d23n2b-field-laptop.md) section 2a):
 
@@ -986,6 +986,9 @@ Two items left open when D41S closed ([note 471](../documentation/471-d41p2-d41s
 #### Work log
 
 - 2026-11-14: added at D41S's closeout.
+
+- 2026-11-23: cancelled in the optimization triage (user: "close the whole manure pile"): a cosmetic pause-frame shadow and a cost check already within the noise offscreen.
+
 ### D41H - Smooth light on models
 
 **Status: Done (user-accepted after playtest: "it looks good still! ... it looks great"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 9). Dependencies: D41C.** Per-vertex normals for actor and prop

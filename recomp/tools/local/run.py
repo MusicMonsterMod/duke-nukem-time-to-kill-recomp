@@ -228,6 +228,10 @@ def main(argv=None):
     if a.settings or a.show_settings or a.reset_profile or a.bind or a.show_bindings:
         return 0
     exe = ROOT / 'build-local' / ('Duke_Nukem__Time_to_Kill_Recompiled' + ('.exe' if os.name == 'nt' else ''))
+    # Developer only (D23AH): DNTTK_EXE runs another build's executable (build-lto,
+    # build-pgo) with the same disc, config and settings; normal launches never set it.
+    if os.environ.get('DNTTK_EXE'):
+        exe = Path(os.environ['DNTTK_EXE']).resolve()
     if not exe.is_file():
         p.error('native candidate missing; run tools/local/build.py first')
     prepared = ROOT / 'disc/time-to-kill.cue'

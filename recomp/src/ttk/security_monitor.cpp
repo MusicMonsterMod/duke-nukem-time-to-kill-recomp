@@ -38,6 +38,7 @@
 // tools/local/build_ttk_security_monitor.py into ttk-security-monitor.pack.
 // TTK, Classic and Vanilla: nothing changes.
 #include "security_monitor.h"
+#include "ttk_register.h"
 #include "prop_state.h"
 #include "live_env.h"
 #include "pc_input.h"
@@ -633,7 +634,7 @@ extern "C" int ttk_security_overlay_piece(int i,const uint32_t** px,int* w,int* 
 }
 extern "C" int ttk_security_overlay_count(void) {return ttk::pack_ok()?(int)ttk::pack.pieces.size():0;}
 
-PSX_MOD_CONSTRUCTOR(register_ttk_security_monitor) {
+TTK_REGISTER(register_ttk_security_monitor, TTK_RANK_SECURITY_MONITOR) {
     if(const char* t=std::getenv("DNTTK_SECURITY_LIGHT")) std::sscanf(t,"%f %f",&ttk::tv_strength,&ttk::tv_radius);
     if(const char* t=std::getenv("DNTTK_SCREEN_LEVEL")) ttk::screen_base=(uint32_t)std::clamp(std::atoi(t),64,251);
     if(const char* t=std::getenv("DNTTK_POWER_LIGHT")) std::sscanf(t,"%f %f",&ttk::power_strength,&ttk::power_radius);

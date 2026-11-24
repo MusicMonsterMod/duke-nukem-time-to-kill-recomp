@@ -1,4 +1,5 @@
 #include <atomic>
+#include "ttk_register.h"
 #include <chrono>
 // SLUS-00583 / LEVEL00 weapon adapter. Runs before the original dispatch,
 // preserving muzzle, spread, projectile integration and damage handling.
@@ -1144,7 +1145,7 @@ extern "C" int ttk_aim_crosshair_image(const uint32_t** pixels,int* width,int* h
 #if !defined(_WIN32)
 static void aim_fork_child() {ttk::busy=false;}
 #endif
-PSX_MOD_CONSTRUCTOR(register_ttk_aim) {
+TTK_REGISTER(register_ttk_aim, TTK_RANK_AIM) {
 #if !defined(_WIN32)
     pthread_atfork(nullptr,nullptr,aim_fork_child);
 #endif

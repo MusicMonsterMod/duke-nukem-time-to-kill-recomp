@@ -20,6 +20,7 @@
 // D14D additionally expands local X by 256/H when Modernized H<256.
 // DNTTK_SKY_WIDE=0 (developer) keeps the original sky geometry.
 #include "cpu_state.h"
+#include "ttk_register.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "sky_render.h"
@@ -126,7 +127,7 @@ void hook(CPUState* cpu,uint32_t address) {
 }
 }
 
-PSX_MOD_CONSTRUCTOR(register_ttk_sky_widescreen) {
+TTK_REGISTER(register_ttk_sky_widescreen, TTK_RANK_SKY_WIDESCREEN) {
     for(uint32_t address:{0x8002bc18u,0x800292a0u,0x80010000u,0x8002ffecu})
         psx_mod_register_function_entry_plugin("ttk.sky.widescreen",address,ttk::hook);
 }

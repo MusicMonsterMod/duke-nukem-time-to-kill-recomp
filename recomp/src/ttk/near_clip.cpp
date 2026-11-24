@@ -1646,6 +1646,32 @@ bool repeated_corner_triangle(Poly& p) {
 }
 // 0x80011020 entry: a0 mesh, a1 ordering table, a2 render context, a3 bitmap.
 void scene_glows(CPUState* cpu);   // D41S (after prop_glows)
+// D57O: the one corner of GOLD AND GUNS' lava pit (UI slot 10, room 49)
+// whose striped texture is laid slanted (user, 2026-11-24: "it's just the one
+// texture in that exact spot"). The sloped corner triangle (texture entry
+// 1782, used by no other face on level 3) carries u along its level top edge,
+// but its bottom corner copied the far end's u, so the stripes ran along the
+// diagonal. Like the lava band's corner triangle to its right (entry 1784),
+// the bottom corner now takes the u of the top corner straight above it in x
+// (u 0), so the stripes run down the slope as on the sloped band beside it,
+// seamless along their shared edge (user: "turned more counter clockwise").
+// Developer: DNTTK_SLANT_FIX=0 leaves it.
+bool slant_fix_on() {static const bool on=[] {const char* e=std::getenv("DNTTK_SLANT_FIX");return !(e && e[0]=='0');}();return on;}
+void upright_slanted_triangle(uint32_t mesh,int16_t tex,Poly& p) {
+    if(p.count!=3 || tex!=1782 || psx_mod_read_word(0x800be570u)!=3 || !slant_fix_on() || !input_modernized()) return;
+    int x[3],y[3];
+    for(unsigned k=0;k<3;++k) {
+        const uint32_t w0=psx_mod_read_word(mesh+0x1c+8*p.idx[k]);
+        x[k]=(int)((w0&0xff)<<10);y[k]=(int)(((w0>>8)&0xff)<<7);
+    }
+    for(unsigned c=0;c<3;++c) {   // c: the corner off the level edge
+        const unsigned a=(c+1)%3,b=(c+2)%3;
+        if(y[a]!=y[b] || y[c]==y[a]) continue;
+        const unsigned above=x[a]==x[c]?a:x[b]==x[c]?b:3u;
+        if(above<3) p.uv[c]=(p.uv[c]&0xff00)|(p.uv[above]&0xff);
+        return;
+    }
+}
 void world(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4],ra=cpu->gpr[31];
     if(ra!=0x80037344 && ra!=0x80037c54 && ra!=0x80062db8) return;
@@ -1805,6 +1831,7 @@ void world(CPUState* cpu) {
             unsigned v0=255,v1=0;for(unsigned j=0;j<p.count;++j) {v0=std::min(v0,p.uv[j]>>8);v1=std::max(v1,p.uv[j]>>8);}
             for(unsigned j=0;j<p.count;++j) p.uv[j]=(p.uv[j]&0xff)|((v0+v1-(p.uv[j]>>8))<<8);
         }
+        upright_slanted_triangle(mesh,tex,p);   // D57O
         // D17AO1: a painted sky opens onto the borrowed sky drawn behind it.
         if(sky_borrow_skip(p.clut,p.tpage,p.uv,p.count)) {trace_record(f,"sky_borrow",record);continue;}
         // Light table when every corner's color-index byte has bit 4 (0x80011908).

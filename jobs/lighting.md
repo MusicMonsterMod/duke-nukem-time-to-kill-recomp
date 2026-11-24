@@ -2302,6 +2302,40 @@ unchanged, lava about +4 GPU points at that view. Needs the user's look.
 
 Closed out 2026-11-23: user "solid work!!! lock it in and close it out". Done.
 
+### D57O - GOLD AND GUNS corner wall texture slanted (UI slot 10)
+
+**Status: Done (user-accepted 2026-11-24; closed out: "perfect work. lock it in and close it out"; [note 556](../documentation/556-d57o-slanted-corner-texture.md)). Dependencies: D57N.**
+
+User, 2026-11-24: "take a look at my slot 10. there is one surface here,
+where the lines just dont line up properly. we did some texture work in this
+area previously. can you rotate this texture so it lines up with the
+adjacent textures". Save: the user's UI slot 10 (runtime slot09, 2026-11-24
+16:57), level 3, copied read only (hash-checked) to
+`research/savestates/d57o/`.
+
+Work log, 2026-11-24 ([note 556](../documentation/556-d57o-slanted-corner-texture.md)):
+the crosshair ray hits room 49's record `0x801af4ec` (texture entry 1782,
+page `0x18`, palette `0x238`, the striped rock of the pit's upper band), a
+sloped corner-filler triangle between the diagonal wall above it and the two
+bands either side. Its top edge carries u 63 -> 0 at v 128 like the wall
+above, but its bottom corner copies the top-left corner's u (63) instead of
+the u straight above it (31.5), so the vertical stripes run along the
+diagonal. Fix (`near_clip.cpp`, `upright_slanted_triangle`, Polymorph world
+path, Modernized), for this face only (level 3, texture entry 1782, which
+no other face uses; user: "It's just the one texture in that exact spot").
+A first version did it as a game-wide rule, which would have changed dozens
+of faces on other levels. First try: the bottom corner took the u of the
+top edge's middle (stripes straight down). User: "turned more counter
+clockwise ... in a similar way to the triangle that is sloped, to the right
+of it". Final: like that triangle (`0x801af4fc`), the bottom corner takes
+the u of the top corner above it in x (u 0). The stripes now carry on
+seamlessly from the wall above and the sloped band beside it
+(`research/before-after/D57O/`, local); 20 presents in a row at 180 Hz are
+identical. Vanilla and Classic unchanged.
+Developer: `DNTTK_SLANT_FIX=0`.
+
+Closed out 2026-11-24: user "perfect work. lock it in and close it out". Done.
+
 ### D41T - Explosions light cheaply: one light per chain, no blast shadows
 
 **Status: Done (2026-11-14). Dependencies: D50E.**

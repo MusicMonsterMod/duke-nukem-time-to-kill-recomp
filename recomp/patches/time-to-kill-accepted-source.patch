@@ -13526,7 +13526,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..781d104c 100644
+index fe317583..cfe6844d 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -5,6 +5,9 @@
@@ -15604,10 +15604,10 @@ index fe317583..781d104c 100644
 +                          (int)(pad_w * sizeof(uint32_t)));
      }
 -#endif
--
+ 
 -    bool manual_turbo_active = false;
 -    bool turbo_load_paced = false;
- 
+-
 -    /* Manual fast-forward: bounded by default so the game visibly advances and
 -     * audio is less hostile. PSX_FAST_FORWARD_SPEED=2..16 changes the cap;
 -     * PSX_FAST_FORWARD_SPEED=max restores the old unbounded simulation rate. */
@@ -16878,6 +16878,18 @@ index fe317583..781d104c 100644
 +            ep.skip_pace = 1;
 +            return ep;
 +        }
++    }
++
++    /* FMV auto-skip: run uncapped (no wall-clock pacing) and suppress nearly all
++     * presents so the fast-forwarded movie is invisible. Present 1-in-30 only so
++     * the window keeps pumping and never looks hung during the brief skip. */
++    if (fmv_skip_active) {
++        const int FMV_PRESENT_EVERY = 30;
++        s_fmv_skip_present_skip = (s_fmv_skip_present_skip + 1) % FMV_PRESENT_EVERY;
++        if (s_fmv_skip_present_skip != 0) {
++            ep.skip_pace = 1;
++            return ep;
++        }
      }
  
 -    /* FMV (24-bit) frames are authored 4:3 with no GTE squash to compensate
@@ -16893,7 +16905,35 @@ index fe317583..781d104c 100644
 -        if (content_h < 1) content_h = 1;
 -        dst.y = (dst_h - content_h) / 2;
 -        dst.h = content_h;
--    }
++    /* Netplay FMV: present 1 of every N depth24 vblanks while MDEC is hot.
++     * §98: default N=2 (was 4). 1/4 made present_gap_p95≈80–100 ms look like
++     * hitches; SW scanout is batched so 1/2 is affordable. Admit + wall pace
++     * still run every tick. During MDEC-idle cutover present every frame.
++     * Override: PSX_NET_FMV_PRESENT_DIV (1=every frame, 2=default, 4=legacy). */
++    if (psx_netplay_active() && gpu_display_is_depth24() &&
++        mdec_recently_active(8)) {
++        static int s_fmv_present_div = -1;
++        int div;
++        if (s_fmv_present_div < 0) {
++            const char *e = getenv("PSX_NET_FMV_PRESENT_DIV");
++            unsigned v = 2u;
++            if (e && e[0] && sscanf(e, "%u", &v) == 1 && v >= 1u && v <= 8u)
++                s_fmv_present_div = (int)v;
++            else
++                s_fmv_present_div = 2;
++        }
++        div = s_fmv_present_div;
++        if (div <= 1) {
++            s_netplay_depth24_present_skip = 0;
++        } else if (s_netplay_depth24_present_skip > 0) {
++            s_netplay_depth24_present_skip--;
++            return ep;
++        } else {
++            s_netplay_depth24_present_skip = div - 1;
++        }
++    } else {
++        s_netplay_depth24_present_skip = 0;
+     }
 -    /* Match GL depth24 nearest present — linear AA fringes short FMV bands
 -     * into the pad/unwritten row. Restore AA scale mode for 15-bit frames. */
 -    {
@@ -16904,15 +16944,31 @@ index fe317583..781d104c 100644
 -                                    want_nearest ? SDL_ScaleModeNearest
 -                                                 : SDL_ScaleModeLinear);
 -            s_sw_scale_nearest = want_nearest;
-+    /* FMV auto-skip: run uncapped (no wall-clock pacing) and suppress nearly all
-+     * presents so the fast-forwarded movie is invisible. Present 1-in-30 only so
-+     * the window keeps pumping and never looks hung during the brief skip. */
-+    if (fmv_skip_active) {
-+        const int FMV_PRESENT_EVERY = 30;
-+        s_fmv_skip_present_skip = (s_fmv_skip_present_skip + 1) % FMV_PRESENT_EVERY;
-+        if (s_fmv_skip_present_skip != 0) {
-+            ep.skip_pace = 1;
-+            return ep;
++
++    /* Offline wall-clock pacing before present. Skipped when driver vsync
++     * owns cadence (~60 Hz panel) so the two waits cannot double-block.
++     * Netplay paces in the epilogue AFTER present so Swap overlaps the
++     * peer's guest quantum. Self-check replay runs uncapped like netplay
++     * resim. */
++    if (!psx_netplay_active() && !psx_selfcheck_resim_active()) {
++        uint64_t perf_start = runtime_perf_section_begin();
++        present_track_video_standard();
++        if (!manual_turbo_active && !turbo_load_paced && present_should_wall_pace())
++            frame_pacer_wait(&s_frame_pacer, present_effective_frame_period_ms());
++        runtime_perf_section_end(perf_start, &g_runtime_perf.pacer_ticks);
++        latency_ring_mark(LAT_PACED);
++
++        /* Low-latency input: the early sample above is now ~one pacer-wait old.
++         * Refresh the device state and re-sample right before present so the next
++         * CPU frame reads near-fresh input (the dominant input->photon cost on a
++         * vsync-light box). Re-stamp the ring's input mark to measure from here.
++         * Self-check record keeps pads boundary-latched (netplay tick
++         * semantics) — the mid-frame re-sample would fork the resim. */
++        if (g_low_latency_input && !psx_selfcheck_input_locked()) {
++            SDL_GameControllerUpdate();  /* refresh pad state after the wait */
++            SDL_PumpEvents();            /* refresh keyboard state */
++            sample_pad_into_sio(override);
++            latency_ring_restamp_input();
          }
      }
 -    /* Always clear black: hot-path RenderClear used to inherit the backend
@@ -16949,120 +17005,6 @@ index fe317583..781d104c 100644
 -                SDL_DestroySurface(conv);
 -            }
 +
-+    /* Netplay FMV: present 1 of every N depth24 vblanks while MDEC is hot.
-+     * §98: default N=2 (was 4). 1/4 made present_gap_p95≈80–100 ms look like
-+     * hitches; SW scanout is batched so 1/2 is affordable. Admit + wall pace
-+     * still run every tick. During MDEC-idle cutover present every frame.
-+     * Override: PSX_NET_FMV_PRESENT_DIV (1=every frame, 2=default, 4=legacy). */
-+    if (psx_netplay_active() && gpu_display_is_depth24() &&
-+        mdec_recently_active(8)) {
-+        static int s_fmv_present_div = -1;
-+        int div;
-+        if (s_fmv_present_div < 0) {
-+            const char *e = getenv("PSX_NET_FMV_PRESENT_DIV");
-+            unsigned v = 2u;
-+            if (e && e[0] && sscanf(e, "%u", &v) == 1 && v >= 1u && v <= 8u)
-+                s_fmv_present_div = (int)v;
-+            else
-+                s_fmv_present_div = 2;
-         }
--#else
--        /* Size the buffer from the renderer's REAL output, not from a
--         * viewport*scale reconstruction: SDL_RenderReadPixels(NULL) fills the
--         * current viewport, and deriving that region from
--         * SDL_RenderGetViewport x SDL_RenderGetScale rounds independently of
--         * what SDL actually writes. The output size is a hard upper bound, so
--         * a full-output allocation cannot be overrun whatever SDL picks. */
--        int rw = 0, rh = 0;
--        if (SDL_GetRendererOutputSize(sdl_renderer, &rw, &rh) == 0 && rw > 0 && rh > 0) {
--            SDL_Rect vp; SDL_RenderGetViewport(sdl_renderer, &vp);
--            float sx = 1.0f, sy = 1.0f; SDL_RenderGetScale(sdl_renderer, &sx, &sy);
--            ow = (int)(vp.w * sx); oh = (int)(vp.h * sy);
--            if (ow <= 0 || ow > rw) ow = rw;
--            if (oh <= 0 || oh > rh) oh = rh;
--            packed = (uint8_t *)std::malloc((size_t)rw * rh * 3);   /* upper bound */
--            if (packed && SDL_RenderReadPixels(sdl_renderer, NULL,
--                                               SDL_PIXELFORMAT_RGB24,
--                                               packed, ow * 3) != 0) {
--                std::free(packed); packed = NULL;
--            }
-+        div = s_fmv_present_div;
-+        if (div <= 1) {
-+            s_netplay_depth24_present_skip = 0;
-+        } else if (s_netplay_depth24_present_skip > 0) {
-+            s_netplay_depth24_present_skip--;
-+            return ep;
-+        } else {
-+            s_netplay_depth24_present_skip = div - 1;
-         }
--#endif
--        int wrote = 0;
--        if (packed && ow > 0 && oh > 0) {
--            FILE *pf = std::fopen(shot_path, "wb");
--            if (pf) {
--                wrote = png_write_rgb(pf, packed, (uint32_t)ow, (uint32_t)oh);
--                std::fclose(pf);
--            }
-+    } else {
-+        s_netplay_depth24_present_skip = 0;
-+    }
-+
-+    /* Offline wall-clock pacing before present. Skipped when driver vsync
-+     * owns cadence (~60 Hz panel) so the two waits cannot double-block.
-+     * Netplay paces in the epilogue AFTER present so Swap overlaps the
-+     * peer's guest quantum. Self-check replay runs uncapped like netplay
-+     * resim. */
-+    if (!psx_netplay_active() && !psx_selfcheck_resim_active()) {
-+        uint64_t perf_start = runtime_perf_section_begin();
-+        present_track_video_standard();
-+        if (!manual_turbo_active && !turbo_load_paced && present_should_wall_pace())
-+            frame_pacer_wait(&s_frame_pacer, present_effective_frame_period_ms());
-+        runtime_perf_section_end(perf_start, &g_runtime_perf.pacer_ticks);
-+        latency_ring_mark(LAT_PACED);
-+
-+        /* Low-latency input: the early sample above is now ~one pacer-wait old.
-+         * Refresh the device state and re-sample right before present so the next
-+         * CPU frame reads near-fresh input (the dominant input->photon cost on a
-+         * vsync-light box). Re-stamp the ring's input mark to measure from here.
-+         * Self-check record keeps pads boundary-latched (netplay tick
-+         * semantics) — the mid-frame re-sample would fork the resim. */
-+        if (g_low_latency_input && !psx_selfcheck_input_locked()) {
-+            SDL_GameControllerUpdate();  /* refresh pad state after the wait */
-+            SDL_PumpEvents();            /* refresh keyboard state */
-+            sample_pad_into_sio(override);
-+            latency_ring_restamp_input();
-         }
--        std::free(packed);
--        present_shot_done(wrote);
-     }
--    /* §33: remember active rect for resim hold-last (not full 640x512). */
--    s_sw_hold_src = src;
--    s_sw_hold_dst = dst;
--    s_sw_hold_valid = 1;
- 
--    /* Vsync self-heal. PRESENTVSYNC is only armed when driver vsync owns
--     * cadence; the wall-clock pacer otherwise holds 59.94 Hz. Under some
--     * driver states (observed: NVIDIA GL with the swap queue wedged)
--     * SwapBuffers blocks ~1.5 s per present, dragging the whole
--     * emulation to ~0.7 fps for minutes (freeze dump 1781045865:
--     * 8/8 main-thread samples inside wglSwapBuffers). If presents
--     * block pathologically several times in a row, drop driver vsync
--     * for the rest of the session; wall-clock pacing takes over. */
--    {
--        latency_ring_mark(LAT_SWAP_BEGIN);
--        const Uint64 t0 = SDL_GetPerformanceCounter();
--        SDL_RenderPresent(sdl_renderer);
--        const Uint64 t1 = SDL_GetPerformanceCounter();
--        latency_ring_mark(LAT_SWAP_END);
--        netplay_note_present();
--        const Uint64 freq = SDL_GetPerformanceFrequency();
--        const Uint64 present_ms = (t1 >= t0 && freq) ? ((t1 - t0) * 1000u) / freq : 0;
--        if (!g_present_vsync_disabled && present_ms > 250) {
--            g_present_slow_count++;
--            if (g_present_slow_count >= 3 &&
--                SDL_RenderSetVSync(sdl_renderer, 0) == 0) {
--                g_present_vsync_disabled = 1;
--            }
 +    /* Mod hooks. Run after all normal input sampling. */
 +    mod_call_frame_hooks();
 +
@@ -17087,7 +17029,27 @@ index fe317583..781d104c 100644
 +            g_ws_engaged = true;
 +            g_ws_projection_mode = -1;
 +            refresh_widescreen_projection();
-+        }
+         }
+-#else
+-        /* Size the buffer from the renderer's REAL output, not from a
+-         * viewport*scale reconstruction: SDL_RenderReadPixels(NULL) fills the
+-         * current viewport, and deriving that region from
+-         * SDL_RenderGetViewport x SDL_RenderGetScale rounds independently of
+-         * what SDL actually writes. The output size is a hard upper bound, so
+-         * a full-output allocation cannot be overrun whatever SDL picks. */
+-        int rw = 0, rh = 0;
+-        if (SDL_GetRendererOutputSize(sdl_renderer, &rw, &rh) == 0 && rw > 0 && rh > 0) {
+-            SDL_Rect vp; SDL_RenderGetViewport(sdl_renderer, &vp);
+-            float sx = 1.0f, sy = 1.0f; SDL_RenderGetScale(sdl_renderer, &sx, &sy);
+-            ow = (int)(vp.w * sx); oh = (int)(vp.h * sy);
+-            if (ow <= 0 || ow > rw) ow = rw;
+-            if (oh <= 0 || oh > rh) oh = rh;
+-            packed = (uint8_t *)std::malloc((size_t)rw * rh * 3);   /* upper bound */
+-            if (packed && SDL_RenderReadPixels(sdl_renderer, NULL,
+-                                               SDL_PIXELFORMAT_RGB24,
+-                                               packed, ow * 3) != 0) {
+-                std::free(packed); packed = NULL;
+-            }
 +    } else {
 +        refresh_widescreen_projection();
 +    }
@@ -17118,14 +17080,52 @@ index fe317583..781d104c 100644
 +        if (psx_netplay_rb_fmv_media_active()) {
 +            netplay_hold_last_present_tick();
 +            return ep;
-+        }
+         }
+-#endif
+-        int wrote = 0;
+-        if (packed && ow > 0 && oh > 0) {
+-            FILE *pf = std::fopen(shot_path, "wb");
+-            if (pf) {
+-                wrote = png_write_rgb(pf, packed, (uint32_t)ow, (uint32_t)oh);
+-                std::fclose(pf);
+-            }
 +        if (!beyond_shown && !netplay_replay_catchup_should_live_present(rem)) {
 +            netplay_hold_last_present_tick();
 +            return ep;
          }
+-        std::free(packed);
+-        present_shot_done(wrote);
 +        /* Fall through to real VRAM present (new frame, or wall-clock gate). */
-+    }
-+    {
+     }
+-    /* §33: remember active rect for resim hold-last (not full 640x512). */
+-    s_sw_hold_src = src;
+-    s_sw_hold_dst = dst;
+-    s_sw_hold_valid = 1;
+-
+-    /* Vsync self-heal. PRESENTVSYNC is only armed when driver vsync owns
+-     * cadence; the wall-clock pacer otherwise holds 59.94 Hz. Under some
+-     * driver states (observed: NVIDIA GL with the swap queue wedged)
+-     * SwapBuffers blocks ~1.5 s per present, dragging the whole
+-     * emulation to ~0.7 fps for minutes (freeze dump 1781045865:
+-     * 8/8 main-thread samples inside wglSwapBuffers). If presents
+-     * block pathologically several times in a row, drop driver vsync
+-     * for the rest of the session; wall-clock pacing takes over. */
+     {
+-        latency_ring_mark(LAT_SWAP_BEGIN);
+-        const Uint64 t0 = SDL_GetPerformanceCounter();
+-        SDL_RenderPresent(sdl_renderer);
+-        const Uint64 t1 = SDL_GetPerformanceCounter();
+-        latency_ring_mark(LAT_SWAP_END);
+-        netplay_note_present();
+-        const Uint64 freq = SDL_GetPerformanceFrequency();
+-        const Uint64 present_ms = (t1 >= t0 && freq) ? ((t1 - t0) * 1000u) / freq : 0;
+-        if (!g_present_vsync_disabled && present_ms > 250) {
+-            g_present_slow_count++;
+-            if (g_present_slow_count >= 3 &&
+-                SDL_RenderSetVSync(sdl_renderer, 0) == 0) {
+-                g_present_vsync_disabled = 1;
+-            }
+-        }
 +        /* Raise the display watermark for any frame that falls through to a
 +         * real present (live or Replay). Hold-last paths return above and
 +         * never raise it. */
@@ -17257,7 +17257,25 @@ index fe317583..781d104c 100644
      if (g_video_geometry_correction || g_video_perspective_texturing) {
          std::fprintf(stdout,
                       "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
-@@ -14086,7 +15118,7 @@ session_reboot:
+@@ -14078,6 +15110,17 @@ session_reboot:
+ #endif
+ 
+     Uint32 win_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
++#if defined(PSX_SDL3)
++    /* D19Z4: a drawable at the screen's real pixels on scaled desktops.
++     * Without it, Wayland at a fractional scale (KDE 145% on a 1080p TV)
++     * gives a logical-size buffer (1324x745) that the compositor or the
++     * display hardware scales up: a softer picture, and on amdgpu the
++     * hardware cursor over that scaled plane shows its whole 256x256 buffer
++     * as a light square. The renderer already sizes everything from the
++     * drawable (SDL_GL_GetDrawableSize); input uses relative motion only.
++     * No effect at scale 1 (X11 desktops) or on Windows (DPI scaling off). */
++    win_flags |= SDL_WINDOW_HIGH_PIXEL_DENSITY;
++#endif
+     if (g_video_renderer == 1) {
+         configure_core_gl_context_attributes();
+         win_flags |= SDL_WINDOW_OPENGL;
+@@ -14086,7 +15129,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -17266,7 +17284,7 @@ index fe317583..781d104c 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +15137,9 @@ session_reboot:
+@@ -14105,7 +15148,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -17276,7 +17294,7 @@ index fe317583..781d104c 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +15244,19 @@ session_reboot:
+@@ -14210,6 +15255,19 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -17296,7 +17314,7 @@ index fe317583..781d104c 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +15623,8 @@ session_reboot:
+@@ -14576,6 +15634,8 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -17305,7 +17323,7 @@ index fe317583..781d104c 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15815,7 @@ session_reboot:
+@@ -14766,6 +15826,7 @@ session_reboot:
          }
      }
  
@@ -17313,7 +17331,7 @@ index fe317583..781d104c 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15855,28 @@ session_reboot:
+@@ -14805,11 +15866,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }

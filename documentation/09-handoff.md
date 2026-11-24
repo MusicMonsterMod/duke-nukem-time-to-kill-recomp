@@ -1,5 +1,9 @@
 # Next-session handoff
 
+## 2026-11-24 - D19Z4 closed out (Done)
+
+- D19Z4 ([note 557](557-d19z4-cursor-square-wayland-scale.md)): on scaled Wayland screens (citadel, KDE 145 %) the game window now draws at the screen's real pixels (`SDL_WINDOW_HIGH_PIXEL_DENSITY`, framework `main.cpp`); before, a 1324x745 buffer scaled by the display hardware put a light 256x256 square behind the pointer. User A/B on citadel's TV confirmed the cause and the fix. Citadel cost: GPU +3.5 points, 60 fps unchanged. X11 and Windows unchanged. Installed on citadel (old build kept as `.citadel-1118`) with a desktop icon; desktop LTO+PGO rebuilt and installed. User: "lock it in and close it out!". Done.
+
 ## 2026-11-24 - D57O closed out (Done)
 
 - D57O ([note 556](556-d57o-slanted-corner-texture.md)): GOLD AND GUNS, UI slot 10: the sloped corner triangle in the lava pit's upper band (room 49, record `0x801af4ec`) drew its stripes diagonally; only that face (level 3, texture entry 1782) now has its bottom corner's u set to that of the top corner above it (like the triangle to its right, entry 1784) (`near_clip.cpp`, `upright_slanted_triangle`, Modernized; `DNTTK_SLANT_FIX=0` developer). The user wanted only that face, not a game-wide rule. Before/after in `research/before-after/D57O/`. The player build is LTO+PGO again (`optimized_build.py use`, `install --from pgo`). User-accepted: "perfect work. lock it in and close it out".

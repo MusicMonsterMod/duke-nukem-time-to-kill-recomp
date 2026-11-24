@@ -1460,7 +1460,7 @@ sliders/lists; record platform coverage and any unverified cases.
 
 ### D19Z4 - A light square behind the mouse cursor (citadel, Wayland?)
 
-**Status: Done (user-accepted and closeout authorized 2026-11-20). Dependencies: none.**
+**Status: Done (user-accepted and closeout authorized 2026-11-24, [note 557](../documentation/557-d19z4-cursor-square-wayland-scale.md)). Dependencies: none.**
 
 User, 2026-11-16, after playing TIME TO KILL (level 0) on citadel, the TV
 PC (Ryzen 3 3200GE, Vega 8, CachyOS with a KDE session, possibly Wayland):
@@ -1477,6 +1477,42 @@ scale mismatch under the compositor) or a game-drawn pointer or OSD image
 `SDL_VIDEODRIVER=x11` on the same machine. Acceptance: the pointer shows
 without a box on citadel in menus and paused gameplay, unchanged on the
 desktop and the field laptop, Vanilla unchanged.
+
+#### Work log 2026-11-24 - cause found and fixed
+
+- **Board.** The D20K closeout (2026-11-20) had set this section's header
+  to Done by mistake; no D19Z4 work had been done. Corrected.
+- **Cause.** Citadel runs the game as native Wayland (SDL 3.4.10's default)
+  at KDE's 145 % scale. The window was created without
+  `SDL_WINDOW_HIGH_PIXEL_DENSITY`, so the game drew a 1324x745 logical-size
+  buffer. KWin put that buffer straight on the primary plane, scaled by the
+  hardware to 1920x1080, with its own pointer on the 256x256 cursor plane
+  (debugfs atomic state). Over the scaled plane the pointer showed its
+  whole 256x256 buffer as a light square. The pointer image is KWin's own
+  (cursor-shape protocol); the game sets none. Why amdgpu draws it that way
+  is not established.
+- **A/B on the TV** (user, same session): the unchanged build with SDL's
+  `SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY=1` (a 1920x1080 buffer): "No square";
+  without it: "Square is back"; the fixed build, normal launch: "Clean, no
+  square".
+- **Fix** (`recomp/psxrecomp/runtime/src/main.cpp`, window creation, SDL3):
+  `SDL_WINDOW_HIGH_PIXEL_DENSITY`. On scaled Wayland screens the game now
+  draws at the screen's real pixels and is presented unscaled, which also
+  makes it sharper. Only SDL's Wayland backend reads the flag: X11 (desktop,
+  field laptop) and Windows are unchanged, and so is Vanilla.
+- **Cost** (citadel, real screen, lab `cad` on UI slot 1, interleaved
+  old/new/new/old): 60.0 fps and 60 pictures a second in all four runs,
+  emulation thread 55-56 %, GPU busy 65/68 % old vs 70/70 % new (about +3.5
+  points for the larger final picture).
+- **Checks.** Local tests 270 OK (2 skipped); the patch reproduces the tree
+  from the clean pinned framework; six framework runtime tests fail when run
+  standalone, with or without this change (already failing, outside CI).
+  Desktop LTO+PGO rebuilt with the existing profile and installed.
+- **Installed on citadel** (user request): the fixed executable replaces
+  citadel's build (the old one kept as `.citadel-1118`, the player's settings
+  backed up first), and a desktop icon like the field laptop's launches it
+  (`recomp/analysis/play/play.sh`, local).
+- **Accepted.** User: "lock it in and close it out!". Done.
 
 ### D19AC - Crash on opening OPTIONS from the pause menu
 

@@ -485,8 +485,8 @@ static bool host_vis_walk(CPUState* cpu) {
         const bool a=host_vis_developer[x.room],b=host_vis_developer[y.room];
         return a!=b ? b : x.distance<y.distance;});
     static std::vector<bool> picked;picked.assign(rooms,false);for(const Pick& k:picks) picked[k.room]=true;
-    static unsigned trace_picked[256],trace_drawn[256],trace_left[256];
-    if(vis_trace) {std::fill(trace_picked,trace_picked+256,0u);std::fill(trace_drawn,trace_drawn+256,0u);std::fill(trace_left,trace_left+256,0u);for(const Pick& k:picks) if(k.room<256) ++trace_picked[k.room];}
+    static unsigned trace_picked[256],trace_drawn[256],trace_left[256];static double trace_us[256];
+    if(vis_trace) {std::fill(trace_picked,trace_picked+256,0u);std::fill(trace_drawn,trace_drawn+256,0u);std::fill(trace_left,trace_left+256,0u);std::fill(trace_us,trace_us+256,0.0);for(const Pick& k:picks) if(k.room<256) ++trace_picked[k.room];}
     unsigned pieces_drawn=0;uint32_t current=~0u,flags=0x300;
     // D17AR3: a redraw-only live frame is never shown (frame_replay.cpp); its
     // selection stands (rooms for the props and object passes), no piece is
@@ -523,13 +523,16 @@ static bool host_vis_walk(CPUState* cpu) {
         psx_mod_write_word(view_limits+0x50,flags|0x80);
         cpu->gpr[4]=k.piece;cpu->gpr[5]=0x800d27a0u;cpu->gpr[6]=view_limits;cpu->gpr[7]=0x800d26a0u;cpu->gpr[31]=0x80062db8u;
         ++host_vis_selected;
-        if(near_clip_host_world_piece(cpu)) {++pieces_drawn;if(vis_trace && k.room<256) ++trace_drawn[k.room];}
+        const auto tp=vis_trace?std::chrono::steady_clock::now():std::chrono::steady_clock::time_point{};
+        const bool emitted=near_clip_host_world_piece(cpu);
+        if(vis_trace && k.room<256) trace_us[k.room]+=std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-tp).count();
+        if(emitted) {++pieces_drawn;if(vis_trace && k.room<256) ++trace_drawn[k.room];}
         else if(host_vis_developer[k.room] || roof_cap_owns(k.piece)) ++host_vis_developer_dropped;   // D17BP: a cap is never the game's to draw
         else {left.push_back(k.piece);left_room[k.room]=true;++host_vis_left;if(vis_trace && k.room<256) ++trace_left[k.room];}
     }
     if(vis_trace) {
-        std::fprintf(stderr,"[TTK hostvis drawn] eye %.0f:",c.eye[1]);
-        for(uint32_t r:order) if(r<256) std::fprintf(stderr," %u=%u/%u/%u",r,trace_picked[r],trace_drawn[r],trace_left[r]);
+        std::fprintf(stderr,"[TTK hostvis drawn] pid %d eye %.0f:",ttk_trace_pid(),c.eye[1]);
+        for(uint32_t r:order) if(r<256) std::fprintf(stderr," %u=%u/%u/%u/%.0fus",r,trace_picked[r],trace_drawn[r],trace_left[r],trace_us[r]);
         std::fprintf(stderr,"\n");
     }
     std::memcpy(cpu->gte_ctrl,saved_ctrl,sizeof saved_ctrl);std::memcpy(cpu->gpr,saved_gpr,sizeof saved_gpr);

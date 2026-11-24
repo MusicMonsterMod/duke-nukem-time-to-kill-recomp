@@ -52,6 +52,13 @@
 #include <chrono>
 #include <map>
 #include <string>
+#ifdef _WIN32
+#include <process.h>
+static int ttk_trace_pid() {return _getpid();}
+#else
+#include <unistd.h>
+static int ttk_trace_pid() {return (int)getpid();}
+#endif
 
 extern "C" {extern int g_precise_mode,g_ls_mode,g_psx_call_bail;}
 extern "C" int g_ttk_hook_mute;

@@ -1167,6 +1167,34 @@ uint64_t smooth_quad_count=0,smooth_quad_joins=0;
 // session in live frames (A/B shots at 60 Hz; redraw workers keep the
 // switch).
 std::atomic<int> smooth_quads_override{-1};
+// D23AR: the break is a change of slope across the face; on a quad only a
+// few pixels across the four-triangle blend changes nothing anyone can see
+// and costs three more triangles (43% of the world's emission at the
+// GOLD AND GUNS top-level view, most of it far faces). A quad is blended
+// only when its screen extent (the larger of width and height, native GTE
+// pixels) reaches smooth_quad_min_px. Developer DNTTK_SMOOTH_MIN_PX=0 blends
+// every quad, as before; console "smoothquads min <px>" for the session
+// (live frames; the redraw workers keep the starting value).
+std::atomic<int> smooth_min_override{-1};
+double smooth_quad_min_px() {
+    static const int v=env_int("DNTTK_SMOOTH_MIN_PX",8,0,256);
+    const int o=smooth_min_override.load(std::memory_order_relaxed);
+    return o<0 ? v : o;
+}
+uint64_t smooth_quad_small=0;
+uint64_t small_models=0;
+template<class Shape> bool smooth_quad_large(const Frame& f,const Shape& shape) {
+    const double min=smooth_quad_min_px();
+    if(min<=0) return true;
+    double x0=1e18,x1=-1e18,y0=1e18,y1=-1e18;
+    for(const auto& v:shape) {
+        if(v.p[2]<=0) return true;
+        double x,y;screen(f,v,x,y);
+        x0=std::min(x0,x);x1=std::max(x1,x);y0=std::min(y0,y);y1=std::max(y1,y);
+    }
+    if(std::max(x1-x0,y1-y0)>=min) return true;
+    ++smooth_quad_small;return false;
+}
 bool smooth_quads() {
     static const bool on=env_int("DNTTK_SMOOTH_QUADS",1,0,1)!=0;
     const int o=smooth_quads_override.load(std::memory_order_relaxed);
@@ -1352,7 +1380,7 @@ template<class Shape> void draw_shape(Frame& f,const Poly& poly) {
     // Only where one texture map covers the quad (corner 3's coordinates
     // follow from corners 0-2): otherwise its two halves map the texture
     // differently (D17Z) and a centre corner would move it.
-    if(smooth_quads() && unified_scene(f) && !f.object && poly.count==4 && !warped && smooth_twist(poly.colors))
+    if(smooth_quads() && unified_scene(f) && !f.object && poly.count==4 && !warped && smooth_twist(poly.colors) && smooth_quad_large(f,shape))
         smooth=!poly.textured || one_texture_map(shape[0],shape[1],shape[3],shape[2]);
     bool whole=false;
     // DNTTK_UNIFIED_QUADS=0 (developer) draws every quad as its two halves.
@@ -2952,6 +2980,26 @@ void object(CPUState* cpu) {
     // D17BI: flat props take the decal allowance (prop_contact_shift).
     f.flat_prop=f.scene && !actor && !body && flat_mesh(vertices,count);
     bool forced=(unified() && f.scene) || f.borrowed;
+    // D23AR: a model only a few pixels across on screen (a far enemy, a
+    // sleeping stand-in at the end of a tunnel, whose limbs are 1-2 pixels)
+    // skips the coplanar ranking and the smoothed normals below: nothing of
+    // either shows at that size (the GOLD AND GUNS top-level pictures are
+    // identical to the colour step) and they were 11% of a stand-in's cost.
+    // Developer DNTTK_SMALL_MODEL_PX=<native pixels> (default 6, 0 off).
+    bool small=false;
+    {
+        static const int small_px=env_int("DNTTK_SMALL_MODEL_PX",6,0,256);
+        if(small_px && unified() && f.scene && !body && !viewmodel && !f.borrowed && !f.glow && !hat && !stand) {
+            int x0=INT32_MAX,x1=INT32_MIN,y0=INT32_MAX,y1=INT32_MIN;bool ok=true;
+            for(const auto& v:f.verts) {
+                if(!v.safe) {ok=false;break;}
+                const int x=(int16_t)v.sxy,y=(int16_t)(v.sxy>>16);
+                x0=std::min(x0,x);x1=std::max(x1,x);y0=std::min(y0,y);y1=std::max(y1,y);
+            }
+            small=ok && std::max(x1-x0,y1-y0)<small_px;
+            if(small) ++small_models;
+        }
+    }
     f.far=f.scene;for(const auto& v:f.verts) f.far&=v.sz>=far_z;
     trace_vertices(f);
     // As in world(): only a downgraded scene mesh leaves native packets.
@@ -3163,8 +3211,8 @@ void object(CPUState* cpu) {
         for(const auto& p:polys) if(!(p.command&0x02000000u) && p.native_order && p.native_slot>=0) nearest=std::min(nearest,p.native_slot);
         if(nearest<=0x7ff) for(auto& p:polys) if(p.command&0x02000000u) {p.native_order=true;p.native_slot=std::max(0,nearest-1);}
     }
-    if(!viewmodel) rank_coplanar(f,polys);
-    if(light_frame && light_smooth && !f.sky && !f.biomask && (unified_scene(f) || f.duke_lit))
+    if(!viewmodel && !small) rank_coplanar(f,polys);
+    if(light_frame && light_smooth && !small && !f.sky && !f.biomask && (unified_scene(f) || f.duke_lit))
         smooth_model_normals(f,polys,list,count,flags);
     for(const auto& p:polys) draw(f,p);
     // D41S: moving objects only (not the static-prop loop), not the sky, a
@@ -3704,6 +3752,15 @@ namespace ttk {
 bool smoothquads_console_command(const char* line,void (*say)(const char*),bool& close) {
     if(std::strcmp(line,"smoothquads") && std::strncmp(line,"smoothquads ",12)) return false;
     close=false;
+    if(!std::strncmp(line,"smoothquads min ",16)) {
+        const char* v=line+16;char msg[96];
+        if(!std::strcmp(v,"default")) smooth_min_override=-1;
+        else {char* e;const long n=std::strtol(v,&e,10);
+            if(e==v || *e || n<0 || n>256) {say("Usage: smoothquads min <0-256>|default (developer, session only)");return true;}
+            smooth_min_override=(int)n;}
+        std::snprintf(msg,sizeof msg,"Smooth quads from %.0f native pixels (0: every quad).",smooth_quad_min_px());say(msg);
+        return true;
+    }
     if(line[11]) {
         const char* v=line+12;
         if(!std::strcmp(v,"on")) smooth_quads_override=1;

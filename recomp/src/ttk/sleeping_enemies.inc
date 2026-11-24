@@ -305,7 +305,19 @@ static void sleeping_draw(CPUState* source) {
     for(unsigned i=0;i<0x88/4;++i) state[i]=psx_mod_read_word(0x800d67a8+4*i);
     const auto t0=std::chrono::steady_clock::now();
     const uint32_t frame=psx_mod_read_word(0x800bcba4);
+    // Developer DNTTK_SLEEPING_TRACE=1: each drawn stand-in's distance, size on
+    // screen (radius projected, native pixels) and drawing time.
+    static const bool sleep_trace=[]{const char* t=std::getenv("DNTTK_SLEEPING_TRACE");return t && !std::strcmp(t,"1");}();
+    if(sleep_trace) std::fprintf(stderr,"[TTK sleeping trace] pid %d",ttk_trace_pid());
     for(uint32_t i=0;i<np;++i) {
+        struct TraceEnd {bool on;uint32_t actor,d;std::chrono::steady_clock::time_point t;
+            ~TraceEnd() {
+                if(!on) return;
+                const HostVisCamera& c=host_vis_frame_cam;double z=0;
+                for(int k=0;k<3;++k) z+=c.m[6+k]*((int32_t)psx_mod_read_word(actor+4+4*k)-c.eye[k]);
+                z/=4096.0;const double rad=(int16_t)psx_mod_read_half(actor+0x5a);
+                std::fprintf(stderr," d%u r%.0f px%.1f %.0fus",d,rad,z>1?2*rad*c.h/z:-1.0,std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-t).count());
+            }} trace_end{sleep_trace,picks[i].actor,picks[i].d,std::chrono::steady_clock::now()};
         psx_mod_write_word(picks[i].actor+0x5c,frame);
         psx_mod_write_word(picks[i].actor+0x3c,0);
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
@@ -315,6 +327,7 @@ static void sleeping_draw(CPUState* source) {
         if(cpu.pc!=0 || g_psx_call_bail) break;
         ++sleep_last_drawn;
     }
+    if(sleep_trace) std::fprintf(stderr,"\n");
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=stack[i]) psx_mod_write_word(base+4*i,stack[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
     // D50G: everything but word +0 (the packet ring cursor). A stand-in on

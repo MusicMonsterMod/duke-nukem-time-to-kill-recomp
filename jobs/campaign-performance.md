@@ -4802,7 +4802,7 @@ walk (`CASES=rates`, the player's profile).
 
 ### D23AR - GOLD AND GUNS top level in shot
 
-**Status: Todo (backlog, user 2026-11-24; research in progress). Dependencies: D23AH; coordinate D23AQ.**
+**Status: Done (2026-11-24, user-accepted: "it plays absolutely insanely well! amazing work"; [note 555](../documentation/555-d23ar-top-level-view.md)). Dependencies: D23AH; coordinate D23AQ.**
 
 User, 2026-11-24, playing GOLD AND GUNS (level 3) on the field laptop with
 the D23AH build: "for me that's been the heaviest going part. it's
@@ -4822,6 +4822,79 @@ gain, exactness and effort; publish the findings as a page.
 
 Acceptance: a measured cost breakdown of the top-level view on the field
 laptop and a ranked list of solutions for the user to choose from.
+
+Research, 2026-11-24 (field laptop, real screen, the player's settings, the
+D23AH LTO+PGO build; the player's slot 8 view held still 25 s, two rounds;
+lab `recomp/analysis/d23ah` on the laptop, `recomp/analysis/d23ar` here;
+findings page published for the user). MEASURED: the top level in shot gives
+27.7 / 22.8 new pictures a second (lowest tenth 21), redraw worker 96%,
+render thread 60%, emulation thread 54-63%; with DRAW DISTANCE ORIGINAL 60
+(worker 56-61%, render 23-27%); the lava pit looked down on (UI 10) 60
+(worker 41-43%); guard band 0 (`DNTTK_HOST_VIS_GUARD=0`) unchanged, so the
+cost is inside the view. Worker profile (`PSX_PROF_WORKERS` +
+`PSX_PROF_STACKS`): about 39 ms of worker time a picture extended against
+9.6 ms original; of the extended job, the far-room walk and emission
+(`host_vis_walk`, `draw_distance_apply`) 31% and the far rooms' sleeping
+actors drawn through the game's own code (`sleeping_draw`) 25%. The two
+pictures (desktop offscreen, same state) differ in 606 of 589,824 pixels,
+almost all animated torch flames: at this view that work adds nothing
+visible. Options ranked (none built): 1) skip or cheapen far rooms by the
+screen size of the openings they are seen through, with a soft threshold;
+2) screen-size level of detail for sleeping actors; 3) keep a sleeping
+actor's drawing between pictures (exact); 4) level geometry kept on the GPU
+(exact, architectural). Ruled out: draw distance shrinking under load (D23AO),
+per-level tuning, the guard band (measured). Next: count far rooms, pieces,
+sleeping actors and each room's screen rectangle per picture at this view.
+
+Counts, 2026-11-24 (desktop, SDL offscreen, the same view loaded from the lab
+card, extended, FRAME RATE 60; `count.py`, `workers.py`, `stacks.py` in the
+local lab; no code changed). MEASURED: 11 rooms and 49 pieces a picture (9 of
+the rooms on the game's own portal list). Five far rooms are 3-14 native
+pixels across with one piece each; rooms 49 and 50 hold 20 pieces through
+openings about 65 x 60 pixels; one full-view sky room. Sleeping actors: 26
+eligible, 5 drawn, all in rooms the game itself lists (none through the
+host-only path, so testing host-only rooms against the room rectangle instead
+of the whole view would not help here). Redraw worker 10.5-10.7 ms a picture;
+with `DNTTK_SLEEPING_ENEMIES=0` the desktop workers stop falling behind at
+this view. Worker profile (2734 stacks, three workers): host world walk 28%,
+sleeping actors 18.5% (about half of that is the host's model path - `object`,
+`draw_shape`, `emit`, normal smoothing, coplanar ranking - not the game's
+skeleton code); all host shape building `draw_shape` 35%, `emit` 25%. Exact
+caches available but small: model coplanar ranking (world meshes already
+cache it) about 5% of the worker, normal smoothing of a still sleeping actor
+about 3%. So the big gains stay with options 1 and 2 (screen-size culling of
+far rooms, screen-size level of detail for sleeping actors), which change
+pixels, even if only a few (606 at this view); that choice is the user's.
+
+Built, 2026-11-24 (user: "options 1 then 2"), [note 555](../documentation/555-d23ar-top-level-view.md).
+Both options were reshaped by measurement before building. Option 1 as a room
+cull does not pay: the far rooms that cost (the tunnel's end, 1.6 of 3.3 ms)
+are visible and are drawn with ORIGINAL too; the tiny rooms cost 0.24 ms. A
+face's cost does not depend on its size, so the built form cheapens small
+faces: the D17AV four-triangle smooth quad is made only for quads 8 native
+pixels or larger (`DNTTK_SMOOTH_MIN_PX`, console `smoothquads min`). Option 2:
+most of a sleeping enemy's cost (0.7-0.8 ms each at 7 pixels tall) is the
+game's actor code and the dispatcher's checks, not the mesh; the built form
+skips coplanar ranking and smoothed normals for models under 6 pixels
+(`DNTTK_SMALL_MODEL_PX`). MEASURED, desktop workers at the view: world 3.31 ->
+2.85 ms, sleeping enemies 2.41 -> 2.15 ms (about 7% of a picture); pictures:
+354 pixels change by more than 4 steps, all at the far end of the tunnel.
+Field laptop, real screen, six interleaved rounds: the view settles in one of
+two states whatever the setting, A (game 60, worker 95%, 21-23 pictures) or B
+(emulation 90%, game at 33-36 fields, 26-29 pictures, INFERRED the redraw-only
+fallback); within B, +1.5 pictures and +5% game speed. Desktop unit tests
+pass. The larger levers (the fallback halving game speed, the dispatcher's
+checks at 10% of the worker, smooth quads in the shader) are listed in the
+note, not built. Developer traces: per-room time in `DNTTK_HOST_VIS_TRACE`,
+new `DNTTK_SLEEPING_TRACE`, process id on both. LTO+PGO rebuilt with the change
+and installed on the desktop and the field laptop (its previous executable kept
+as `.pre-d23ar`).
+
+Closed out, 2026-11-24. User, after playing the build: "it plays absolutely insanely well! amazing work". Lab trimmed to its
+scripts, counts and key shots; the laptop's copied D23AR test executable
+removed (its previous executable stays as `.pre-d23ar`). Follow-ups not built:
+the redraw-only fallback at this view (D23AQ), the dispatcher's checks on guest
+calls inside redraws, smooth quads in the shader (note 555 section 4).
 
 ### D22P - GOLD AND GUNS skeleton key and the closed room in the lava hall (research)
 

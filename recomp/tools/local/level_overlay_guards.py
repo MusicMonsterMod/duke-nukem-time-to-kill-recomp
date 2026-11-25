@@ -33,6 +33,13 @@ HIT_VECTOR_BYTES = 16
 # The original title level-select cheat's levels (documentation/101): 0-31
 # without 4 and 13 (XXX), 14 (animation test), 15-20 (two-player) and 30-31.
 SELECTABLE = (0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+# D61: the hidden indices one player can enter (level force N, goto N), so
+# Modernized controls and first person work there too. Each loads the file
+# named here at 0x800ca968, byte for byte (checked against the atlas RAM
+# dumps): its LEVELxx.OVR, the sound test its directory's BASEOVR. The
+# two-player arenas (15-20) stay out (split_arena_guards.inc).
+HIDDEN = {4: '/D0/DB04/LEVEL04.OVR', 13: '/D1/DB13/LEVEL13.OVR', 14: '/D1/DB14/LEVEL14.OVR',
+          30: '/D3/DB30/LEVEL30.OVR', 31: '/D3/DB31/BASEOVR.OVR'}
 STORES = {0x28: 1, 0x29: 2, 0x2b: 4}  # sb, sh, sw
 
 
@@ -124,15 +131,18 @@ def arena_table(rows):
 
 def guards(disc):
     found = {}
+    hidden = {v: k for k, v in HIDDEN.items()}
     for e in disc.files():
         m = re.search(r'/LEVEL(\d\d)\.OVR;1$', e['path'])
         if m and int(m.group(1)) in SELECTABLE:
             found[int(m.group(1))] = (e['path'], disc.read(e['lba'], e['size']))
-    missing = set(SELECTABLE) - set(found)
+        elif e['path'].split(';')[0] in hidden:
+            found[hidden[e['path'].split(';')[0]]] = (e['path'], disc.read(e['lba'], e['size']))
+    missing = (set(SELECTABLE) | set(HIDDEN)) - set(found)
     if missing:
         raise SystemExit(f'missing level overlays: {sorted(missing)}')
     rows = []
-    for n in SELECTABLE:
+    for n in SELECTABLE + tuple(sorted(HIDDEN)):
         path, data = found[n]
         row = level_guard(n, data)
         row['path'] = path.split(';')[0]
@@ -147,7 +157,9 @@ def table(rows):
     out = []
     for r in rows:
         tail = f'{r["scratch"]}-byte scratch tail' if r['scratch'] else 'no scratch tail'
-        out.append(f'    // LEVEL{r["level"]:02d}.OVR, {r["size"]} bytes, code to {BASE + r["code_end"]:#x}; {tail}.')
+        name = r['path'].rsplit('/', 1)[-1] if r['level'] in HIDDEN else f'LEVEL{r["level"]:02d}.OVR'
+        hid = f' Hidden index {r["level"]} (D61).' if r['level'] in HIDDEN else ''
+        out.append(f'    // {name}, {r["size"]} bytes, code to {BASE + r["code_end"]:#x}; {tail}.{hid}')
         out.append(f'    {{{r["tag"]:#x}, {{{{0x800ca968, {r["body"]}, "{r["digest"]}"}}}}}},')
     return '\n'.join(out)
 

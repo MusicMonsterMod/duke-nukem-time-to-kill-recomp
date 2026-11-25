@@ -138,6 +138,7 @@ add_dependencies(ttk-math-shard psx-runtime)
 target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/sky_borrow.cpp src/ttk/gas_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/screen_flash.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp src/ttk/anim_override.cpp src/ttk/loading_widescreen.cpp src/ttk/water_pocket.cpp src/ttk/security_monitor.cpp src/ttk/prop_lights.cpp src/ttk/lamp_bake.cpp src/ttk/lamp_bake_map.cpp)
 # D41D: level light files are edited in the source tree in a dev build.
 target_compile_definitions(psx-runtime PRIVATE TTK_LIGHTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/lights")
+target_compile_definitions(psx-runtime PRIVATE TTK_ATLAS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/atlas")   # D61 goto landmarks
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.

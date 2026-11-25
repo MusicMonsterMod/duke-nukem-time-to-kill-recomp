@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-11-25 - D61 closed out (Done)
+
+- D61 ([note 559](559-d61-level-atlas.md)): user "lock it in and close it out. lots of potential with this big reveal". Done.
+  `goto` (room, object, point, landmark, level start; face/quiet/safe anywhere; here, rooms, fix) stands Duke on the floor in any level, relinks him into the room (body and gun sound), leaves water cleanly, and ends with the game's own respawn events (room ambience, music reset).
+  `atlas.py` maps every level from RAM on empty cards: plans, standing points, tours, the 53 campaign secret areas (room flag 0x4), unused models. The hidden levels (True Grit, Modern 4, animation test, empty room, sound test) load and play with Modernized controls. D61A (the rest of the hunt) and D26L (console review) on the board. LTO+PGO installed on the desktop.
+
+## 2026-11-25 - D61 level atlas and goto (Needs playtest)
+
+- D61 ([note 559](559-d61-level-atlas.md)): the backtick console's `goto` puts Duke anywhere in any level, standing on the floor and facing into the room (`goto 3 room 41`, `goto object 17`, `goto X Y Z`, `goto 3 at X Y Z`, `goto <landmark>`, `quiet`, `here`, `face`; Modernized only, Vanilla unchanged). Floors come from the game's own segment query, steps through solid above a room's real ceiling, and stands on solid props (the D53D LEVEL09 platform case cannot recur); another level is entered with level select's travel, so a normal pistol start (200 ammo, health 100 from a new game and after a savestate load; the D53D weaponless arrival did not reproduce). Landmarks in `recomp/assets/atlas/landmarks.txt` (10 checked in game). `recomp/tools/local/atlas.py` boots offscreen on empty cards (no player saves used), surveys every level from RAM (rooms, floors, portals, objects, spawners, lamps, plans, standing points, cut-content leads; local under research/atlas/), tours every room on camera (GOLD AND GUNS 69/72 rooms in 327 s) and photographs unused models. Hidden indices load with the developer `level force N` (4 True Grit, 13 Modern 4, 14 animation test, 15-20 arenas, 30, 31 sound test), toured 114/118 rooms; their unique object and enemy types are listed in the note. Needs playtest: try `goto` in your own play.
+
 ## 2026-11-24 - D08A50 closed out (Done)
 
 - D08A50: user-accepted ("fixed! lock it in and close it out"). In the Duke 3D night vision, MODEL SHADOWS (LIGHTING ENHANCED, or RELIT with LIVE SHADOWS OFF) copied the enemy's night-vision flag and glowed lime; they now draw as with the goggles off (Modernized, title only). UI slot 10 before/after on a private card copy. LTO+PGO installed on the desktop; the field laptop and citadel not updated.

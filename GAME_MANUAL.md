@@ -2495,10 +2495,56 @@ level N from its normal start, with no statistics screen. Duke starts with what
 the game's restart gives him (full health); use the debugging cheats (`dnstuff`)
 if a level needs more. Play and savestates then work normally. It works in
 Vanilla and Modernized.
+`levels` also lists the hidden levels (4, 13-20, 30, 31); `level N` on one of
+them says to use `goto N` (or the developer `level force N`).
 The level select is refused on the title screen, in the pause menu, while a
 level is already ending and in two-player games. It does not write memory cards
 or saves. Modernized controls and the selected view work in every listed
 level.
+
+**Go anywhere (testing, Modernized).** In a one-player game, open the console
+and type `goto` followed by a place. Duke is put there standing on the floor,
+facing into the room, ready to play. `goto help` (or `goto` on its own) shows
+these examples:
+
+- `goto room 12` - a standing spot in room 12 of this level (`goto rooms` gives
+  how many rooms there are and the one Duke is in).
+- `goto 3 room 12` - the same in level 3 (GOLD AND GUNS). Another level is
+  entered first, as `level N` does, so Duke arrives with a normal pistol start;
+  within the current level he keeps everything he has.
+- `goto 13` - the start of level 13. This also reaches the hidden levels the
+  level select leaves out: 4 True Grit, 13 Modern 4, 14 the animation test,
+  15-20 the two-player arenas, 30 an empty room, 31 the sound test (`levels`
+  lists them under "Hidden"). Modernized controls and the first-person view
+  work in 4, 13, 14, 30 and 31; the arenas keep the original controls in one
+  player.
+- `goto gag-lava-south` - a saved spot (a landmark); `goto landmarks` lists them.
+- `goto object 17` - beside level object 17, facing it.
+- `goto 45000 -300 -20600` - the floor nearest that map point (x y z);
+  `goto 3 at 45000 -300 -20600` in level 3.
+
+Add any of these anywhere in the line:
+
+- `face 90` - face that compass direction (0 is +Z, 90 is +X).
+- `quiet` - Duke is invisible for 8 seconds, as the game's own invisibility:
+  enemies far away ignore him. One already at him can still attack.
+- `safe` - Duke is invincible for 20 seconds, as the game's own invincibility
+  pickup: lava, a fall or an enemy does no harm, and you have time to walk out
+  (lava kills in about a second without it). For example
+  `goto 3 room 53 safe` stands Duke in the GOLD AND GUNS lava.
+
+Also:
+
+- `goto here` prints where Duke stands, as a ready landmark line.
+- `goto face 90` turns Duke now; `goto face +45` turns him by 45.
+- `goto fix` repairs a save where Duke's body vanishes when he turns, or his
+  gun sounds faint (made with an older `warp` or `goto`): load it, type
+  `goto fix`, then save again. Every `goto` and `warp` now does this itself.
+
+`goto` never puts Duke inside a block or a platform: it uses the game's own
+collision to find the floors in that spot, and stands him on the lowest one with
+room for him above. A room with nowhere to stand (a vent, an alcove) is refused.
+Vanilla refuses it. It does not write memory cards or saves.
 
 **End the level (testing).** In a one-player game, open the console and type
 `endlevel`: the level ends as if you reached its exit, so the statistics screen

@@ -2389,6 +2389,41 @@ gadget, first and third person):
    the same time as before.
 4. Vanilla unchanged; native controls tests pass.
 
+
+### D26L - Console review: a rock-solid backtick console
+
+**Status: Todo (backlog; user request 2026-11-25). Dependencies: D26, D61.**
+User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
+job for just a review of the cli, and enhance it so it feels like a more rock
+solid experience for the user. im even thinking we add in a caret. fix up some
+missing characters we dont have such as the pipe, in the font that we use.
+dont work on that part yet".
+
+Starting points:
+
+- **The model to follow:** D61's `goto` (`recomp/src/ttk/goto.inc`, note 559).
+  - Its help is a list of examples, one per line, with what each does.
+  - Its errors suggest a working example ("Try: goto room 12, ...").
+  - Extras (`face N`, `quiet`, `safe`) go anywhere in the line.
+  - `levels` lists the hidden levels, and `level 13` points to `goto 13`.
+- **Review every command** for the same: help, spawn, items, enemies, warp,
+  levels, quicksave, the option and lab commands. Unify their wording, their
+  errors and their Modernized-only refusals.
+- **A text caret,** with editing at the caret: left and right, Home and End,
+  Delete. Today the line is append-only. The console is drawn in the framework
+  (`host_osd.c`, the Quake-style console: 96-character lines, 512 history
+  entries), so this is a framework edit plus the patch export.
+- **Font glyphs.** The console draws with the game's font pack
+  (`tools/local/build_ttk_fonts.py`): game glyphs, with a system fallback.
+  Audit every printable ASCII character it can show, and add the missing ones
+  in the same style. The pipe `|` is known to be missing. Until then, help text
+  avoids `|`.
+- **A debug-port command to open the console** (`host_osd_console_open`), so
+  console screenshots can be checked offscreen. D61 could not show its help on
+  screen in an offscreen run: the test-input keys do not reach the console.
+- Nice to have: tab completion of command and landmark names, and the line
+  history (up and down) checked.
+
 ### D29 - Progression items and objectives legibility (research and design first)
 
 **Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The

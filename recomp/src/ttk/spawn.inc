@@ -262,7 +262,10 @@ static int warp_cell(int32_t x,int32_t y,int32_t z) {
     }
     return best;
 }
-static void warp_update() {
+static bool goto_relink(CPUState* cpu,const char* why);   // goto.inc
+static bool swim_teleport_exit(CPUState* cpu);   // swim.inc
+static void goto_arrival_events(CPUState* cpu,const char* why);   // goto.inc
+static void warp_update(CPUState* cpu) {
     WarpRequest w;
     {std::lock_guard<std::mutex> lock(warp_mutex);if(!warp_request.on)return;w=warp_request;warp_request.on=false;}
     if(!player_identity_ready() || psx_mod_read_word(0x800c27bc)!=1) {input_notice("Warp unavailable here");std::fprintf(stderr,"[TTK warp] %s\n","Warp unavailable here");return;}
@@ -286,9 +289,15 @@ static void warp_update() {
         const double a=w.degrees*3.14159265358979/180.0;yaw=a;
         psx_mod_write_half(player+0x1c,uint16_t(int(std::lround(a/(2*3.14159265358979)*4096))&4095));
     }
-    std::fprintf(stderr,"[TTK warp] %d %d %d cell %d\n",w.x,w.y,w.z,cell);
+    goto_relink(cpu,"warp");   // D61 fix: into that room's object list too (else drawn and heard by the old room)
+    swim_teleport_exit(cpu);   // D61: out of the swim state too
+    goto_arrival_events(cpu,"warp");   // D61: the room's ambience and level cues, the music reset
+    std::fprintf(stderr,"[TTK warp] %d %d %d cell %d\n",w.x,w.y,w.z,psx_mod_read_byte(player+0x2e));
     input_notice("WARPED");
 }
+// D61 goto (goto.inc, included after level_lights.inc).
+static bool goto_console_command(const char* line,void (*say)(const char*),bool& close);
+static void goto_update(CPUState* cpu);
 static int spawn_pending=-1;
 static uint64_t spawn_deadline;
 static void spawn_update(CPUState* cpu) {
@@ -296,7 +305,8 @@ static void spawn_update(CPUState* cpu) {
     // so it does not need captured input, only a verified Modernized gameplay
     // player. Wait up to ~5 s (300 host frames) for one, then give up.
     spawn_crystal_update(cpu);
-    warp_update();
+    warp_update(cpu);
+    goto_update(cpu);   // D61
     if(const int e=enemy_request.exchange(-1);e>=0) {
         if(player_identity_ready() && psx_mod_read_word(0x800c27bc)==1 && !guest_busy && cpu->gpr[29]>=0x801f4000 &&
            !g_precise_mode && !g_ls_mode && !g_psx_call_bail) spawn_enemy(cpu,e);
@@ -439,6 +449,7 @@ static void enemy_list(void (*say)(const char*)) {
 }
 bool spawn_console_command(const char* line,void (*say)(const char*),bool& close) {
     close=false;
+    if(goto_console_command(line,say,close))return true;   // D61 (goto.inc)
     if(!std::strncmp(line,"warp ",5)) {
         if(!input_modernized()) {say("Warp: Modernized profile only");return true;}
         WarpRequest w;w.on=true;

@@ -379,6 +379,43 @@ static bool swim_start_airborne_jump(CPUState* cpu,const InputFrame& f,Vec2 dir,
     return true;
 }
 
+// D61 (user report 2026-11-25): a goto or warp out of water (GOLD AND
+// GUNS room 10 to room 8) left Duke in the underwater mode (+0x22C 5,
+// animation 127, the water mask +0x20C), so on land he swam, could not be
+// steered and drowned. The game only leaves swimming at the surface. Here
+// the wade jump's own exit does it: clear the mask, the original airborne
+// start 0x8003E2D0 (animation 97) from the land mode, no speed, water detection held off for 22
+// updates. Duke drops onto the floor he was placed on and lands as from any
+// fall. Air back to full (12000): he may arrive nearly drowned. Called after
+// the placement; false when he was not swimming or wading.
+static bool swim_teleport_exit(CPUState* cpu) {
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    const bool masked=psx_mod_read_word(player+0x20c)!=0;
+    if(mode!=1 && mode!=4 && mode!=5 && !masked)return false;
+    const uint32_t water=psx_mod_read_word(player+0x20c);
+    const uint16_t modes=psx_mod_read_half(player+0x22c);const uint32_t flags=psx_mod_read_word(player+0x224);
+    // The land values (D61 dump, GOLD AND GUNS room 8 against room 10): both
+    // mode bytes 0 (water 5/5) and +0x224 without 0x100. The airborne start
+    // alone keeps mode 5, and the swim handler puts animation 127 back.
+    // And the cached water volume: 0x80054CC8 sets mode 5 again whenever its
+    // depth +0x838 is 0x280 or more. Land: depth 0, surface +0x834
+    // 0x40000000 (none); the game's water query fills both in again where
+    // there is water.
+    const uint32_t depth=psx_mod_read_word(player+0x838),surface=psx_mod_read_word(player+0x834);
+    psx_mod_write_word(player+0x838,0);psx_mod_write_word(player+0x834,0x40000000u);
+    psx_mod_write_word(player+0x20c,0);psx_mod_write_half(player+0x22c,0);psx_mod_write_word(player+0x224,flags&~0x100u);
+    if(!original_call(cpu,0x8003e2d0,97)) {
+        psx_mod_write_word(player+0x20c,water);psx_mod_write_half(player+0x22c,modes);psx_mod_write_word(player+0x224,flags);
+        psx_mod_write_word(player+0x838,depth);psx_mod_write_word(player+0x834,surface);return false;
+    }
+    psx_mod_write_half(player+0x60,97);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    for(uint32_t o:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+o,0);
+    swim_water_holdoff=22;swim_boost_frames=0;swim_boost_want=0;swim_ledge_pending=false;
+    if((int16_t)psx_mod_read_half(player+0x236)<12000)psx_mod_write_half(player+0x236,12000);
+    std::fprintf(stderr,"[TTK goto] left the water (mode %u, now %u)\n",mode,psx_mod_read_byte(player+0x22c));
+    return true;
+}
+
 // Ledge assist, per ballistic update of the directed jump (8003ebf4 hook,
 // before the original integrates): hold the XZ speed at the distance-scaled
 // value — zero while still below the lip when the jump started at the wall —

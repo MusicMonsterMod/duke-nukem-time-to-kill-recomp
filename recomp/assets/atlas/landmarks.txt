@@ -1,0 +1,24 @@
+# D61 landmarks for the backtick console's goto (documentation/559-d61-level-atlas.md).
+# name level x y z [degrees]     a point (Duke stands on the floor nearest it)
+# name level room R [degrees]    a room's standing point
+# Degrees are compass: 0 = +Z, 90 = +X. Names are case-insensitive, no spaces.
+# "goto here" in the console prints a ready line for where Duke stands.
+
+# TIME TO KILL (level 0)
+ttk-start              0 room 2                       # the level start (room 2)
+ttk-power-switch       0 -7577 -6643 51063            # D17BM power panel (note 524)
+ttk-alley-ladder       0 9225 -10239 13769            # the alley ladder (notes 72, 210)
+
+# GOLD AND GUNS (level 3)
+gag-lava-south         3 45000 -300 -20600 0          # lava walkway, south (D57A note 549; UI slot 10 then)
+gag-lava-north         3 45000 -300 -16200 180        # lava walkway, north (note 549)
+gag-lava-corner        3 45000 -300 -16200 90         # north walkway looking east along the pit to the slanted corner band (D57O note 556)
+
+# OBEY OR DIE (level 5)
+l05-monitors           5 -16495 -9856 -14592 270      # security monitors, Duke 900 in front facing them (D53D note 528)
+
+# FAMILY JEWELS (level 6)
+fj-red-jewel           6 13535 -397 30725             # the red jewel pickup (D60 note 516)
+
+# PIG FACTORY (level 9)
+l09-monitors           9 52620 -10120 54160 0         # security monitors on their platform, 1100 in front (note 528)

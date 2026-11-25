@@ -266,7 +266,10 @@ static const MaskedGuard state_guards[] = {
 // it passes to 0x8007177c (LEVEL00 from 0x800cb1a4, LEVEL01 from 0x800cbe48).
 // Generated and checked from the owned disc by
 // tools/local/level_overlay_guards.py for the 21 levels the original
-// level-select cheat offers; any other tag fails closed.
+// level-select cheat offers and (D61) the five hidden indices one player can
+// enter with level force or goto: 4, 13, 14, 30 and 31 (the sound test's
+// overlay is its directory's BASEOVR). The two-player arenas stay out; any
+// other tag fails closed.
 struct LevelOverlay { uint32_t tag; Guard body[1]; };
 static const LevelOverlay level_overlays[] = {
     // LEVEL00.OVR, 9668 bytes, code to 0x800ccd28; 16-byte scratch tail.
@@ -311,4 +314,14 @@ static const LevelOverlay level_overlays[] = {
     {0x1a, {{0x800ca968, 4416, "ccd47ab1b24b9f310ad28bd259e9f35a0d6c7132bb359a96e95acfcfcad5d739"}}},
     // LEVEL29.OVR, 6356 bytes, code to 0x800cc058; no scratch tail.
     {0x1b, {{0x800ca968, 6356, "a0b806bb11ca11a4d35cbf74b85e812aa2e7d5335913386cc2e48e893bc7c08e"}}},
+    // LEVEL04.OVR, 1840 bytes, code to 0x800caee0; no scratch tail. Hidden index 4 (D61).
+    {0x7, {{0x800ca968, 1840, "11a6e2661a9c1226e169fdfcfe29e86dc80bfb9811aa08290a9c5523a90731a5"}}},
+    // LEVEL13.OVR, 1960 bytes, code to 0x800caf3c; no scratch tail. Hidden index 13 (D61).
+    {0x10, {{0x800ca968, 1960, "aa1153c6dd0c5b61e9b66f6223b25275930135814e8ce166bbdc1d27dcbb32c0"}}},
+    // LEVEL14.OVR, 604 bytes, code to 0x800caa0c; no scratch tail. Hidden index 14 (D61).
+    {0x11, {{0x800ca968, 604, "1bfbfa1e7ed6def94aab450b9ca545fc1dee8292887eddbc554eea269e3e1477"}}},
+    // LEVEL30.OVR, 568 bytes, code to 0x800ca9e8; no scratch tail. Hidden index 30 (D61).
+    {0x1c, {{0x800ca968, 568, "fd90921ca9f969536146e8beff12792ee93b238012a08d2ed109fb827d8dc47f"}}},
+    // BASEOVR.OVR, 1420 bytes, code to 0x800cad3c; no scratch tail. Hidden index 31 (D61).
+    {0x12, {{0x800ca968, 1420, "1b99b40eca8f780480d211af70727268932df25479c87232def948083aa5bd65"}}},
 };

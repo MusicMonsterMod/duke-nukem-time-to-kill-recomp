@@ -143,6 +143,12 @@ static uint32_t round_test() {
 bool view_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind) {
     return player_identity_ready() && identity() && trace(cpu,from,to,hit,kind);
 }
+// D61 goto: the same query gated only by the executable's own code (the
+// query is EXE code, 0x8006d980), so the atlas can also stand Duke in the
+// level indices the level select skips, whose overlays are not authenticated.
+bool atlas_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind) {
+    return identity() && trace(cpu,from,to,hit,kind);
+}
 bool camera_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind,uint32_t ignore,uint32_t* actor) {
     return player_identity_ready() && identity() && trace(cpu,from,to,hit,kind,actor,ignore?ignore:player);
 }

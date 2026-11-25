@@ -120,8 +120,30 @@ void list(void (*say)(const char*)) {
         ++column;
     }
     if(used)say(line);
+    // D61: the indices the title cheat skips (note 101) load too (developer).
+    say("Hidden (developer: goto N, or level force N):");
+    say("   4 TRUE GRIT (XXX)    13 MODERN 4 (XXX)    14 ANIMATION TEST LEVEL");
+    say("  15 MESA   16 CASTLE   17 DUNGEON   18 COLISEUM   19 WAREHOUSE   20 FACTORY");
+    say("  30 EMPTY   31 SOUND TEST");
 }
 }
+
+const char* level_travel(long n, bool any_index) {
+    // D61: the travel of "level N" for goto and the atlas. any_index (developer
+    // "level force N") also takes the indices the title cheat skips (4, 13-20,
+    // 30, 31: note 101), for the cut-content survey; they may not be levels.
+    if(!authentic())return "Level select unavailable: unrecognised game code";
+    if(any_index ? (n<0 || n>31) : !selectable(n))return "Unknown level - type levels for the list";
+    if(!any_index && name(unsigned(n)).empty())return "Level select unavailable: level names not found";
+    if(const char* refusal=travel_refusal())return refusal;
+    pending=n;pending_loads=psx_mod_savestate_loads();
+    psx_mod_write_byte(end_code,restart);
+    const std::string title=name(unsigned(n));
+    std::fprintf(stderr,"[TTK level] travel to %ld %s%s\n",n,title.empty()?"(unnamed)":title.c_str(),any_index?" (forced)":"");
+    return nullptr;
+}
+
+long level_current() {return in_play() ? long(psx_mod_read_word(level)) : -1;}
 
 bool level_title(unsigned n, char* out, unsigned cap) {
     if(!out || !cap)return false;
@@ -181,13 +203,27 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
         close=true;
         return true;
     }
+    // D61 (developer): "level force N" travels to any index 0-31, the ones the
+    // title cheat skips too, for the cut-content survey (documentation/559).
+    if(!std::strncmp(line,"level force ",12)) {
+        char* end=nullptr;const long n=std::strtol(line+12,&end,10);
+        if(end==line+12 || *end) {say("level force N (0-31; developer: skipped indices may not be levels)");return true;}
+        if(const char* refusal=level_travel(n,true)) {
+            char reply[96];std::snprintf(reply,sizeof reply,"Cannot travel now: %s",refusal);say(reply);return true;
+        }
+        char reply[64];std::snprintf(reply,sizeof reply,"Forcing level index %ld...",n);say(reply);
+        close=true;return true;
+    }
     const bool all=!std::strcmp(line,"levels") || !std::strcmp(line,"level");
     if(!all && std::strncmp(line,"level ",6))return false;
     if(!authentic()) {say("Level select unavailable: unrecognised game code");return true;}
     if(all) {list(say);return true;}
     char* end=nullptr;
     const long n=std::strtol(line+6,&end,10);
-    if(end==line+6 || *end || !selectable(n)) {say("Unknown level - type levels for the list");return true;}
+    if(end==line+6 || *end || n<0 || n>31) {say("Unknown level - type levels for the list");return true;}
+    if(!selectable(n)) {
+        char reply[96];std::snprintf(reply,sizeof reply,"Level %ld is hidden: type goto %ld (or level force %ld)",n,n,n);say(reply);return true;
+    }
     const std::string title=name(unsigned(n));
     if(title.empty()) {say("Level select unavailable: level names not found");return true;}
     if(const char* refusal=travel_refusal()) {

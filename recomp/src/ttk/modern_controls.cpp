@@ -36,6 +36,7 @@
 #include "duke_flicker.h"
 #include "prop_state.h"
 #include "screen_flash.h"
+#include "level_select.h"   // D61 goto: level_travel, level_current
 #include "pgxp.h"
 #include "gpu.h"
 #include "host_osd.h"
@@ -1324,6 +1325,7 @@ static bool crystal_mission_usable(CPUState* cpu,uint32_t handler,uint32_t objec
 #include "hhg_look.inc" // D08A47
 #include "pickup_nudge.inc"
 #include "level_lights.inc"
+#include "goto.inc"   // D61
 #include "relit.inc"
 #include "club_lights.inc"   // D57J
 #include "lamp_bake.inc"

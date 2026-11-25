@@ -65,6 +65,11 @@ bool test_move_console_command(const char* line, void (*say)(const char*), bool&
 // D10H2: "roundfollow [on|off|default]" (weapon_aim.cpp), session-only A/B of a
 // round aimed at an enemy meeting it after the enemy's own update.
 bool round_follow_console_command(const char* line, void (*say)(const char*), bool& close);
+// D61: start travel to level n as "level N" does (event-pump thread); nullptr
+// when started, else the refusal. any_index admits the skipped indices 0-31.
+const char* level_travel(long n, bool any_index);
+// D61: the level index in play, or -1 outside gameplay.
+long level_current();
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

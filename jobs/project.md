@@ -898,7 +898,7 @@ translation of third-party source. This direction does not start an experiment.
 
 ### D61 - Level atlas and teleport entry point for agents
 
-**Status: Todo (backlog; user request 2026-11-21; scope under discussion). Dependencies: D26E, D08A43 (Done).**
+**Status: Done (2026-11-25, user: "right, thats it, lock it in and close it out. lots of potential with this big reveal"). Dependencies: D26E, D08A43 (Done).**
 User, 2026-11-21, after the D53D savestates loaded at the right place but
 without weapons ("kinda cursed"): "write a helper function or subroutine
 which can allow you to actually see every part of every level, and teleport
@@ -909,3 +909,137 @@ open possibilities but not sure exactly what." Starting points: the developer
 platform); `level N` loads leave the D53D states without weapons; the room
 table, prop lists and floor probes already read by the labs. Scope to be
 agreed with the user before any code.
+
+**Scope agreed 2026-11-24** (plan page: a private artifact on the user's
+account). User: "what it opens up also, one of the most exciting parts, is
+discovering forgotten, or cut content ... if we find cut content, this is the
+biggest one for me! but the obvious effect is of course, being able to
+essentially go anywhere for you, to inspect any part of the game essentially
+live." Stages:
+
+1. Atlas survey: an offscreen run loads each selectable level and saves,
+   from live RAM, every room's box, floors, portals, objects, locks, enemy
+   spawners and lights as `research/atlas/levelNN.json` plus a top-down SVG
+   (local: derived from retail data); the generator is tracked as
+   `recomp/tools/local/atlas.py`. Safe standing points per room from the floor
+   probe. Cut-content flags: rooms no portal path reaches, objects outside
+   every room, items without locks and locks without items, spawners nothing
+   triggers, object types placed nowhere, names never shown.
+2. `goto <level> room|object|landmark [quiet]`: floor-snapped, headroom
+   checked, cell and facing set; Modernized only, Vanilla unchanged. Arrival
+   in a new level is a normal pistol start (user Q1: "pistol start like
+   normal"); within the current level Duke keeps his inventory; D60
+   used-items rule kept. The weaponless `level N` arrival is traced and fixed
+   at the source. `quiet` (Q3, agent's recommendation accepted) makes enemies
+   ignore Duke for a few seconds; otherwise the level is left as it is.
+3. Named landmarks: a tracked coordinates-and-names file
+   (`recomp/assets/atlas/landmarks.txt`).
+4. Room tour and contact sheets: proof on GOLD AND GUNS only (Q2, agent's
+   recommendation accepted); the other levels filed later as D61A.
+
+No free camera (Q4: "no"). Cut-content leads on file: level indices 4 and 13
+(`XXX`), 14 (animation test), 15-20 (two-player arenas) and 30-31 (note 101;
+note 185 calls index 4 "the Reaper", to be settled); the GOLD AND GUNS
+skeleton key with no item or lock (note 517). Each find is checked on the
+original game (DuckStation portable copy), labelled by evidence and searched
+online before it is called undocumented.
+
+
+Work log, 2026-11-25 (built; [note 559](../documentation/559-d61-level-atlas.md)):
+
+- `goto` (`recomp/src/ttk/goto.inc`; `level_travel`/`level_current` in
+  `level_select.cpp`; `atlas_segment_query` in `weapon_aim.cpp`): room, object,
+  point, landmark, `here`, `rooms`, `face`, `quiet`. Floors from the game's
+  segment query: the lowest surface with 0x500 headroom, stepping through
+  solid above a room's real ceiling. Solid props lift the floor. Facing is the
+  longest clear view. Another level is entered with level select's travel.
+  Modernized only; developer `level force N` for the skipped indices.
+- Landmarks `recomp/assets/atlas/landmarks.txt`: 10 checked in game. Walking
+  after arrival was checked at the LEVEL09 platform, the LEVEL05 monitors and
+  the lava walkway.
+- `recomp/tools/local/atlas.py` + `level_atlas.py`: capture, build, survey,
+  tour, shot, models. It boots offscreen on empty cards and hashes the
+  player's files around every run.
+- Evidence:
+  - All 21 levels and 11 hidden indices captured and built.
+  - GOLD AND GUNS tour: 69/72 rooms in 327 s. Hidden tours: 45/48, 48/49,
+    5/5 and 16/16.
+  - Pistol start: 200 ammo and health 100 from a new game, after a savestate
+    load, and through `level 5`. The D53D weaponless arrival did not
+    reproduce, and a warning is logged if it ever does.
+  - Props: level 0 types 6 and 166 lift the floor 149 and 468.
+  - The `quiet` timer measured at 1730 about 2 s after arrival.
+- Tests: `recomp/tests/local/test_level_atlas.py` (6 tests). Manual: "Go
+  anywhere (testing, Modernized)".
+- Cut content (note 559):
+  - Every hidden index loads.
+  - True Grit (4) and Modern 4 (13) have full room atlases. Their unique
+    types: 18 object types in True Grit, 3 creature types in Modern 4.
+  - The levels themselves are known online (Duke4.net prototype-differences
+    thread), so the room atlas, the type lists and the per-level
+    unused-model photographs are what is new.
+  - GOLD AND GUNS loads a large mounted gun (540/541) and the Skeleton Key
+    model without placing them. Nothing is checked on the original yet.
+- Limits:
+  - Hazard floors (lava) are not avoided, and a goto inside a secret area
+    counts it as found.
+  - `quiet` does not stop an enemy already at Duke, so tours run in god mode.
+  - Not checked in the user's own play.
+
+- 2026-11-25, user report: after `goto room 17` Duke appeared without a body
+  and his gun sounded faint. Agent-made saves (UI slot 5, the D53D monitor
+  saves) lost his body too. Cause: goto and warp wrote the cell but left Duke
+  in his old room's actor list (`+0x4C`). Fixed with the game's actor relink
+  `0x80095D9C` in goto, warp and the new `goto fix` (note 559). Verified on a
+  private copy of UI slot 5 and on goto, travel and warp: listed in his own
+  room, pistol drawn after a 180 turn. Sound not checked by ear.
+
+- 2026-11-25: room flag `0x4` marks secret areas (GOLD AND GUNS rooms 13, 37
+  and 47 matched the game's message; TIME TO KILL's 7 match its HUD). That
+  gives 53 in the campaign. `atlas.py secrets` photographed 47; 6 are crawl
+  spaces. Findings page updated with photos of the secrets and the hidden
+  levels. Correction: the True Grit "statue" in room 48 was Duke himself,
+  drawn translucent by `quiet`.
+
+- 2026-11-25, user: "yeah go for it. i'd say lets build it in". `goto ...
+  safe`: the game's invincibility timer (`+0x8A0`) for 20 s, like its pickup,
+  with `quiet` in either order. GOLD AND GUNS room 53 lava without god mode:
+  dead within a second without it, full health for 20 s with it. Manual and
+  note 559 updated.
+
+- 2026-11-25, user report: a goto out of water (GOLD AND GUNS room 10 to
+  room 8) left Duke swimming on land, unsteerable, until he drowned. The
+  cached water depth `+0x838` re-armed mode 5 (`0x80054CC8`). Fixed in goto
+  and warp: the land mode, water fields and air are reset, then the game's
+  airborne start drops him onto the floor (note 559). Verified: land mode,
+  walked 796 units, air full after 10 s, and swimming still works.
+
+- 2026-11-25, user: the help was "quite hard to follow". `goto help` is now
+  examples, one per line. `goto N` goes to a level's start (hidden too).
+  `face N`, `quiet` and `safe` go anywhere in the line, errors suggest
+  examples, and `levels` lists the hidden levels. The console review is filed
+  as D26L.
+
+- 2026-11-25, user report (TIME TO KILL): the club music kept playing after
+  `goto room 17`. Same class as the water bug: goto skipped the game's
+  room-transition handler `0x8006C138` (ambient zones, level cues). goto and
+  warp now end as the game's respawn does: `0x8006C138(0, room)` and the music
+  reset `0x8003C240` (note 559). Verified: the club loop stops and room 17's
+  ambience starts. Water, relink and safe regressions pass.
+
+- 2026-11-25, user report: Modernized controls and first person did not work
+  in True Grit. The level overlay guards listed only the 21 selectable levels.
+  `level_overlay_guards.py` now also derives the five hidden indices (4, 13,
+  14, 30, 31) from the owned disc, and `--check` matches 26. Verified first
+  person and Modernized walking in 4, 13, 14 and 31 (note 559).
+
+- 2026-11-25, user: "right, thats it, lock it in and close it out. lots of potential with this big reveal". Done.
+
+### D61A - Cut-content hunt: every level toured, finds checked on the original
+
+**Status: Todo (filed 2026-11-25 by D61). Dependencies: D61.**
+Run `atlas.py tour` and `atlas.py models` on every level and hidden index.
+Spawn the creature types only the hidden levels place (538, 543, 121, 621),
+where their levels load them. Check each lead on the original game (the
+DuckStation portable copy). Search online for each, including The Cutting Room
+Floor in a browser. Write up what is new as its own note, with evidence labels.

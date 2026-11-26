@@ -4890,7 +4890,7 @@ entry heights and another water location. Vanilla remains unchanged.
 
 ### D08Z11 - Holding Space jumps again as soon as Duke lands
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08Z10.**
+**Status: Done (user-accepted 2026-11-25: "it's working, lock it in and close it out when ready i guess"). Dependencies: D08Z10.** [Note 136](../documentation/136-d08z3-modern-landing.md#d08z11-follow-up-held-space-re-jumps-at-once-2026-11-25).
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: running with Space held gives repeated jumps, but with
@@ -4900,6 +4900,33 @@ measure the delay with the user's real held input (MANUAL jump, the
 Modernized default), find the cool-down or grounded check that holds it,
 compare with EDuke32; no mid-air jumps, single taps unchanged. Acceptance:
 held Space gives smooth repeated jumps in the user's playtest.
+
+Work log, 2026-11-25: cause measured offscreen (`recomp/analysis/d08z11/hold.py`,
+the player's settings copy, empty cards, DUKE HILL room 0 facing 180, 60 Hz
+fields). A directional or running flight that lands with W held plays the
+run continuation 78 (handler `0x80053500`), which takes no jump until it ends
+and then launches the running jump 103 itself: 18 fields (0.3 s) from the
+touch-down to the next takeoff with Space held. Change (`landing.inc`
+`landing_rejump`, MANUAL jump with modern landing only; ASSISTED,
+`landing original` and Vanilla unchanged): at the ground dispatcher
+`0x80048410`, in the update after the touch-down, 78 with a direction and
+jump held (or a press buffered) hands over to run 76 frame 0 and the held
+jump counts as one press (`input_rejump_held`, pc_input); the original run
+handler launches its running jump 104 at once. Dispatcher table entries
+already guarded. Same line, baseline HEAD exe against the new build: W +
+Space held 18, 18 -> 2-3 fields (78, 76, 104); Shift + W + Space 17, 18 ->
+2-3; Space alone unchanged (6 fields, the quick 96 wind-up, then 97); one tap
+with W held unchanged (one jump, no repeat). No mid-air jumps (ground states
+only). Seen in both builds, not caused here: after a tapped directional jump
+with W held the probe showed 78 -> 63 and no stride; unconfirmed, possibly a
+probe artefact. Open: the standing re-jump keeps the 96 wind-up (about
+0.1 s).
+
+Closeout, 2026-11-25: user playtest "it's working, lock it in and close it out when ready i guess". Native `ttk-controls-test`
+links again (D61 level/atlas stubs, the light-budget and replay-worker stubs,
+`TTK_ATLAS_DIR`) with a new D08Z11 group; its run stops earlier at a
+pre-existing fixture assertion (line 571), so the group was not executed.
+LTO+PGO rebuilt and installed on the desktop.
 
 ### D08J10 - Ladder grab climbs at full speed (Modern / Classic)
 

@@ -144,3 +144,41 @@ are untouched. `ttk-input-test`, `ttk-aim-test` pass. Python 139 OK
   length.
 - 105 still shows for the touch-down update (2..3 fields) before the walk
   starts; the selector runs inside the airborne handler and is left original.
+
+## D08Z11 follow-up: held Space re-jumps at once (2026-11-25)
+
+User, 2026-11-14: with Space held Duke jumps repeatedly, but with a long pause
+between landing and the next jump; in EDuke32 he jumps again almost at once.
+User-accepted 2026-11-25: "it's working, lock it in and close it out when ready i guess".
+
+Cause (offscreen probe `recomp/analysis/d08z11/hold.py`, the player's
+settings copy, empty cards, DUKE HILL room 0 facing 180, 60 Hz fields): a
+directional or running flight that lands with a direction held plays the run
+continuation 78 (dispatcher case `0x8004865c`, handler `0x80053500`). It takes
+no jump until it ends and then continues into the run 76 or, with jump held,
+the running jump 103 itself: 18 fields (0.3 s) from the touch-down to the next
+takeoff.
+
+Change (`landing.inc` `landing_rejump`, MANUAL jump with modern landing only):
+at the ground dispatcher `0x80048410` (ra `0x8004b634`), in the update after
+the touch-down, 78 with a direction and jump held (or a press buffered) hands
+over to run 76, frame 0, and the held jump counts as one press
+(`input_rejump_held`, `pc_input.cpp`); the original run handler launches its
+running jump (104) in the next update. Same guards as the 105 recovery. The
+dispatcher table entries were already guarded (`0x800140a8`, 68 bytes). No
+new hook, no generated code change.
+
+| Same line, held keys | HEAD | D08Z11 |
+| --- | --- | --- |
+| W + Space: touch-down to takeoff | 18, 18 fields (78, 103) | 2-3 fields (78, 76, 104) |
+| Shift + W + Space | 17, 18 | 2-3 |
+| Space alone | 5-6 (quick 96 wind-up, 97) | 6 (unchanged) |
+| W held, Space tapped once | one jump | one jump (unchanged) |
+
+ASSISTED jump, `landing original` and Vanilla keep 78. Native: the
+`ttk-controls-test` D08Z11 group (hand-over, buffered press, untouched cases);
+that target links again (D61 stubs and `TTK_ATLAS_DIR`) but its run stops at
+an earlier fixture assertion, so the group was not executed. Limits: the
+standing re-jump keeps the quick 96 wind-up (about 0.1 s); a probe once showed
+78 -> 63 with no stride after a tapped jump with W held, in both builds, not
+confirmed in play.

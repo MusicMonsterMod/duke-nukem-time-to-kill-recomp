@@ -542,6 +542,13 @@ bool input_take_jump() {
     if(!input_jump_pending())return false;
     jump_deadline=jump_pressed_at=0;return true;
 }
+// D08Z11: a jump still held at a landing counts as a fresh press (the run
+// continuation 78 hands over to the stride, which takes only buffered presses).
+bool input_rejump_held() {
+    if(!modern || !focused || !captured || push_latched || !jump_down())return false;
+    if(!input_jump_pending()){jump_deadline=sequence+8;jump_pressed_at=sequence;}
+    return true;
+}
 
 void input_event(const SDL_Event& e) {
     if (!window) return;

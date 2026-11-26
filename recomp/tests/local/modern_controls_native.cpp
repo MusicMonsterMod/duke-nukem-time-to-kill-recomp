@@ -12,6 +12,8 @@ extern "C" int pgxp_mesh_geometry(void) {const char* s=std::getenv("DNTTK_GEOMET
 extern "C" int pgxp_mesh_textures(void) {const char* s=std::getenv("DNTTK_TEXTURE_PRECISION");return s && std::string_view(s)=="corrected";}
 extern "C" void pgxp_mesh_register_boundary(void) {}
 extern "C" void pgxp_invalidate_all(void) {}
+extern "C" void psx_mod_gpu_set_light_budget(int) {}
+extern "C" void psx_mod_replay_workers_refresh(void) {}
 extern "C" {int g_pgxp_mesh_active=0;}
 extern "C" int pgxp_mesh_vertex(uint32_t,uint32_t,int32_t*,int32_t*,uint16_t*) {return 0;}
 extern "C" void gte_nclip_culling_set(int) {}
@@ -400,6 +402,14 @@ bool input_auto_stow_pending(){return auto_stow;}
 bool input_jump_pending(){return jump_pending;}
 void input_jetpack_started(bool){}
 bool input_take_jump(){bool result=jump_pending;jump_pending=false;return result;}
+// D08Z11: the held jump counts as a press at a landing hand-over.
+static unsigned rejump_calls;
+bool input_rejump_held(){++rejump_calls;if(!modern || !input.held[jump])return false;jump_pending=true;return true;}
+// D61 level travel and atlas queries: not exercised here.
+const char* level_travel(long,bool){return "";}
+long level_current(){return 0;}
+bool level_title(unsigned,char* out,unsigned cap){if(cap)*out=0;return false;}
+bool atlas_segment_query(CPUState*,const double*,const double*,double*,int&){return false;}
 bool input_take_swim_redraw(){return false;}
 static bool want_capture;
 static unsigned capture_offers;
@@ -2435,6 +2445,39 @@ int main(int argc,char** argv) {
         ttk::input.move_x=mx;ttk::input.move_y=my;
         psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);psx_mod_write_byte(p+0x22d,0);
         std::puts("PASS: D08Z3 landing recovery (direction to walk/run, jump to stance; idle, first update, 106, caller, crouch, aim, original and Vanilla untouched)");
+    }
+    // D08Z11: manual jump, modern landing: the run continuation 78 with a
+    // direction and jump held (or a press buffered) hands over to run 76
+    // (frame 0) and the held jump becomes a press. A tap already used, no
+    // direction, the touch-down update, another caller, crouch, aim, assisted
+    // jump, landing=original and Vanilla leave 78 alone.
+    {
+        auto cont=[&](unsigned previous){
+            psx_mod_write_half(p+0x60,78);psx_mod_write_half(p+0x68,3);psx_mod_write_half(p+0x6a,40);
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,previous);writes=0;ttk::jump_pending=false;
+        };
+        const float mx=ttk::input.move_x,my=ttk::input.move_y;
+        setenv("DNTTK_JUMP","manual",1);
+        ttk::input.move_x=0;ttk::input.move_y=1;ttk::input.held[ttk::jump]=true;
+        cont(0);call(0x80048410,p,0,0x8004b634);
+        assert(psx_mod_read_half(p+0x60)==76 && psx_mod_read_half(p+0x68)==0 && psx_mod_read_half(p+0x6a)==0 && ttk::jump_pending);
+        ttk::input.held[ttk::jump]=false;
+        cont(0);ttk::jump_pending=true;call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==76);    // buffered press
+        cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76 && !ttk::jump_pending);      // no jump: original
+        ttk::input.held[ttk::jump]=true;
+        cont(9);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);
+        cont(0);call(0x80048410,p,0,0x8004b630);assert(writes==0);
+        ttk::input.move_y=0;cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);ttk::input.move_y=1;
+        ttk::input.held[ttk::crouch]=true;cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);ttk::input.held[ttk::crouch]=false;
+        ttk::input.held[ttk::original_aim]=true;cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);ttk::input.held[ttk::original_aim]=false;
+        setenv("DNTTK_JUMP","assisted",1);cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);setenv("DNTTK_JUMP","manual",1);
+        setenv("DNTTK_LANDING","original",1);cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);unsetenv("DNTTK_LANDING");
+        ttk::modern=false;cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)!=76);ttk::modern=true;
+        cont(0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==76);
+        ttk::input.held[ttk::jump]=false;ttk::jump_pending=false;unsetenv("DNTTK_JUMP");
+        ttk::input.move_x=mx;ttk::input.move_y=my;
+        psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);psx_mod_write_byte(p+0x22d,0);
+        std::puts("PASS: D08Z11 held jump on landing (78 to run 76 with the held jump as a press; buffered press too; no jump, touch-down update, caller, no direction, crouch, aim, assisted, original and Vanilla untouched)");
     }
     // D08K9: the real initializer hook changes only a soft landing reached
     // from held crouch in this same authenticated player update. Damage and

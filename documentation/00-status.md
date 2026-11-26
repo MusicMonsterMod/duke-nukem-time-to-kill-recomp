@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-11-25 - D08Z11 closed out (Done)
+
+- D08Z11 ([note 136](136-d08z3-modern-landing.md#d08z11-follow-up-held-space-re-jumps-at-once-2026-11-25)): user "it's working, lock it in and close it out when ready i guess". Done. With Space and a direction held, a landing's run continuation 78 hands over to the run at once and the original running jump launches 2-3 fields after the touch-down (was 18, 0.3 s); MANUAL jump with modern landing only, Vanilla unchanged. `ttk-controls-test` links again; its run stops at an earlier fixture assertion. LTO+PGO installed on the desktop.
+
 ## 2026-11-25 - D61 closed out (Done)
 
 - D61 ([note 559](559-d61-level-atlas.md)): user "lock it in and close it out. lots of potential with this big reveal". Done.

@@ -42,8 +42,39 @@ static bool landing_recover(CPUState* cpu,uint32_t ra,const InputFrame& f) {
     ++landing_recoveries;
     return true;
 }
+// D08Z11 held jump (manual jump with modern landing): a directional or running
+// flight that lands with a direction held continues through 78, the run
+// continuation, which ignores the jump input until it ends (about 18 fields at
+// 60 Hz), so Space held through the flight jumps again only after 0.3 s.
+// EDuke32 jumps again as soon as Duke is down. At its end 78 (handler
+// 0x80053500) continues into the run 76 or, with jump held, the running jump
+// 103 itself. With jump held (or a press buffered) and a direction held, 78
+// hands over to the run 76 (frame 0) in the update after the touch-down and
+// the held jump counts as a press, so the original run handler launches its
+// running jump at once instead of 0.3 s later. Taps, the touch-down update
+// itself, the landing choice and sound stay original.
+static unsigned landing_rejumps;
+static bool landing_rejump(CPUState* cpu,uint32_t ra,const InputFrame& f) {
+    if(cpu->gpr[4]!=player || ra!=0x8004b634 || !landing_modern() || !manual_jump() ||
+       psx_mod_read_half(player+0x60)!=78 ||
+       psx_mod_read_byte(player+0x22c)!=0 || psx_mod_read_byte(player+0x22d)!=0)return false;
+    if(!f.active || !(f.move_x || f.move_y) || !(f.held[jump] || input_jump_pending()) ||
+       f.held[crouch] || f.held[original_aim] ||
+       (psx_mod_read_word(player)&0x20002) || (psx_mod_read_word(player+0x224)&0x202002c1) ||
+       psx_mod_read_word(camera+0xa4)!=player || psx_mod_read_word(player+0x7d4)!=camera ||
+       shallow_land_water_early() || !player_identity_ready())return false;
+    const bool held=input_rejump_held();
+    if(!held && !input_jump_pending())return false;
+    const unsigned next=76;
+    if(std::getenv("DNTTK_TRAVERSAL_TRACE"))std::fprintf(stderr,"ttk-landing rejump time=%u -> %u held=%d\n",
+        (unsigned)psx_mod_read_half(player+0x6a),next,held?1:0);
+    psx_mod_write_half(player+0x60,next);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    ++landing_rejumps;
+    return true;
+}
 static const char* landing_debug_json() {
-    static char buffer[96];
-    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"recoveries\":%u}",landing_modern()?"true":"false",landing_recoveries);
+    static char buffer[128];
+    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"recoveries\":%u,\"rejumps\":%u}",landing_modern()?"true":"false",
+        landing_recoveries,landing_rejumps);
     return buffer;
 }

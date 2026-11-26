@@ -1329,7 +1329,11 @@ he settles) and he walks or runs off at once; press Space as he lands and he
 jumps again. With CROUCH MODERN, hold Ctrl in the air to enter the kneel or
 crouch walk directly on a soft landing. Jumps that already landed straight into a run (a direction held
 through a directional or running jump) are unchanged, and so are fall damage
-and landings in water. To get the original landing back:
+and landings in water. **Held Space (D08Z11, MANUAL jump, accepted 2026-11-25):**
+keep Space and a direction held and Duke jumps again as soon as he lands, as in
+Duke Nukem 3D (EDuke32), instead of running on for about 0.3 s first; a single
+tap still gives one jump, and there is no jumping in mid-air. To get the
+original landing back:
 
 ```
 python3 recomp/tools/local/run.py --landing original --show-settings

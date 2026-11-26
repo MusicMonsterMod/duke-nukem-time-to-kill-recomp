@@ -112,6 +112,7 @@ bool input_take_jump();
 /* D08O3: one pending E redraw in water, taken by the weapon request path. */
 bool input_take_swim_redraw();
 bool input_jump_pending();
+bool input_rejump_held();   // D08Z11
 // D08Q11: a jetpack start ends the C crouch stance; ground starts also ignore
 // a crouch key held from before the start until it is released.
 void input_jetpack_started(bool ground);

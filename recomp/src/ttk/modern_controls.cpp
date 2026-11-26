@@ -1884,6 +1884,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(cpu->gpr[4]==player && ra==0x8004b634)grounded_water_gait();
         if(crouch_water_dispatch(cpu,ra))return;
         if(landing_recover(cpu,ra,f))return; // D08Z3
+        if(landing_rejump(cpu,ra,f))return;  // D08Z11
         // Switch only the two ordinary walk/run gait pairs, at the original
         // locomotion dispatcher. Restart their original animation just as the
         // transition routine does; retain root delta and all collision handling.

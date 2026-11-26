@@ -154,7 +154,7 @@ if(TARGET SDL3::SDL3)
     add_executable(ttk-controls-test EXCLUDE_FROM_ALL tests/local/modern_controls_native.cpp
         src/ttk/modern_controls.cpp src/ttk/near_clip.cpp src/ttk/screen_flash.cpp src/ttk/live_env.cpp src/ttk/lamp_bake.cpp src/ttk/lamp_bake_map.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
     target_include_directories(ttk-controls-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
-    target_compile_definitions(ttk-controls-test PRIVATE PSX_SDL3=1)
+    target_compile_definitions(ttk-controls-test PRIVATE PSX_SDL3=1 TTK_ATLAS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/atlas")
     target_compile_options(ttk-controls-test PRIVATE -UNDEBUG)
     target_compile_features(ttk-controls-test PRIVATE cxx_std_17)
     target_link_libraries(ttk-controls-test PRIVATE SDL3::SDL3)

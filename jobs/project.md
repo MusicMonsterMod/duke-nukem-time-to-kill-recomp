@@ -1037,9 +1037,69 @@ Work log, 2026-11-25 (built; [note 559](../documentation/559-d61-level-atlas.md)
 
 ### D61A - Cut-content hunt: every level toured, finds checked on the original
 
-**Status: Todo (filed 2026-11-25 by D61). Dependencies: D61.**
+**Status: Done (2026-11-26, user: "lock it in and close it out"). Dependencies: D61.**
 Run `atlas.py tour` and `atlas.py models` on every level and hidden index.
 Spawn the creature types only the hidden levels place (538, 543, 121, 621),
 where their levels load them. Check each lead on the original game (the
 DuckStation portable copy). Search online for each, including The Cutting Room
 Floor in a browser. Write up what is new as its own note, with evidence labels.
+
+Work log:
+
+- 2026-11-26, selected by the user ("work autonomously on all this"; an
+  artifact for the finds welcomed). [Note 560](../documentation/560-d61a-cut-content-hunt.md):
+  - Voice: the line table `0x800c0dac` (396 lines, positions LBA - 23); 132
+    lines no code references (about 324 s), machine-transcribed; local
+    listening page.
+  - Sound: each `SND.DAT` decoded (table and VAB). Modern 4, the animation
+    test, the empty room and the sound test have no gadget group `0x1c`
+    (jetpack, pickups); True Grit plays one placeholder; 14 Modern 4 ids play a
+    0.07 s blip; six orphan samples; 30 hidden-only samples; local pairs page.
+  - Commando Duke: Modern 4's Duke is models 489-506, the two-player arenas'
+    COMMANDO DUKE.
+  - Boss 4: string 235 in index 30's name slot; the boss folders' never-loaded
+    overlay holds the quadruped brain `qped.c`.
+  - Models: `atlas.py models` on levels 0-14; the Holy Hand Grenade's meshes
+    are the same in all 26 levels captured with `DNTTK_HHG_LOOK=0`.
+  - Creatures: the dancers 538/543 seen; 121 (class 12) and 621 not seen (the
+    console spawn makes inert objects).
+  - Original game: DuckStation portable copy and its GDB stub; the gadget group
+    (0 in 13 and 14, 11 in 0 and 4) and Commando Duke's models read in RAM; the
+    player's DuckStation files unchanged.
+  - Online: Mortimer's prototype thread and TCRF already cover the hidden
+    levels' content, the Commando outfit, the prototype Boss 4 and the cheats.
+  - Tours: the 11 shipped levels D61 had not toured, contact sheets under
+    `research/atlas/tour/`.
+  - D61B filed. No game code changed.
+  Not done: original-game listening, creatures 121 and 621 (carried by D61B).
+- 2026-11-26, user: "lock it in and close it out" after reviewing the gallery. Done.
+
+### D61B - Stabilize the hidden levels
+
+**Status: Todo (filed 2026-11-26 by D61A; the user's idea: "try and like,
+stabalize those cut levels"). Dependencies: D61A.**
+D61A ([note 560](../documentation/560-d61a-cut-content-hunt.md)) found why the
+hidden levels sound and behave unfinished. Modernized only; Vanilla, the
+shipped levels and the disc stay unchanged; nothing derived from the disc is
+committed.
+
+1. **Gadget sounds.** Modern 4 (13), the animation test (14), the empty room
+   (30) and the sound test (31) have no sound group `0x1c`, so the jetpack's
+   open, close and thrust (`0x1c007`, `0x1c001/3/5`) and Duke's gadget and
+   damage sounds never start. True Grit (4) has the group, but all 11 entries
+   play one 0.18 s placeholder. Give these levels the shipped group: the
+   samples come from a shipped level's `SND.DAT` on the player's disc, put in
+   free SPU RAM (Modern 4's bank is about 140 KB smaller than a campaign
+   bank), with table entries and VAB tones added in RAM at level load.
+2. **Placeholder blips.** Modern 4 plays one 0.07 s sample for 14 ids (the
+   menu group 0000-0003, 101f, 2006, 3009, 4008, 5008, 600c-600f, 7008,
+   700a); the animation test 8, the sound test 2. Map each to the shipped
+   sound of the same id where one exists; keep the hidden levels' own variants
+   (note 560 section 2).
+3. **Then, one at a time with the user:** True Grit's missing textures; Modern
+   4's dormant creature 121 (spawner 17, room 47, AI class 12) and an exit;
+   whatever playing them shows.
+
+**Acceptance:** in each hidden level the jetpack sounds as in a shipped level
+and no placeholder blip remains for an id that ships, by the user's ear;
+shipped levels, savestates and Vanilla unchanged.

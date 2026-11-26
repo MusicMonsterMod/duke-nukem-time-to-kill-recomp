@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-26 - D61A closed out (Done)
+
+- D61A ([note 560](560-d61a-cut-content-hunt.md)): user "lock it in and close it out" after reviewing the gallery. Done. D61B (stabilize the hidden levels) is next in that line.
+
+## 2026-11-26 - D61A cut-content hunt (Needs playtest)
+
+- D61A ([note 560](560-d61a-cut-content-hunt.md)): research only, no game code changed. 132 of Duke's 396 voice lines have no code reference (about 324 s; DISM08, 17 and 30 wholly unused); Modern 4's Duke is the two-player COMMANDO DUKE (models 489-506, confirmed on the original over GDB); Modern 4, the animation test, the empty room and the sound test have no gadget sound group `0x1c` (the silent jetpack and pickups; original: 0 entries), True Grit plays one placeholder for all 11; index 30 is the cut Boss 4 (string 235 in its name slot, the boss overlay holding the never-loaded quadruped brain `qped.c`); six orphan samples; the Holy Hand Grenade's three meshes are the same in every level. Known online (Mortimer's prototype thread, TCRF) separated from new. D61B filed: stabilize the hidden levels. Waiting for the user's review (private artifact gallery, local listening pages).
+
 ## 2026-11-25 - D08Z11 closed out (Done)
 
 - D08Z11 ([note 136](136-d08z3-modern-landing.md#d08z11-follow-up-held-space-re-jumps-at-once-2026-11-25)): user "it's working, lock it in and close it out when ready i guess". Done. With Space and a direction held, a landing's run continuation 78 hands over to the run at once and the original running jump launches 2-3 fields after the touch-down (was 18, 0.3 s); MANUAL jump with modern landing only, Vanilla unchanged. `ttk-controls-test` links again; its run stops at an earlier fixture assertion. LTO+PGO installed on the desktop.

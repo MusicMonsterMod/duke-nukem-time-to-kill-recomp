@@ -10,6 +10,7 @@ import sys
 import player_profiles as profiles
 import gpu_auto
 import pc_input
+import optimized_build
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -234,6 +235,7 @@ def main(argv=None):
         exe = Path(os.environ['DNTTK_EXE']).resolve()
     if not exe.is_file():
         p.error('native candidate missing; run tools/local/build.py first')
+    print(optimized_build.describe_build(exe), flush=True)  # D62
     prepared = ROOT / 'disc/time-to-kill.cue'
     if not prepared.is_file():
         validator = ROOT / 'build-tools' / ('sector_check.exe' if os.name == 'nt' else 'sector_check')

@@ -14,9 +14,14 @@ normal objects are never rebuilt:
               (-fprofile-partial-training), so a profile stays usable across
               small source edits; retrain after large ones.
   pgo         instrument, train and use in one go.
-  install     copy build-lto's or build-pgo's executable into build-local
-              (the normal one kept as Duke_Nukem__Time_to_Kill_Recompiled.normal);
-              `install --restore` puts the normal one back.
+  install     copy build-lto's or build-pgo's executable into build-local and
+              record it in build-local/optimized-installed.json (run.py prints
+              which build it launches); `install --restore` relinks the
+              normal one from build-local's objects (seconds, always current).
+
+D62 build policy: dev sessions on the desktop play the normal build; the
+optimized build is made when the user asks (end of day, copies for the field
+laptop and citadel, releases, performance measurements).
 
 Run build.py first (disc import, generated code). No -march, no fast-math:
 the same instructions and floating point rules as the normal build, only
@@ -101,6 +106,36 @@ def stamp(tree, kind, seconds, extra=None):
     print(json.dumps(info), flush=True)
 
 
+INSTALLED = ROOT / 'build-local' / 'optimized-installed.json'
+
+
+def describe_build(exe):
+    """One line for run.py: which build this launch runs. The install stamp
+    counts only while the executable is the one installed (a normal relink
+    replaces it and changes its size or time)."""
+    exe = Path(exe)
+    if exe.parent.name != 'build-local':
+        return f'build: {exe.parent.name} (DNTTK_EXE)'
+    try:
+        info = json.loads(INSTALLED.read_text())
+        st = exe.stat()
+        if info['size'] == st.st_size and info['mtime_ns'] == st.st_mtime_ns:
+            kind = {'pgo': 'optimized LTO+PGO', 'lto': 'optimized LTO'}.get(info['kind'], info['kind'])
+            return f"build: {kind} @{info['head']}, built {info['built']}"
+    except (OSError, ValueError, KeyError):
+        pass
+    return 'build: normal (dev build, -O3)'
+
+
+def restore_normal(dst):
+    """Put the normal executable back: ninja sees the installed copy as newer
+    than its inputs, so remove it and relink build-local (seconds)."""
+    INSTALLED.unlink(missing_ok=True)
+    dst.unlink(missing_ok=True)
+    run(['cmake', '--build', 'build-local', '--target', 'psx-runtime'])
+    print('normal executable relinked', flush=True)
+
+
 def gcda_count(tree):
     return sum(1 for _ in (ROOT / tree).rglob('*.gcda'))
 
@@ -142,21 +177,18 @@ def main():
         stamp('build-pgo', 'pgo', build('build-pgo', a.jobs), dict(profile_files=n))
     if a.step == 'install':
         dst = ROOT / 'build-local' / EXE_NAME
-        keep = dst.with_name(EXE_NAME + '.normal')
         if a.restore:
-            if not keep.is_file():
-                p.error('no saved normal executable')
-            shutil.copy2(keep, dst)
-            print('normal executable restored', flush=True)
+            restore_normal(dst)
             return 0
         src = ROOT / f'build-{a.source}' / EXE_NAME
         info = ROOT / f'build-{a.source}' / 'optimized-build.json'
         if not src.is_file() or not info.is_file() or json.loads(info.read_text())['kind'] == 'pgo-instrumented':
             p.error(f'no finished {a.source} build')
-        if not keep.is_file() or dst.stat().st_mtime > keep.stat().st_mtime + 1:
-            shutil.copy2(dst, keep)  # a normal build newer than the saved copy
         shutil.copy2(src, dst)
         os.utime(dst)
+        st = dst.stat()
+        stamp_info = dict(json.loads(info.read_text()), size=st.st_size, mtime_ns=st.st_mtime_ns)
+        INSTALLED.write_text(json.dumps(stamp_info, indent=1) + '\n')
         print(f'installed {src.relative_to(ROOT)} -> build-local ({info.read_text().strip()})', flush=True)
     return 0
 

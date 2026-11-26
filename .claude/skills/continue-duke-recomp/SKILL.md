@@ -116,6 +116,8 @@ When the user accepts a job and authorizes the closeout (documentation, commit a
 
 Suggesting jobs does not start one. Do not mark any job In progress; wait for the user to run a command or choose.
 
+After the suggestions, add one line offering the optimized build (user request, 2026-11-26, D62), for example: "Want the optimized LTO+PGO build installed now (about 10 min), or saved for end of day?" Do not build it unless the user says yes. Dev sessions on the desktop play the normal build; see `documentation/04-build-and-run.md` (Dev builds and optimized builds).
+
 ## Private paths
 
 Never write the local account name or an expanded personal home directory into

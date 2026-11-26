@@ -75,6 +75,31 @@ recomp/build-local/Duke_Nukem__Time_to_Kill_Recompiled
 
 Windows appends `.exe`. The Linux candidate is approximately 131 MiB including debug information.
 
+## Dev builds and optimized builds (D62)
+
+Dev sessions on the desktop play the normal build above: after a small edit
+`cmake --build build-local` recompiles one file and relinks in seconds (link
+3.6 s; `modern_controls.cpp`, the slowest file, about 42 s). The optimized
+LTO+PGO build ([note 554](554-d23ah-lto-pgo-build.md)) costs about 9 minutes
+for `optimized_build.py use` (its single LTO link alone about 6.5 minutes) and
+about 75 minutes for a full `pgo` retrain, so it is made only when the user
+asks:
+
+- at the end of a day of jobs, or when the user wants it installed on the desktop;
+- before copying a build to the field laptop or citadel (they always run
+  LTO+PGO, never the normal build);
+- for releases;
+- for performance measurements and frame-rate reports (say which build was
+  measured; laptop and citadel figures come from LTO+PGO).
+
+`use` reuses the last training (`-fprofile-partial-training`); retrain with
+`pgo` after large source changes. Install with `optimized_build.py install
+--from pgo`; `install --restore` relinks the normal executable from
+build-local's objects (seconds, always current source). `run.py` prints which
+one a launch runs: `build: normal (dev build, -O3)` or `build: optimized
+LTO+PGO @<commit>, built <time>` (from `build-local/optimized-installed.json`,
+counted only while the executable is the installed one).
+
 ## Run the candidate
 
 Convenient wrapper from workspace root: `python3 recomp/tools/local/run.py`. The first invocation creates `game/` even for `--settings`. Ordinary launch uses `recomp/saves/local-play` for writable state. If `recomp/disc/time-to-kill.cue` is missing, the wrapper searches `game/` and imports a known USA dump without touching the original files. The explicit command below is useful for reproducing the initial probes.

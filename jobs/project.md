@@ -1103,3 +1103,43 @@ committed.
 **Acceptance:** in each hidden level the jetpack sounds as in a shipped level
 and no placeholder blip remains for an id that ships, by the user's ear;
 shipped levels, savestates and Vanilla unchanged.
+
+### D62 - Dev builds first, optimized build on request
+
+**Status: Done (2026-11-26, user: "gameplay feels solid lock it in and close it out"). Dependencies: D23AH.** The user,
+2026-11-26: the D08Z11 jump change "took us like 10-15 mins", mostly the
+optimized build; "save the big optimized build for like, end of day? or special
+exports we need for the field laptop". Then: "when we close out a job, you may
+add a one liner for me in your closeout recommendations, offering an optimized
+build", and "delete the old executables too".
+
+**Acceptance:** on the desktop, jobs build and the user plays the normal
+`build-local` build; LTO+PGO is built only when the user asks, offered in one
+line at each closeout; the field laptop and citadel keep LTO+PGO; the launcher
+says which build runs.
+
+Work log, 2026-11-26: measured on the desktop (16 threads) from the ninja logs
+and build stamps: a one-file edit in build-local compiles in 3-42 s and links in
+3.6 s; `optimized_build.py use` took 558 s, 395 s of it the single LTO link;
+a full `pgo` retrain is about 75 min (note 554). No rule asked for LTO+PGO at
+every closeout; the habit grew after D23AH. Done:
+
+- Policy in [04-build-and-run](../documentation/04-build-and-run.md#dev-builds-and-optimized-builds-d62),
+  `AGENTS.md`, note 554 section 6 and both continue-duke-recomp skills (the
+  closeout's one-line optimized-build offer).
+- `optimized_build.py install` writes `build-local/optimized-installed.json`
+  (kind, commit, built, executable size and mtime); `install --restore` deletes
+  the stamp and the installed copy and relinks build-local (7.9 s measured),
+  since ninja treats a copied executable as newer than its inputs and the old
+  saved `.normal` could predate the source.
+- `run.py` prints `build: normal (dev build, -O3)` or `build: optimized
+  LTO+PGO @<commit>, built <time>` (stamp counted only while size and mtime
+  match); `recomp/tests/local/test_optimized_build_label.py` (5 tests).
+- Checked: restore, install `--from pgo` (label `optimized LTO+PGO @a6ae154`)
+  and restore again. The desktop now runs the normal build of the current
+  source. 34 old named executables in build-local removed (about 16 GB; two
+  were hard links whose other name lies outside the repository).
+
+Remaining: the user's review of the new workflow over the next sessions.
+
+Work log, 2026-11-26: closed out (user: "gameplay feels solid lock it in and close it out"). Done.

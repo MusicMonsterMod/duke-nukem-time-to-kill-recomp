@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-26 - D62 closed out (Done)
+
+- D62: user "gameplay feels solid lock it in and close it out". Done.
+
+## 2026-11-26 - D62 dev builds first (Needs playtest)
+
+- D62 ([04-build-and-run](04-build-and-run.md#dev-builds-and-optimized-builds-d62)): the desktop now runs the normal build (`run.py` prints `build: normal (dev build, -O3)`); LTO+PGO is built only when the user asks (end of day, laptop and citadel copies, releases, measurements) and offered in one line at closeouts. `optimized_build.py install` stamps what it installed; `install --restore` relinks. The field laptop and citadel still run LTO+PGO.
+
 ## 2026-11-26 - D61A closed out (Done)
 
 - D61A ([note 560](560-d61a-cut-content-hunt.md)): user "lock it in and close it out" after reviewing the gallery. Done. D61B (stabilize the hidden levels) is next in that line.

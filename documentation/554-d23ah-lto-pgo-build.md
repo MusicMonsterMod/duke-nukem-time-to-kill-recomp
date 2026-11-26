@@ -202,12 +202,14 @@ large ones, `optimized_build.py pgo` rebuilds and retrains (about 75 min).
 - Both the desktop and the field laptop run the LTO + PGO executable (the
   user's playtest on the laptop: 2 slow seconds in 5.5 minutes of GOLD AND
   GUNS and no audio underrun, against 33 slow seconds and 44 underruns in 3
-  minutes the evening before). The normal one is kept as
-  `build-local/Duke_Nukem__Time_to_Kill_Recompiled.normal` (desktop) and
-  `.pre-d23ah` (laptop). Install: `python3 recomp/tools/local/optimized_build.py
-  install --from pgo` (`install --restore` undoes it). A later normal rebuild
-  of build-local puts the normal executable back: after code changes run
-  `optimized_build.py pgo` (about 75 minutes), then `install --from pgo`.
+  minutes the evening before). The laptop keeps the normal one as
+  `.pre-d23ah`. Install: `python3 recomp/tools/local/optimized_build.py
+  install --from pgo`; since D62 `install --restore` relinks the normal
+  executable instead of copying a saved `.normal`. A later normal rebuild of
+  build-local puts the normal executable back. D62 (2026-11-26): dev sessions
+  on the desktop play the normal build; the optimized build is made when the
+  user asks (end of day, laptop and citadel copies, releases, measurements),
+  see [04-build-and-run](04-build-and-run.md#dev-builds-and-optimized-builds-d62).
 - Not done: citadel (the build is copied, not built, there as on the laptop;
   untested this round); Modernized RAM and pictures cannot be compared across
   builds (section 3).

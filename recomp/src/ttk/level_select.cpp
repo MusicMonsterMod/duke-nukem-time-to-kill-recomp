@@ -15,6 +15,7 @@
 // the init's own teardown call (8002B9F4 from 8002546C), after its saved-game
 // check and before 800254D0 reads the index for the loader.
 #include "level_select.h"
+#include "hidden_titles.h"
 #include "ttk_register.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -60,6 +61,7 @@ bool selectable(long n) {return n>=0 && n<30 && n!=4 && (n<13 || n>20);}
 bool authentic() {return code_identity(guards,expected);}
 
 std::string name(unsigned n) {
+    if(const char* hidden=ttk::hidden_level_title(n)) return hidden;   // D61B
     const int id=int16_t(psx_mod_read_half(names+2*n));
     if(id<=0 || id>400)return {};
     const uint32_t text=psx_mod_read_word(strings+4u*unsigned(id));
@@ -122,9 +124,9 @@ void list(void (*say)(const char*)) {
     if(used)say(line);
     // D61: the indices the title cheat skips (note 101) load too (developer).
     say("Hidden (developer: goto N, or level force N):");
-    say("   4 TRUE GRIT (XXX)    13 MODERN 4 (XXX)    14 ANIMATION TEST LEVEL");
+    say("   4 TRUE GRIT    13 MODERN 4    14 ANIMATION TEST LEVEL");
     say("  15 MESA   16 CASTLE   17 DUNGEON   18 COLISEUM   19 WAREHOUSE   20 FACTORY");
-    say("  30 EMPTY   31 SOUND TEST");
+    say("  30 BOSS 4   31 SOUND TEST");
 }
 }
 

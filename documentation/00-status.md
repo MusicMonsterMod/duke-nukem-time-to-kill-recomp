@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-26 - D61B closed out (Done)
+
+- D61B ([note 561](561-d61b-hidden-levels.md)): user "lock in todays efforts, and close us out". Done after playtest fixes (pause-menu beep: samples rewritten after the VB upload; totems drawn again, rebuilt four-box collision; borrowed skies without the cloud deck; Drak head on the totems; TRUE GRIT, MODERN 4, BOSS 4 titles). Backlog filed: D08A51-D08A53 (grenade look setting, grenade shake, weapon steadiness), D61C-D61X (scuba breath, True Grit stone circles and review, Modern 4 fixes). New hook `0x8006A3AC` in `game.local.toml`: other machines regenerate before building.
+
+## 2026-11-26 - D61B the hidden levels stabilized (Needs playtest)
+
+- D61B ([note 561](561-d61b-hidden-levels.md)): in True Grit, Modern 4, the animation test, the empty room and the sound test the jetpack, gadget, menu and other silent sounds now come from a shipped level of the same era (verified by SPU key-ons, not heard); the held grenade stays original where its pickup is untextured; True Grit draws Duke Hill's sky and Modern 4 TIME TO KILL's; the totem wings (our painting), Modern 4's bar fronts, props and crates are textured; the prototype water's grey and zero frames are fixed. Modernized only. D61C filed. Waiting for the user's playtest.
+
 ## 2026-11-26 - D62 closed out (Done)
 
 - D62: user "gameplay feels solid lock it in and close it out". Done.

@@ -53,6 +53,20 @@ static bool hhg_mesh(uint32_t models,unsigned id,HhgMesh& m) {
     }
     return false;
 }
+// True when a textured face of the mesh names CLUT 0xffff: the level's model
+// loader found no texture for it (D61B).
+static bool hhg_unresolved(const HhgMesh& m) {
+    for(uint32_t cur=m.faces;cur<m.faces+m.face_bytes;) {
+        const uint32_t header=psx_mod_read_word(cur);cur+=4;
+        const uint32_t type=header&0xffff,n=header>>16;
+        if(type==0xff)break;
+        const unsigned size=(type==0x20||type==0x28)?8:(type==0x30||type==0x38)?12:(type==0x24||type==0x2c)?16:20;
+        if(type==0x24 || type==0x2c)
+            for(uint32_t k=0;k<n;++k) if((psx_mod_read_word(cur+size*k+4)>>16)==0xffffu) return true;
+        cur+=n*size;
+    }
+    return false;
+}
 static void hhg_read_verts(const HhgMesh& m,std::vector<std::array<double,4>>& v) {
     v.resize(m.nv);
     for(unsigned i=0;i<m.nv;++i) for(int k=0;k<4;++k) v[i][k]=(int16_t)psx_mod_read_half(m.vp+8*i+2*k);
@@ -114,6 +128,11 @@ static void hhg_look_update() {
         return;
     }
     if(held.mesh==pick.mesh || thrown.mesh==pick.mesh)return;
+    // D61B: a level whose texture set lacks the pickup's art (Modern 4, the
+    // animation test) loads it with unresolved faces, CLUT 0xffff on page
+    // 0x20: copied onto Duke's hand they drew magenta. Keep the original
+    // grenade there.
+    if(hhg_unresolved(pick)) {hhg_refuse(6);return;}
     // Already converted (this level load): the held mesh's faces are the pickup's.
     if(held.nv==pick.nv && held.face_bytes==pick.face_bytes && psx_mod_read_word(held.faces+4)==psx_mod_read_word(pick.faces+4) &&
        thrown.nv==pick.nv && psx_mod_read_word(thrown.faces+4)==psx_mod_read_word(pick.faces+4))return;

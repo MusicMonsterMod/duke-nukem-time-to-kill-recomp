@@ -340,16 +340,43 @@ constexpr uint32_t sky_words[5]={0x800da344u,0x800da45cu,0x800da464u,0x800da468u
 constexpr uint32_t duke_hill_words[5]={0x612u,0x613u,0x611u,0x00661f29u,0x614u};
 constexpr uint32_t first_id=0x611u,mesh_count=4;
 
+// D61B: TIME TO KILL's sky (backdrop and cloud bands) for Modern 4, whose own
+// bands load with unresolved textures; its words for the routine.
+constexpr uint32_t modern_words[5]={0u,0x619u,0x61bu,0u,0x61au};
+constexpr uint32_t modern_first=0x619u,modern_count=3;
+struct BankRect {uint16_t x,y,w,h;std::vector<uint16_t> words;};
 struct Pack {
-    bool ok=false;
+    bool ok=false,modern_ok=false;
     uint32_t ids[mesh_count]={};
     std::vector<uint8_t> meshes[mesh_count];
     std::vector<uint16_t> vram;   // 1024x512, Duke Hill's x 512..1023
+    std::vector<uint8_t> modern[modern_count];
+    std::vector<BankRect> modern_rects;   // second-bank texels and CLUTs, x < 512
 };
+// D61B: hidden levels whose own sky layers load untextured (CLUT 0xffff on
+// page 0x20, drawing the frame buffer: True Grit's striped band, Modern 4's
+// magenta) draw a borrowed set whenever the game draws its sky: True Grit
+// Duke Hill's (the same layer ids, the same Old West set), Modern 4 TIME TO
+// KILL's (user 2026-11-26: "borrow modern sky").
+struct Restored {uint32_t level;int set;};
+constexpr Restored restored_skies[]={{4,0},{13,1}};
 Pack pack;
 std::once_flag pack_once;
 
 uint32_t rd32(const std::vector<uint8_t>& b,size_t o) {return b[o]|b[o+1]<<8|b[o+2]<<16|(uint32_t)b[o+3]<<24;}
+uint32_t record_size(uint32_t type);
+// A mesh blob as the pack stores it, with a valid polygon list.
+bool mesh_valid(const std::vector<uint8_t>& m) {
+    const uint32_t n=(uint32_t)m.size(),list=rd32(m,0x14);
+    for(uint32_t at=list;;) {
+        if(at+4>n) return false;
+        const uint32_t header=rd32(m,at),type=header&0xffff,k=header>>16;at+=4;
+        if(type==0xff) return true;
+        const uint32_t size=record_size(type);
+        if(!size || !k || at+k*size>n) return false;
+        at+=k*size;
+    }
+}
 
 // Object mesh records (near_clip.cpp object_record_size).
 uint32_t record_size(uint32_t type) {
@@ -382,32 +409,55 @@ void load_pack() {
         const uint32_t id=rd32(b,o),n=rd32(b,o+4);o+=8;
         if(id!=first_id+i || n<0x18 || n>0x4000 || o+n>b.size()) return;
         std::vector<uint8_t> m(b.begin()+o,b.begin()+o+n);o+=n;
-        // Validate the polygon list.
-        const uint32_t list=rd32(m,0x14);
-        for(uint32_t at=list;;) {
-            if(at+4>n) return;
-            const uint32_t header=rd32(m,at),type=header&0xffff,k=header>>16;at+=4;
-            if(type==0xff) break;
-            const uint32_t size=record_size(type);
-            if(!size || !k || at+k*size>n) return;
-            at+=k*size;
-        }
+        if(!mesh_valid(m)) return;
         pack.ids[i]=id;pack.meshes[i]=std::move(m);
     }
     constexpr size_t a_bytes=448*256*2,b_bytes=512*256*2;
-    if(o+a_bytes+b_bytes!=b.size()) return;
+    if(o+a_bytes+b_bytes>b.size()) return;
     pack.vram.assign(1024*512,0);
     for(int y=0;y<256;++y) {
         std::memcpy(&pack.vram[y*1024+512],&b[o+y*448*2],448*2);
         std::memcpy(&pack.vram[(256+y)*1024+512],&b[o+a_bytes+y*512*2],512*2);
     }
+    o+=a_bytes+b_bytes;
+    // D61B: the modern set (optional).
+    auto modern=[&]()->bool{
+        if(o+12>b.size() || std::memcmp(&b[o],"TTKSKYM1",8) || rd32(b,o+8)!=modern_count) return false;
+        o+=12;
+        for(uint32_t i=0;i<modern_count;++i) {
+            if(o+8>b.size()) return false;
+            const uint32_t id=rd32(b,o),n=rd32(b,o+4);o+=8;
+            if(id!=modern_first+i || n<0x18 || n>0x4000 || o+n>b.size()) return false;
+            pack.modern[i].assign(b.begin()+o,b.begin()+o+n);o+=n;
+            if(!mesh_valid(pack.modern[i])) return false;
+        }
+        if(o+4>b.size()) return false;
+        const uint32_t rects=rd32(b,o);o+=4;
+        if(!rects || rects>4) return false;
+        for(uint32_t r=0;r<rects;++r) {
+            if(o+8>b.size()) return false;
+            BankRect q;q.x=uint16_t(b[o]|b[o+1]<<8);q.y=uint16_t(b[o+2]|b[o+3]<<8);q.w=uint16_t(b[o+4]|b[o+5]<<8);q.h=uint16_t(b[o+6]|b[o+7]<<8);o+=8;
+            const size_t words=size_t(q.w)*q.h;
+            if(!q.w || !q.h || q.x+q.w>512 || q.y+q.h>512 || o+2*words>b.size()) return false;
+            q.words.resize(words);
+            for(size_t k=0;k<words;++k) q.words[k]=uint16_t(b[o+2*k]|b[o+2*k+1]<<8);
+            o+=2*words;
+            pack.modern_rects.push_back(std::move(q));
+        }
+        return o==b.size();
+    };
+    if(o!=b.size()) {
+        pack.modern_ok=modern();
+        if(!pack.modern_ok) {pack.modern_rects.clear();for(auto& m:pack.modern) m.clear();}
+    }
     pack.ok=true;
-    std::fprintf(stderr,"[TTK sky] borrowed sky pack %s\n",path.c_str());
+    std::fprintf(stderr,"[TTK sky] borrowed sky pack %s%s\n",path.c_str(),pack.modern_ok?" (with TIME TO KILL's sky)":"");
 }
 bool pack_ok() {std::call_once(pack_once,load_pack);return pack.ok;}
 
 uint32_t copy=0;         // guest copy of the meshes (allocated live, never in a worker)
 uint32_t mesh_at[mesh_count]={};
+uint32_t modern_table=0,modern_at[modern_count]={};   // D61B: the modern set, after Duke Hill's
 bool injected=false;
 uint32_t saved[6];
 uint64_t injections=0;
@@ -425,26 +475,77 @@ bool allocate() {
     if(psx_mod_replay_active()) return false;
     uint32_t bytes=0;
     for(uint32_t i=0;i<mesh_count;++i) {mesh_at[i]=bytes;bytes+=(uint32_t)(pack.meshes[i].size()+3)&~3u;}
+    // D61B: the modern set's table (16 bytes) and meshes follow, when packed.
+    const uint32_t modern_from=bytes;
+    uint32_t modern_bytes=0;
+    if(pack.modern_ok) {
+        modern_bytes=16;
+        for(uint32_t i=0;i<modern_count;++i) {modern_at[i]=modern_from+modern_bytes;modern_bytes+=(uint32_t)(pack.modern[i].size()+3)&~3u;}
+    }
     // Table words for ids 0x611..0x614 first, then the meshes.
-    copy=psx_mod_alloc_guest_memory(16+bytes,16);
+    copy=psx_mod_alloc_guest_memory(16+bytes+modern_bytes,16);
     if(!copy) return false;
     for(auto& m:mesh_at) m+=copy+16;
-    sky_borrow_copy=copy;sky_borrow_copy_end=copy+16+bytes;
+    if(pack.modern_ok) {
+        modern_table=copy+16+modern_from;
+        for(auto& m:modern_at) m+=copy+16;
+    }
+    sky_borrow_copy=copy;sky_borrow_copy_end=copy+16+bytes+modern_bytes;
     return true;
 }
 // Rewritten on every use: a savestate load restores mod memory to the saved
 // image, which may predate the copy.
-void write_copy() {
-    for(uint32_t i=0;i<mesh_count;++i) {
-        const auto& m=pack.meshes[i];const uint32_t at=mesh_at[i];
-        psx_mod_write_word(copy+4*i,at);
+// D61B: an open sky shows the cloud bands as the game draws them, a ring
+// round the horizon under the plain backdrop; the cloud deck (D17AO1, the
+// bands' second polygon group) is only for GOLD AND GUNS' skylights, which see
+// straight up. Without it the list ends after the bands' own group.
+void end_after_first_group(uint32_t at,const std::vector<uint8_t>& m) {
+    const uint32_t list=rd32(m,0x14),header=rd32(m,list),size=record_size(header&0xffff);
+    if(!size) return;
+    const uint32_t next=list+4+size*(header>>16);
+    if(next+4<=m.size() && (rd32(m,next)&0xffff)!=0xff) psx_mod_write_word(at+next,0xffu);
+}
+bool sky_open=false;   // this injection restores a level's own sky (no deck)
+void write_set(uint32_t table,const uint32_t* at_list,const uint32_t* ids,const std::vector<uint8_t>* meshes,uint32_t count) {
+    for(uint32_t i=0;i<count;++i) {
+        const auto& m=meshes[i];const uint32_t at=at_list[i];
+        psx_mod_write_word(table+4*i,at);
         for(size_t o=0;o+4<=m.size();o+=4) psx_mod_write_word(at+(uint32_t)o,rd32(m,o));
         for(size_t o=m.size()&~size_t(3);o<m.size();++o) psx_mod_write_byte(at+(uint32_t)o,m[o]);
-        psx_mod_write_half(at,(uint16_t)pack.ids[i]);
+        psx_mod_write_half(at,(uint16_t)ids[i]);
         psx_mod_write_word(at+0xc,0);
         for(uint32_t f:{0x8u,0x10u,0x14u}) psx_mod_write_word(at+f,at+rd32(m,f));
+        if(sky_open && (ids[i]==0x613u || ids[i]==0x614u)) end_after_first_group(at,m);
     }
 }
+void write_copy(int set) {
+    if(set==1) {
+        const uint32_t ids[modern_count]={modern_first,modern_first+1,modern_first+2};
+        write_set(modern_table,modern_at,ids,pack.modern,modern_count);
+    } else write_set(copy,mesh_at,pack.ids,pack.meshes,mesh_count);
+}
+// D61B: the level's own cloud band has textured faces and every one names
+// CLUT 0xffff (the model loader found no texture for it).
+bool own_bands_unresolved() {
+    const uint32_t id=psx_mod_read_word(0x800da45cu),table=psx_mod_read_word(table_pointer);
+    if(!id || id>=4096 || table<0x80010000u || table>0x801f0000u) return false;
+    const uint32_t mesh=psx_mod_read_word(table+4*id);
+    if(mesh<0x80010000u || mesh>0x801f0000u || (mesh&3)) return false;
+    uint32_t cur=psx_mod_read_word(mesh+0x14);
+    if(cur<0x80010000u || cur>0x801f0000u || (cur&3)) return false;
+    unsigned textured=0;
+    for(unsigned guard=0;guard<16;++guard) {
+        const uint32_t header=psx_mod_read_word(cur);cur+=4;
+        const uint32_t type=header&0xffff,n=header>>16,size=record_size(type);
+        if(type==0xff) return textured>0;
+        if(!size || !n || n>1024) return false;
+        if(type==0x24 || type==0x2c)
+            for(uint32_t k=0;k<n;++k,++textured) if((psx_mod_read_word(cur+size*k+4)>>16)!=0xffffu) return false;
+        cur+=n*size;
+    }
+    return false;
+}
+int active_set=0;
 void restore() {
     if(!injected) return;
     for(int i=0;i<5;++i) psx_mod_write_word(sky_words[i],saved[i]);
@@ -463,14 +564,20 @@ void hook(CPUState* cpu,uint32_t address) {
         const uint32_t level=psx_mod_read_word(level_index);
         bool painted=false;
         for(const auto& s:painted_skies) painted|=s.level==level;
+        int restore=-1;
+        for(const auto& r:restored_skies) if(r.level==level) restore=r.set;
         static SkyRenderIdentity identity;
-        sky_borrow_ready=painted && enabled() && input_modernized() && psx_mod_read_word(players)==1 &&
-            pack_ok() && !own_sky() && allocate() &&
+        const bool common=enabled() && input_modernized() && psx_mod_read_word(players)==1 && pack_ok();
+        if(restore>=0 && !(common && (restore==0 || pack.modern_ok) && own_bands_unresolved())) restore=-1;
+        sky_borrow_ready=((painted && common && !own_sky()) || restore>=0) && allocate() &&
             identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram);
+        sky_borrow_always.store(sky_borrow_ready && restore>=0,std::memory_order_relaxed);
+        active_set=restore>0?restore:0;
         sky_borrow_level=level;
+        painted&=sky_borrow_ready && restore<0;
         // D17BP: what this composition may open onto (see sky_borrow_wanted).
         sky_borrow_face_left_prev.store(sky_borrow_face_left.exchange(false,std::memory_order_relaxed),std::memory_order_relaxed);
-        if(sky_borrow_ready) {
+        if(painted) {
             const uint32_t loads=psx_mod_savestate_loads();
             if(level!=shaft_level || loads!=shaft_loads) {shaft_level=level;shaft_loads=loads;find_shafts(level);}
             sky_borrow_shaft_shown.store(shaft_shown(),std::memory_order_relaxed);
@@ -484,9 +591,11 @@ void hook(CPUState* cpu,uint32_t address) {
         if(cpu->gpr[31]!=0x800265c4u || cpu->gpr[4]!=0 || injected || !sky_borrow_wanted() || !copy) return;
         for(int i=0;i<5;++i) saved[i]=psx_mod_read_word(sky_words[i]);
         saved[5]=psx_mod_read_word(table_pointer);
-        write_copy();
-        for(int i=0;i<5;++i) psx_mod_write_word(sky_words[i],duke_hill_words[i]);
-        psx_mod_write_word(table_pointer,copy-4*first_id);
+        sky_open=sky_borrow_always.load(std::memory_order_relaxed);
+        write_copy(active_set);
+        const uint32_t* words=active_set==1?modern_words:duke_hill_words;
+        for(int i=0;i<5;++i) psx_mod_write_word(sky_words[i],words[i]);
+        psx_mod_write_word(table_pointer,active_set==1?modern_table-4*modern_first:copy-4*first_id);
         injected=true;++injections;
         return;
     }
@@ -507,6 +616,8 @@ extern "C" const uint16_t* ttk_foreign_vram(void) {
     std::call_once(once,[]{
         const bool sky=pack_ok();
         bank=sky?pack.vram:std::vector<uint16_t>(1024*512,0);
+        if(sky) for(const auto& q:pack.modern_rects)   // D61B: TIME TO KILL's sky at x 448-511
+            for(uint32_t j=0;j<q.h;++j) std::memcpy(&bank[(q.y+j)*1024+q.x],&q.words[j*q.w],q.w*2);
         if(security_tv_paint_bank) security_tv_paint_bank(bank.data());
         if(prop_light_paint_bank) prop_light_paint_bank(bank.data());   // D41L: flames, halos, embers at x 256
         keycard_paint_bank(bank.data());   // D08A46: red and yellow key card palettes at x 256-287, y 480

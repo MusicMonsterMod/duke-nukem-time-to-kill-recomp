@@ -219,6 +219,7 @@ set_source_files_properties("${PSXRECOMP_ROOT}/runtime/src/host_osd.c" PROPERTIE
 # (disc/, made by build.py) at build time; never committed. Without a prepared
 # disc the runtime keeps its generic host font and the switcher shows no icons.
 target_sources(psx-runtime PRIVATE src/ttk/ttk_font.cpp src/ttk/inventory_hud.cpp src/ttk/savestate_panel.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/hidden_level_sound.cpp src/ttk/hidden_level_look.cpp)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(TTK_DISC_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/disc/time-to-kill.bin")
 set(TTK_DISC_EXE "${CMAKE_CURRENT_SOURCE_DIR}/disc/SLUS_005.83")
@@ -250,6 +251,26 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
         VERBATIM)
     add_custom_target(ttk-sky-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-sky.pack")
     add_dependencies(psx-runtime ttk-sky-assets)
+    # D61B: the shipped sounds the hidden levels lack (gadget group, menu
+    # group, disabled ids); loaded by hidden_level_sound.cpp. Retail-derived.
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-sound.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_sound.py"
+            --image "${TTK_DISC_IMAGE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-sound.pack"
+        DEPENDS "${TTK_DISC_IMAGE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_sound.py"
+        VERBATIM)
+    add_custom_target(ttk-sound-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-sound.pack")
+    add_dependencies(psx-runtime ttk-sound-assets)
+    # D61B: textures for the hidden levels' untextured models (shipped twins'
+    # blocks, the level's own, recomp/assets/hidden-levels); loaded by
+    # hidden_level_look.cpp. Retail-derived.
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-look.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_look.py"
+            --image "${TTK_DISC_IMAGE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-look.pack"
+        DEPENDS "${TTK_DISC_IMAGE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_look.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/hidden-levels/true-grit-totem-wing.png"
+        VERBATIM)
+    add_custom_target(ttk-look-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-look.pack")
+    add_dependencies(psx-runtime ttk-look-assets)
     # D08K4: crouch-walk legs clips solved on Duke's skeleton from the owned disc
     # and the captured crouch walk in assets/anim (CC-BY 4.0; ttk_crouch_walk.py);
     # loaded by anim_override.cpp as extra clips.

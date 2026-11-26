@@ -1292,10 +1292,10 @@ index e03a1e4a..be71ec8a 100644
  void savestate_status_json(char* buf, size_t cap);
  
 diff --git a/runtime/include/spu.h b/runtime/include/spu.h
-index badec733..ba101aef 100644
+index badec733..8ceb2d0e 100644
 --- a/runtime/include/spu.h
 +++ b/runtime/include/spu.h
-@@ -81,6 +81,8 @@ typedef struct SpuGlobalState {
+@@ -81,8 +81,12 @@ typedef struct SpuGlobalState {
  
  void spu_get_voice_state(int voice, SpuVoiceState* out);
  void spu_get_global_state(SpuGlobalState* out);
@@ -1303,7 +1303,11 @@ index badec733..ba101aef 100644
 +uint16_t spu_ctrl_reg(void);
  /* Debug peek into SPU sample RAM (spu_ram TCP command). */
  uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len);
++/* Write into SPU sample RAM outside a transfer (title plugins). */
++uint32_t spu_ram_poke(uint32_t addr, const uint8_t *in, uint32_t len);
  
+ /* ---- Always-on per-voice event ring. Records KEYON, KEYOFF, voice
+  * end-flag-stop and end-flag-loop events with a frame timestamp. Allocated
 diff --git a/runtime/runtime.cmake b/runtime/runtime.cmake
 index 149a3fdc..48698346 100644
 --- a/runtime/runtime.cmake
@@ -23977,7 +23981,7 @@ index 08dcadd0..9bec3ffe 100644
 +PSX_OBS_REGISTER(sio_txn_buf)
 +PSX_OBS_REGISTER(sio_irq_buf)
 diff --git a/runtime/src/spu.c b/runtime/src/spu.c
-index dc358955..199a301e 100644
+index dc358955..431697cf 100644
 --- a/runtime/src/spu.c
 +++ b/runtime/src/spu.c
 @@ -154,6 +154,8 @@ typedef struct {
@@ -23989,16 +23993,25 @@ index dc358955..199a301e 100644
      SpuEvent *e = &s_events[s_event_idx & (SPU_EVENT_CAP - 1u)];
      e->seq      = s_event_seq++;
      e->frame    = (uint32_t)s_frame_count;
-@@ -1601,6 +1603,8 @@ uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len) {
+@@ -1601,6 +1603,17 @@ uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len) {
      return len;
  }
  
++/* Write into SPU sample RAM outside a transfer (title plugins that add
++ * samples to a bank the game uploaded; TTK D61B). Clipped to SPU RAM. */
++uint32_t spu_ram_poke(uint32_t addr, const uint8_t *in, uint32_t len) {
++    if (!in || addr >= SPU_RAM_SIZE) return 0;
++    if (len > SPU_RAM_SIZE - addr) len = SPU_RAM_SIZE - addr;
++    memcpy(spu_ram + addr, in, len);
++    return len;
++}
++
 +uint16_t spu_ctrl_reg(void) { return spu_regs[reg_index(0x1F801DAAu)]; }
 +
  void spu_get_global_state(SpuGlobalState* out) {
      if (!out) return;
      memset(out, 0, sizeof(*out));
-@@ -1644,7 +1648,7 @@ void spu_get_global_state(SpuGlobalState* out) {
+@@ -1644,7 +1657,7 @@ void spu_get_global_state(SpuGlobalState* out) {
  uint64_t spu_event_total(void) { return s_event_seq; }
  
  uint32_t spu_event_get(SpuEvent* out, uint32_t max_count) {
@@ -24007,7 +24020,7 @@ index dc358955..199a301e 100644
      uint64_t avail = s_event_seq < (uint64_t)SPU_EVENT_CAP
                       ? s_event_seq : (uint64_t)SPU_EVENT_CAP;
      if ((uint64_t)max_count > avail) max_count = (uint32_t)avail;
-@@ -1659,7 +1663,7 @@ uint32_t spu_event_get(SpuEvent* out, uint32_t max_count) {
+@@ -1659,7 +1672,7 @@ uint32_t spu_event_get(SpuEvent* out, uint32_t max_count) {
  void spu_event_reset(void) {
      s_event_idx = 0;
      s_event_seq = 0;
@@ -24016,7 +24029,7 @@ index dc358955..199a301e 100644
  }
  
  /* ---- boot snapshot: complete SPU register + voice state (LE field wire) ---- */
-@@ -1822,3 +1826,7 @@ void spu_snapshot_part_digests(SpuSnapPartDigests *out)
+@@ -1822,3 +1835,7 @@ void spu_snapshot_part_digests(SpuSnapPartDigests *out)
      crc = crc32_update(crc, buf + regs_n + voices_n, SPU_SNAPSHOT_TAIL_BYTES);
      out->tail = crc ^ 0xFFFFFFFFu;
  }

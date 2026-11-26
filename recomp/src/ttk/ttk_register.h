@@ -42,6 +42,8 @@
 #define TTK_RANK_SECURITY_MONITOR   15   /* security_monitor.cpp */
 #define TTK_RANK_PROP_LIGHTS        16   /* prop_lights.cpp */
 #define TTK_RANK_SAVESTATE_PANEL    17   /* savestate_panel.cpp */
+#define TTK_RANK_HIDDEN_LEVEL_SOUND 18   /* hidden_level_sound.cpp */
+#define TTK_RANK_HIDDEN_LEVEL_LOOK  19   /* hidden_level_look.cpp */
 
 #if defined(__GNUC__) || defined(__clang__)
 /* Priorities 0-100 are the implementation's. */

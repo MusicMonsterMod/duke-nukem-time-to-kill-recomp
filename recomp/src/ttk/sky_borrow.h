@@ -83,8 +83,12 @@ inline unsigned roof_cap_count(uint32_t level) {
 }
 inline uint32_t roof_cap_room(unsigned i) {return psx_mod_read_word(roof_cap_block+8+8*i);}
 inline uint32_t roof_cap_piece(unsigned i) {return psx_mod_read_word(roof_cap_block+12+8*i);}
+// D61B: a hidden level whose own sky layers load untextured draws the
+// borrowed set whenever the game draws its sky (sky_borrow.cpp).
+inline std::atomic<bool> sky_borrow_always{false};
 inline bool sky_borrow_wanted() {
-    return sky_borrow_ready && (sky_borrow_face_left.load(std::memory_order_relaxed) || sky_borrow_face_left_prev.load(std::memory_order_relaxed) ||
+    return sky_borrow_ready && (sky_borrow_always.load(std::memory_order_relaxed) ||
+                                sky_borrow_face_left.load(std::memory_order_relaxed) || sky_borrow_face_left_prev.load(std::memory_order_relaxed) ||
                                 sky_borrow_shaft_shown.load(std::memory_order_relaxed));
 }
 }

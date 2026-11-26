@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include "hidden_titles.h"
 #include "ttk_register.h"
 #include <cctype>
 #include <cmath>
@@ -2082,6 +2083,7 @@ void draw_list(Guest& g,const Geometry& geo,int shift) {
 void level_title(Guest& g,const Geometry& geo) {
     const int n=level();
     if(n<0 || n>=32) return;
+    if(const char* hidden=ttk::hidden_level_title(unsigned(n))) {g.say(hidden,0,heading_y(geo),font_menu|centre);return;}   // D61B
     const int id=(int16_t)psx_mod_read_half(level_names+2*n);
     if(id>0 && id<=text_last) g.say_id(id,0,heading_y(geo),font_menu|centre);
 }
@@ -2355,8 +2357,9 @@ void level_title_tick() {
     if(level_card.pending && running) {
         level_card.pending=false;
         const int n=level(),id=n>=0 && n<32 ? (int16_t)half(level_names+2*n) : 0;
-        if(id>0 && id<=text_last) {
-            std::string name=text_of(id);
+        const char* hidden=n>=0 ? ttk::hidden_level_title(unsigned(n)) : nullptr;   // D61B
+        if(hidden || (id>0 && id<=text_last)) {
+            std::string name=hidden?hidden:text_of(id);
             for(char& c:name) c=(char)std::toupper((unsigned char)c);
             if(!name.empty()) {title_publish(name.c_str(),255);level_card.left=title_total_ms;++level_card.shown;return;}
         }
@@ -2369,7 +2372,8 @@ std::string slot_name(int slot) {
     const SlotInfo& s=slot_info[slot];
     if(!s.exists) return "EMPTY";
     const int id=s.named ? half(level_names+2*s.level) : 0;
-    const std::string name=id>0 && id<=text_last ? text_of(id) : "";
+    const char* hidden=s.named ? ttk::hidden_level_title(unsigned(s.level)) : nullptr;   // D61B
+    const std::string name=hidden ? std::string(hidden) : id>0 && id<=text_last ? text_of(id) : "";
     return name.empty() ? "SAVED GAME" : name; // saved before D24B, or outside gameplay
 }
 std::string slot_time(int slot) {

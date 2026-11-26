@@ -2485,3 +2485,51 @@ Work log, 2026-11-24 (implemented, Needs playtest):
   (as without the goggles); a brighter floor with the goggles on was not
   tested. Field laptop and citadel not updated.
 - 2026-11-24, user: "fixed! lock it in and close it out". Done.
+
+### D08A51 - Holy Hand Grenade look setting, original or accurate
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B: "advanced
+toggle, holy hand grenade, settings could be like, original / accurate. to pick
+between the og model and our real one"). Dependencies: D08A47.**
+
+D08A47 (note 520) draws the held and thrown grenade with the pickup's gold mesh.
+Add an advanced setting (Modernized) with two values: ORIGINAL, the game's own
+held and thrown model, and ACCURATE, the pickup's model (today's behaviour).
+Keep D61B's rule (`hhg_look.inc`: the original model where the pickup loads
+untextured). Vanilla unchanged. Saved with the player's settings, in the
+manual.
+
+**Acceptance:** the setting switches the held and thrown grenade between the two
+models in game, and it persists.
+
+### D08A52 - Holy Hand Grenade hand shake when selected
+
+**Status: Todo (backlog; user request 2026-11-26: "when the holy handgrenade is
+picked, dukes hand/the grenade kinda shakes, we encountered stuff like that
+before. i'd say fix that"). Dependencies: D08A47, D08A51.**
+
+When the grenade is selected, Duke's hand and the grenade shake. Reproduce with
+the player's own selection input, check both looks (D08A51) to see whether the
+shake belongs to the converted mesh or the original pose, and find the cause
+with the earlier weapon-shake fixes as reference (first-person weapon pose and
+settle work, notes under D36 and D47). Then make it steady. Modernized only.
+
+**Acceptance:** selecting and holding the grenade shows no shake, in first and
+third person, by the user's eye.
+
+### D08A53 - Weapon steadiness review
+
+**Status: Todo (backlog; user request 2026-11-26: "a review of all the weapons
+for stabilization because i noticed a few vigorous shakes here and there, so
+we just wanna smooth everything out a bit and go for more 'realism' rather than
+jerkiness"). Dependencies: D08A52.**
+
+Review every weapon in hand (select, idle, walk, run, fire, reload, switch,
+first and third person) for jerky movement, measure each shake, and smooth it
+toward natural motion without slowing the weapon or moving its hits (keep the
+EDuke32 feel rule: cut delays, never slide hits). Modernized only; Vanilla
+unchanged.
+
+**Acceptance:** a per-weapon list of shakes found and fixed, and the user's
+playtest finds the weapons steady.
+

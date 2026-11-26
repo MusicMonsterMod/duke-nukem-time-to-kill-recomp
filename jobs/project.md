@@ -1076,8 +1076,8 @@ Work log:
 
 ### D61B - Stabilize the hidden levels
 
-**Status: Todo (filed 2026-11-26 by D61A; the user's idea: "try and like,
-stabalize those cut levels"). Dependencies: D61A.**
+**Status: Done (2026-11-26, user: "lock in todays efforts, and close us out"; filed 2026-11-26 by D61A; the user's idea: "try and like,
+stabalize those cut levels"; selected 2026-11-26). Dependencies: D61A.**
 D61A ([note 560](../documentation/560-d61a-cut-content-hunt.md)) found why the
 hidden levels sound and behave unfinished. Modernized only; Vanilla, the
 shipped levels and the disc stay unchanged; nothing derived from the disc is
@@ -1103,6 +1103,526 @@ committed.
 **Acceptance:** in each hidden level the jetpack sounds as in a shipped level
 and no placeholder blip remains for an id that ships, by the user's ear;
 shipped levels, savestates and Vanilla unchanged.
+
+Work log, 2026-11-26 (plan): selected with "there are many missing textures
+too, but some of it feels intentional like that zoo map ... I dont want to lose
+what they are, but instead in this iteration, just fix or patch over clearly
+broken elements of them. so missing skyboxes or model textures, then glitchy
+sounds and so on". The D61 tour sheets of 4, 13, 14 and 31 were reviewed room
+by room and each finding sorted Fix / Keep / Ask, written up as a private
+artifact for the user's read (local copy `research/d61b/plan/`, untracked):
+
+- **Keep:** the green developer grid of the animation test and sound test,
+  the empty room's void, True Grit's dim brick and prop set, Commando Duke,
+  the dancers, and every level's own sound variants.
+- **Fix (seen):** True Grit rooms 28, 34 and 41-46 draw purple-white garbage
+  on floor and water faces (a texture page the level does not load); Modern 4's
+  street sky (rooms 0-6, 9) is a flat magenta band; the club bar front (room
+  12) and a block in room 17 are untextured magenta; the held Holy Hand
+  Grenade draws magenta in Modern 4 (the D08A47 rewrite's CLUTs, ours); plus
+  items 1-2 above (sounds).
+- **Ask:** True Grit room 27's flat green polygon over the channel; Modern 4
+  room 44, grey on every face. Not defects: tour shots with the camera inside a
+  wall (True Grit room 18).
+- **Order:** 1 sounds for all five levels as one load-time system; 2 the
+  grenade; 3 sky and textures, each checked on the original (DuckStation copy)
+  before fixing (a spot the original draws correctly is a renderer bug, fixed
+  game-wide); 4 the Ask items, creatures 121 and 621 and an exit, one at a time.
+- Not checked yet on the original: the garbage faces, the magenta sky and
+  pieces. No code changed; waiting on the user's read of the plan.
+- Follow-up the same day: the user pointed at the bridge area and totem poles
+  with missing textures. Room 27's green polygon is the bridge's underside
+  (seen from rooms 25-27), now Fix; room 27's ceiling past it has the striped
+  garbage too. The totem poles were not found: the 705 posts (rooms 18, 30,
+  38) look textured from the front and `goto object` stands point-blank. The
+  one-view-per-room review missed items, so phase 3 starts with a renderer
+  sweep of every face and model drawn without a loaded texture page or CLUT;
+  missing art with no source on the disc is painted in Photon (user
+  2026-11-26).
+
+Work log, 2026-11-26 (implementation): the user's decisions on the plan: True
+Grit room 27 "the same look and feel as normal water", Modern 4 room 44 normal
+apart from its water, "borrow modern sky", the surfacing scuba breath filed for
+later (D61C), "use your order as described in the artifact", "proceed
+autonomously". Done, all Modernized only ([note 561](../documentation/561-d61b-hidden-levels.md)):
+
+1. **Sounds**: `hidden_level_sound.cpp` writes a shipped level's gadget group,
+   menu group and the ids the hidden level disables (TIME TO KILL for 13, 14,
+   30, 31; DUKE HILL for 4) into the sound table at `0x8006a3ac`, sizes into
+   the VH and samples into SPU RAM (`spu_ram_poke`, framework). The "placeholder
+   blips" of note 560 were disabled entries (silent). New hook
+   `0x8006A3AC` (one generated line, codegen hash unchanged). Verified by
+   requests and SPU key-ons in 4, 13, 14 and 31; not heard.
+2. **Grenade**: `hhg_look.inc` keeps the original held grenade where the pickup
+   loads untextured (CLUT 0xffff: Modern 4, the animation test).
+3. **Skies**: `sky_borrow.cpp` restore mode: True Grit draws Duke Hill's sky,
+   Modern 4 TIME TO KILL's (relocated in the second texture bank).
+   **Models**: `hidden_level_look.cpp` textures the totem wings (our painting),
+   Modern 4's bar fronts and props (TIME TO KILL twins) and room 15's crates
+   (the level's own crate). **Water**: 64x64 prototype frames narrowed to their
+   caustic tile, zero frames hold the last good one.
+4. Not started: the creatures, exits (one at a time with the user).
+
+Tests: `test_hidden_level_packs.py` (synthetic banks; disc packs skip in CI);
+local suite 284 OK (2 skipped). `ttk-sky-test` segfaults before main
+(pre-existing init order, D23AH). Before/after shots in
+`research/before-after/D61B/`. Limits: sounds not heard; skies, models and
+water not checked on the original; room 44's water not located; offscreen
+llvmpipe.
+
+Work log, 2026-11-26 (totem head): the user: the totem head should look like
+"one of the draks ... colored up nice to match the aesthetic of the totem
+pole" (the wings "look fine"). The head's 20 faces had taken the wing
+painting; they now take the lizard guardian's own head profile and scales
+from True Grit's VRAM, recoloured into the totem's gold ramp, UVs projected
+from the disc's vertices (`build_ttk_look.py` mode 2, explicit UVs). Checked
+first: neither the totem's geometry nor its texture is a Drak's (no mesh or
+recoloured texture match in any level). In game: 20 faces on the new block,
+8 on the wings, teeth and crest unchanged.
+
+Work log, 2026-11-26 (sky): the user: shipped skies "never have the clouds
+rotating in the centre ... its always just the edges", GOLD AND GUNS being the
+exception. Checked on DUKE HILL's own sky; a restored sky (True Grit, Modern 4)
+now leaves out the D17AO1 cloud deck, so the bands ring the horizon under the
+plain backdrop. GOLD AND GUNS keeps the deck.
+
+Work log, 2026-11-26 (totem collision): "duke cant walk under their wings".
+The poles collided as the whole mesh's bounds (wings included). Each now has
+its own collision header with a box round the plinth; `goto` under a wing now
+stands there (before: pushed out). The draw is unchanged.
+
+Work log, 2026-11-26 (playtest fixes): the user's playtest: "the totems are
+completely absent" and, at the pause menu, "a loud beep ... constantly going,
+like a sine wave". Read from the running game: voice 0 looping inside the first
+added sample at `0x653A0` (the menu sound `0x0`), its bytes not the pack's. The
+game's VB upload writes whole DMA blocks past the VB's end; the samples are now
+written again at Duke's first update after the bank load. The totems vanished
+because their collision header lived in mod memory, which the draw refuses; the
+plinth box now goes into the mesh's own bounds (radius kept). Verified: all
+added samples intact in 4, 13, 14, 31, no voice left at the pause menu; totems
+drawn; `goto` under a wing stands.
+
+Work log, 2026-11-26 (totem collision rebuilt): "make a brand new accurate
+collision box". Four boxes from the pole's own hexagonal geometry (core and
+points, base and column), wings and head left clear. Duke now stops 541-593
+from the centre (disc 699-899); the rest of the gap is his own collision
+radius (about 370), as at every prop. A tighter-than-geometry fit for this
+pole is the user's call.
+
+Work log, 2026-11-26 (titles): "line up all the real level titles ... currently
+it says XXX". Modernized's level card, pause title, save names and console now
+read TRUE GRIT (4), MODERN 4 (13) and BOSS 4 (30, the game's own unused string)
+through `hidden_titles.h`; no guest data changes (a first try at repointing the
+game's strings broke the level select's and menu's code guards; replaced).
+Vanilla keeps XXX.
+
+**Acceptance (unchanged):** the jetpack sounds as in a shipped level, by the
+user's ear; plus the user's look at the skies, totems, Modern 4 props and water.
+
+### D61C - The surfacing breath, a scuba remnant
+
+**Status: Todo (filed 2026-11-26 by D61B; the user: "when duke surfaces he
+makes a breathe sound more like the scuba from duke3d. very, very interesting.
+i understand there was some kind of framework remnant for scuba gear ... I'd
+love to look into bringing back some time, but not today"). Dependencies: D61B.**
+
+In Modern 4, surfacing plays a breath like Duke 3D's scuba gear. Note 560 lists
+the inventory string `SCUBA TABS` (105) with no pickup type found, and D08N (a
+Duke 3D scuba item) was cancelled as out of scope. Research first: which sound
+id the surfacing plays in Modern 4 (`DNTTK_SOUND_TRACE`) and in a shipped level,
+its sample in each bank, and any scuba code path (oxygen, item flags) in the
+executable; then whether a scuba item could return in Modernized, for the user
+to decide.
+
+### D61D - True Grit's stone circles
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B: "improving
+the look and feel of the stone circles in true grit ... they have various
+problems like you cant easily walk over them etc, so the collision factor needs
+reviewing. aesthetically i think we make these just like 'The Abyss' in
+Duke3D. this level is giving such strong vibes of that"). Dependencies: D61B.**
+
+Where: True Grit, Duke at 69484 2574 -47094 facing 350 (`goto 4 at 69484 2574
+-47094 350`). Lead, not checked: the circles are likely the ring props D61B's
+sweep found, a type 719 centre with eight type 715 stones round it, placed in
+rooms 6, 9, 14, 17, 26, 27, 31 and 38 (room 26's centre at 70144 3072 -45568);
+note 561's sweep shot them from inside walls and saw nothing drawn, so their
+look and collision need a proper look first.
+
+1. **Collision.** Read the props' box lists and the room floor round them;
+   make the stones walkable (step over or onto them) as their size suggests,
+   with the D61B totem method (boxes from the real geometry; Duke's own radius
+   is about 370).
+2. **Look.** Restyle them after the stone circles of Duke 3D's "The Abyss"
+   (research the reference with sources, judge on the real display); keep
+   True Grit's palette and the level's own textures where they fit, new art in
+   Photon where not. Modernized only; Vanilla unchanged.
+
+Review, 2026-11-26 (the user's True Grit review): the circles are the level's
+teleporters ("they do work ... the Aesthetics are just completely off there's
+just this white square on the ground and it's not even centered"; "these
+teleporters are very difficult to walk into ... I'm going to have to jump into
+it"). Investigated: each circle is a type 719 centre (flags `0x1002`; the white
+square) with type 715 stones round it (flags `0x9002`, solid: the snag), in
+rooms 6, 9, 14, 17, 26, 27, 31 and 38; the centres hold level objects 10-17 in
+order, and jumping on one cycles Duke round them (a tour of the map); room 27's
+ledge circle (14) and room 31's (16) work as a two-way pair. Look: a flame
+rising from each circle, as in Duke 3D's The Abyss (the user made an EDuke32
+savestate there named STONECIRCLE for reference); Photon and Blender available.
+Also: map the teleport links (which centre sends where, and why the tour is
+cyclic) and make walking into a circle trigger it.
+
+**Acceptance:** Duke walks over and among the stones without snagging, walking
+into a circle teleports him, and the user finds the circles look the part.
+
+### D61E - Modern 4's alley dumpster moves
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"this dumpster should be moveable" (level 13 room 7, Duke at 3137 -9715 15111 facing 186).
+
+Investigated: the dumpster is type 165, the same object as TIME TO KILL's
+pushable alley dumpster (level 0 room 7 at 2582 -9728 13829, yaw 2048; Modern
+4's at 2871 -9728 13829, yaw 2048: room 7 is a copy of level 0's alley). Its
+type flags (`0x081090e2`) carry the pushable bit `0x08000000` and the climbable
+bits. push.inc (D08T, note 64) notes that the levels enable pushing where a
+pushable stands (`player+0x48`), and D08T5's ladder limit authenticates the
+first map's overlay; Modern 4's overlay (`LEVEL13.OVR`) probably never sets it.
+Find what level 0's overlay does and give Modern 4 the same, Modernized only.
+
+**Acceptance:** Duke pushes and pulls the dumpster as in TIME TO KILL.
+
+### D61F - Modern 4's room 8 woman
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"if you go to room 8 you can see the woman who is completely static ... if
+you harm her the audio glitches the hell out ... could we animate her just like
+pretty much how she is in time to kill and then prevent the noise thing ... the
+easiest route" (Duke at 10484 -11774 7673 facing 188 is in the room).
+
+Investigated: she is spawner type 167, the non-hostile class 8 (note 560's
+club-dancer class), at 10223 -11271 9187; TIME TO KILL has the same type in its
+room 8 (10278 -11271 7473), animated. The three pig cops nearby are type 57
+spawners (normal). Not traced yet: why she is static here (her animation set
+in Modern 4's files, or her brain) and what the audio glitch is; Modern 4 has
+no level sound groups (note 560), so her voice and hurt ids may be missing or
+land on D61B's added samples. Trace both with `DNTTK_SOUND_TRACE` and RAM, then
+give her TIME TO KILL's animation and voice lines (from the player's disc),
+Modernized only.
+
+**Acceptance:** she moves as in TIME TO KILL, and harming her plays her own
+sounds with no glitch.
+
+### D61G - Modern 4's flicker and blood
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"There's loads of flickering parts of this map and it looks like blood
+doesn't work either blood just seems to Flick her on the ground".
+
+Not investigated beyond the report: start with the blood decal's texture in
+Modern 4 (an unresolved CLUT `0xffff` face, D61B's marker, would sample the
+frame buffer), then the flickering surfaces (z-fighting or untextured faces),
+on the real display (offscreen llvmpipe artefacts, memory). Modernized only.
+
+**Acceptance:** blood shows as in shipped levels and the map's surfaces stop
+flickering, by the user's eye.
+
+### D61H - Modern 4's room 8 window frame
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"This window is clipped into the ground. either remove it or fix it on the
+building properly" (level 13 room 8, Duke at 10484 -11774 7673 facing 188).
+
+Investigated: the frame is type 196 (model 471) at 9208 -11564 7440, yaw 2048.
+TIME TO KILL places the same type in its room 8 at 7609 -11564 7440 (same y,
+x 1599 further west, on its building). Modern 4's room differs, so the frame
+stands in the floor. Move it onto the building (as level 0 places it) or remove
+it, Modernized only.
+
+**Acceptance:** no window frame stands in the floor.
+
+### D61I - Modern 4's cut-off ladder
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"This ladder is cut off/broken half way" (level 13 room 7, Duke at 10513
+-9724 14226 facing 252).
+
+Investigated: the ladder is type 46 (model 70) at 9226 -9225 13774, yaw 1024;
+TIME TO KILL's same ladder stands at 9225 -10239 13769. Modern 4's is 1014
+lower, so half of it is under the alley floor. Raise it to level 0's height
+(its climbing panel moves with it), Modernized only.
+
+**Acceptance:** the ladder is whole and climbable to its top.
+
+### D61J - Modern 4's missing platform ladder
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"there is no way to get to this platform because it doesnt have a ladder. can
+we add the ladder in the same way as it exists in time to kill" (level 13 room
+7, Duke at 3575 -13816 13786 facing 14).
+
+Investigated: TIME TO KILL's room 7 has two type 46 ladders, at 4105 -12299
+13769 (yaw 1024, up to this platform) and 9225 -10239 13769; Modern 4 has only
+the second (D61I). Add the first as a placed object at level 0's position (a
+spawned or relinked type 46 with its climbing panel), Modernized only.
+
+**Acceptance:** Duke climbs from the alley to the platform as in TIME TO KILL.
+
+### D61K - Modern 4's lone fence
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"remove this lone piece of fence" (level 13 room 0, Duke at -2793 -9603 14791
+facing 17).
+
+Investigated: the fence is type 159 (model 423, flags `0x190c2`) at -3231
+-9418 13710, yaw 3755, standing on the radiation mat; TIME TO KILL places the
+same type at the same spot, where it belongs with the rest of that street.
+Remove it (unlink or hide it and its collision) in Modern 4 only, Modernized.
+
+**Acceptance:** the fence is gone and nothing blocks where it stood.
+
+### D61L - Modern 4's floating crate
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"this object should be on the ground" (level 13 room 15, Duke at -18 -9720
+26400 facing 306).
+
+Investigated: the big crate is type 596 (model 1103; D61B gave it the level's
+crate texture) at -1543 -9427 27421; its box bottom is about 205 above the
+floor, while the type 602 crates round the room sit at -9216 on it. Lower it to
+the floor (position and collision), Modernized only.
+
+**Acceptance:** the crate rests on the floor.
+
+### D61M - Modern 4's paper scraps
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"i think these are meant to be old newspapers, scraps of paper, or something
+like that. can you check to see if we have any textures for them and if so, add
+them in so they look the part. otherwise make it in photon" (level 13 room 0,
+Duke at -4047 -9600 12417 facing 309, looking down).
+
+Investigated: the scraps are type 162 (model 426), placed three times (rooms 0,
+4, 7; -4331 -9240 12687). The model has 13 flat, untextured faces (types
+0x20/0x28), and so has TIME TO KILL's copy (it loads it, places none): no
+texture exists on the disc. Texturing them means FT3/FT4 records (16 bytes, not
+8), so a rebuilt mesh; the draw path accepts meshes only in main RAM (note 561),
+so the rebuilt mesh needs an accepted home first. Art: newspaper and paper scrap
+textures painted in Photon, in the game's style.
+
+**Acceptance:** the scraps read as old newspapers on the street.
+
+### D61N - Modern 4's rocket
+
+**Status: Todo (backlog; user request 2026-11-26, while testing D61B; investigated, not started). Dependencies: D61B.**
+
+"the rocket at this location doesnt have any texture on the fins as shown
+here. it's just white. can you retexture them. make this look really
+spectacular. try and see what we already have, if not, use photon" (level 13
+room 46, Duke at -41814 2559 64874 facing 355).
+
+Investigated: room 46 holds four type 598 objects (model 1105, about 3000 units
+tall) at -46745/-46695/-42347/-42369 1440 68972-73397, ahead of that spot. The
+model has no textured faces at all, only flat F3/F4 polygons, so the fins and
+the rest are untextured (Mortimer's prototype notes mention "a missile ready to
+be launched" in Modern 4). As D61M: textured faces need a rebuilt mesh with an
+accepted home. Look for metal, panel and warning textures in Modern 4's and
+other levels' sets first; paint the rest in Photon; judge on the real display.
+
+**Acceptance:** the rocket is fully textured and looks the part.
+
+### D61O - True Grit's green arrow markers
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"there is an unusual green arrow thing right under the crosshair at this view.
+remove it" (level 4 room 1, Duke at 16811 -4294 -3353 facing 267; the review's
+first spot, 12933 -4418 -3066, has no floor).
+
+Investigated: the arrow is type 725 at 16896 -3731 -3584, at the end of a row of
+13 type 724 objects along x 16899 (z -13818 to -511, then along z 2560 to x
+20996), all flags `0x1002`, floating at y -3731 to -3994: very likely a
+developer route marker left in the prototype. Confirm what 724 draws, then hide
+725 (and 724 if it is the same kind of marker) in True Grit, Modernized only.
+
+**Acceptance:** no green arrows (or other route markers) remain in room 1.
+
+### D61P - True Grit's lava pit
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"this lava on the ground is not really lava at all ... I think we use that same
+texture in the lava pit as gold and guns, and get that glow and everything
+looking good in this area ... this bit here's totally meant to be a jump and
+puzzle over a lava pit" (level 4 room 14, Duke at -7246 6656 -19928 facing 81).
+
+Investigated (shot): the pit floor plays the lava sound but draws as a dull
+floor. Next: which surface it is (a water-renderer material, note 561, or world
+faces with a lava texture or animation), then GOLD AND GUNS' lava: its texture
+(D57N, note 552, upright lava glow; D41 lava lights) and how it glows. Give the
+pit that look, a working hurt if the game has one for lava here, and the glow,
+Modernized only.
+
+**Acceptance:** the pit looks and glows like GOLD AND GUNS' lava, and the jump
+over it reads as a lava crossing.
+
+### D61Q - True Grit's relics and locks
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"we need mission items in this level to actually give it some flow/continuity"
+(the stone shield in room 14 at 4118 6671 -22663, the relics in rooms 38 and 11,
+the key slot in room 38, the locks by the doors in rooms 18 and 30, the red hand
+print in room 1 at 20740 2568 -3849, which plays a voice line).
+
+Investigated:
+- **Relics**: types 702 (room 14, 4914 6573 -22437, the stone shield), 703
+  (room 38, 73528 -339 -3796) and 704 (room 11, 66799 -6483 -37048), each on a
+  type 714 pedestal; flags `0x2010901a` (the same bit set as shot-breakable
+  props, not a pickup's). The review's "3 ancient artifacts".
+- **Locks** (item-lock flag `0x01000000`, note 517): 717 (room 38 key slot,
+  level object 9), 718 (room 30, object 8) and 709 (the hand print, room 1, no
+  object index). TIME TO KILL's locks are types 478 and 180-182.
+- **The lock code** is in `LEVEL04.OVR` (`0x800cadfc`): on the lock's slot byte
+  (`+0x34`) 7, 9 or 8 it calls `0x80092a84(object, 6|7|8, 2|3|5, 1|4|6)`. The
+  last two are level objects: the carved door posts (type 705) of room 18
+  (objects 1, 2), room 38 (3, 4) and room 30 (5, 6). So each lock opens a pair
+  of door posts; slot 7, room 18's door, has **no lock placed**. When the call
+  returns 0, Duke says line 140 ("Time to see who's in charge and kick their
+  ass!", DISM18, used only by this level, note 560).
+- The disc's string 244 is `STONE KEY`; Mortimer's prototype notes: in the Jul 7
+  build "one key reading STONE KEY ... found on stone altars" (online, note 560).
+
+Still open: what `0x80092a84`'s second argument (6, 7, 8) is (most likely the
+inventory item each lock wants), what the hand print does, and whether the
+relics were the keys. Write up the design (which relic opens which door) for the
+user before D61R builds it.
+
+**Acceptance:** a short write-up of the lock, door and relic system with the
+proposed mission-item flow, for the user's choice.
+
+### D61R - True Grit's mission items
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+The build after D61Q: the relics become mission items (picked up, shown in the
+mission inventory, used at a lock with the D59/D60 rules: a used item stays
+used), each lock takes its relic and opens its door posts (room 18's lock, slot
+7, placed where the review's door is, 45011 1536 -17434), and the hand print
+does what D61Q finds. Modernized only.
+
+**Acceptance:** without cheats, Duke can collect the relics and open True Grit's
+doors in order.
+
+### D61S - True Grit's see-through gaps
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+The review's gaps:
+- room 15 (36747 2234 -3563 facing 251): cracks show the sky, so the wall
+  reads paper thin; patch them, or keep a touch of sky some other way (the
+  user's preference if one fits);
+- room 27 (34350 -512 -41557 facing 74): a hole in the rock face shows the sky;
+- room 27 (30237 -508 -41468 facing 10): an opening shows the sky too low, black
+  below its horizon (seen); patch with the surrounding brick, and a ladder down
+  the small drop so Duke can climb back;
+- room 27 (30057 -505 -41520 facing 152): a split in the rock shows the water.
+
+Approach: world faces added as in D17BP's roof caps (note 550, the level's own
+textures), Modernized only.
+
+**Acceptance:** none of these openings shows the outside or the water, and Duke
+can climb back up the small drop.
+
+### D61T - True Grit's holes and invisible walls
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"there are some holes in the Wall where you can clip out of bounds ... this
+area is trecherous for clipping issues - there's an invisible wall here dead
+ahead. this may only be one example though, i will need you to search for them
+and fix them" (room 38 at 73401 -247 -7646; room 39 at 80510 -171 -7093 facing
+176). The route into room 39 is a run jump through a wall from 75231 -189
+-9354 facing 3 that lands behind the big door.
+
+Approach: survey every room's wall edges for gaps (edges used by one face, as
+sky_borrow's shaft finder does) and for collision without a drawn face (the
+level's collision against its mesh), list them with shots, then patch holes and
+remove or match invisible walls, keeping the intended route behind the door
+until D61R opens it. Modernized only.
+
+**Acceptance:** a list of holes and invisible walls found and fixed; Duke cannot
+leave the map in room 38.
+
+### D61U - True Grit's river end
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"at the end of the river there is a really Glitchy section ... a completely hard
+cut off with the Waters Edge and if you go into it it completely soft locks the
+game and Duke cannot move ... clip into a pool that's just below over the ridge
+... what is the intention here" (room 27, Duke at 31536 3268 -46755 facing 275;
+reached by jumping off the ridge into the river).
+
+Approach: reproduce with the player's own route, trace why Duke is stuck (water
+volume edge, the swim code at a missing wall, the pool below), find what the
+river was meant to join (room links, the pool's room), and make it safe:
+either a proper link or a closed edge. Modernized only.
+
+**Acceptance:** Duke can swim to the river's end and back without getting stuck.
+
+### D61V - True Grit's Ancient Aliens look
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+"the vibe i want to portray in our rendition of this map is going to be that of
+Ancient Aliens. Doom Ancient Aliens nailed the aesthetic just so perfectly"
+(the relic ledge over the river, room 11 at 66914 -6397 -36655 facing 196; the
+level's likeness to Duke 3D's The Abyss throughout).
+
+Research first, with sources: Ancient Aliens (the Doom megawad) and The Abyss,
+their palettes, light and set pieces; then a short art plan for True Grit
+(where its own textures already fit, what to paint in Photon or model in
+Blender: the stone circles' flames (D61D), relic light, lava (D61P)), for the
+user's choice before building.
+
+**Acceptance:** an art plan with references the user accepts.
+
+### D61W - True Grit's level flow
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+The review's later spots, for a future level-flow pass ("we're not going to
+actually build a true level flow today"):
+- the mystery door (room 18, 47528 1625 -22352 facing 339), maybe the far side
+  of the locked door at 45011 1536 -17434;
+- the two-way stone circle up to a ledge (room 27, 28088 -5634 -44739; from room
+  31 at 47989 2565 -65927), reachable now only with cheats; perhaps where the
+  room 30 lock's door (45724 -507 -55245, room 31 at 48678 -540 -58573) leads;
+- the end of the line (room 33, 47232 -403 -79698): the level's likely end,
+  where an exit (the game's own level end) would go.
+Depends on D61Q/D61R. Modernized only.
+
+**Acceptance:** True Grit can be played from start to an exit without cheats.
+
+### D61X - True Grit's prototype leftovers survey
+
+**Status: Todo (backlog; user's True Grit review 2026-11-26; investigated, not started). Dependencies: D61B.**
+
+Many review items are prototype leftovers (route markers, a lock with no slot,
+an unplaced lock). Sweep the level's 118 objects by type against what the game
+draws and does, and list anything else that looks like a developer marker or an
+unfinished hookup, for the user to sort.
+
+**Acceptance:** a list of leftovers with shots and a keep/remove suggestion each.
 
 ### D62 - Dev builds first, optimized build on request
 

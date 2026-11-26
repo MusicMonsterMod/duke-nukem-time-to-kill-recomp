@@ -20,9 +20,19 @@ faces, each cell one panorama tile of the band (page 0x3b, UV 0..63), mirrored
 in alternate cells so the tiling is seamless. The deck turns with its band, so
 the slow and fast decks drift against each other.
 
+D61B, the modern sky for Modern 4 (level 13, whose cloud bands load with
+unresolved textures, CLUT 0xffff, and draw magenta): TIME TO KILL's
+/D0/DB00/DB00MOD.BIN backdrop 0x61b (4 G3) and cloud bands 0x619/0x61a (72 FT4
+each, page 0x3b u 64-255 v 0-127, six CLUTs at x 704 y 407-412). Duke Hill
+holds x 512..1023 of the second texture bank, so the bands' texels go to page
+7's lower half (x 464-511, y 256-383, the same u and v) and their CLUTs to x
+448: each face's page 0x3b becomes 0x37 and its CLUT index drops by 0x10.
+
 Output: a TTKSKY1 pack (little endian): magic, source level, mesh count; each
 mesh as id, byte size and the file's bytes (relative offsets kept); then the
-two VRAM images. Retail-derived: build output only, never committed. Loaded by
+two VRAM images; then (D61B) "TTKSKYM1", the modern set's mesh count, its
+meshes as above (faces rewritten), and its bank rectangles: count, then x, y,
+w, h (u16) and w*h VRAM words each. Retail-derived: build output only, never committed. Loaded by
 src/ttk/sky_borrow.cpp. See documentation/398-d17ao1-borrowed-sky.md.
 """
 import argparse, hashlib, math, struct, sys
@@ -39,6 +49,15 @@ FILES = {
     'a': ('/D0/DB01/DB01A.RAW;1', 448 * 256 * 2),
     'b': ('/D0/DB01/DB01B.RAW;1', 512 * 256 * 2),
 }
+MODERN = {
+    'mod': ('/D0/DB00/DB00MOD.BIN;1', 187212),
+    'a': ('/D0/DB00/DB00A.RAW;1', 448 * 256 * 2),
+    'b': ('/D0/DB00/DB00B.RAW;1', 512 * 256 * 2),
+}
+MODERN_IDS = (0x619, 0x61a, 0x61b)
+MODERN_PAGE, MODERN_BANK_PAGE = 0x3b, 0x37
+MODERN_TEXELS = (720, 256, 48, 128, 464)       # source x, y, w, h; bank x (same y)
+MODERN_CLUTS = (704, 407, 16, 6, 448)
 TABLE = 2048 * 4
 SKY_IDS = (0x611, 0x612, 0x613, 0x614)
 RECORD_SIZE = {0x20: 8, 0x28: 8, 0x30: 12, 0x38: 12, 0x24: 16, 0x2c: 16, 0x34: 20, 0x3c: 20}
@@ -169,6 +188,45 @@ def cloud_deck(blob):
     return bytes(body)
 
 
+def vram_rect(a, b, x, y, w, h):
+    """VRAM words of a level's two raw images (A at (512,0) 448 wide, B at (512,256))."""
+    out = []
+    for j in range(y, y + h):
+        for i in range(x, x + w):
+            if 512 <= i < 960 and j < 256:
+                out.append(struct.unpack_from('<H', a, (j * 448 + i - 512) * 2)[0])
+            elif 512 <= i < 1024 and 256 <= j < 512:
+                out.append(struct.unpack_from('<H', b, ((j - 256) * 512 + i - 512) * 2)[0])
+            else:
+                raise SystemExit(f'({i},{j}) is outside the level images')
+    return out
+
+
+def modern_band(blob):
+    """A modern cloud band with its faces moved to the bank's page and CLUTs."""
+    body = bytearray(blob)
+    cursor = struct.unpack_from('<I', body, 0x14)[0]
+    while True:
+        header = struct.unpack_from('<I', body, cursor)[0]
+        cursor += 4
+        kind, n = header & 0xffff, header >> 16
+        if kind == 0xff:
+            break
+        for k in range(n):
+            r = cursor + RECORD_SIZE[kind] * k
+            if kind in (0x24, 0x2c):
+                t1, t2 = struct.unpack_from('<2I', body, r + 4)
+                clut, page = t1 >> 16, (t2 >> 16) & 0x1ff
+                cx, cy = (clut & 0x3f) * 16, clut >> 6
+                sx, sy, _, ch, bx = MODERN_CLUTS
+                if page != MODERN_PAGE or cx != sx or not sy <= cy < sy + ch:
+                    raise SystemExit(f'modern band: unexpected texture word {t1:#x} {t2:#x}')
+                struct.pack_into('<I', body, r + 4, (t1 & 0xffff) | (clut - (sx - bx) // 16) << 16)
+                struct.pack_into('<I', body, r + 8, t2 & ~(0x1ff << 16) | MODERN_BANK_PAGE << 16)
+        cursor += n * RECORD_SIZE[kind]
+    return bytes(body)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--image', default=str(ROOT / 'disc/time-to-kill.bin'), help='prepared MODE2/2352 image')
@@ -184,6 +242,12 @@ def main():
             if not entry or entry['size'] != size:
                 raise SystemExit(f'{path} not found with the expected size')
             data[key] = disc.read(entry['lba'], entry['size'])
+        modern = {}
+        for key, (path, size) in MODERN.items():
+            entry = entries.get(path)
+            if not entry or entry['size'] != size:
+                raise SystemExit(f'{path} not found with the expected size')
+            modern[key] = disc.read(entry['lba'], entry['size'])
     finally:
         disc.close()
 
@@ -195,6 +259,21 @@ def main():
             blob = cloud_deck(blob)
         out += struct.pack('<II', ident, len(blob)) + blob
     out += data['a'] + data['b']
+    # D61B: TIME TO KILL's sky for Modern 4.
+    out += b'TTKSKYM1' + struct.pack('<I', len(MODERN_IDS))
+    for ident in MODERN_IDS:
+        blob = mesh_bytes(modern['mod'], ident)
+        if ident != 0x61b:
+            blob = modern_band(blob)
+        out += struct.pack('<II', ident, len(blob)) + blob
+    rects = []
+    for sx, sy, w, h, bx in (MODERN_TEXELS, MODERN_CLUTS):
+        rects.append((bx, sy, w, h, vram_rect(modern['a'], modern['b'], sx, sy, w, h)))
+    out += struct.pack('<I', len(rects))
+    for x, y, w, h, words in rects:
+        if not any(words):
+            raise SystemExit('modern sky: empty texture rectangle')
+        out += struct.pack('<4H', x, y, w, h) + struct.pack(f'<{w * h}H', *words)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_bytes(out)
     print(f'{args.output}: {len(out)} bytes, sha256 {hashlib.sha256(out).hexdigest()}')

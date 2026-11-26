@@ -2518,10 +2518,16 @@ these examples:
   within the current level he keeps everything he has.
 - `goto 13` - the start of level 13. This also reaches the hidden levels the
   level select leaves out: 4 True Grit, 13 Modern 4, 14 the animation test,
-  15-20 the two-player arenas, 30 an empty room, 31 the sound test (`levels`
+  15-20 the two-player arenas, 30 Boss 4 (an empty room), 31 the sound test (`levels`
   lists them under "Hidden"). Modernized controls and the first-person view
   work in 4, 13, 14, 30 and 31; the arenas keep the original controls in one
-  player.
+  player. In Modernized these hidden levels are patched where they were
+  plainly broken: the jetpack, gadget and menu sounds play, True Grit and
+  Modern 4 have a sky, untextured props (True Grit's totem wings, Modern 4's
+  bar fronts and crates) are textured and the water no longer flashes. Their
+  unfinished rooms, test grids and prototype sounds are kept. Their title
+  cards and pause screens read TRUE GRIT, MODERN 4 and BOSS 4 instead of XXX.
+  Vanilla shows them as the disc has them.
 - `goto gag-lava-south` - a saved spot (a landmark); `goto landmarks` lists them.
 - `goto object 17` - beside level object 17, facing it.
 - `goto 45000 -300 -20600` - the floor nearest that map point (x y z);

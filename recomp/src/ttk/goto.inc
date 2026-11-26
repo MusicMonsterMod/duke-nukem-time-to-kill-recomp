@@ -397,7 +397,7 @@ static std::string goto_level_name(long n) {
     switch(n) {
     case 4: return "TRUE GRIT (hidden)";
     case 13: return "MODERN 4 (hidden)";
-    case 30: return "EMPTY (hidden)";
+    case 30: return "BOSS 4 (hidden)";
     default: break;
     }
     char title[48]={};ttk::level_title(unsigned(n),title,sizeof title);

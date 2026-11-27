@@ -2486,7 +2486,9 @@ OPTIONS > DISPLAY > FPS and is saved. Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
 through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed
-(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. The numpad types too: with Num Lock on its digits and `.`, and `- + * /` always; with Num Lock off its 8 / 2 recall commands, 9 / 3 scroll, 7 / 1 are Home / End, 4 / 6 move the caret, 0 is Insert and `.` is Delete. Keypad Enter runs the line. While scrolled up, `-- MORE BELOW: PGDN / END --`
+(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. The numpad types too: with Num Lock on its digits and `.`, and `- + * /` always; with Num Lock off its 8 / 2 recall commands, 9 / 3 scroll, 7 / 1 are Home / End, 4 / 6 move the caret, 0 is Insert and `.` is Delete. Keypad Enter runs the line. Enter on an empty line (or one of only spaces) prints
+the bare `>` prompt again, as in a Linux shell, so a few presses open space
+between commands; blank lines run nothing and stay out of `history`. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 
 **Editing, copy and paste in the console.** The command line has a blinking

@@ -2392,7 +2392,7 @@ gadget, first and third person):
 
 ### D26L - Console review: a rock-solid backtick console
 
-**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; D26L4 Done (the list layout and command review); tab completion remains). Dependencies: D26, D61.**
+**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; D26L4 Done (the list layout and command review); shell-style blank lines on Enter Done; tab completion remains). Dependencies: D26, D61.**
 User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
 job for just a review of the cli, and enhance it so it feels like a more rock
 solid experience for the user. im even thinking we add in a caret. fix up some
@@ -2426,6 +2426,24 @@ Starting points:
   (note 565); `present_shot` then captures it.
 - Nice to have: tab completion of command and landmark names, and the line
   history (up and down) checked.
+
+Work log:
+
+- 2026-11-27 - shell-style blank lines (Done, user-accepted: "excellent work! lock it in and close it out"). User: "like the linux
+  console, i wanna be able to press enter a few times and it makes a new line
+  ... exactly like pressing enter on a blank line on linux". Enter on an empty
+  line now echoes the bare `> ` prompt into the scrollback (before, nothing
+  happened), so repeated presses open space between commands. A line of only
+  spaces is blank too: it echoes as typed and runs nothing (before:
+  `Unknown command: .`). Blank lines are not added to `history` and reset the
+  Up/Down recall. Framework edit in `debug_console_run` (`main.cpp`), patch
+  exported. Evidence, offscreen (Xvfb, private profile and card copies, the
+  player's files hash-checked; lab `recomp/analysis/d26l-enter/probe.py`,
+  local): debug-port `console ''` gives `> `, `console '   '` gives `>    `
+  with no error; `fps`, three Return presses, `history`, Keypad Enter and
+  `zzz` showed three bare `>` rows, `history` listed only `clear` and `fps`
+  and the Keypad Enter row. Shared by both profiles (the console is the same in
+  Vanilla). Python suite (291, 2 skipped) and the five CI runtime tests pass.
 
 ### D26L1 - Console copy and paste
 

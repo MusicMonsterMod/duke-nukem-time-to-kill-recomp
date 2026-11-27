@@ -2552,7 +2552,7 @@ pass. Every level index now has the gold grenade under ACCURATE.
 
 ### D08A52 - Holy Hand Grenade hand shake when selected
 
-**Status: Todo (backlog; user request 2026-11-26: "when the holy handgrenade is
+**Status: Done (user-accepted 2026-11-27: "lock it in and close it out"; user request 2026-11-26: "when the holy handgrenade is
 picked, dukes hand/the grenade kinda shakes, we encountered stuff like that
 before. i'd say fix that"). Dependencies: D08A47, D08A51.**
 
@@ -2564,6 +2564,37 @@ settle work, notes under D36 and D47). Then make it steady. Modernized only.
 
 **Acceptance:** selecting and holding the grenade shows no shake, in first and
 third person, by the user's eye.
+
+Work log, 2026-11-27 (implemented, Needs playtest; [note 570](../documentation/570-d08a52-steady-grenade-hand.md)):
+- Two causes, both measured offscreen (lab `recomp/analysis/d08a52/`, private
+  card copies of UI slot 2, 180 Hz, the player's files hash-checked unchanged).
+- Drawn twice (both views): `6 6` from the Desert Eagle played the
+  throwables' draw clip 40 forward, backward, forward (up, down, up). The
+  second `6` lands while the pistol goes away; the D08A37 queue then wrote a
+  second request (flag `+0x224 & 4`) after the original had taken the first,
+  and the drawn grenade's hold handler (`0x8004e180`) holstered and drew it
+  again. From the Gatling the queue made a full change from the Pipe Bomb.
+  Fix (`shortcuts.inc`): a new choice that takes over our own request still in
+  the original's hands (not yet taken, or taken with the draw to come) only
+  changes `+0x3ba`; a begun draw still waits and changes normally.
+  `6 6` gap 4-20 fields: 1 dip to 0, hold 20 fields sooner; `6 6 6`: 2 to 0;
+  from the Gatling 0; third person 0; `1 1` one draw.
+- Flicker (first person): the throwables have no ready-pose seed, so the
+  held grenade showed the live skeleton hand: 6 positions, 2-7 px steps at
+  2560 wide (Desert Eagle: 1). Fix (`first_person.inc`): slots 12-14 use the
+  D08K10 arm-channel hand standing too (exact clip data): 1 position level,
+  down and up; placement within 1.5 units; draw and throw unchanged on
+  screen. A/B `DNTTK_FP_THROW_HAND=live`.
+- Tests: new `ttk-controls-test` group D08A52, D08K10 expectations updated;
+  168 groups pass, `ttk-near-test`, `ttk-input-test`, Python 292 OK (2
+  skipped). Pictures: `research/before-after/D08A52/`.
+- Expected (user: "we are literally cycling through them! that is truly
+  expected functionality"): a tap after a draw has begun gets one normal
+  change, e.g. from the Gatling `6 6 6` shows the grenade, then Dynamite.
+- Limits: redraws past the next tick hold the channel hand (2-3 unit steps in
+  a draw); offscreen only. Playtest: `6 6` and
+  holding the grenade on the real display, first and third person.
+- 2026-11-27, user: "lock it in and close it out". Done.
 
 ### D08A53 - Weapon steadiness review
 

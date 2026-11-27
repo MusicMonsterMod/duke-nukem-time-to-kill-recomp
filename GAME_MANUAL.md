@@ -1664,6 +1664,11 @@ Number keys now select familiar weapon groups when owned and usable:
 | 9 | Buffalo Rifle / Crossbow |
 | 0 | Freezer |
 
+Quick taps go straight to the last weapon chosen: tapping `6 6` while the
+current weapon is still being put away draws the Holy Hand Grenade once, with
+no Pipe Bomb raised and lowered on the way (D08A52). A tap after the next
+weapon has started coming up changes weapons normally once it is ready.
+
 **Holy Hand Grenade look (Modernized).** The grenade in Duke's hand and in
 flight is the same gold grenade you pick up (D08A47); Vanilla keeps the
 original darker held model. **OPTIONS > ADVANCED > ITEMS > HOLY HAND GRENADE**

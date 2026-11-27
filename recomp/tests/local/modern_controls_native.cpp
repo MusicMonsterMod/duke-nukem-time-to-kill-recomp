@@ -3017,6 +3017,33 @@ int main(int argc,char** argv) {
         call(0x80058120,p,0,0x80041c44);
         std::puts("PASS: D08A37 weapon switching while firing (queue, fire release, shot cut, draw mask, savestate, Vanilla)");
     }
+    {
+        // D08A52: quick taps through a group retarget our own request while
+        // the original still holds it (no second flag 4, which made the drawn
+        // weapon holster and draw again: 6 6 shook the Holy Hand Grenade).
+        auto tap=[&](int action){ttk::input.commands[0]=action;ttk::input.command_count=1;
+            ++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44);};
+        psx_mod_write_half(p+0x2c6+12*4,20);psx_mod_write_word(p+0x254,0);
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
+        psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);call(0x80058120,p,0,0x80041c44);
+        tap(ttk::weapon_group_6);  // pistol at rest: the Pipe Bomb is requested
+        assert(psx_mod_read_byte(p+0x3ba)==12 && (psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_half(p+0x74,6);  // the pistol going away, request not yet taken
+        tap(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==13 && (psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,1); // taken, draw to come
+        call(0x80058120,p,0,0x80041c44);assert(psx_mod_read_byte(p+0x3ba)==13 && !(psx_mod_read_word(p+0x224)&4));
+        tap(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==14 && !(psx_mod_read_word(p+0x224)&4));
+        // The draw has begun (Dynamite in hand, clip 40): a new choice waits.
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,14);psx_mod_write_half(p+0x74,40);
+        tap(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==14 && !(psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_half(p+0x74,39);call(0x80058120,p,0,0x80041c44); // ready loop: one normal change
+        assert(psx_mod_read_byte(p+0x3ba)==12 && (psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b9,12);call(0x80058120,p,0,0x80041c44);
+        assert(!ttk::switch_fire_masked());
+        psx_mod_write_byte(p+0x3b9,5);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_half(p+0x74,5);
+        psx_mod_write_half(p+0x2c6+12*4,0);call(0x80058120,p,0,0x80041c44);
+        std::puts("PASS: D08A52 quick group taps retarget the pending draw (one request, one draw; a begun draw waits)");
+    }
     std::puts("PASS: D08A29 running weapon selection and attack/draw safety");
     // No medkit ownership means no request. An owned dose uses original item equipment.
     psx_mod_write_half(p+0x368,0);request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12));
@@ -5892,10 +5919,14 @@ int main(int argc,char** argv) {
                         const auto neutral=displayed();
                         psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);
                         assert(displayed()==neutral);
-                        // Original crouch and standing retain D12's live path.
-                        setenv("DNTTK_CROUCH","original",1);assert(displayed()!=neutral);
+                        // Original crouch and standing retain D12's live path,
+                        // except the throwables 12-14 (D08A52): their hand is
+                        // the channel's standing too, so the world hand moving
+                        // (the live skeleton's rounding) never moves it.
+                        const bool steady=slot>=12 && slot<=14;
+                        setenv("DNTTK_CROUCH","original",1);assert((displayed()==neutral)==steady);
                         unsetenv("DNTTK_CROUCH");assert(displayed()==neutral);
-                        psx_mod_write_half(p+0x60,63);assert(displayed()!=neutral);
+                        psx_mod_write_half(p+0x60,63);assert((displayed()==neutral)==steady);
                         psx_mod_write_half(p+0x60,178);assert(displayed()==neutral);
                         // Rotate the shoulder in its animation frame, as a throw
                         // does. Its display must animate even though the world
@@ -5914,7 +5945,8 @@ int main(int argc,char** argv) {
                         setenv("DNTTK_CROUCH","original",1);
                         psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);psx_mod_write_word(p+0x1c8,root[1]+2000);
                         psx_mod_write_byte(p+0x22c,5);psx_mod_write_half(p+0x60,128);
-                        for(unsigned slot:{3u,12u,32u}) {
+                        // Slot 2, not 12: out of water the throwables keep the channel hand (D08A52).
+                        for(unsigned slot:{3u,2u,32u}) {
                             psx_mod_write_byte(p+0x3b8,slot==32?1:2);psx_mod_write_byte(p+0x3b9,slot==32?12:slot);
                             const auto corrected=displayed();
                             psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);assert(displayed()==corrected);

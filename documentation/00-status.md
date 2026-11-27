@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D08A52 closed out (Done)
+
+User-accepted: "lock it in and close it out". The Holy Hand Grenade is drawn once on `6 6` and held steady. Next in this line: D08A53 (weapon steadiness review). See [note 570](570-d08a52-steady-grenade-hand.md).
+
+## 2026-11-27 - D08A52 steady Holy Hand Grenade hand (Needs playtest)
+
+`6 6` no longer draws the grenade twice (the D08A37 queue's second request after the original had taken the first; quick taps now retarget the pending draw, both views), and the held throwables no longer flicker in first person (arm-channel hand standing, as when crouching). Modernized only. Playtest: `6 6` and holding the grenade on the real display. See [note 570](570-d08a52-steady-grenade-hand.md).
+
 ## 2026-11-27 - D08A51 closed out (Done)
 
 User-accepted: "excellent lock it in close it out". The Holy Hand Grenade look setting is Done; ACCURATE is gold in every level. Next in this line: D08A52 (the hand shake when the grenade is selected).

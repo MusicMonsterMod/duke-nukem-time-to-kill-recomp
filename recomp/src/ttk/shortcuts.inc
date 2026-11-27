@@ -404,7 +404,7 @@ static unsigned switch_drawing=255;  // requested, waiting for its ready loop
 static double switch_wait_ms;
 static std::chrono::steady_clock::time_point switch_clock;
 static std::atomic<bool> switch_mask{false};
-static unsigned switch_cuts,switch_queued,switch_served,switch_expired,switch_dropped,switch_ready,switch_masked_updates;
+static unsigned switch_cuts,switch_queued,switch_served,switch_expired,switch_dropped,switch_ready,switch_masked_updates,switch_retargets;
 bool switch_fire_masked() {return switch_mask.load(std::memory_order_relaxed);}
 static void switch_clear(bool expired=false) {
     if(expired && (switch_target<=14 || switch_drawing<=14))++switch_expired;
@@ -434,8 +434,8 @@ static unsigned weapon_command_target(int action,unsigned cursor,bool swim) {
 }
 static const char* weapon_switch_debug_json() {
     static char b[256];
-    std::snprintf(b,sizeof b,"{\"target\":%u,\"drawing\":%u,\"mask\":%s,\"queued\":%u,\"served\":%u,\"ready\":%u,\"expired\":%u,\"dropped\":%u,\"masked_updates\":%u,\"cuts\":%u}",
-        switch_target,switch_drawing,switch_fire_masked()?"true":"false",switch_queued,switch_served,switch_ready,switch_expired,switch_dropped,switch_masked_updates,switch_cuts);
+    std::snprintf(b,sizeof b,"{\"target\":%u,\"drawing\":%u,\"mask\":%s,\"queued\":%u,\"served\":%u,\"ready\":%u,\"expired\":%u,\"dropped\":%u,\"masked_updates\":%u,\"cuts\":%u,\"retargets\":%u}",
+        switch_target,switch_drawing,switch_fire_masked()?"true":"false",switch_queued,switch_served,switch_ready,switch_expired,switch_dropped,switch_masked_updates,switch_cuts,switch_retargets);
     return b;
 }
 static void select_weapon(CPUState* cpu) {
@@ -588,6 +588,21 @@ static void select_weapon(CPUState* cpu) {
             if(same) {
                 if(switch_target<=14)++switch_dropped;
                 if(switch_drawing<=14)switch_target=255;else switch_clear();
+            }
+            // D08A52: our request still in the original's hands, not yet
+            // taken (flag 4: the old weapon is going away) or taken with its
+            // draw still to come (hands empty), only has its weapon byte
+            // changed: the original reads +0x3ba when the holster ends and
+            // when the draw starts, so it draws the new choice once. A second
+            // request there (flag 4 again) made the drawn weapon see it in its
+            // ready loop and holster and draw again (6 6 to the Holy Hand
+            // Grenade: up, down, up). Once a draw has begun the new choice
+            // waits for its ready loop, as before.
+            else if(cursor<=14 && switch_drawing<=14 && switch_target>14 &&
+                    psx_mod_read_byte(player+0x3ba)==switch_drawing &&
+                    ((now_flags&4) || (equipment==0 && !remote))) {
+                psx_mod_write_byte(player+0x3ba,cursor);
+                switch_drawing=cursor;switch_wait_ms=0;++selections;++switch_retargets;
             }
             else if(cursor<=14 && cursor!=switch_target) {
                 switch_target=cursor;switch_wait_ms=0;switch_masked_updates=0;++switch_queued;

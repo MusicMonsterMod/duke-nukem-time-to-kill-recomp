@@ -1022,9 +1022,19 @@ static RunArms running_arm_pose() {
     pose.weight=weight;
     return pose;
 }
+// D08A52: the throwables (Pipe Bomb 12, Holy Hand Grenade 13, Dynamite 14)
+// have no ready-pose seed, so standing they showed the live skeleton's hand,
+// which flickers 1-3 units between ticks through the arm chain's rounding
+// even in their one-key hold (clip 39). Their hand is taken from the same
+// channel rebuild standing too: exact clip data, so the hold is still and the
+// draw and throw keep their motion. Developer A/B: DNTTK_FP_THROW_HAND=live.
+static bool throwable_channel_hand(unsigned slot) {
+    static const bool live=[]{const char* t=std::getenv("DNTTK_FP_THROW_HAND");return t && !std::strcmp(t,"live");}();
+    return !live && input_modernized() && (slot==12 || slot==13 || slot==14);
+}
 static bool animated_weapon_channel_live(double* q,double* pos) {
     const unsigned slot=weapon_view_slot();
-    if((!crouch_weapon_active() && !swim_weapon_view_active()) ||
+    if((!crouch_weapon_active() && !swim_weapon_view_active() && !throwable_channel_hand(slot)) ||
        !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
     std::array<CrouchQuat,32> arm{};uint32_t mask=0;
     if(!crouch_channel_pose(1,arm,mask) || (mask&0xe000u)!=0xe000u)return false;

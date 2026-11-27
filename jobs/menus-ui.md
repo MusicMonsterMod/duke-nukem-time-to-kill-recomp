@@ -2424,6 +2424,76 @@ Starting points:
 - Nice to have: tab completion of command and landmark names, and the line
   history (up and down) checked.
 
+### D26L1 - Console copy and paste
+
+**Status: Todo (backlog; user request 2026-11-27, part of the D26L console
+review). Dependencies: D26L (the caret; it can land first as an append at the
+end of the line).**
+User, 2026-11-27, after testing `goto` lines from a report: "stand up a backlog
+job in the mean time which is to allow copy and paste into the console ...
+they can actually go into that overarcing story we'll look at for improvements
+to the console later on".
+
+Today the console takes only typed keys: the framework console
+(`recomp/psxrecomp/runtime/src/host_osd.c`) makes no clipboard calls, so a
+command from a report or the manual has to be typed out by hand.
+
+Wanted:
+
+- **Paste:** Ctrl+V and Shift+Insert insert the system clipboard
+  (`SDL_GetClipboardText`) at the caret, or at the end before the caret
+  exists. Newlines split into separate commands run one after another (or
+  stop at the first line: decide and document). Tabs become spaces, other
+  control characters and characters the console font cannot draw are dropped,
+  and the line keeps its 96-character limit with a clear note when a paste is
+  cut short.
+- **Copy:** Ctrl+C copies the current command line (`SDL_SetClipboardText`);
+  a way to copy the last reply as well (for example a `goto here` landmark
+  line), such as Ctrl+Shift+C or a `copy` command.
+- Paste never reaches the game: no key reaches Duke's controls while the
+  console is open (D26J, D26K rules kept), and pasted text goes into the line
+  history like a typed command.
+- Framework edit, so export the patch (`export_runtime_patch.py`) and run the
+  runtime tests. Works on X11 and Wayland (SDL's clipboard), checked on the
+  real display.
+- `GAME_MANUAL.md` console section updated.
+
+Acceptance: a `goto ... face 95 quiet safe` line copied from a report pastes
+and runs; Ctrl+C then Ctrl+V of a typed line gives the same line; multi-line
+and over-long pastes behave as documented; user playtest.
+
+### D26L2 - Console syntax highlighting
+
+**Status: Todo (backlog; user request 2026-11-27, part of the D26L console
+review). Dependencies: D26L (font glyphs, the command review); best after
+D26L1.**
+User, 2026-11-27: "another which is syntax highlighting for the console".
+
+Wanted:
+
+- **As you type,** the command line is coloured by what each word is: a
+  known command, a known keyword of that command (`room`, `at`, `face`,
+  `quiet`, `safe`, `object`, landmark names), a number, and an unknown or
+  misspelt word (for example red), so a typo shows before Enter.
+- **In replies,** the same colours for example commands in help text and
+  "Try:" suggestions, and distinct colours for errors, warnings and the
+  echoed command.
+- **One table of commands and keywords** that the highlighter, the help and
+  (later) tab completion share, so they cannot drift apart. This is the D26L
+  command review's output; today each command parses its own words in the
+  game side (`recomp/src/ttk/*.inc`) and the framework console only draws.
+  Decide how the game hands its table to the framework console.
+- **Colour in the font path:** the console draws with the game's font pack
+  (`build_ttk_fonts.py`) and a system fallback; per-character tint must work
+  for both and stay within D23S's cost (the console image is uploaded only
+  when it changes).
+- Readable over every level's view and in night vision; Vanilla's console
+  looks the same as Modernized's (the console is a developer tool in both).
+
+Acceptance: commands, keywords, numbers and unknown words visibly distinct
+while typing and in `goto help`; no extra GPU cost with the console open at
+180 Hz (D23S measure); user playtest.
+
 ### D29 - Progression items and objectives legibility (research and design first)
 
 **Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The

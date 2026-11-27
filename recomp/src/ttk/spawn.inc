@@ -450,6 +450,7 @@ static void enemy_list(void (*say)(const char*)) {
 bool spawn_console_command(const char* line,void (*say)(const char*),bool& close) {
     close=false;
     if(goto_console_command(line,say,close))return true;   // D61 (goto.inc)
+    if(far_hits_console(line,say))return true;   // D17BF2 (far_hits.inc)
     if(!std::strncmp(line,"warp ",5)) {
         if(!input_modernized()) {say("Warp: Modernized profile only");return true;}
         WarpRequest w;w.on=true;

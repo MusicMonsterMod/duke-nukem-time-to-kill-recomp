@@ -372,6 +372,15 @@ calls are used) were added to `game.local.toml` and regenerated with
 `run.py --dynamite modern|original` (schema 32). See
 [note 138](138-d08a12-modern-dynamite.md).
 
+## More enemy slots (D17BF3)
+
+One hook (`0x8009934C`, the spawner setup at level load) was added to
+`game.local.toml` and regenerated with `psxrecomp_cli.py generate` (see the
+D14 note above); one generated line, codegen hash unchanged. Developer:
+`DNTTK_ENEMY_SLOTS=0..16` (default 8), `DNTTK_ROUND_RANGE=original`,
+`DNTTK_FAR_WAKE=0`, console `farhits on|off|default|probe`. See
+[note 564](564-d17bf1-far-hits.md).
+
 ## Steroids independent of damage (D08A13)
 
 One hook (`0x800A40A8`, Duke's damage handler) was added to

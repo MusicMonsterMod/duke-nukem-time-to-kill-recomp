@@ -2559,7 +2559,7 @@ the freed slot went to row 18, then nearer rows 23 and 29 within 10 frames
 
 ### D17BF1 - Sleeping enemies wake when hit
 
-**Status: Todo (split from D17BF at its closeout, 2026-11-09). Dependencies: D17BF (Done).**
+**Status: Done (user-accepted and closed out 2026-11-27: "its working. that's genuinely amazing. the test passed playing my slot 2 from far away. lock it in and close it out"). Dependencies: D17BF (Done), D17BF2, D17BF3. Remaining paths moved to D17BF4.**
 Steps 2-4 of the D17BF plan ([note 431](documentation/431-d17bf-sleeping-enemies-report.md)
 sections 5 and 7). A round, rocket, kick, beam lock or auto-aim that would
 hit a sleeping copy creates the real enemy at the copy (at the cap the
@@ -2573,6 +2573,115 @@ fails (level 0). Then review whether D17AQ's far dormant live enemies are
 still needed now that copies cover distant views. Modernized Extended only;
 Vanilla unchanged. Acceptance: a shot copy wakes as a real damaged enemy in
 slot 2 and slot 9, combat counts unchanged, user playtest.
+
+**Work log (2026-11-27, discussion).** User: "im not seeing any issues with
+waking sleeping enemies lately. is this work still outstanding?", then "i
+think there is a tricky one in one of my save slots, where im trying to shoot
+a necro quite far away, and that one just doesnt quite hit it". That Necro
+(UI slot 2, level 6, row 0, 34,900 units) is a live D17AQ dormant enemy, not a
+copy: rounds stop short of it (with aim within 0.3 degrees, hits at 31,974 or
+nearer, none at 32,986 or farther). The slot's copies are 55,000-65,000 away.
+User: "oh man, yes absolutely. we need to do that ... i totally see that we do
+need to make the extended enemy wake when hit stuff work ... proceed to work
+on this new job and anything else we need to bring us the ability to interact
+with enemies far away ... it's foundational". Filed D17BF2 (round range) and
+D17BF3 (more enemy slots, found on the way: the cap is the pool size).
+
+**Work log (2026-11-27, Needs playtest).** [Note 564](../documentation/564-d17bf1-far-hits.md)
+section 4. `far_hits.inc`: at the round sweep `0x8006dd2c` (a second plugin
+at the existing hook), any of Duke's projectiles whose path this update
+passes within reach of a sleeping copy creates the real enemy there first
+(`0x80098f3c` on the copy's row) so the original sweep meets and hits it; at
+the cap the farthest dormant, unhurt, unscripted enemy gives way
+(`0x80098d70`), else the copy sleeps on. `enemy_reach.inc`: a created enemy is
+listed at once with its health at creation and 30 ticks of grace (the pool
+reuses the slot of the one that gave way; the first version kept the old entry
+and the enemy was replaced and created again); hurt enemies are never removed
+by range or replacement (`spared`, `yielded`). Test (UI slot 1, level 9, room
+25, a type 95 copy at 22,620 in clear view, lab radius shrunk so enemies can
+give way): one wake, hit to 3126, killed on the third shot, kill count 6/30 ->
+7/30. `farhits probe` (developer) finds copies in clear view: one spot in
+about 350 rooms of five levels with 12 slots, none near the tested rooms with
+20. Remaining: blasts and flames near a copy, kick, beam lock and auto-aim on
+copies; user playtest.
+
+### D17BF2 - Duke's rounds reach the extended view
+
+**Status: Done (user-accepted and closed out 2026-11-27, with D17BF1).
+Dependencies: D17AQ, D17P (Done).** [Note 564](../documentation/564-d17bf1-far-hits.md)
+sections 1-2.
+In Extended draw distance real enemies stand out to the view limit (D17AQ),
+but the original ends a round once its travel counter (`+0x40`) passes its
+kind's range (type table `0x800c4bc0` `+0x1c`: 32767 for bullets), about
+32,500 units from Duke. User: "oh man, yes absolutely. we need to do that".
+
+**Work log (2026-11-27, Needs playtest).** `far_hits.inc`, at the round sweep
+called from the round mover `0x8006ed5c` (ra `0x8006efc0`), for Duke's own
+rounds of kinds with a range of at least 25000: the counter grows by
+`step * range / far`, `far` = the extended view limit x 1.16 (76,021 in level
+6), so the original range is used up over the far range. Speed, spread,
+damage and hit test unchanged; enemy rounds and flames (3072) unchanged;
+rockets had no range limit. The slot 2 Necro at 34,900: 8000 -> 7063 on the
+first well-aimed round from the user's spot. With `original` draw distance:
+0 of 9 rounds stretched. `DNTTK_ROUND_RANGE=original`, console `farhits`.
+Remaining: user playtest.
+
+### D17BF3 - More enemy slots
+
+**Status: Done (user-accepted and closed out 2026-11-27, with D17BF1). Dependencies:
+D17AQ, D52 (Done). Remaining checks and larger pools moved to D17BF5.** [Note 564](../documentation/564-d17bf1-far-hits.md)
+section 3.
+The per-level cap of live enemies (12 in most levels) is the size of the enemy
+pool the level load allocates from the game heap (`0x800c56b4[level]`); a far
+copy could not be woken while 12 enemies near Duke filled it. Toward the
+user's "slaughter map" flexibility, the pool grows inside the heap the game
+already has.
+
+**Work log (2026-11-27, Needs playtest).** New hook `0x8009934C` (the spawner
+setup, right before the pool allocation; one generated line, codegen hash
+unchanged): the level's own count + 8 in Modernized extended
+(`DNTTK_ENEMY_SLOTS`), the own count otherwise; only with 100 KB of heap
+spare. Levels 1, 3, 6, 8, 10, 12, 21, 23 loaded grown (20, or 28/18/24 where
+the own count differs); lowest heap left 19,656 bytes (level 6), unchanged
+through fighting, pause, inventory and a quicksave. At most the level's own
+count of unhurt enemies are active inside the original radius (sticky, nearest
+first); the rest stand dormant (level 6 fresh: 20 live, 9 active).
+Remaining: death and continue, cutscenes and the other levels' heap; frame
+cost at 180 Hz; user playtest. Far larger counts need a pool outside the game
+heap (a later job).
+
+**User playtest and closeout (2026-11-27).** "its working. that's genuinely amazing. the test passed playing my slot 2 from far away. lock it in and close it out". The user hit the far
+Necro in UI slot 2 from where they stood. D17BF1, D17BF2 and D17BF3 Done;
+follow-ups filed as D17BF4 and D17BF5.
+
+### D17BF4 - Far wakes from blasts, flames, kick, beam lock and auto-aim
+
+**Status: Todo (backlog, filed at the D17BF1 closeout 2026-11-27). Dependencies:
+D17BF1 (Done).** [Note 564](../documentation/564-d17bf1-far-hits.md) section 7.
+D17BF1 wakes a sleeping copy when one of Duke's projectiles passes it (rounds,
+rockets). Still to do: a blast (radius damage `0x800a9bf8`, new entry hook)
+or flames (`0x800a9ee0`, new entry hook) that reach a copy without their
+projectile passing it; the kick sphere (`0x800a979c`, hooked); the energy
+beam lock and EDUKE32/HITSCAN auto-aim taking copies as targets (host code in
+`weapon_aim.cpp`). Check the codegen hash for the new hooks. Copies in direct
+view are rare with 20 slots (note 564 section 5), so test with
+`DNTTK_ENEMY_SLOTS=0` or the lab radius as in D17BF1.
+
+### D17BF5 - Enemy pool outside the game heap
+
+**Status: Todo (backlog, filed at the D17BF3 closeout 2026-11-27).
+Dependencies: D17BF3 (Done).** [Note 564](../documentation/564-d17bf1-far-hits.md)
+sections 3 and 7.
+User, 2026-11-27: "Doom, where these slaughter maps with hundreds if not
+thousands of enemies play out so smoothly, and makes our game feel so
+restrictive ... it's foundational for the kind of flexibility i want to see".
+D17BF3 grows the enemy pool by 8 inside the game's own heap (at least 19,656
+bytes left, level 6). Many more enemies need the pool (0x2cc-byte actors and
+0x544-byte skeletons) in mod memory: research how the level load's
+allocations (`0x800246d4`-`0x80024804`) can be served from outside the heap,
+what else is sized by the pool, AI and draw cost per live enemy at 180 Hz,
+and the heap after death and continue, cutscenes and every level. Report
+first.
 
 ### D17BG - Sandstone room ceiling face drops out to black
 

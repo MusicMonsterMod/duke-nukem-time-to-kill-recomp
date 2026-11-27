@@ -65,7 +65,51 @@ static std::array<std::vector<uint32_t>,7> reach_words;
 static uint64_t reach_spawn_in=0,reach_spawn_out=0,reach_kept=0,reach_removed=0,reach_refusals=0;
 static uint64_t reach_held=0,reach_woken=0,reach_healed=0,reach_churn=0;
 static uint32_t reach_far_point=0;
-struct ReachActor {uint32_t record,actor;int16_t health;bool woken,dormant;};
+// D17BF3 more enemy slots. The level load allocates the enemy pool (actors
+// 0x2cc bytes at *0x800ddb04, one 0x544-byte skeleton each at *0x800ddb08)
+// from its heap with the count in the halfword table 0x800c56b4[level], right
+// after the spawner setup 0x8009934c sets the cap 0x800c56a8 from the same
+// entry; the creation's slot search 0x80096614 reads it again as its bound.
+// At the setup's entry (single caller, 0x800246c4) the entry is written for
+// the level being loaded: the level's own count plus slots_extra in Modernized
+// extended, the own count otherwise (Vanilla and "original" always load the
+// original pool, even from a Modernized savestate). Pool, cap and search
+// bound so always agree for the whole level. Levels with one slot (the
+// arenas) are left alone. The heap keeps 36-58 KB free after every level
+// load measured; 8 more slots take 16.5 KB.
+static constexpr uint32_t slots_table=0x800c56b4,slots_levels=32;
+static constexpr uint16_t slots_original[slots_levels]={12,20,10,12,12,12,12,12,12,12,12,12,12,12,20,1,1,1,1,1,1,10,18,16,16,20,10,1,1,1,1,20};
+static std::vector<uint32_t> reach_engaged;
+static uint64_t reach_waiting=0,slots_grown=0,slots_restored=0,slots_refused=0;
+static uint32_t slots_heap_free=0,slots_heap_low=0xffffffffu;
+// The lowest free heap seen at a spawner tick since the level loaded.
+static void slots_heap_watch() {
+    const uint32_t f=psx_mod_read_word(0x800d269c)-psx_mod_read_word(0x800d2698);
+    if(f<slots_heap_low) slots_heap_low=f;
+}
+static unsigned slots_extra() {
+    static const unsigned v=[]{const char* t=std::getenv("DNTTK_ENEMY_SLOTS");
+        if(!t) return 8u;const long n=std::strtol(t,nullptr,10);return n<0?0u:n>16?16u:(unsigned)n;}();
+    return v;
+}
+static void reach_slots_setup(CPUState* cpu) {
+    if(cpu->gpr[31]!=0x800246ccu) return;
+    const uint32_t level=psx_mod_read_word(0x800be570);
+    if(level>=slots_levels || slots_original[level]<2) return;
+    const uint16_t own=slots_original[level],now=psx_mod_read_half(slots_table+2*level);
+    const bool grow=input_modernized() && draw_distance_extended() && slots_extra();
+    uint16_t want=grow?uint16_t(own+slots_extra()):own;
+    if(now!=own && now!=uint16_t(own+slots_extra())) {++slots_refused;return;}   // not ours: leave it
+    slots_heap_free=psx_mod_read_word(0x800d269c)-psx_mod_read_word(0x800d2698);
+    // The rest of the load takes 63-85 KB after the pool (levels 1-12
+    // measured): grow only with 100 KB to spare beyond the extra slots.
+    if(grow && slots_heap_free<100000u+slots_extra()*2068u) {want=own;++slots_refused;}
+    slots_heap_low=0xffffffffu;
+    if(now!=want) psx_mod_write_half(slots_table+2*level,want);
+    ++(grow?slots_grown:slots_restored);
+    std::fprintf(stderr,"[TTK enemy slots] level %u: %u enemy slots (own %u), heap free before the pool %u\n",level,want,own,slots_heap_free);
+}
+struct ReachActor {uint32_t record,actor;int16_t health;bool woken,dormant;uint8_t grace=0;};
 static std::vector<ReachActor> reach_actors;
 struct ReachSwap {uint32_t actor;uint8_t cls;};
 static std::vector<ReachSwap> reach_swaps;
@@ -106,6 +150,43 @@ static uint32_t reach_victim(uint32_t duke,uint32_t record) {
     }
     return victim && most>=reach_saturated(duke,record+8) ? victim : 0;
 }
+// D17BF1: an enemy the player has hurt stays: the replacement never removes
+// it while a dormant one could go instead, and the range test keeps it however
+// far it is. An enemy created by a far hit (far_hits.inc) is listed at once
+// with its health at creation, so damage in the same update still wakes it.
+static bool reach_dormant(uint32_t actor);
+// Hurt by the player, or just created by a far hit (30 ticks of grace, so a
+// round that only grazed it does not see it replaced and created again).
+static bool reach_woken_actor(uint32_t actor) {
+    for(const auto& a:reach_actors) if(a.actor==actor) return a.woken || a.grace;
+    return false;
+}
+static void reach_note_created(uint32_t record,uint32_t actor) {
+    // The pool reuses the slot of the enemy that gave way: replace its entry.
+    const ReachActor fresh{record,actor,(int16_t)psx_mod_read_half(actor+0x32),false,false,30};
+    for(auto& a:reach_actors) if(a.actor==actor) {a=fresh;return;}
+    reach_actors.push_back(fresh);
+}
+// The farthest live enemy that may give way: not hurt by the player, not
+// dying (actor +0 bit 2), not held by a level script (row +0x16) and, with
+// dormant_only, past the original radius. 0 when there is none.
+static uint32_t reach_yielding(uint32_t duke,bool dormant_only,double* distance2=nullptr) {
+    const uint32_t records=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800c56a0);
+    if(records<0x80010000u || count>512 || records>0x80200000u-count*0x30) return 0;
+    uint32_t best=0;double most=-1;
+    for(uint32_t i=0;i<count;++i) {
+        const uint32_t row=records+0x30*i,actor=psx_mod_read_word(row+4);
+        if((psx_mod_read_word(row+0x14)&0x17)!=1 || psx_mod_read_half(row+0x16)) continue;
+        if(actor<0x80010000u || actor>0x801ffc00u || (actor&3) || (psx_mod_read_word(actor)&6)) continue;
+        if(reach_woken_actor(actor)) continue;
+        if(dormant_only && !reach_dormant(actor)) continue;
+        const double d=std::min(reach_distance2(duke,actor+4),reach_distance2(duke,row+8));
+        if(d>most) {most=d;best=row;}
+    }
+    if(distance2) *distance2=most;
+    return best;
+}
+static uint64_t reach_spared=0,reach_yielded=0;
 // The range test, by caller: spawn (0x800991ec, 0x80099288) or removal
 // (0x80099310). The three types the original never tests (0x3d, 0x385, 0x3e)
 // and every other caller are left to it.
@@ -130,8 +211,20 @@ static void reach_range(CPUState* cpu) {
         if(victim && victim!=record) {
             const double stand=reach_distance2(duke,psx_mod_read_word(victim+4)+4),placed=reach_distance2(duke,victim+8);
             if(std::min(stand,placed)<=reach_distance2(duke,record+8)) {in=false;++reach_churn;}
+            else if(reach_woken_actor(psx_mod_read_word(victim+4))) {
+                // D17BF1: the original would remove an enemy the player has
+                // hurt. The farthest one that may give way goes instead, if it
+                // is farther than this spawner (the same no-reversal rule);
+                // with the cap then not full the original simply creates.
+                double d2=0;const uint32_t other=reach_yielding(duke,false,&d2);
+                if(other && other!=record && d2>reach_distance2(duke,record+8) &&
+                   cheat_call(cpu,0x80098d70,other,0,nullptr,0,nullptr) && !(psx_mod_read_word(other+0x14)&1)) ++reach_yielded;
+                else in=false;
+                ++reach_spared;
+            }
         }
     }
+    if(remove && !in && reach_woken_actor(psx_mod_read_word(record+4))) {in=true;++reach_spared;}
     if(in) cpu->gpr[4]=record+8;
     else {
         if(!reach_far_point) reach_far_point=psx_mod_alloc_guest_memory(16,16);
@@ -144,6 +237,7 @@ static void reach_range(CPUState* cpu) {
 // Spawner tick (a0 Duke's position), before the actor loop: decide which
 // spawned enemies are dormant this frame.
 static void reach_tick(CPUState* cpu) {
+    slots_heap_watch();
     if(!enemy_reach_live()) {reach_actors.clear();return;}
     const uint32_t duke=cpu->gpr[4],records=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800c56a0);
     const uint32_t r2=psx_mod_read_word(0x800dd9e0);
@@ -165,6 +259,7 @@ static void reach_tick(CPUState* cpu) {
         const int16_t health=(int16_t)psx_mod_read_half(actor+0x32);
         ReachActor a{record,actor,health,false,false};
         for(const auto& old:reach_actors) if(old.actor==actor && old.record==record) {
+            a.grace=old.grace?uint8_t(old.grace-1):0;
             a.woken=old.woken || health<old.health;
             if(!old.woken && a.woken) ++reach_woken;
             break;
@@ -172,7 +267,35 @@ static void reach_tick(CPUState* cpu) {
         a.dormant=!a.woken && reach_distance2(duke,actor+4)>(double)r2;
         next.push_back(a);
     }
+    for(const auto& old:reach_actors) if(old.grace) {
+        bool kept=false;for(const auto& a:next) if(a.actor==old.actor) kept=true;
+        if(!kept) std::fprintf(stderr,"[TTK far hits] created enemy %08x (row %08x) gone within its grace: row flags %x actor +0 %x hp %d frame %u\n",old.actor,old.record,psx_mod_read_word(old.record+0x14),psx_mod_read_word(old.actor),(int16_t)psx_mod_read_half(old.actor+0x32),psx_mod_read_word(0x800bcba4));
+    }
     reach_actors.swap(next);
+    // D17BF3: with more slots than the level's own count, at most that many
+    // enemies the player has not hurt are active inside the original radius,
+    // as in the original: those already active stay so while inside it, free
+    // places go nearest first, and the rest wait dormant (standing) until a
+    // place frees or a hit wakes them.
+    const uint32_t level=psx_mod_read_word(0x800be570),cap=psx_mod_read_word(0x800c56a8);
+    const uint32_t own=level<slots_levels?slots_original[level]:cap;
+    if(cap>own && own) {
+        std::vector<std::pair<double,size_t>> near;
+        unsigned active=0;
+        for(size_t i=0;i<reach_actors.size();++i) {
+            auto& a=reach_actors[i];
+            if(a.woken || a.dormant) continue;
+            const bool was=std::find(reach_engaged.begin(),reach_engaged.end(),a.actor)!=reach_engaged.end();
+            if(was) ++active; else near.push_back({reach_distance2(duke,a.actor+4),i});
+        }
+        std::sort(near.begin(),near.end());
+        for(const auto& n:near) {
+            if(active<own) ++active;
+            else {reach_actors[n.second].dormant=true;++reach_waiting;}
+        }
+        reach_engaged.clear();
+        for(const auto& a:reach_actors) if(!a.woken && !a.dormant) reach_engaged.push_back(a.actor);
+    } else reach_engaged.clear();
 }
 static bool reach_dormant(uint32_t actor) {
     for(const auto& a:reach_actors) if(a.actor==actor) return a.dormant;
@@ -203,13 +326,14 @@ static void reach_release(CPUState* cpu) {
     }
 }
 static const char* sleeping_debug_json();
+static const char* far_hits_debug_json();
 static const char* enemy_reach_debug_json() {
-    static char buffer[768];
+    static char buffer[1024];
     unsigned dormant=0;for(const auto& a:reach_actors) dormant+=a.dormant;
     std::snprintf(buffer,sizeof buffer,"{\"spawn_in\":%llu,\"spawn_out\":%llu,\"kept\":%llu,\"removed\":%llu,\"refusals\":%llu,"
-        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"churn\":%llu,\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u,\"sleeping\":%s}",
+        "\"held\":%llu,\"woken\":%llu,\"healed\":%llu,\"churn\":%llu,\"spared\":%llu,\"yielded\":%llu,\"waiting\":%llu,\"engaged\":%u,\"slots\":{\"grown\":%llu,\"restored\":%llu,\"refused\":%llu,\"heap_low\":%u},\"spawned\":%u,\"dormant\":%u,\"live\":%u,\"cap\":%u,\"sleeping\":%s,\"far_hits\":%s}",
         (unsigned long long)reach_spawn_in,(unsigned long long)reach_spawn_out,(unsigned long long)reach_kept,
         (unsigned long long)reach_removed,(unsigned long long)reach_refusals,(unsigned long long)reach_held,
-        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned long long)reach_churn,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8),sleeping_debug_json());
+        (unsigned long long)reach_woken,(unsigned long long)reach_healed,(unsigned long long)reach_churn,(unsigned long long)reach_spared,(unsigned long long)reach_yielded,(unsigned long long)reach_waiting,(unsigned)reach_engaged.size(),(unsigned long long)slots_grown,(unsigned long long)slots_restored,(unsigned long long)slots_refused,slots_heap_low,(unsigned)reach_actors.size(),dormant,psx_mod_read_word(0x800c56a4),psx_mod_read_word(0x800c56a8),sleeping_debug_json(),far_hits_debug_json());
     return buffer;
 }

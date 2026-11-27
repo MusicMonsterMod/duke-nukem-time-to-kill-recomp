@@ -1316,6 +1316,7 @@ static bool crystal_mission_usable(CPUState* cpu,uint32_t handler,uint32_t objec
 #include "draw_distance.inc"
 #include "enemy_reach.inc"
 #include "sleeping_enemies.inc"
+#include "far_hits.inc"   // D17BF2, D17BF1
 #include "object_room.inc"
 #include "night_vision_look.inc"
 #include "keycard_colours.inc"
@@ -2837,7 +2838,11 @@ TTK_REGISTER(register_ttk_controls, TTK_RANK_CONTROLS) {
     // D17AQ dormant enemies: spawner range, spawner tick, actor prep, the empty
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);ttk::sleeping_update(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);ttk::sleeping_update(cpu);ttk::far_probe(cpu);});
+    // D17BF2/D17BF1: Duke's projectiles before each sweep (round range, far wakes).
+    psx_mod_register_function_entry_plugin("ttk.far.hits",0x8006dd2c,[](CPUState* cpu,uint32_t){ttk::far_hits_sweep(cpu);});
+    // D17BF3: the spawner setup at level load (more enemy slots).
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8009934c,[](CPUState* cpu,uint32_t){ttk::reach_slots_setup(cpu);});
     // D08A44: the object loop's draws and its step (night-vision creatures).
     for(uint32_t address:ttk::nv_draws) psx_mod_register_function_entry_plugin("ttk.night.vision.look",address,ttk::night_vision_object_entry);
     psx_mod_register_function_entry_plugin("ttk.night.vision.look",0x8001ca4cu,ttk::night_vision_object_step);

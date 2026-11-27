@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D17BF1, D17BF2, D17BF3 closed out (Done)
+
+User-accepted: "its working. that's genuinely amazing. the test passed playing my slot 2 from far away. lock it in and close it out". Follow-ups D17BF4 (blasts, flames, kick, beam lock, auto-aim on copies) and D17BF5 (enemy pool outside the game heap) filed.
+
+## 2026-11-27 - D17BF1, D17BF2, D17BF3 far hits (implemented)
+
+Modernized extended: Duke's rounds reach the view limit (D17BF2), each level's enemy pool grows by 8 at load with the original's count of active enemies near Duke (D17BF3, new hook `0x8009934C`, codegen hash unchanged), and a round or rocket that meets a sleeping copy wakes it as the real enemy (D17BF1). See [note 564](564-d17bf1-far-hits.md).
+
 ## 2026-11-27 - D08J11 closed out (Done)
 
 - D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): Done on the user's "close it out": armed below the rungs Duke hangs one-armed, side-on toward the aim.

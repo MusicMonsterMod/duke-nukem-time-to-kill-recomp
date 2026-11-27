@@ -444,13 +444,25 @@ range and removes them past it, which `extended` would show in the open. With
 `extended`, enemies are placed out to the new view limit, as in Duke 3D: a
 distant enemy stands where it is and does not react until you come within the
 original range, or until you hurt it (a shot, a kick or a blast wakes it for
-good). Near you the game plays as the original: the same enemies, the same
-limit on how many are alive at once.
+good). Each level also has eight more places for enemies than the original
+(20 where it had 12), used for these distant ones and for the ones you wake
+from afar. Near you the game plays as the original: no more enemies come at
+you at once than the original allowed; any more wait standing until one of
+them falls or you hurt them.
 
-Past that limit of live enemies, every other enemy the level places is shown
+Your own rounds fly as far as you can see (the original stopped them at about
+32000 units, short of enemies far down a long view). Speed, spread and damage
+are the original's. Enemy rounds and the flamethrower keep their own range.
+
+Past the limit of live enemies, every other enemy the level places is shown
 asleep where it waits: standing still, not yet in play, on security monitors
 and in distant views alike. When the game brings that enemy into play it takes
-the sleeping one's place. Shooting a sleeping enemy does not wake it yet.
+the sleeping one's place. A round or rocket that hits a sleeping enemy wakes
+it: the real enemy takes its place and the hit, and a far enemy you have not
+hurt gives way for it. An enemy you have hurt stays, however far away it is.
+Blasts and flames that land near a sleeping enemy without hitting it do not
+wake it yet. Console: `farhits off` turns these far hits off for the session,
+`farhits on` or `farhits default` turns them back on.
 
 `original` keeps the original limits and behavior. Choose **D** in
 `--settings` or `--draw-distance original|extended`; it applies on the next

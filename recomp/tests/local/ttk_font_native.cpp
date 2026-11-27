@@ -15,7 +15,7 @@ int main(int argc,char**argv) {
     if(argc>2 && std::string(argv[2])=="invalid") {
         assert(!ttk_font_rasterize("God Mode: On",0,image.data(),1024,512,624,&w,&h));return 0;
     }
-    const char* texts[]={"God Mode: On","God Mode: Off","Giving Everything!","Got All Inventory","Got All Weapons/Ammo","Got All Keys","Steroids","Monsters: Off","Monsters: On","Play Zaxtor's Oblivion!","Ammo: 0123456789 !?.,:;+-/()[]", "Missing: \xc3\xa9 \xe2\x98\x83", "Long message with words that must wrap safely within a small window.","> spawn skeleton key"};
+    const char* texts[]={"God Mode: On","God Mode: Off","Giving Everything!","Got All Inventory","Got All Weapons/Ammo","Got All Keys","Steroids","Monsters: Off","Monsters: On","Play Zaxtor's Oblivion!","Ammo: 0123456789 !?.,:;+-/()[]", "Missing: \xc3\xa9 \xe2\x98\x83", "Long message with words that must wrap safely within a small window.","> spawn skeleton key","D26L: #$&*+[\\]^_{|}~` \"quoted\" 'single'"};
     for(int width:{304,624,1008})for(int style:{0,1,2,3})for(const char* text:texts) {
         if(!ttk_font_rasterize(text,style,image.data(),1024,512,width,&w,&h)){std::fprintf(stderr,"font failed style=%d width=%d text=%s\n",style,width,text);return 1;}
         assert(w<=width && h<=512);
@@ -52,6 +52,13 @@ int main(int argc,char**argv) {
         assert(rows>=2);
         for(int i=1;i<n;++i)if(rs[i]!=rs[i-1]){assert(wrapped[i-1]==' ' && ws[i-1]==0);}
         ttk::modern=false;assert(!ttk_font_layout(wrapped,3,1024,512,304,xs.data(),ws.data(),rs.data(),n,&lh,&top));ttk::modern=true;
+    }
+    // D26L: '`' is a backquote, not D19T's opening quote (glyph 127).
+    {
+        std::vector<uint32_t> a(1024*512),b(1024*512);int aw=0,ah=0,bw=0,bh=0;
+        assert(ttk_font_rasterize("`",3,a.data(),1024,512,624,&aw,&ah));
+        assert(ttk_font_rasterize("\"x",3,b.data(),1024,512,624,&bw,&bh));
+        assert(aw!=bw || !std::equal(a.begin(),a.begin()+aw*ah,b.begin()));
     }
     // Lower case is drawn as upper case (all caps).
     std::vector<uint32_t> lower(1024*512),upper(1024*512);int lw=0,lh=0,uw=0,uh=0;

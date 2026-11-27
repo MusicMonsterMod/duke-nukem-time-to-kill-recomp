@@ -2392,7 +2392,7 @@ gadget, first and third person):
 
 ### D26L - Console review: a rock-solid backtick console
 
-**Status: Todo (backlog; user request 2026-11-25). Dependencies: D26, D61.**
+**Status: In progress (2026-11-27: D26L1 and D26L3 Done; the command review and tab completion remain). Dependencies: D26, D61.**
 User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
 job for just a review of the cli, and enhance it so it feels like a more rock
 solid experience for the user. im even thinking we add in a caret. fix up some
@@ -2416,8 +2416,9 @@ Starting points:
 - **Font glyphs.** The console draws with the game's font pack
   (`tools/local/build_ttk_fonts.py`): game glyphs, with a system fallback.
   Audit every printable ASCII character it can show, and add the missing ones
-  in the same style. The pipe `|` is known to be missing. Until then, help text
-  avoids `|`.
+  in the same style. The pipe `|` is known to be missing. Done in D26L3
+  (2026-11-27, note 566): every printable character in every set, and the
+  keyboard types them with Shift.
 - **A debug-port command to open the console**, so console screenshots can be
   checked offscreen. D61 could not show its help on screen in an offscreen
   run: the test-input keys do not reach the console. Done in D26L1: the
@@ -2532,6 +2533,58 @@ Acceptance: commands, keywords, numbers and unknown words visibly distinct
 while typing and in `goto help`; no extra GPU cost with the console open at
 180 Hz (D23S measure); user playtest.
 
+
+### D26L3 - Every printable character in the TTK fonts
+
+**Status: Done (2026-11-27, user-accepted). Part of the D26L console review. See
+[note 566](../documentation/566-d26l3-full-ascii-glyphs.md).**
+User, 2026-11-27: "work on D26L - can we also get the ttk fonts document
+updated with the new expanded glyph set".
+
+Acceptance: every printable ASCII character draws in the TTK style in the
+console and the other host text (no 8x8 fallback, no `?`); the console takes
+them typed (with Shift) and pasted; the D24A fonts page shows the new set; user
+look on the real display.
+
+**Work log (2026-11-27, Needs playtest).**
+
+- Audit: the italic fonts lacked `# $ & * + [ \ ] ^ _ { | } ~` and a backquote
+  (ten drawn from the 8x8 font, five as `?`); the 8x8 font's own `[ ]` are one
+  bare bar and its `_` is blank, and it had no `` ` { | } ~``; the Microfont was
+  read only to `_`.
+- `build_ttk_fonts.py` `full_ascii()`: cut from the font's own strokes where it
+  has a part (`|` narrowed I, `_` the hyphen re-lit below the baseline, `\` the
+  slash mirrored, Medium `[ ]` from the L, `` ` `` the apostrophe turned, `$`
+  the S with stem ends, `&` painted after the 8); the rest our own upright
+  silhouettes leaned by the font's slant and lit by `style_shade()`, a model of
+  the font's own colours fitted at build time. 8x8 additions `SYSTEM_EXTRA`;
+  Microfont to `~`.
+- Pack TTKFONT3 (96 glyphs; the opening double quote moved to 127 so `` ` `` is a
+  real backquote); `ttk_font.cpp` reads it.
+- Console (framework `main.cpp`, patch exported): typed keys use the layout's
+  character with Shift; pastes keep the pipe and backtick.
+- D24A fonts page: `make_picker.py` builds the glyphs with the shipping code;
+  new section 17 (before/after, both fonts, the 8x8 additions, per-character
+  sources), sheets and notes updated. Before/after showcase composed in Photon
+  (`research/before-after/D26L/`, local).
+- Evidence: Python suite 287 pass (new `test_full_printable_ascii`),
+  `ttk-font-test`, `ttk-inventory-test`, the five CI runtime tests; pinned
+  framework plus patch matches all 99 files; offscreen in game the pasted
+  symbols ran and echoed in the new glyphs and Shift typing gave
+  `| { } _ + ! @ # $ & * ( ) : " < > ?`.
+- Remaining: the user's look on the real display (`&`, `*`, `^`, `~` at 11 px
+  are the least certain).
+
+**Revision (2026-11-27).** User: "the only ones to just take a little quick
+look at improving are ~ and ^ as they look extra skinny on the TTK italics,
+and then { and } dont quite land in appearance for me either". `^` and `~`
+regenerated as thicker strokes in both fonts; `{ }` redrawn as classic braces
+(straight sides, flat hooks, a short point); drawn Medium glyphs keep their
+lit texels on thin diagonals. Font tests pass; page and showcase regenerated
+(note 566 section 5).
+
+**Closed out (2026-11-27, Done).** User: "lock it in and close it out". Left for D26L: the command review (help, errors, Modernized-only refusals), tab completion, drag auto-scroll. Six runtime tests outside CI fail with or without
+  this change (note 566).
 ### D29 - Progression items and objectives legibility (research and design first)
 
 **Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The

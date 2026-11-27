@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D26L3 closed out (Done)
+
+User-accepted: "lock it in and close it out", after the thicker `^ ~` and redrawn `{ }`. D26L continues with the command review and tab completion.
+
+## 2026-11-27 - D26L3 every printable character in the TTK fonts (Needs playtest)
+
+Every printable ASCII character now draws in the TTK italic style in the console, messages, headings and title cards (no 8x8 fallback, no `?`); the 8x8 and 3x5 sets are completed too; pack TTKFONT3. The console types every Shift character and pastes keep `|` and the backtick. The local D24A fonts page shows the new set (section 17). See [note 566](566-d26l3-full-ascii-glyphs.md). Next: the user's look on the real display; then the rest of D26L (command review, tab completion).
+
 ## 2026-11-27 - D26L1 closed out (Done)
 
 User-accepted: "lock it in and close it out. im so happy with it". Drag auto-scroll, wider typing and the pipe glyph stay with D26L.

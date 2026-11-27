@@ -20,7 +20,7 @@ class DiscFontPack(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             first, second = self.build(tmp), self.build(tmp)
         self.assertEqual(first, second)
-        self.assertEqual(first[:8], b'TTKFONT2')
+        self.assertEqual(first[:8], b'TTKFONT3')
         size, digest = struct.unpack_from('<II', first, 8)
         payload = first[16:]
         self.assertEqual(size, len(payload))
@@ -29,11 +29,11 @@ class DiscFontPack(unittest.TestCase):
             h = ((h ^ b) * 16777619) & 0xffffffff
         self.assertEqual(h, digest)
         self.assertEqual(struct.unpack_from('<I', payload, 0)[0], 16)  # D08A19: 12 mission_used; D43: 13 level_title; D20I: 14, 15
-        line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + 13 * 768)
+        line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + 13 * 776)
         self.assertEqual((line, scale, shadow, colour), (19, 1, 1, 0xff140000))  # D43: red 1x, near-black shadow
         # D20I LEVEL STATS: Medium Italic 1x, red letters and beige values, each its own shadow.
         for s, want_colour in ((14, 0xff180400), (15, 0xff180c04)):
-            line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + s * 768)
+            line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + s * 776)
             self.assertEqual((line, scale, shadow, colour), (13, 1, 1, want_colour))
         # line height, scale, shadow: messages, headings, console, then the D24B panel
         # title, slot, selected slot, text and dim text, then the D08A5 FOUND text
@@ -41,12 +41,12 @@ class DiscFontPack(unittest.TestCase):
         expected = [(19, 1, 1), (19, 2, 0), (13, 1, 1), (19, 1, 1), (13, 1, 1), (13, 1, 1), (10, 1, 0), (10, 1, 0),
                     (10, 1, 0), (7, 2, 0), (7, 2, 0), (7, 2, 0)]
         for s, want in enumerate(expected):
-            line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + s * 768)
+            line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + s * 776)
             self.assertEqual((line, scale, shadow), want)
             if shadow:
                 self.assertEqual(colour, 0xff0c0c18)
             # All caps: 'a' draws exactly as 'A'.
-            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 768 + 8 + 8 * (ord(c) - 32))
+            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 776 + 8 + 8 * (ord(c) - 32))
             pix = lambda r: payload[r[4]:r[4] + r[0] * r[1] * 4]
             self.assertEqual(rec('a')[:4], rec('A')[:4])
             self.assertEqual(pix(rec('a')), pix(rec('A')))
@@ -57,7 +57,7 @@ class DiscFontPack(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             payload = self.build(tmp)[16:]
         for s, height in ((0, 17), (1, 17), (2, 11), (3, 17), (4, 11), (5, 11)):
-            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 768 + 8 + 8 * (ord(c) - 32))
+            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 776 + 8 + 8 * (ord(c) - 32))
             bang, i_rec = rec('!'), rec('I')
             self.assertEqual(bang[1], height)
             self.assertEqual(bang[0], i_rec[0])
@@ -76,7 +76,7 @@ class DiscFontPack(unittest.TestCase):
             fallback = json.loads((Path(tmp) / 'fonts.json').read_text())['sets']
         for s, height in ((0, 17), (1, 17), (2, 11), (3, 17), (4, 11), (5, 11)):
             self.assertFalse(set('()%') & set(fallback[s]['system_font_fallback']))
-            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 768 + 8 + 8 * (ord(c) - 32))
+            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 776 + 8 + 8 * (ord(c) - 32))
             for ch in '()%':
                 self.assertEqual(rec(ch)[1], height)
             # Each parenthesis is narrower than the O it comes from; the percent
@@ -84,6 +84,32 @@ class DiscFontPack(unittest.TestCase):
             self.assertLess(rec('(')[0], rec('O')[0])
             self.assertLess(rec(')')[0], rec('O')[0])
             self.assertGreater(rec('%')[0], rec('/')[0])
+
+    def test_full_printable_ascii(self):
+        """D26L: every printable ASCII character has a glyph of its own in every
+        set (none drawn as '?', none from the 8x8 system font in the italic
+        sets); '`' is a backquote and glyph 127 D19T's opening quote."""
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self.build(tmp)[16:]
+            fallback = json.loads((Path(tmp) / 'fonts.json').read_text())['sets']
+        count = struct.unpack_from('<I', payload, 0)[0]
+        for s in range(count):
+            rec = lambda code: struct.unpack_from('<BBBBI', payload, 4 + s * 776 + 8 + 8 * (code - 32))
+            pix = lambda r: payload[r[4]:r[4] + r[0] * r[1] * 4]
+            line = struct.unpack_from('<B', payload, 4 + s * 776)[0]
+            question = pix(rec(ord('?')))
+            for code in range(33, 127):
+                r = rec(code)
+                self.assertLessEqual(r[3] + r[1], line)
+                if chr(code) != '?':
+                    self.assertNotEqual(pix(r), question, f'set {s} {chr(code)!r} is drawn as ?')
+            # brackets, braces and the two quote marks are each their own glyph
+            for a, b in ('[]', '{}', '[|', '(|', '`\''):
+                self.assertNotEqual(pix(rec(ord(a))), pix(rec(ord(b))), f'set {s} {a} {b}')
+            if fallback[s]['font'] in ('big', 'medium'):
+                self.assertEqual(fallback[s]['system_font_fallback'], '')
+                self.assertNotEqual(pix(rec(127)), pix(rec(ord('`'))))
+                self.assertNotEqual(pix(rec(127)), pix(rec(ord('"'))))
 
     def test_ui_sprite_pack(self):
         with tempfile.TemporaryDirectory() as tmp:

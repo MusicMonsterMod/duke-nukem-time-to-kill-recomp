@@ -2516,13 +2516,15 @@ caret, and you type and delete where it is:
 - A paste is tidied the way the console types: letters become lowercase, tabs
   and no-break spaces become spaces, a copied `> ` prompt is dropped (so an
   echoed command from the scrollback runs again), and characters the console
-  does not take (the pipe, which its font lacks, the backtick, non-ASCII and
-  control characters) are left out, with a note naming them. A line keeps the
-  95-character limit; a paste cut short says so.
+  does not take (non-ASCII and control characters) are left out, with a note.
+  Every printable ASCII character is kept, the pipe `|` and the backtick
+  included. A line keeps the 95-character limit; a paste cut short says so.
 
-Typing from the keyboard still takes only lowercase letters, digits, space and
-`- = .` (and the keypad's `+ * /`); other characters such as `_` or `:` come
-in by pasting.
+The keyboard types every printable character your keyboard layout gives,
+with Shift too (`_ : | { } ! @ # $ & * ( ) " < > ? ~` and the rest); letters
+are always lowercase. The backtick key itself opens and closes the console,
+so a backtick comes in by pasting. The console's font draws all of them in
+the TTK style, as do the messages, headings and title cards.
 In Modernized play the console does not pause the game and does not change
 Duke's state: a C crouch stays crouched and a hovering jetpack holds its
 altitude while you type. Nothing you type reaches Duke. Keys held when it opens

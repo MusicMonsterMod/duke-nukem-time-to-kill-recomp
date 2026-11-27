@@ -1,5 +1,5 @@
 // D24A Modernized text renderer: Time to Kill's own fonts from the player's disc
-// (tools/local/build_ttk_fonts.py writes ttk-fonts.pack, format TTKFONT2). It
+// (tools/local/build_ttk_fonts.py writes ttk-fonts.pack, format TTKFONT3). It
 // replaced the Duke Nukem 3D message/Atomic glyph pack. Glyph colours, spacing,
 // scale and the drop shadow come from the pack; this file only lays text out.
 #include "ttk_font.h"
@@ -11,7 +11,9 @@
 #include <string>
 #include <vector>
 namespace {
-constexpr unsigned max_sets=16,glyph_count=95,set_bytes=8+glyph_count*8;
+// D26L: 96 glyphs, ASCII 32..126 and 127 for the opening double quote (TTKFONT3).
+constexpr unsigned max_sets=16,glyph_count=96,set_bytes=8+glyph_count*8;
+constexpr char open_quote=char(127);
 struct Glyph {unsigned w,h,advance,y,offset;};
 struct Set {unsigned line_height,scale;bool shadow;uint32_t shadow_colour;Glyph glyphs[glyph_count];};
 std::vector<unsigned char> pack;
@@ -37,7 +39,7 @@ bool load() {
     if(!file || file.tellg()<16+4+3*set_bytes || file.tellg()>1024*1024)return false;
     pack.resize(static_cast<size_t>(file.tellg()));file.seekg(0);
     if(!file.read(reinterpret_cast<char*>(pack.data()),pack.size()))return false;
-    if(std::memcmp(pack.data(),"TTKFONT2",8) || u32(pack.data()+8)!=pack.size()-16)return false;
+    if(std::memcmp(pack.data(),"TTKFONT3",8) || u32(pack.data()+8)!=pack.size()-16)return false;
     unsigned hash=2166136261u;
     for(size_t i=16;i<pack.size();++i)hash=(hash^pack[i])*16777619u;
     if(hash!=u32(pack.data()+12))return false;
@@ -63,14 +65,15 @@ bool load() {
 // One character to draw and the byte of the source text it came from (D26L1:
 // the console's caret, selection and mouse need to know where each byte lands).
 struct Placed {char c;int src;};
-// D19T: '"' opens and closes in turn: the pack's '`' is the opening quote.
+// D19T: '"' opens and closes in turn: the pack's glyph 127 is the opening
+// quote (D26L; it was '`', which is now a backquote of its own).
 std::vector<Placed> ascii_placed(const char* text) {
     std::vector<Placed> result;bool open=true;
     const unsigned char* start=reinterpret_cast<const unsigned char*>(text);
     for(const unsigned char* p=start;*p && result.size()<256;) {
         const int src=int(p-start);
         unsigned c=*p++;
-        if(c=='"'){result.push_back({open?'`':'"',src});open=!open;}
+        if(c=='"'){result.push_back({open?open_quote:'"',src});open=!open;}
         else if(c>=32 && c<=126)result.push_back({char(c),src});
         else if(c=='\n')result.push_back({'\n',src});
         else if(c=='\t')result.push_back({' ',src});

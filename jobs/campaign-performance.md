@@ -3306,7 +3306,7 @@ Remaining: D23AQ (the heavy views).
 Done: no one-off spike left; the walks' remaining slow seconds are D23AQ's.
 ### D23R - Parity benchmark and acceptance
 
-**Status: Todo (D23K plan, last; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23P2, D23U.**
+**Status: Cancelled (user decision 2026-11-27; [note 444](../documentation/444-d23k-eduke32-parity.md)). Dependencies: D23M2, D23M3, D23P2, D23U.**
 The programme's acceptance: re-run the note 444 comparison (EDuke32 Polymost
 and Polymer against our game, same display, windowed and fullscreen, the
 same views, CPU and the 4-CPU test) and check the parity bar in section 5:
@@ -3337,6 +3337,14 @@ Work log, 2026-11-16 ([note 486](../documentation/486-d23v3-d23m3b-d23r-measurem
 of its dependencies only D23N4 is open (N4b off: not exact, not cheaper);
 the GPU per redraw needs D23M3B; it still needs the real display with the
 user for the EDuke32 and windowed figures, and one repeatable lab case.
+
+Work log, 2026-11-27: cancelled by the user: "we basically decided we'll
+never get parity with eduke32 performance-wise. so no point in this. we'll
+continue to make our game leaner though but we reached a real solid point
+with the optimized compilation." The note 444 bar is retired as an
+acceptance target; the last readings above stay as the record. Leanness
+work continues in its own jobs (for example D23AQ, the field laptop's
+struggle points) and the D62 LTO+PGO optimized build.
 
 ### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
 
@@ -4695,7 +4703,7 @@ route, both views), find exact cuts as D23AK did; exact (lean check,
 
 ### D23AM - One-second game stall with the console open
 
-**Status: Monitoring (2026-11-18, waits for your report). Dependencies: none.**
+**Status: Cancelled (user decision 2026-11-27). Dependencies: none.**
 
 User laptop session 2026-11-18 (D23AI test 1): on level 3, after standing
 still about a minute, one second at 21.4 game frames and 21 presents, the
@@ -4706,6 +4714,12 @@ idle, console open and close, `levels`, `fps`, `help`, `level 6` by the
 debug port and typed with real key events (xdotool), 11 attempts, slowest
 second 55.8, longest frame gap 86 ms. Reopen with a recurrence's log
 (`recomp/analysis/play/logs/` on the laptop) and what was typed or pressed.
+
+Work log, 2026-11-27: closed by the user: "i havent been having any
+problems so get rid of this, i'll mention it if it's ever a problem again
+and we just log a new one." No recurrence was reported in the nine days
+since 2026-11-18. A future stall is filed as a new job with its log; the
+evidence above stays for comparison.
 
 ### D23AN - Reprojected in-between pictures
 

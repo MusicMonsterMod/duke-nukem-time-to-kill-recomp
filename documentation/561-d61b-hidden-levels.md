@@ -154,6 +154,7 @@ and face counts differ are left alone. `DNTTK_HIDDEN_LOOK=0` off.
 | 13 | 528 (232, room 13) | TIME TO KILL: pages `0x2a`, `0x2e` |
 | 13 | 872 (472/594, rooms 6, 8) | TIME TO KILL: page `0x2b` |
 | 13 | 1103, 1109 (596/602, room 15's crates, seen through room 17's window) | no twin: the level's own crate (type 20, page `0x38`, CLUT `0x16fb`) |
+| 9, 13, 14, 30 | 1129 (608, the Holy Hand Grenade pickup; D08A51) | level 6's own: two 16x24 blocks at (748,48) / (758,48), CLUTs `0xc7a` / `0xcba`; faces 0-14 / 15-22. Places: 9 (628,136) + CLUTs (816,86); 13 (812,76) + (912,32); 14 (552,32) + (608,32); 30 (776,32) + (800,32). Pig Factory (9) is a shipped level; see note 520 |
 
 The head first got the wing painting too (its 20 faces were among the 28
 untextured). A Drak head match was checked and ruled out: no mesh in any

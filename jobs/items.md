@@ -2488,9 +2488,9 @@ Work log, 2026-11-24 (implemented, Needs playtest):
 
 ### D08A51 - Holy Hand Grenade look setting, original or accurate
 
-**Status: Todo (backlog; user request 2026-11-26, while testing D61B: "advanced
+**Status: Done (user-accepted 2026-11-27: "excellent lock it in close it out"; user request 2026-11-26, while testing D61B: "advanced
 toggle, holy hand grenade, settings could be like, original / accurate. to pick
-between the og model and our real one"). Dependencies: D08A47.**
+between the og model and our real one"). Dependencies: D08A47.** [Note 520](../documentation/520-d08a47-holy-hand-grenade-look.md) section D08A51.
 
 D08A47 (note 520) draws the held and thrown grenade with the pickup's gold mesh.
 Add an advanced setting (Modernized) with two values: ORIGINAL, the game's own
@@ -2501,6 +2501,54 @@ manual.
 
 **Acceptance:** the setting switches the held and thrown grenade between the two
 models in game, and it persists.
+
+Work log, 2026-11-27: new row OPTIONS > ADVANCED > ITEMS > HOLY HAND GRENADE
+(`hhg_look`, ACCURATE default / ORIGINAL; live; profile schema 83, older
+files migrate to ACCURATE; `run.py --hhg-look accurate|original`, saved;
+Vanilla always ORIGINAL). `hhg_look.inc` reads `DNTTK_HHG_LOOK` live: before
+it converts a level's held (945) and thrown (944) meshes it keeps their
+original bytes (vertices, faces, vertex count, bounds, header radius) with a
+checksum of the converted result; ORIGINAL on a converted level writes them
+back, ACCURATE converts again, so the switch works in play both ways. D61B's
+untextured-pickup rule kept. Lab `recomp/analysis/d08a51/` (local; probe case
+`toggle`, private card copies of UI slot 2, level 6, offscreen): four live
+switches ACCURATE / ORIGINAL / ACCURATE / ORIGINAL, held mesh 35 / 42 / 35 /
+42 vertices, the gold pickup and the dark cross-topped cage on screen in
+first person; launched with ORIGINAL saved nothing converts (third person:
+dark cage in hand), with the default it converts at load (gold). Player's
+saves and profile hash-checked unchanged. 292 local tests pass; new
+`HolyHandGrenadeLookTest`. Pictures: `research/before-after/D08A51/`.
+Limits: a converted savestate from an earlier session has no kept copy, so
+ORIGINAL takes effect there at the next level load; the thrown model in
+flight is switched by the same code as the held one but was not caught on
+screen in flight this time; level 6 only; offscreen. Needs playtest: switch
+it in the menu on the real display.
+
+Work log, 2026-11-27 (later; user: "it should be the default option in
+settings too", it already is): game-wide. The user's Pig Factory load kept the
+original grenade with ACCURATE on (log: refusal 6, the pickup loaded
+untextured). Survey of level indices 0-31: untextured in 9, 13, 14 and 30,
+textured elsewhere. The D61B look pack (`build_ttk_look.py`) now gives those
+levels level 6's two grenade blocks and CLUTs in free VRAM, and
+`hidden_level_look.cpp` textures the faces (existing mode, no code change);
+the builder refuses overlapping uploads (it caught none, but a first level-13
+placement of mine overlapped and failed the VRAM check). Evidence: all four
+levels convert; uploaded VRAM equals level 6's words in each; Pig Factory from
+savestate slot 0: floor pickup and held grenade gold, live switch both ways,
+gold thrown. 13, 14, 30 checked from RAM and VRAM only. New pack check in
+`test_hidden_level_packs.py`; 292 local tests pass. Note 520, section
+"Game-wide"; note 561's look table.
+
+Work log, 2026-11-27 (later still): user: "i loaded my time to kill save, and
+the old model still showed. pig factory does indeed show the accurate model".
+TIME TO KILL (level 0) never loads the pickup model (my survey misread its
+`meshes not ready` as no grenade at all). New `build_ttk_hhg.py` ->
+`ttk-hhg.pack` (CMake): level 6's pickup mesh from the disc, its faces moved
+onto the grenade art copied into free VRAM of level 0; `hhg_look.inc` takes the
+pickup from the pack when the level has none, uploads the art, converts.
+Checked on a copy of the player's slot 3: gold in hand and thrown, live switch
+both ways. Pack check added to `test_hidden_level_packs.py`; 292 local tests
+pass. Every level index now has the gold grenade under ACCURATE.
 
 ### D08A52 - Holy Hand Grenade hand shake when selected
 

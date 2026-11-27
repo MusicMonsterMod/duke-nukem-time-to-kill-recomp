@@ -548,6 +548,9 @@ std::vector<Screen> make_screens() {
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"NIGHT VISION LOOK",Section::Controls,"night_vision_look","DNTTK_NIGHT_VISION_LOOK",true,"DUKE 3D: GREEN WORLD, ENEMIES GLOW. ORIGINAL: FLAT GREEN",
          {{"DUKE 3D","duke3d","\"duke3d\""},{"ORIGINAL","original","\"original\""}},0},
+        // D08A51: the held and thrown grenade's model (hhg_look.inc).
+        {"HOLY HAND GRENADE",Section::Controls,"hhg_look","DNTTK_HHG_LOOK",true,"ACCURATE: HELD AND THROWN IT LOOKS LIKE ITS PICKUP",
+         {{"ACCURATE","accurate","\"accurate\""},{"ORIGINAL","original","\"original\""}},0},
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"STEROIDS",Section::Controls,"steroids","DNTTK_STEROIDS",false,"PORTABLE: A PICKUP IS STORED, R TAKES IT",

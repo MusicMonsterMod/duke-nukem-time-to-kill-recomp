@@ -50,8 +50,29 @@ A_W, B_W, H = 448, 512, 256
 # level -> fixes. donor: (level, x, y, w, h, clut x, y) source; place: (x, y) of
 # the block, (cx, cy) of its CLUT copy; du, dv shift the local UVs onto it.
 HEAD_FACES = [1, 2, 48, 49, 53, 54] + list(range(56, 70))   # model 87's head (y above -1380), untextured on the disc
+# D08A51: the Holy Hand Grenade pickup (type 608, model 1129: 35 vertices, 23
+# textured faces). Pig Factory (9), Modern 4 (13), the animation test (14) and
+# the empty room (30) load it with every face CLUT 0xffff and local UVs on two
+# 16x24 boxes (u 0-15, v 0-23), the shipped art minus each box's origin; the
+# other levels keep its texture on page 0x2b (u 176-191 / 216-231, v 48-71).
+# Faces 0-14 take the first box and CLUT, 15-22 the second; donor level 6:
+# blocks at x 748 / 758, y 48 (4x24 words each), CLUTs 0xc7a / 0xcba at
+# (928, 49) / (928, 50). The gold grenade is then the one D08A47 puts in
+# Duke's hand. Places: zero in the level's raw image with a 2-texel margin, at
+# y 32 or below, and zero in VRAM ten seconds into the level (D08A51 lab).
+def grenade(block, clut):
+    (bx, by), (cx, cy) = block, clut
+    return [dict(model=1129, verts=35, faces=list(range(15)), total=23, donor=(6, 748, 48, 4, 24, 928, 49),
+                 place=(bx, by), clut=(cx, cy), du=(bx % 64) * 4, dv=by % 256),
+            dict(model=1129, verts=35, faces=list(range(15, 23)), total=23, donor=(6, 758, 48, 4, 24, 928, 50),
+                 place=(bx + 4, by), clut=(cx, cy + 1), du=((bx + 4) % 64) * 4, dv=by % 256)]
+
+
 FIXES = {
-    13: [
+    9: grenade((628, 136), (816, 86)),
+    14: grenade((552, 32), (608, 32)),
+    30: grenade((776, 32), (800, 32)),
+    13: grenade((812, 76), (912, 32)) + [
         # The club's bar front (type 79, room 12): TIME TO KILL page 0x239 u e0-ff v 20-3f, CLUT 0xe38.
         dict(model=85, verts=8, faces=[0, 1, 2, 3], total=5, donor=(0, 632, 288, 8, 32, 896, 56),
              place=(796, 152), clut=(928, 131), du=112, dv=152),
@@ -238,6 +259,9 @@ def main():
                 raise SystemExit(f'level {level}: ({x},{y}) {w}x{h} is not free')
             if x % 64 + w > 64:
                 raise SystemExit(f'level {level}: ({x},{y}) crosses a texture page')
+            for ux, uy, uw, uh, _ in uploads:
+                if x < ux + uw and ux < x + w and y < uy + uh and uy < y + h:
+                    raise SystemExit(f'level {level}: ({x},{y}) {w}x{h} overlaps ({ux},{uy}) {uw}x{uh}')
             uploads.append((x, y, w, h, words))
         for f in fixes:
             if 'donor' in f:

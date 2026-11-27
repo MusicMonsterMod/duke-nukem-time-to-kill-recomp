@@ -96,6 +96,10 @@ DUKE_TALK_MODES = ('on', 'off')
 # from a jump catch out of the hang); classic: the original slow start.
 # Vanilla always classic.
 LADDER_CLIMBING_MODES = ('modern', 'classic')
+# D08A51 (Modernized, schema 83): HOLY HAND GRENADE look. accurate (default):
+# the held and thrown grenade use the pickup's gold model (D08A47); original:
+# the game's own dark held and thrown model. Vanilla always original.
+HHG_LOOKS = ('accurate', 'original')
 # D39C Screen Flashes (Modernized only; Vanilla never flashes). on: Duke3D
 # palfrom-style coloured flashes as measured; reduced: half strength, at most
 # a quarter; off: none drawn.
@@ -233,7 +237,7 @@ CAMERA_DISTANCE_RANGE = (768, 6144)
 # bullet guns; off; original-lock. Schema 70 split eduke32 from hitscan: the
 # first builds' duke3d and a schema 69 eduke32 both meant hitscan.
 AIM_ASSISTS = ('eduke32', 'hitscan', 'off', 'original-lock')
-DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'hitscan', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'manual', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'corrected', 'texture_precision': 'corrected', 'draw_distance': 'extended', 'world_renderer': 'polymorph', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'equip_pickups': 'if-new', 'screen_flashes': 'on', 'sidearm_return': 'never', 'third_person_kick': 'quick', 'weapon_feel': 'retro', 'earthquakes': 'on', 'dynamic_lights': 'on', 'vsync': 'on', 'graphics': 'auto', 'security_monitors': 'duke3d', 'shadow_edges': 'smooth', 'model_shadows': 'on', 'glows': 'on', 'level_stats': True, 'fps': False, 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern', 'night_vision_look': 'duke3d', 'breath_restore': 'instant', 'idle_animations': 'on', 'duke_talk': 'on', 'ladder_climbing': 'modern'}
+DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'hitscan', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'manual', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'corrected', 'texture_precision': 'corrected', 'draw_distance': 'extended', 'world_renderer': 'polymorph', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'equip_pickups': 'if-new', 'screen_flashes': 'on', 'sidearm_return': 'never', 'third_person_kick': 'quick', 'weapon_feel': 'retro', 'earthquakes': 'on', 'dynamic_lights': 'on', 'vsync': 'on', 'graphics': 'auto', 'security_monitors': 'duke3d', 'shadow_edges': 'smooth', 'model_shadows': 'on', 'glows': 'on', 'level_stats': True, 'fps': False, 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern', 'night_vision_look': 'duke3d', 'breath_restore': 'instant', 'idle_animations': 'on', 'duke_talk': 'on', 'ladder_climbing': 'modern', 'hhg_look': 'accurate'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 SOUND_DEFAULTS = dict(sound_master=-1, sound_effects=-1, sound_music=-1, sound_speech=-1, sound_mode=-1)
@@ -302,6 +306,8 @@ def validate_controls(value):
         raise ValueError('Idle animations must be on, voice or off; duke_talk on or off.')
     if value.get('ladder_climbing') not in LADDER_CLIMBING_MODES:
         raise ValueError('Ladder climbing must be modern or classic.')
+    if value.get('hhg_look') not in HHG_LOOKS:
+        raise ValueError('Holy Hand Grenade look must be accurate or original.')
     if not valid_enum(value['split_devices'], ('two-pads', 'keyboard-pad')):
         raise ValueError('Split devices must be two-pads or keyboard-pad.')
     sensitivity = value['mouse_sensitivity']
@@ -511,7 +517,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 82, 'active': 'modernized',
+    return {'version': 83, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -557,7 +563,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 82:
+        if type(version) is int and version > 83:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -566,8 +572,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 82.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82):
+            notices.append('Migrated version 0 profile settings to version 83.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -589,7 +595,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'original'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **({'dynamic_lights':'on'} if version < 71 else {}), **({'security_monitors':'duke3d'} if version < 72 else {}), **({'shadow_edges':'smooth'} if version < 73 else {}), **({'vsync':'on'} if version < 74 else {}), **({'model_shadows':'on','glows':'on'} if version < 75 else {}), **({'night_vision_look':'duke3d'} if version < 77 else {}), **({'breath_restore':'instant'} if version < 80 else {}), **({'idle_animations':'on','duke_talk':'on'} if version < 81 else {}), **({'ladder_climbing':'modern'} if version < 82 else {}), **profile['controls'], **({'graphics':'custom'} if version < 74 else {}), **({'sidearm_return':'never'} if version == 64 else {}), **({'aim_assist':'hitscan'} if version < 69 and mode == 'modernized' and profile['controls'].get('aim_assist','off') == 'off' else {}), **({'aim_assist':'hitscan'} if version == 69 and profile['controls'].get('aim_assist') in ('eduke32','duke3d') else {})})
+                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'original'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **({'dynamic_lights':'on'} if version < 71 else {}), **({'security_monitors':'duke3d'} if version < 72 else {}), **({'shadow_edges':'smooth'} if version < 73 else {}), **({'vsync':'on'} if version < 74 else {}), **({'model_shadows':'on','glows':'on'} if version < 75 else {}), **({'night_vision_look':'duke3d'} if version < 77 else {}), **({'breath_restore':'instant'} if version < 80 else {}), **({'idle_animations':'on','duke_talk':'on'} if version < 81 else {}), **({'ladder_climbing':'modern'} if version < 82 else {}), **({'hhg_look':'accurate'} if version < 83 else {}), **profile['controls'], **({'graphics':'custom'} if version < 74 else {}), **({'sidearm_return':'never'} if version == 64 else {}), **({'aim_assist':'hitscan'} if version < 69 and mode == 'modernized' and profile['controls'].get('aim_assist','off') == 'off' else {}), **({'aim_assist':'hitscan'} if version == 69 and profile['controls'].get('aim_assist') in ('eduke32','duke3d') else {})})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -673,8 +679,8 @@ def load(path):
                 return result, notices
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 82; retained preferences and added control and presentation defaults.'
-                               if version < 82 else
+                notices.append(f'Migrated version {version} profile settings to version 83; retained preferences and added control and presentation defaults.'
+                               if version < 83 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -744,6 +750,7 @@ def describe(settings):
         lines.append(f"Night vision look: {controls['night_vision_look']} (duke3d: Duke 3D's green world and glowing enemies, Polymorph; original: TTK's flat green)")
         lines.append(f"Idle animations: {controls['idle_animations']} (on: the original idle, weapon gestures in first person; voice: he keeps his weapon and only talks; off: no idle)")
         lines.append(f"Duke talk: {controls['duke_talk']} (off: Duke's lines play silently, as EDuke32's Duke talk)")
+        lines.append(f"Holy Hand Grenade look: {controls['hhg_look']} (accurate: held and thrown it is the gold pickup model; original: the game's own dark model)")
         lines.append(f"Ladder climbing: {controls['ladder_climbing']} (modern: onto the ladder through the hand-over-hand climb; classic: the original slow start)")
         lines.append(f"Breath restore: {controls['breath_restore']} (instant: full air the moment Duke surfaces; classic: the original gradual refill)")
         lines.append(f"Dynamite: {describe_dynamite(controls['dynamite'])}")

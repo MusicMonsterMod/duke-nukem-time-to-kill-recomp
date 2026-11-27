@@ -1666,7 +1666,16 @@ Number keys now select familiar weapon groups when owned and usable:
 
 **Holy Hand Grenade look (Modernized).** The grenade in Duke's hand and in
 flight is the same gold grenade you pick up (D08A47); Vanilla keeps the
-original darker held model.
+original darker held model. **OPTIONS > ADVANCED > ITEMS > HOLY HAND GRENADE**
+chooses it (D08A51): ACCURATE (the default) is the gold pickup model, ORIGINAL
+the game's own dark cross-topped model, held and thrown, in every level (levels
+whose own art or model lacks the gold grenade, such as PIG FACTORY and TIME TO
+KILL, get it from the disc). It changes at once in play and is saved with your settings, or:
+
+```
+python3 recomp/tools/local/run.py --hhg-look original --show-settings
+python3 recomp/tools/local/run.py --hhg-look accurate --show-settings
+```
 
 Upgrades stay on the base weapon's key. **Wheel up** selects the next usable
 weapon; **wheel down** selects the previous one. **Semicolon/apostrophe** still

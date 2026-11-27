@@ -271,6 +271,16 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
         VERBATIM)
     add_custom_target(ttk-look-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-look.pack")
     add_dependencies(psx-runtime ttk-look-assets)
+    # D08A51: the Holy Hand Grenade pickup for levels that never load it
+    # (TIME TO KILL): level 6's mesh and art; loaded by hhg_look.inc. Retail-derived.
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-hhg.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_hhg.py"
+            --image "${TTK_DISC_IMAGE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-hhg.pack"
+        DEPENDS "${TTK_DISC_IMAGE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_hhg.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_look.py"
+        VERBATIM)
+    add_custom_target(ttk-hhg-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-hhg.pack")
+    add_dependencies(psx-runtime ttk-hhg-assets)
     # D08K4: crouch-walk legs clips solved on Duke's skeleton from the owned disc
     # and the captured crouch walk in assets/anim (CC-BY 4.0; ttk_crouch_walk.py);
     # loaded by anim_override.cpp as extra clips.

@@ -64,6 +64,33 @@ class DiscPacks(unittest.TestCase):
                 subprocess.run([sys.executable, str(ROOT / 'tools/local' / tool), '--image', str(IMAGE),
                                 '--output', str(out)], check=True, capture_output=True)
                 self.assertEqual(out.read_bytes()[:8], magic)
+            # D08A51: the gold Holy Hand Grenade pickup (model 1129) where it loads untextured.
+            b = (Path(tmp) / 'build_ttk_look.py').read_bytes()
+            import struct
+            o, models = 16, {}
+            for _ in range(struct.unpack_from('<I', b, 12)[0]):
+                level, fixes, uploads = struct.unpack_from('<III', b, o); o += 12
+                for _ in range(fixes):
+                    model, verts, total, clut, page, du, dv, mode, n = struct.unpack_from('<HHHHBBBBI', b, o); o += 16
+                    models.setdefault(level, []).append((model, verts, total, n))
+                    o += 2 * n + (8 * n if mode == 2 else 0)
+                for _ in range(uploads):
+                    x, y, w, h = struct.unpack_from('<4H', b, o); o += 8 + 2 * w * h
+            self.assertEqual(o, len(b))
+            for level in (9, 13, 14, 30):
+                self.assertIn((1129, 35, 23, 15), models[level])
+                self.assertIn((1129, 35, 23, 8), models[level])
+            # D08A51: TIME TO KILL (0) never loads the pickup; ttk-hhg.pack carries it.
+            out = Path(tmp) / 'hhg.pack'
+            subprocess.run([sys.executable, str(ROOT / 'tools/local/build_ttk_hhg.py'), '--image', str(IMAGE),
+                            '--output', str(out)], check=True, capture_output=True)
+            b = out.read_bytes()
+            self.assertEqual(b[:8], b'TTKHHG01')
+            level, nv, words, uploads = struct.unpack_from('<IHHI', b, 16)
+            self.assertEqual((level, nv, uploads), (0, 35, 4))
+            faces = struct.unpack_from(f'<{words}I', b, 28 + 8 * nv)
+            self.assertEqual(faces[-1] & 0xffff, 0xff)
+            self.assertEqual(faces[2] >> 16, (122 << 6) | 784 // 16)   # the first face (after the group header): the placed CLUT
 
 
 if __name__ == '__main__':

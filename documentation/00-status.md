@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D08A51 closed out (Done)
+
+User-accepted: "excellent lock it in close it out". The Holy Hand Grenade look setting is Done; ACCURATE is gold in every level. Next in this line: D08A52 (the hand shake when the grenade is selected).
+
+## 2026-11-27 - D08A51 Holy Hand Grenade look setting (Needs playtest)
+
+OPTIONS > ADVANCED > ITEMS > HOLY HAND GRENADE: ACCURATE (gold pickup model, default) or ORIGINAL (the game's own), switching live both ways and saved (schema 83, `--hhg-look`); Vanilla always ORIGINAL. Game-wide: Pig Factory, Modern 4, the animation test and the empty room load the pickup untextured; the D61B look pack now gives them level 6's art, and TIME TO KILL, which never loads the pickup, gets level 6's mesh and art from the new `ttk-hhg.pack`; so ACCURATE is gold in every level. Playtest: switch it in the menu with the grenade in hand on the real display. See [note 520](520-d08a47-holy-hand-grenade-look.md) section D08A51.
+
+## 2026-11-27 - D23R and D23AM cancelled (board tidy)
+
+User decisions: D23R (EDuke32 parity benchmark) cancelled, parity will not be chased; leanness work continues (D23AQ, the D62 optimized build). D23AM (console-open stall, Monitoring) cancelled after no recurrence; a future stall is a new job.
+
 ## 2026-11-27 - D26L closed out (Done)
 
 User-accepted: "lock it in and close it out. amazing work". Tab completion is Done and with it the whole D26L console review.

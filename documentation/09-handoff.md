@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-11-27 - D08J11 closed out (Done)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): user "close it out". Done: the side-on one-arm hang while armed below the rungs is the default; `hangpose 1|2|3|off` remains a tuning command.
+
+## 2026-11-27 - D08J11 candidate 2 chosen (Accepted, closeout pending)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): the user chose 2, side; it is the default (`armed_hang_shape` in `ladder_armed_hang.inc`). `hangpose` kept as a tuning command. Waiting for the closeout instruction.
+
+## 2026-11-27 - D08J11 three candidates (Needs playtest)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): waiting for the user to pick 1 hang, 2 side or 3 pull (console `hangpose N`, live) at the second alley ladder (`goto 4346 -9726 13754 face 271`, jump with E held, then left-click to draw). Code: `ladder_armed_hang.inc`, plus the root offset, grip freeze and full-reach fit in `climb_aim.inc` (`climb_swing_root`, `climb_offhand_shoulder`). Once chosen: make it the default (`armed_hang_shape`) and decide whether `hangpose` stays as a developer command.
+
 ## 2026-11-27 - D08J10 closed out (Done); D08J11 filed
 
 - D08J10 ([note 562](562-d08j10-ladder-grab.md)): user "great!! the best yet ... lock it all in and close us out". Done: Modern LADDER CLIMBING enters ladders through the hand-over-hand climb, with step-in legs from the floor and the ledge hang below the rungs. D08J11 filed (backlog, not started): a one-armed full hang while the sidearm is drawn, three candidate poses.

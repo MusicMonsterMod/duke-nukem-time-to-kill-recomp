@@ -1400,6 +1400,17 @@ climbing down from the top (D08U) are unchanged. **CLASSIC**: the original
 ladder start. The change applies at once on CONFIRM. Launcher:
 `--ladder-climbing modern|classic` (saved). Vanilla always uses CLASSIC.
 
+**Shooting while hanging from a ladder (Modernized, D08J11).**
+With MODERN ladder climbing, in third person: if you draw the pistol
+(left-click) while Duke still hangs below the rungs, he lets the climb go and
+hangs from his free hand at full stretch, his body below the grip, instead of
+holding half a pull-up while he shoots, and his body turns side-on toward
+where you aim, swinging about the hand on the rung. Putting the pistol away
+(W) eases him back into the climb. For tuning, the console (`` ` ``) still
+offers the other trial poses for the session: `hangpose 1` hangs straight
+under the hand without the turn, `hangpose 3` holds a slight one-arm pull,
+`hangpose 2` is the default and `hangpose off` the previous half pull-up.
+
 **Climbing off a ladder with an enemy at the top (Modernized, D08U2).**
 In the original game an enemy (or other character) standing near the top of a
 ladder keeps Duke on the top rung for as long as it stays there. In

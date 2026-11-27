@@ -5019,7 +5019,7 @@ Needs playtest.
 
 ### D08J11 - One-armed hang on a ladder while armed
 
-**Status: Todo (backlog; user request 2026-11-27, not started). Dependencies: D08J10, D08J6.**
+**Status: Done (user-accepted 2026-11-27: "hangpose 2 is the one, yeah i like it. lets lock it in", then "close it out"). Dependencies: D08J10, D08J6.** [Note 563](../documentation/563-d08j11-armed-ladder-hang.md).
 
 User, 2026-11-27, accepting D08J10: "review duke's pose when hanging from the
 ladder - rather than hang, he immediately pulls up. this can look jarring if
@@ -5045,6 +5045,32 @@ ledge-hang legs, the climb, D08J6/D08J6B firing and first person unchanged.
 Acceptance: the user picks one of the three and it reads naturally while
 shooting; no half pull-up while armed in the hang; Classic and Vanilla
 unchanged.
+
+Work log, 2026-11-27 ([note 563](../documentation/563-d08j11-armed-ladder-hang.md)):
+measured the clips (`recomp/analysis/d08j11/hands.py`): armed after a catch
+Duke rests in 187 with the off hand at the hip (58 above the pelvis); the
+ledge hang 149 holds 425 above at full stretch. New `ladder_armed_hang.inc`:
+while the legs hang and the sidearm is out (third person, view aiming), the
+off arm takes 186's high grip, the model is offset down and toward the ladder
+in the build's root, and the D08J6B off-hand IK keeps the hand on its rung,
+so the arm straightens and the body hangs below it (position, collision and
+camera unchanged). The drop is capped where the hand is at full reach (IK
+stretch 1.000-1.006, drops 30-49), the grip is frozen in the world once the
+hang is in, and it eases in over 220 ms after the draw and out through the
+stow (no snap when the lease ends). Three candidates, live with the console
+`hangpose 1|2|3|off`: 1 hang (straight under the grip), 2 side (turned
+side-on toward the aim about the grip, 0.6 of the view's yaw, 75 right to 30
+left), 3 pull (25 down, elbow bent, chest near the rungs); `hangpose tune`
+for fine tuning. Offscreen at the user's spot: catch, draw, all three idle
+and firing at 0 and -35 degrees; the stow fades out and the climb resumes to
+the top exit. Native D08J11 group (162 groups pass), unit tests 286 OK.
+Needs playtest: the user picks one on the real display; the side views could
+not be framed offscreen in the alley.
+
+Work log, 2026-11-27 (chosen): user: "hangpose 2 is the one, yeah i like it. lets lock it in". Candidate 2, side, is the default
+(`armed_hang_shape`; also for an unknown value); `hangpose` stays for tuning.
+Native group updated (the default is side), 162 groups pass; offscreen the
+default turns toward the aim with the arm at full reach. Closed out on the user's "close it out": Done.
 
 ### D08O6 - Air refills at once on surfacing (option)
 

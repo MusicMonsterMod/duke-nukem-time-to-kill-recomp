@@ -1350,6 +1350,7 @@ static void face_view() {
 #include "monitor_use.inc"   // D53C
 #include "crouch_landing.inc"
 #include "swim.inc"
+#include "ladder_armed_hang.inc"   // D08J11
 #include "climb_aim.inc"
 #include "grounded_water.inc"
 #include "jetpack.inc"
@@ -1674,7 +1675,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         return;
     }
     if(address==0x80055e80) {jet_cutout_prestate(cpu,ra);crouch_landing_finish(cpu,ra);grounded_water_transition(cpu,ra);return;}
-    if(address==0x800411b8) {crouch_walk_pose(cpu);tp_kick_pose(cpu);onehand_pullup_pose(cpu);ladder_entry_pose(cpu);monitor_use_pose(cpu);swim_aim_begin(cpu,ra);climb_aim_begin(cpu,ra);return;}
+    if(address==0x800411b8) {crouch_walk_pose(cpu);tp_kick_pose(cpu);onehand_pullup_pose(cpu);ladder_entry_pose(cpu);armed_hang_pose(cpu);monitor_use_pose(cpu);swim_aim_begin(cpu,ra);climb_aim_begin(cpu,ra);return;}
     if(address==0x8002b9f4) {
         // The original level teardown destroys these records. Forget host
         // ownership before their addresses can be reused by another scene.

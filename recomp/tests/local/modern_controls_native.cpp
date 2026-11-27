@@ -3694,6 +3694,47 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(p+0x64,40);psx_mod_write_half(p+0x66,40);psx_mod_write_half(p+0x62,12);psx_mod_write_word(p+8,y);update();};
             for(int k=0;k<6;++k)climb(-11000);
             assert(json().find("\"dangle\":true,\"dangle_w\":[0.00,0.00]")!=std::string::npos);
+            // D08J11: while the legs hang, the sidearm out under view aiming
+            // eases in the one-armed hang (220 ms real time, steps capped at
+            // 100 ms) and an equip/stow track (upper 6/7) eases it out;
+            // holstered, `hangpose off` and the hooks' other callers never.
+            {
+                auto hang=[&]{const auto t=json();const auto k=t.find("\"armed_hang\":{");assert(k!=std::string::npos);
+                    return std::atof(t.c_str()+t.find("\"w\":",k)+4);};
+                auto shape=[&]{const auto t=json();const auto k=t.find("\"armed_hang\":{\"shape\":");
+                    return std::atoi(t.c_str()+k+22);};
+                auto pose=[&](uint32_t ra=0x80042634){ttk::clock_ms+=100;call(0x800411b8,p,0,ra);};
+                auto say=[](const char*){};bool close=true;
+                const char* env_names[2]={"DNTTK_WEAPON_AIM","DNTTK_CAMERA_MODE"};std::string env_old[2];bool env_had[2];
+                for(int k=0;k<2;++k){const char* v=std::getenv(env_names[k]);env_had[k]=v;env_old[k]=v?v:"";}
+                setenv("DNTTK_WEAPON_AIM","view",1);setenv("DNTTK_CAMERA_MODE","independent",1);
+                psx_mod_write_half(p+0x60,187);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+                pose();pose();pose();assert(hang()==0);                   // holstered
+                psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+                ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+                pose(0x80042630);assert(hang()==0);                        // another caller
+                pose();assert(hang()>0.4 && hang()<0.5);
+                pose();pose();assert(hang()==1 && shape()==2);   // the chosen default: side
+                assert(json().find("\"armed_hang\":{\"shape\":2,\"w\":1.000,\"drop\":60,\"forward\":60,\"side\":0.60,")!=std::string::npos);
+                psx_mod_write_half(p+0x74,6);pose();assert(hang()>0.5 && hang()<0.6);
+                pose();pose();assert(hang()==0);
+                psx_mod_write_half(p+0x74,5);pose();pose();pose();assert(hang()==1);
+                assert(ttk::armed_hang_console_command("hangpose 3",say,close) && !close);
+                pose();assert(shape()==3 && json().find("\"drop\":25,\"forward\":90,\"side\":0.00,")!=std::string::npos);
+                assert(ttk::armed_hang_console_command("hangpose hang",say,close));pose();assert(shape()==1);
+                assert(ttk::armed_hang_console_command("hangpose tune 40 50 0.5",say,close));pose();
+                assert(json().find("\"drop\":40,\"forward\":50,\"side\":0.50,")!=std::string::npos);
+                assert(ttk::armed_hang_console_command("hangpose tune off",say,close));
+                assert(ttk::armed_hang_console_command("hangpose off",say,close));pose();assert(hang()==0 && shape()==0);
+                assert(!ttk::armed_hang_console_command("hangposes",say,close));
+                assert(ttk::armed_hang_console_command("hangpose 2",say,close));pose();assert(hang()>0 && shape()==2);
+                // Off the climb clips (a mantle, the rest pose of a pole): at once.
+                psx_mod_write_half(p+0x60,193);pose();assert(hang()==0);psx_mod_write_half(p+0x60,187);
+                psx_mod_write_byte(p+0x3b8,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+                pose();pose();pose();assert(hang()==0);
+                for(int k=0;k<2;++k){if(env_had[k])setenv(env_names[k],env_old[k].c_str(),1);else unsetenv(env_names[k]);}
+                std::puts("PASS: D08J11 armed one-arm ladder hang: eased in with the sidearm out while the legs hang, out through the stow, the chosen side pose by default, the other candidates, tuning and off; holstered and other callers untouched");
+            }
             climb(-11800);   // left toe 289 below: -11511, on the lowest rung; right 535 below: not yet
             assert(json().find("\"dangle_w\":[0.25,0.00]")!=std::string::npos);
             for(int k=0;k<4;++k)climb(-12100);

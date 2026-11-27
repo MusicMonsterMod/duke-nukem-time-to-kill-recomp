@@ -89,6 +89,9 @@ static double climb_swing_start=90*tau/360,climb_swing_max=100*tau/360,climb_swi
 static double climb_swing_angle,climb_swing_target,climb_swing_applied,climb_reach_error;
 static bool climb_swing_family_now,climb_swing_root_done,climb_pivot_valid;
 static double climb_pivot[3],climb_pivot_actor[3]; // world: the off hand's unswung contact, Duke's position then
+// What the root build applied: a yaw about the pivot and (D08J11) a body offset T,
+// x' = pv + R(x + T - pv); the off hand's contact takes both back out.
+static double climb_root_yaw,climb_root_t[3];
 static unsigned climb_root_swings,climb_root_mismatches;
 static bool climb_root_transposed;
 static int climb_swing_enabled() {
@@ -178,7 +181,8 @@ static void climb_aim_begin(CPUState* cpu,uint32_t ra) {
     climb_swing_family_now=climb_swing_enabled()!=0 && climb_swing_family();
     if(climb_swing_family_now) {
         delta=climb_reach_delta(delta,climb_swing_angle);
-        climb_swing_target=std::clamp(delta-climb_swing_start,0.0,climb_swing_max);
+        // D08J11: the armed one-arm hang's side-on turn joins the law.
+        climb_swing_target=armed_hang_swing(delta,std::clamp(delta-climb_swing_start,0.0,climb_swing_max));
         if(!climb_pivot_valid)climb_swing_target=0;
         const double step=climb_swing_rate*dt/1000,error=climb_swing_target-climb_swing_angle;
         // Full rate far off, eased over the last 10 degrees.
@@ -266,6 +270,7 @@ static ClimbM climb_rf,climb_ws_orig,climb_ws_new,climb_wf_orig,climb_wf_new;
 static ClimbV climb_elbow,climb_target;
 static unsigned climb_ik_solves;
 static double climb_ik_reach;
+// D08J11: climb_ik_fit (ladder_armed_hang.inc), written by the off-hand solve.
 static bool climb_arm_records(uint32_t model,int& fore,int& hand) {
     fore=duke_part_joint(model,part_left_shoulder+1);hand=duke_part_joint(model,part_left_shoulder+2);
     return fore>=0 && hand>=0 && psx_mod_read_byte(model+0x44+0x28*fore+2)==4 && psx_mod_read_byte(model+0x44+0x28*hand+2)==5;
@@ -286,13 +291,21 @@ static void climb_offhand_shoulder(uint32_t model,uint32_t parent,uint32_t local
     ClimbV actor{double((int32_t)psx_mod_read_word(player+4)),double((int32_t)psx_mod_read_word(player+8)),double((int32_t)psx_mod_read_word(player+12))};
     if(climb_swing_root_done) {
         const ClimbV pv=ClimbV{climb_pivot[0],climb_pivot[1],climb_pivot[2]}-actor;
-        ho=pv+climb_mv(climb_tr(climb_yaw_m(climb_swing_applied)),ho-pv);
+        ho=pv+climb_mv(climb_tr(climb_yaw_m(climb_root_yaw)),ho-pv)-ClimbV{climb_root_t[0],climb_root_t[1],climb_root_t[2]};
     }
+    ho=armed_hang_grip(ho,actor); // D08J11
     if(climb_swing_family_now) {
         const ClimbV wo=ho+actor;
         climb_pivot[0]=wo.x;climb_pivot[1]=wo.y;climb_pivot[2]=wo.z;
         climb_pivot_actor[0]=actor.x;climb_pivot_actor[1]=actor.y;climb_pivot_actor[2]=actor.z;
         climb_pivot_valid=true;
+    }
+    {   // D08J11: the drop that puts the hand at full reach (.98 of the arm),
+        // from this build's shoulder and grip; down is +y, sn moves with the offset.
+        const double reach=.98*(tf.length()+th.length()),v=sn.y-ho.y;
+        const double hz=std::hypot(sn.x-ho.x,sn.z-ho.z);
+        const double need=hz<reach?std::sqrt(reach*reach-hz*hz):0;
+        climb_ik_fit=std::max(0.0,climb_root_t[1]*(climb_swing_root_done?1:0)+need-v);climb_ik_fit_valid=true;
     }
     contact_arm::Pose pose;
     if(!contact_arm::solve(sn,ho,eo+(sn-so),eo-so,tf.length(),th.length(),pose)) {climb_m_write(local,climb_mul(climb_tr(Pn),Ws));return;}
@@ -321,9 +334,15 @@ static void climb_swing_root(uint32_t model) {
     }
     if(!transposed && !same) {++climb_root_mismatches;climb_swing_root_done=false;return;}
     if((ts+actor-te).length()>2) {++climb_root_mismatches;climb_swing_root_done=false;return;}
-    const ClimbM R=climb_yaw_m(climb_swing_applied),Sn=climb_mul(R,S);
-    const ClimbV pv=ClimbV{climb_pivot[0],climb_pivot[1],climb_pivot[2]}-actor;
-    const ClimbV tn=pv+climb_mv(R,ts-pv);
+    // D08J11: the armed hang's body offset, then the swing about the pivot.
+    const bool rotate=std::abs(climb_swing_applied)>1e-4 && climb_pivot_valid;
+    double off[3]={0,0,0};
+    armed_hang_offset(off);
+    climb_root_yaw=rotate?climb_swing_applied:0;
+    for(int i=0;i<3;++i)climb_root_t[i]=off[i];
+    const ClimbM R=climb_yaw_m(climb_root_yaw),Sn=climb_mul(R,S);
+    const ClimbV pv=rotate?ClimbV{climb_pivot[0],climb_pivot[1],climb_pivot[2]}-actor:ClimbV{};
+    const ClimbV tn=pv+climb_mv(R,ts+ClimbV{off[0],off[1],off[2]}-pv);
     climb_m_write(0x1f800020u,Sn);climb_m_write(entry,transposed?climb_tr(Sn):Sn);
     climb_root_transposed=transposed;
     const int32_t t[3]={(int32_t)std::lround(tn.x),(int32_t)std::lround(tn.y),(int32_t)std::lround(tn.z)};
@@ -335,7 +354,8 @@ static void climb_swing_root(uint32_t model) {
 }
 // 0x800b42ec entry (P, L, out), after swim_aim_arm; the first test must be cheap.
 static void climb_aim_arm(CPUState* cpu) {
-    if(!climb_aim_set || (cpu->gpr[31]!=0x8009899cu && cpu->gpr[31]!=0x800980d0u) || cpu->gpr[21]!=player)return;
+    // D08J11: the armed hang's offset also fades out past the aim lease.
+    if((!climb_aim_set && armed_hang.w<=0) || (cpu->gpr[31]!=0x8009899cu && cpu->gpr[31]!=0x800980d0u) || cpu->gpr[21]!=player)return;
     const uint32_t model=duke_model(),record=cpu->gpr[cpu->gpr[31]==0x8009899cu?16:17];
     const uint32_t parent=cpu->gpr[4],local=cpu->gpr[5],out=cpu->gpr[6];
     if(!model || record<model+0x44 || (record-(model+0x44))%0x28 || local<0x1f800000u || local>0x1f8003e0u)return;
@@ -345,7 +365,8 @@ static void climb_aim_arm(CPUState* cpu) {
     // D08J6F: the first child's composition (record 1, depth 2): the root is
     // built and stored; swing both about the pivot before any child reads it.
     if(index==1 && !climb_swing_root_done && parent==0x1f800020u && out==0x1f800040u &&
-       psx_mod_read_byte(record+2)==2 && std::abs(climb_swing_applied)>1e-4 && climb_pivot_valid)climb_swing_root(model);
+       psx_mod_read_byte(record+2)==2 && ((std::abs(climb_swing_applied)>1e-4 && climb_pivot_valid) || armed_hang.w>0))climb_swing_root(model);
+    if(!climb_aim_set)return;
     const int chest=duke_part_joint(model,part_spine),left=duke_part_joint(model,part_left_shoulder),
         head=duke_part_joint(model,part_neck);
     if(chest<0 || psx_mod_read_byte(model+0x44+0x28*chest+2)!=2)return;

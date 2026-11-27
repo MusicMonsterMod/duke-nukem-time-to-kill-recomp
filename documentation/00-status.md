@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D08J11 closed out (Done)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): Done on the user's "close it out": armed below the rungs Duke hangs one-armed, side-on toward the aim.
+
+## 2026-11-27 - D08J11 candidate 2 chosen (Accepted)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): the user chose the side-on one-arm hang; it is now the default. Closeout pending.
+
+## 2026-11-27 - D08J11 armed one-arm ladder hang (Needs playtest)
+
+- D08J11 ([note 563](563-d08j11-armed-ladder-hang.md)): with the sidearm out while his legs hang below the rungs, Duke hangs from his free hand at full stretch instead of a half pull-up. Three candidates switched in game with the console `hangpose 1|2|3` (hang, side-on toward the aim, slight pull). Offscreen and native checks pass; the pick is the user's on the real display.
+
 ## 2026-11-27 - D08J10 closed out (Done); D08J11 filed
 
 - D08J10 ([note 562](562-d08j10-ladder-grab.md)): user "great!! the best yet ... lock it all in and close us out". Done: Modern LADDER CLIMBING enters ladders through the hand-over-hand climb, with step-in legs from the floor and the ledge hang below the rungs. D08J11 filed (backlog, not started): a one-armed full hang while the sidearm is drawn, three candidate poses.

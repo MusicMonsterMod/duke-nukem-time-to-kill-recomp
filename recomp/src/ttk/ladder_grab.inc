@@ -321,10 +321,11 @@ static void ladder_entry_pose(CPUState* cpu) {
     }
     ++ladder_leg_writes;
 }
+static const char* armed_hang_debug_json();
 static const char* ladder_grab_debug_json() {
-    static char buffer[320];
-    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"ground\":%u,\"catch\":%u,\"transfer\":%u,\"settle\":%s,\"legs\":%s,\"leg_writes\":%u,\"late\":%u,\"dangle\":%s,\"dangle_w\":[%.2f,%.2f],\"dangles\":%u,\"dangle_writes\":%u,\"sway\":%.2f}",
+    static char buffer[640];
+    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"ground\":%u,\"catch\":%u,\"transfer\":%u,\"settle\":%s,\"legs\":%s,\"leg_writes\":%u,\"late\":%u,\"dangle\":%s,\"dangle_w\":[%.2f,%.2f],\"dangles\":%u,\"dangle_writes\":%u,\"sway\":%.2f,\"armed_hang\":%s}",
         ladder_climbing_modern()?"true":"false",ladder_ground_entries,ladder_catch_entries,ladder_transfer_entries,
-        ladder_settle.active?"true":"false",ladder_legs.active?"true":"false",ladder_leg_writes,ladder_late_converts,ladder_dangle.active?"true":"false",ladder_dangle.w[0],ladder_dangle.w[1],ladder_dangle_starts,ladder_dangle_writes,ladder_dangle.sway);
+        ladder_settle.active?"true":"false",ladder_legs.active?"true":"false",ladder_leg_writes,ladder_late_converts,ladder_dangle.active?"true":"false",ladder_dangle.w[0],ladder_dangle.w[1],ladder_dangle_starts,ladder_dangle_writes,ladder_dangle.sway,armed_hang_debug_json());
     return buffer;
 }

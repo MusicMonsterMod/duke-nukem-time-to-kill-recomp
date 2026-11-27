@@ -2699,6 +2699,41 @@ real display; Vanilla unchanged in play; user playtest.
 User playtest, 2026-11-27: accepted ("absolutely stunning work!! lock it in
 and close it out"). Done.
 
+### D26L5 - Bolder ^ and ~, and a redrawn ]
+
+**Status: Done (2026-11-27, user-accepted). Quick follow-up to D26L3 (part of the
+D26L console review). Dependencies: D26L3.**
+User, 2026-11-27: "i want to review some of the glyphs again ~ and ^ are too
+thin still, can we thicken it up. i think you misunderstood me last time when
+i said it's too thin and you horizontally made them a little wider. dont
+change that anymore, but they need a bit of boldness to them / then ] appears
+a bit rough looking, can you redo this one".
+
+Wanted: `^` and `~` in TTK Medium and Big Italic with heavier strokes at their
+current widths; a clean `]`.
+
+Acceptance: the glyphs keep their D26L3 widths; `^` and `~` read with the
+weight of the letters and the hyphen; `]` is a clean mirror of `[`; user look
+on the real display.
+
+**Work log (2026-11-27, Needs playtest).** Autonomous quick job; details and
+evidence in [note 566 section 6](../documentation/566-d26l3-full-ascii-glyphs.md#6-d26l5-bolder--and--a-redrawn--2026-11-27).
+
+- `^` (Medium and Big Italic): widths unchanged (13, 21); one row taller, the
+  arms 5 / 8 texels a row meeting in a solid apex, 4 lit texels and a dark
+  edge per Medium arm row (was 2-3 lit).
+- `~`: widths unchanged (13, 21); every column the hyphen's thickness (Medium
+  3-4 rows, Big 6), was mostly one lit row.
+- Medium `]`: drawn (a straight 3-lit stem with a dark right edge, bars like
+  `[`) instead of the L-based `[` mirrored, whose stem came out ragged; now as
+  wide as `[` (11). Big's `[ ]` and Medium's `[` unchanged.
+- Verified: texel dumps, enlarged previews and offscreen in-game console shots
+  before and after (`research/before-after/D26L5/`, local); font, inventory and
+  console-syntax native tests and the Python suite pass. Remaining: the user's
+  look on the real display.
+
+Accepted by the user on 2026-11-27: "this is awesome. lock it in close it out. a solid, and aesthetically pleasing, and functional, easy to use console".
+
 ### D29 - Progression items and objectives legibility (research and design first)
 
 **Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The

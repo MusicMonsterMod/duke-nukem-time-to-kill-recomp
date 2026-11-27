@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-27 - D26L5 closed out (Done)
+
+User-accepted: "this is awesome. lock it in close it out. a solid, and aesthetically pleasing, and functional, easy to use console". D26L continues with tab completion.
+
+## 2026-11-27 - D26L5 bolder ^ and ~, a redrawn ] (Needs playtest)
+
+Follow-up to D26L3. `^` and `~` in TTK Medium and Big Italic keep their widths but get heavier strokes (the `^` arms 4 lit texels a row in Medium, the `~` the hyphen's thickness); Medium `]` is drawn clean instead of the L-based `[` mirrored. See [note 566 section 6](566-d26l3-full-ascii-glyphs.md). Next: the user's look on the real display.
+
 ## 2026-11-27 - D26L4 closed out (Done)
 
 User-accepted: "absolutely stunning work!! lock it in and close it out". D26L continues with tab completion (the D26L2 table). Open decision: whether the arenas 15-20 should keep the original controls (they play Modernized through `BASEOVR.OVR`; note 568 section 6).

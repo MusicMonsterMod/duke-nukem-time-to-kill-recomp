@@ -144,7 +144,47 @@ in appearance for me either".
 
 Accepted by the user on 2026-11-27: "lock it in and close it out".
 
-## 6. Limits and follow-ups
+## 6. D26L5: bolder ^ and ~, a redrawn ] (2026-11-27)
+
+User: "~ and ^ are too thin still, can we thicken it up. i think you
+misunderstood me last time when i said it's too thin and you horizontally made
+them a little wider. dont change that anymore, but they need a bit of boldness
+to them / then ] appears a bit rough looking, can you redo this one". Job
+[D26L5](../jobs/menus-ui.md#d26l5---bolder--and--and-a-redrawn-).
+
+- Cause: the section 5 strokes were thin across the stroke, not along it. The
+  Medium `^` arms were 4 texels of which the font's dark-edge rule (bottom of
+  every column, right edge after 3 lit) darkened one or two, leaving 2-3 lit;
+  the Medium `~` was mostly one lit row over a dark one. Big's were 6-texel
+  arms and a 3-4 row wave inside a full outline. The letters' diagonals are 4-5
+  lit texels a row and the hyphen 2 lit rows over a dark one (Big: 6 rows).
+- `^`: same widths (Medium 13, Big 21), one row taller (Medium 6, Big 9), the
+  arms 5 / 8 texels a row meeting in a solid apex; a `+` keeps Medium's right
+  arm's inner texel lit, so each arm row is 4 lit texels and a dark edge.
+- `~`: same widths (13, 21), every column the hyphen's thickness: Medium 3-4
+  rows (2-3 lit over the dark edge), Big 6 rows; the top row moved up one
+  (Medium row 3, Big row 3) so the wave stays centred on the line.
+- Medium `]`: drawn in `ART` (an 8-texel bar of 2 lit rows over a dark one at
+  top and bottom, a straight 4-texel stem lit 3 with a dark right edge, leaned
+  as the font) instead of `[` mirrored. The mirror of the L-derived `[` had a
+  stem 2-3 texels wide that stepped irregularly (the per-row unshear rounding)
+  and a lighter top bar than its foot. Medium `[` and Big's `[ ]` unchanged.
+- Glyph widths: Medium `^ ~` 13, `]` 11 (was 10, now the width of `[`); Big
+  `^ ~` 21. Every other glyph is byte-identical (only the `ART` entries
+  changed); pack `42a297b19248fe805af84d266d29c1c6c88b1162340103fe022496a6c735a60e`
+  (D26L3's `2ba0f222...` rebuilt from the HEAD script for the before shots).
+- Evidence: texel dumps and 8x / 6x previews of `A^V~N[I]E-W` in the console's
+  steel palette before and after; offscreen in game (Xvfb, private profile and
+  card copies, the player's files hash-checked; lab
+  `recomp/analysis/d26l5/shot.py`, local) the console line and replies with
+  `^ ~ [ ]`, before (the old pack through `DNTTK_FONT_PACK`) and after.
+  Before/after shots in `research/before-after/D26L5/` (local). `ttk-font-test`,
+  `ttk-inventory-test`, `ttk-console-syntax-test` and the Python suite pass.
+  The local D24A fonts page was regenerated from the shipping code.
+
+Accepted by the user on 2026-11-27: "this is awesome. lock it in close it out. a solid, and aesthetically pleasing, and functional, easy to use console".
+
+## 7. Limits and follow-ups
 
 - Lower case is still drawn as capitals (all caps).
 - Still open in D26L: the command review (help, errors, Modernized-only

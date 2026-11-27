@@ -1011,7 +1011,7 @@ const KeyRow key_rows[]={
     {"NEXT WEAPON",weapon_next},{"LAST WEAPON",weapon_last},
     {"MIGHTY BOOT",weapon_group_1,nullptr,"ALSO THROWING KNIFE AND AXE"},{"DESERT EAGLE",weapon_group_2},
     {"COMBAT SHOTGUN",weapon_group_3},{"GATLING GUN",weapon_group_4},{"RPG",weapon_group_5},
-    {"PIPE BOMB",weapon_group_6,nullptr,"ALSO DYNAMITE AND HOLY HAND GRENADE"},{"ENERGY WEAPON",weapon_group_7},
+    {"PIPE BOMB",weapon_group_6,nullptr,"ALSO HOLY HAND GRENADE AND DYNAMITE"},{"ENERGY WEAPON",weapon_group_7},
     {"FLAMETHROWER",weapon_group_8},{"BUFFALO RIFLE",weapon_group_9,nullptr,"ALSO THE CROSSBOW"},{"FREEZER",weapon_group_0},
     // inventory's key toggles the crosshair (the inventory screen is Right Shift).
     {"ITEMS",-1},{"CROSSHAIR",inventory,nullptr,"SHOWS OR HIDES THE CROSSHAIR"},{"PREVIOUS ITEM",item_previous},{"NEXT ITEM",item_next},

@@ -845,6 +845,28 @@ The `d08p-turret` LEVEL00 fixture is Modernized-patched and fails the first
 Vanilla check by design; use an original one. No game executable change, so
 no playtest is needed.
 
+### D59A - Native controls test runs to the end again
+
+**Status: Todo (user request 2026-11-27: "yes add the check", found in
+D08A54). Dependencies: D59.**
+
+`ttk-controls-test` (not built in CI; run as in D59 with the owned EXE, the
+level-0 guard fixture and the extracted overlays) did not link after D08A51:
+`hhg_look.inc` calls `gpu_write_gp0`. D08A54 added a no-op stub, and the test
+now links but aborts at `modern_controls_native.cpp:2190`
+(`Assertion '!ttk::movement_ready()' failed`), the same with the D08A54 order
+reverted, so a later accepted job changed what that case expects (or the test
+state no longer models it). Everything after it, including the weapon-group
+cases (D08A54's new slot-6 order), does not run. Scope as D59: find which
+accepted change moved the behaviour and update the expectation to the
+accepted behaviour, never the code to the old test; then run the remaining
+cases and fix or list what fails. Consider also building the native targets in
+CI where they can run without retail data.
+
+**Acceptance:** `ttk-controls-test` runs to the end and passes, including the
+D08A54 slot-6 cases; other native targets build; any remaining failures listed
+with their cause.
+
 ### PRIV01 - Remove local usernames from repository content
 
 **Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**

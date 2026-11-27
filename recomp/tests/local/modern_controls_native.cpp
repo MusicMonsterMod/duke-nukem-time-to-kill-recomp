@@ -17,6 +17,7 @@ extern "C" void psx_mod_replay_workers_refresh(void) {}
 extern "C" {int g_pgxp_mesh_active=0;}
 extern "C" int pgxp_mesh_vertex(uint32_t,uint32_t,int32_t*,int32_t*,uint16_t*) {return 0;}
 extern "C" void gte_nclip_culling_set(int) {}
+extern "C" void gpu_write_gp0(uint32_t) {} // D08A51 hhg_look.inc VRAM uploads
 extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*checks=*flips=0;}
 // D23Z runtime symbols (spike trace, neon VRAM copy) the suite does not exercise.
 extern "C" int gpu_vram_copy_async(uint16_t*,int) {return 0;}
@@ -2907,15 +2908,17 @@ int main(int argc,char** argv) {
     const unsigned expected[]={0,4,5,7,8,12,10,9,6,11};
     for(unsigned i=0;i<10;++i) {psx_mod_write_byte(p+0x3b9,i==1?5:4);request(ttk::weapon_group_1+i);
         assert(psx_mod_read_byte(p+0x3ba)==expected[i]);}
-    psx_mod_write_byte(p+0x3b9,12);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==14);
-    psx_mod_write_byte(p+0x3b9,14);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==13);
+    // D08A54: Pipe Bomb, Holy Hand Grenade, Dynamite (never 6 6 6 for the grenade).
+    psx_mod_write_byte(p+0x3b9,12);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==13);
+    psx_mod_write_byte(p+0x3b9,13);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==14);
+    psx_mod_write_byte(p+0x3b9,14);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==12);
     psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x2c6+12*4,0);psx_mod_write_word(p+0x254,1);
     request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==12);
     psx_mod_write_byte(p+0x3b8,1);psx_mod_write_byte(p+0x3b9,0);psx_mod_write_half(p+0x74,39);
     request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==4); // leave the original detonator equipment state
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);
 
-    psx_mod_write_word(p+0x254,0);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==14);
+    psx_mod_write_word(p+0x254,0);request(ttk::weapon_group_6);assert(psx_mod_read_byte(p+0x3ba)==13); // no pipe bombs: the grenade comes next (D08A54)
     psx_mod_write_half(p+0x2c4+7*4,9);psx_mod_write_half(p+0x2c6+7*4,0);
     request(ttk::weapon_group_4);assert(psx_mod_read_byte(p+0x3ba)==7);
     psx_mod_write_half(p+0x2c6+28*4,0);psx_mod_write_byte(p+0x3ba,4);

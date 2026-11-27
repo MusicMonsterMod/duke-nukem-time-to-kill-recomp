@@ -1658,7 +1658,7 @@ Number keys now select familiar weapon groups when owned and usable:
 | 3 | Combat Shotgun |
 | 4 | Gatling Gun |
 | 5 | RPG |
-| 6 | Pipe Bomb / Dynamite / Holy Hand Grenade |
+| 6 | Pipe Bomb / Holy Hand Grenade / Dynamite |
 | 7 | Energy Weapon |
 | 8 | Flamethrower |
 | 9 | Buffalo Rifle / Crossbow |

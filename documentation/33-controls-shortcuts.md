@@ -23,7 +23,7 @@ including switching away from the remote. Other equipment-1 gadgets are excluded
 | 3 | 5 | Combat Shotgun |
 | 4 | 7 | Gatling Gun |
 | 5 | 8 | RPG |
-| 6 | 12, 14, 13 | Pipe Bomb, Dynamite, Holy Hand Grenade |
+| 6 | 12, 13, 14 | Pipe Bomb, Holy Hand Grenade, Dynamite (D08A54; was 12, 14, 13) |
 | 7 | 10 | Energy Weapon |
 | 8 | 9 | Flamethrower |
 | 9 | 6, 3 | Buffalo Rifle, Crossbow |

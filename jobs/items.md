@@ -2581,3 +2581,44 @@ unchanged.
 **Acceptance:** a per-weapon list of shakes found and fixed, and the user's
 playtest finds the weapons steady.
 
+### D08A54 - Holy Hand Grenade off 6 6 6
+
+**Status: Done (user-accepted 2026-11-27: "lock it in, close it out"; request: "to actually get to it,
+you have to press 6 6 6, which really does not sit well with me at all"; user
+chose "pipe bomb, grenade, dynamite"). Dependencies: none.**
+
+Key 6 cycles its group in the order of `weapon_order` in
+`recomp/src/ttk/shortcuts.inc` (slots 12 Pipe Bomb, 14 Dynamite, 13 Holy Hand
+Grenade). With all three owned and none of them drawn, the grenade comes on the
+third press: 6 6 6. The same table sets the wheel / `;` `'` order. The
+number keys are Modernized only: Vanilla has none (original weapon cycling,
+hold S / Circle + Left / Right), and the original PlayStation game had no
+number keys, so 6 6 6 never existed there.
+
+Options to discuss: swap Dynamite and the grenade (6 6); give the grenade
+another key or group; remember the last weapon used in each group; or a
+setting for the slot order. Update the OPTIONS > CONTROLS hint ("ALSO DYNAMITE
+AND HOLY HAND GRENADE", `game_menu.cpp`) and the manual's key table to match.
+
+**Acceptance:** with all three slot-6 weapons owned, the grenade never takes
+6 6 6; the chosen order holds from every starting weapon, and on the wheel and
+in the switch queue; Vanilla unchanged.
+
+**2026-11-27 implemented (Needs playtest).** `weapon_order` slot-6 entries are
+now 12, 13, 14: Pipe Bomb, Holy Hand Grenade, Dynamite, so the grenade is
+6 6 and Dynamite 6 6 6; the wheel / `;` `'` order follows. The OPTIONS >
+CONTROLS hint reads "ALSO HOLY HAND GRENADE AND DYNAMITE"; the manual key table
+and note 33's slot table updated. Offscreen lab `recomp/analysis/d08a54/`
+(local; `probe.py` case `slot6`, private card copies, player files checked
+unchanged): Modernized, all three owned (`dnstuff`), from the Desert Eagle 6
+gave Pipe Bomb, grenade, Dynamite, Pipe Bomb; wheel up from the Pipe Bomb gave
+the grenade then Dynamite. Vanilla with the three written into the inventory:
+6 does nothing (no number keys), as before. The native `ttk-controls-test`
+group-6 cases now expect the new order; that test needed a `gpu_write_gp0`
+stub to link (D08A51's `hhg_look.inc`) and then stops at an older, unrelated
+assertion (`!ttk::movement_ready()`, line 2190, the same with the old order),
+so its slot-6 cases did not run; it is not built in CI. Follow-up:
+[D59A](project.md#d59a---native-controls-test-runs-to-the-end-again).
+
+**2026-11-27 accepted and closed.** User: "lock it in, close it out". Done.
+

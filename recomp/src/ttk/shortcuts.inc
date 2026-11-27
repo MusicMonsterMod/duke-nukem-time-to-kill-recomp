@@ -1,5 +1,5 @@
 // Included in the guarded controls adapter. Slot/name proof: 33-controls-shortcuts.md.
-static constexpr unsigned weapon_order[]={0,1,2,4,5,7,8,12,14,13,10,9,6,3,11};
+static constexpr unsigned weapon_order[]={0,1,2,4,5,7,8,12,13,14,10,9,6,3,11};
 static constexpr unsigned group_start[]={0,3,4,5,6,7,10,11,12,14,15};
 static unsigned equipped=255,last_equipped=255,selected_item=5;
 static uint64_t command_seen;

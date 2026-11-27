@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D26L closed out (Done)
+
+User-accepted: "lock it in and close it out. amazing work". Tab completion is Done and with it the whole D26L console review.
+
+## 2026-11-27 - D26L tab completion (Needs playtest)
+
+Tab in the backtick console completes the word at the caret (commands, keywords, landmarks, option keys and values, spawn names), extends to the common prefix, and lists the matches when it cannot go further. Lines run with outer spaces trimmed. Native test and offscreen lab pass; the real display is the playtest. [Note 569](569-d26l-tab-completion.md).
+
 ## 2026-11-27 - D26L5 closed out (Done)
 
 User-accepted: "this is awesome. lock it in close it out. a solid, and aesthetically pleasing, and functional, easy to use console". D26L continues with tab completion.

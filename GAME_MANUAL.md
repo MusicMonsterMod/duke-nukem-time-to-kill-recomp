@@ -2522,6 +2522,27 @@ caret, and you type and delete where it is:
   Every printable ASCII character is kept, the pipe `|` and the backtick
   included. A line keeps the 95-character limit; a paste cut short says so.
 
+**Tab completion in the console.** **Tab** completes the word at the caret, as
+in a Linux shell:
+
+- One match completes the word and adds a space: `got` Tab gives `goto `,
+  `option cross` Tab gives `option crosshair `.
+- Several matches complete as far as they agree (`goto ro` gives `goto room`,
+  which starts both `room` and `rooms`). A Tab that cannot go further lists
+  the matches in columns under the line you typed; type a letter or two more
+  and press Tab again.
+- What it completes: the command for the first word (Tab on an empty line
+  lists every command), then the words that command knows (`goto room 12 fa`
+  gives `face`, `level f` gives `force`, `help a` gives `all`), `goto`'s
+  landmarks, `option`'s settings keys and then that key's values, and `spawn`'s
+  item names, which may have spaces: `spawn desert eagle a` gives
+  `spawn desert eagle ammo `. In play `spawn` offers what `items` lists for
+  this level.
+- Numbers and free text (`lamp note ...`) are not completed; Tab there does
+  nothing.
+- Spaces before or after a command do not count, so a completed line runs
+  as it is (` fps ` runs `fps`).
+
 **Colours in the console.** The command line is coloured as you type, so a
 typo shows before you press Enter:
 

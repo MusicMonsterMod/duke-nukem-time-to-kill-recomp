@@ -323,7 +323,13 @@ void console_classify(const char* text,bool typed,int caret,Syn* out,int n) {
     const int len=std::min(n,int(std::strlen(text)));
     if(typed) {classify_command(text,0,len,caret,out,n);return;}
     // The echoed command: "> " then the line as typed (a typo stays red).
-    if(starts(text,"> ")) {fill(out,n,0,2,Syn::prompt);classify_command(text,2,len,-1,out,n);return;}
+    // D26L: a tab-completion listing echoes the line with a space after it,
+    // and its last word is still being typed (not a typo).
+    if(starts(text,"> ")) {
+        int caret=-1;
+        if(len>2 && text[len-1]==' ') {caret=len;while(caret>2 && text[caret-1]==' ')--caret;}
+        fill(out,n,0,2,Syn::prompt);classify_command(text,2,len,caret,out,n);return;
+    }
     // history rows: "  3  goto room 12".
     {int i=0;while(i<len && text[i]==' ')++i;int d=i;while(d<len && std::isdigit((unsigned char)text[d]))++d;
      if(d>i && d+2<len && text[d]==' ' && text[d+1]==' ' && text[d+2]!=' ' && std::islower((unsigned char)text[d+2])) {
@@ -378,6 +384,14 @@ void console_classify(const char* text,bool typed,int caret,Syn* out,int n) {
             int e=b;while(e>a && text[e-1]==' ')--e;
             int f=e;while(f>a && std::isdigit((unsigned char)text[f-1]))--f;
             if(f<e && f-1>a && text[f-1]==' ') {fill(out,n,a,f-1,Syn::name);fill(out,n,f,e,Syn::number);}
+        }
+        // D26L: a tab-completion list's cells: a keyword, spawn name or option key.
+        if(b>a && b<=n && out[a]==Syn::plain) {
+            const std::string cell(text+a,size_t(b-a));
+            bool keyword=false;
+            for(const Command& k:table)keyword|=has_word(k.words,cell,false);
+            if(keyword)fill(out,n,a,b,Syn::keyword);
+            else if(console_spawn_name(cell,false)==1 || console_option_key(cell,false)==1)fill(out,n,a,b,Syn::name);
         }
         a=b+1;
     }
@@ -436,6 +450,7 @@ void console_help(void (*say)(const char*),bool all) {
     bool first=true;
     for(int i=0;i<table_n;++i)if(!shown[size_t(i)] && listed(table[i]))row("OTHER",first,table[i]);
     say("Paste: Shift+Insert, Ctrl+V or right-click. Selecting copies; Ctrl+C copies the line");
+    say("Tab completes a command or name; Tab again lists the choices");
 }
 // D26L4: a known command whose arguments no handler took: its usage, so it
 // never answers "Unknown command" (warp, option, sfx alone, quicksave x).
@@ -484,6 +499,100 @@ void console_unknown(const char* line,void (*say)(const char*)) {
     if(best && w.size()>=2)std::snprintf(reply,sizeof reply,"Unknown command: %s. Try: %s (help: every command)",w.c_str(),best->usage);
     else std::snprintf(reply,sizeof reply,"Unknown command: %s. Type help for the list",w.c_str());
     say(reply);
+}
+// D26L: tab completion, from the same table and run-time names as the
+// colours (documentation/569-d26l-tab-completion.md).
+namespace {
+std::string lower(std::string s) {for(char& c:s)c=char(std::tolower((unsigned char)c));return s;}
+}
+void console_complete(const char* line,int len,int caret,int* from,std::vector<std::string>& out) {
+    out.clear();
+    if(!line)len=0;
+    caret=std::max(0,std::min(caret,len));
+    const std::vector<Word> w=words_of(line?line:"",0,caret);
+    // The word at the caret: the last one when it ends there, else a new one.
+    const bool fresh=w.empty() || w.back().b<caret;
+    const size_t index=fresh ? w.size() : w.size()-1;
+    int start=fresh ? caret : w.back().a;
+    std::string typed=lower(fresh ? std::string() : w.back().s);
+    std::vector<std::string> names;
+    auto words=[&](const char* list) {
+        for(const char* p=list;*p;) {
+            while(*p==' ')++p;
+            const char* e=p;while(*e && *e!=' ')++e;
+            if(e>p)names.emplace_back(p,size_t(e-p));
+            p=e;
+        }
+    };
+    if(from)*from=start;
+    if(index==0) {for(const Command& c:table)names.push_back(c.name);}
+    else if(const Command* c=find_command(w[0].s,false,nullptr)) {
+        if((c->flags&spawn_rest) && index>1 && has_word(c->words,w[1].s,false))return;   // spawn enemy TYPE
+        if(c->flags&spawn_rest) {
+            // spawn NAME: the rest of the line is one name (desert eagle ammo).
+            start=w.size()>1 ? w[1].a : caret;
+            typed=lower(std::string(line+start,size_t(caret-start)));
+            words(c->words);
+            console_spawn_names(names);
+        } else if(c->flags&option_kv) {
+            if(index==1)console_option_keys(names);
+            else if(index==2)console_option_values(w[1].s,names);
+        } else {
+            for(size_t i=1;i<index;++i)if((c->flags&note_text) && w[i].s=="note")return;   // free text
+            words(c->words);
+            if(c->flags&landmarks)console_landmark_names(names);
+        }
+    }
+    if(from)*from=start;
+    for(const std::string& n:names) {
+        const std::string l=lower(n);
+        if(l.size()>=typed.size() && !l.compare(0,typed.size(),typed))out.push_back(l);
+    }
+    std::sort(out.begin(),out.end());
+    out.erase(std::unique(out.begin(),out.end()),out.end());
+}
+void console_tab(std::string& line,int* caret,bool* list,std::vector<std::string>& cand) {
+    *list=false;
+    int c=std::max(0,std::min(*caret,int(line.size())));
+    int from=c;
+    console_complete(line.c_str(),int(line.size()),c,&from,cand);
+    *caret=c;
+    if(cand.empty())return;
+    std::string common=cand[0];
+    for(const std::string& k:cand) {
+        size_t i=0;while(i<common.size() && i<k.size() && common[i]==k[i])++i;
+        common.resize(i);
+    }
+    const size_t typed=size_t(c-from);
+    const bool word_end=size_t(c)>=line.size() || line[size_t(c)]==' ';
+    if(cand.size()==1) {
+        line.replace(size_t(from),typed,common);
+        c=from+int(common.size());
+        if(word_end) {   // like a shell: a space after a whole word
+            if(size_t(c)>=line.size())line+=' ';
+            ++c;
+        }
+        *caret=c;
+        return;
+    }
+    if(common.size()>typed) {line.replace(size_t(from),typed,common);*caret=from+int(common.size());return;}
+    *list=true;
+}
+void console_tab_list(const std::vector<std::string>& cand,void (*say)(const char*)) {
+    size_t widest=1;
+    for(const std::string& k:cand)widest=std::max(widest,k.size());
+    const size_t cols=std::max<size_t>(1,std::min<size_t>(6,84/(widest+3)));
+    const size_t shown=std::min<size_t>(cand.size(),120);
+    std::string row;
+    for(size_t i=0;i<shown;++i) {
+        if(i && i%cols==0) {say(row.c_str());row.clear();}
+        row+='\t';row+=cand[i];   // a leading tab: an indented row of cells
+    }
+    if(!row.empty())say(row.c_str());
+    if(cand.size()>shown) {
+        char more[96];std::snprintf(more,sizeof more,"... and %zu more: type a few letters first",cand.size()-shown);
+        say(more);
+    }
 }
 int console_command_count() {return table_n;}
 const char* console_command_name(int i) {return i>=0 && i<table_n ? table[i].name : nullptr;}

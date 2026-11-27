@@ -26,8 +26,30 @@ int console_option_value(const std::string& k,const std::string& w,bool p) {
     if(k=="frame_rate")return best(w,{"60","120","unlimited"},p);
     return 0;
 }
+// D26L tab completion: the same stub names as lists.
+void console_spawn_names(std::vector<std::string>& o) {o.insert(o.end(),{"desert eagle","desert eagle ammo","red energy crystal","rpg"});}
+void console_landmark_names(std::vector<std::string>& o) {o.insert(o.end(),{"gag-lava-south","ttk-start"});}
+void console_option_keys(std::vector<std::string>& o) {o.insert(o.end(),{"crosshair","frame_rate"});}
+void console_option_values(const std::string& k,std::vector<std::string>& o) {
+    if(k=="crosshair")o.insert(o.end(),{"on","off","subtle"});
+    if(k=="frame_rate")o.insert(o.end(),{"60","120","unlimited"});
+}
 }
 using ttk::Syn;
+// D26L: one Tab on line with the caret at '|' (or the end): the new line with
+// '|' at the caret, or "LIST:" and the candidates.
+static std::string tab(const char* typed) {
+    std::string line=typed;
+    int caret=int(line.size());
+    const size_t bar=line.find('|');
+    if(bar!=std::string::npos){line.erase(bar,1);caret=int(bar);}
+    bool list=false;std::vector<std::string> c;
+    ttk::console_tab(line,&caret,&list,c);
+    if(list){std::string o="LIST:";for(auto& k:c)o+=" "+k;return o;}
+    line.insert(size_t(caret),"|");
+    return line;
+}
+static void expect_tab(const char* typed,const char* want);
 // One letter per byte: . plain, > prompt, C command, K keyword, 0 number,
 // n name, p placeholder, ? unknown, E error, W warning, H heading (D26L4).
 static std::string code(const char* text,bool typed,int caret=-1) {
@@ -129,6 +151,54 @@ int main() {
     said.clear();ttk::console_unknown("gotoo room 3",say);assert(said=="Unknown command: gotoo. Try: goto help (help: every command)\n");
     said.clear();ttk::console_unknown("lvels",say);assert(said.find("Try: levels")!=std::string::npos);
     said.clear();ttk::console_unknown("zzz",say);assert(said=="Unknown command: zzz. Type help for the list\n");
+    // D26L tab completion.
+    expect_tab("got","goto |");                         // one match: the word and a space
+    expect_tab("goto ","LIST: at face fix gag-lava-south help here landmarks object quiet room rooms safe ttk-start");
+    expect_tab("goto roo","goto room|");                // room / rooms agree on "room"
+    expect_tab("goto room","LIST: room rooms");         // nothing more to agree on: list
+    expect_tab("goto gag","goto gag-lava-south |");     // a landmark
+    expect_tab("goto room 12 fa","goto room 12 face |");
+    expect_tab("goto room 12 ","LIST: at face fix gag-lava-south help here landmarks object quiet room rooms safe ttk-start");
+    expect_tab("crouchw","crouchwalk |");
+    expect_tab("crouch","LIST: crouchgo crouchscan crouchstand crouchwalk");
+    expect_tab("he","help |");
+    expect_tab("h","LIST: hangpose help history hostvis");
+    expect_tab("help a","help all |");
+    expect_tab("spawn d","spawn desert eagle|");        // spawn names have spaces
+    expect_tab("spawn desert eagle","LIST: desert eagle desert eagle ammo");
+    expect_tab("spawn desert eagle a","spawn desert eagle ammo |");
+    expect_tab("spawn r","LIST: red energy crystal rpg");
+    expect_tab("spawn ene","spawn enem|");              // enemy, enemies
+    expect_tab("spawn enemy ","spawn enemy |");         // a type number: nothing
+    expect_tab("option c","option crosshair |");
+    expect_tab("option crosshair s","option crosshair subtle |");
+    expect_tab("option frame_rate ","LIST: 120 60 unlimited");
+    expect_tab("option crosshair subtle ","option crosshair subtle |");
+    expect_tab("lamp note li","lamp note li|");         // free text
+    expect_tab("level f","level force |");
+    expect_tab("fps ","fps |");                         // takes nothing
+    expect_tab("zzz ","zzz |");                         // unknown command
+    expect_tab("go|to","goto|to");                      // mid-word: no space
+    expect_tab("got| room","goto |room");               // a space already there: the caret steps over it
+    expect_tab("goto  ro","goto  room|");
+    {
+        static std::string rows;rows.clear();
+        std::vector<std::string> c;int from=-1;
+        ttk::console_complete("",0,0,&from,c);
+        assert(from==0 && int(c.size())==ttk::console_command_count());   // Tab on an empty line: every command
+        ttk::console_tab_list(c,[](const char* l){assert(std::strlen(l)<96);rows+=l;rows+='\n';});
+        assert(rows[0]=='\t' && rows.find("\tclear\t")!=std::string::npos);
+        std::vector<std::string> many(150,"x");
+        rows.clear();ttk::console_tab_list(many,[](const char* l){rows+=l;rows+='\n';});
+        assert(rows.find("... and 30 more")!=std::string::npos);
+    }
+    // The listing's echo: the half word is still being typed, not a typo;
+    // an echoed command keeps its typo red.
+    expect("> goto ro ",false,">>CCCC....");
+    expect("> goto ro",false,">>CCCC.??");
+    // Candidate rows: commands gold, keywords cyan, names violet.
+    expect("\tgoto\troom\tgag-lava-south\tdesert eagle\tcrosshair",false,
+           ".CCCC.KKKK.nnnnnnnnnnnnnn.nnnnnnnnnnnn.nnnnnnnnn");
     // The table: every command once, help lists them.
     for(int i=0;i<ttk::console_command_count();++i)
         for(int j=i+1;j<ttk::console_command_count();++j)
@@ -157,4 +227,8 @@ int main() {
     if(failures){std::fprintf(stderr,"%d failures\n",failures);return 1;}
     std::puts("console syntax: all checks passed");
     return 0;
+}
+static void expect_tab(const char* typed,const char* want) {
+    const std::string got=tab(typed);
+    if(got!=want) {std::fprintf(stderr,"FAIL tab \"%s\"\n  want %s\n  got  %s\n",typed,want,got.c_str());++failures;}
 }

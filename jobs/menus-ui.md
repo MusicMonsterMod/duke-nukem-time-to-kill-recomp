@@ -2392,7 +2392,7 @@ gadget, first and third person):
 
 ### D26L - Console review: a rock-solid backtick console
 
-**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; D26L4 Done (the list layout and command review); shell-style blank lines on Enter Done; tab completion remains). Dependencies: D26, D61.**
+**Status: Done (2026-11-27, user-accepted; D26L1-D26L5, shell-style blank lines on Enter and tab completion all Done; note 569). Dependencies: D26, D61.**
 User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
 job for just a review of the cli, and enhance it so it feels like a more rock
 solid experience for the user. im even thinking we add in a caret. fix up some
@@ -2429,6 +2429,37 @@ Starting points:
 
 Work log:
 
+- 2026-11-27 - tab completion (Done, user-accepted: "lock it in and close it out. amazing work"; D26L closed). Selected by the user ("work
+  on D26L tab completion"). **Tab** completes the word at the caret, as bash
+  does with show-all-if-ambiguous. One match completes the word and adds a
+  space. Several extend to their common prefix. A Tab that cannot extend
+  echoes `> line` and lists the matches in aligned tabbed rows (D26L4 tab
+  stops).
+  - **Candidates** come from the D26L2 table: commands, then each command's
+    words, `goto` landmarks, `option` keys (live rows) then that key's values,
+    and `spawn` item names with their spaces (in play, what `items` lists for
+    the level). Numbers, `spawn enemy TYPE` and `lamp note` text get nothing.
+  - **New run-time lists** `console_spawn_names` / `console_landmark_names`
+    (`goto.inc`) and `console_option_keys` / `console_option_values`
+    (`game_menu.cpp`).
+  - **Framework (`main.cpp`, patch exported):** the Tab key, and outer spaces
+    trimmed before a line runs. Before, `fps ` answered "Unknown command"; a
+    completed word ends in a space. The echo stays as typed, history stores
+    the line trimmed.
+  - **Colours:** the listing's echo marks its last word as still being typed
+    (plain, not a red typo). Listed keywords are cyan, spawn names and option
+    keys violet. `help` gains a Tab footer line.
+  - **Evidence:** `ttk-console-syntax-test` (29 Tab cases, the empty-line
+    list, the 120 cap, colours) passes. The offscreen lab
+    `recomp/analysis/d26l-tab/probe.py` (local; private copies, the player's
+    files hash-checked; level 0, Modernized) completed and listed as designed,
+    and `spawn armor ` spawned armor. Python suite (291, 2 skipped), the five
+    CI runtime tests, and the patch checked against the pin.
+  - **Limits:** no cycling or Shift+Tab; not yet seen on the real display.
+    Shared by both profiles (the console is the same in Vanilla, where spawn
+    names are not filtered).
+  - See [note 569](../documentation/569-d26l-tab-completion.md) and the
+    manual's "Tab completion in the console".
 - 2026-11-27 - shell-style blank lines (Done, user-accepted: "excellent work! lock it in and close it out"). User: "like the linux
   console, i wanna be able to press enter a few times and it makes a new line
   ... exactly like pressing enter on a blank line on linux". Enter on an empty

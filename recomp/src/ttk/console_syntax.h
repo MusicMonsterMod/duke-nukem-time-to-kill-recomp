@@ -4,6 +4,7 @@
 // documentation/567-d26l2-console-syntax-highlighting.md.
 #include <stdint.h>
 #include <string>
+#include <vector>
 #ifdef __cplusplus
 namespace ttk {
 enum class Syn : uint8_t {
@@ -26,6 +27,12 @@ int console_spawn_name(const std::string& rest,bool prefix);        // spawn.inc
 int console_landmark_name(const std::string& word,bool prefix);     // goto.inc landmarks.txt
 int console_option_key(const std::string& word,bool prefix);        // game_menu.cpp settings keys
 int console_option_value(const std::string& key,const std::string& word,bool prefix);
+// D26L tab completion: the same names as lists (spawn: what `items` lists here,
+// or every name outside play).
+void console_spawn_names(std::vector<std::string>& out);
+void console_landmark_names(std::vector<std::string>& out);
+void console_option_keys(std::vector<std::string>& out);
+void console_option_values(const std::string& key,std::vector<std::string>& out);
 // Classifies `text` byte by byte into out[0..n). typed: a command line (the
 // prompt, or one recalled); caret: the byte the caret is at (the word ending
 // there may be half typed, so it is not called a typo), or -1. Otherwise a
@@ -39,6 +46,16 @@ void console_help(void (*say)(const char*),bool all);
 bool console_usage(const char* line,void (*say)(const char*));
 // D26L4: "Unknown command: X" with the nearest command, from the table.
 void console_unknown(const char* line,void (*say)(const char*));
+// D26L: tab completion of the word ending at `caret` in line[0..len). Sets
+// *from to where that word starts (for spawn, the rest of the line: item names
+// have spaces) and fills out with the sorted candidates, lower case.
+void console_complete(const char* line,int len,int caret,int* from,std::vector<std::string>& out);
+// D26L: what Tab does to the line. Returns the new line and caret in line and
+// *caret; *list is set (and the line unchanged) when the candidates should be
+// listed: the word is already as long as they agree on.
+void console_tab(std::string& line,int* caret,bool* list,std::vector<std::string>& candidates);
+// D26L: says the candidates as tabbed rows (the console aligns them).
+void console_tab_list(const std::vector<std::string>& candidates,void (*say)(const char*));
 // The table's first words, for the anti-drift test and tab completion.
 int console_command_count();
 const char* console_command_name(int i);

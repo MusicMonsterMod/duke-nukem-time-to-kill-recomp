@@ -559,6 +559,19 @@ int console_spawn_name(const std::string& rest,bool prefix) {
     for(const auto& c:spawn_crystals)best=std::max(best,console_name_match(rest,c.name,prefix)==1?3:console_name_match(rest,c.name,prefix));
     return best==3 ? 1 : best;
 }
+// D26L tab completion: what spawn can create here, as the items list shows it
+// (level keys, loaded models); outside play, every name.
+void console_spawn_names(std::vector<std::string>& out) {
+    const bool play=input_modernized() && psx_mod_read_half(0x800bcbb0)==1 && psx_mod_read_half(0x800ce1b0)==2;
+    const unsigned level=play ? psx_mod_read_word(0x800be570) : 0;
+    for(const auto& item:spawn_items)
+        if(!play || ((item.level<0 || unsigned(item.level)==level) && spawn_model_ready(item.type)))out.push_back(item.name);
+    for(const auto& c:spawn_crystals)
+        if(!play || (spawn_crystal_level(level) && spawn_model_ready(c.type)))out.push_back(c.name);
+}
+void console_landmark_names(std::vector<std::string>& out) {
+    for(const auto& m:goto_landmarks())out.push_back(m.name);
+}
 int console_landmark_name(const std::string& word,bool prefix) {
     // landmarks.txt is read again at most every two seconds (the console
     // classifies every visible row each time it redraws).

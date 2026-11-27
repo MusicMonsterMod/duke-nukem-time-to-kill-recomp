@@ -3596,6 +3596,17 @@ int console_option_value(const std::string& key,const std::string& word,bool pre
     }
     return best;
 }
+// D26L tab completion: the keys option accepts (live choice rows) and a key's values.
+void console_option_keys(std::vector<std::string>& out) {
+    for(const Screen& sc:screens)for(const Row& r:sc.rows)
+        if(r.key && !r.slider && !r.link && !r.heading && row_live(r))out.push_back(r.key);
+}
+void console_option_values(const std::string& key,std::vector<std::string>& out) {
+    for(const Screen& sc:screens)for(const Row& r:sc.rows) {
+        if(!r.key || key!=r.key || r.slider || r.link || r.heading)continue;
+        for(const Choice& c:r.choices)if(c.env)out.push_back(c.env);
+    }
+}
 } // namespace ttk
 
 // Called synchronously after successful restore, before any restored present.

@@ -2184,14 +2184,23 @@ int main(int argc,char** argv) {
                 psx_mod_write_word(0x800cc57c,0x24020008);psx_mod_write_word(0x800cc580,0x30a30408);
             }
         }
+        // D61: the hidden indices 4, 13, 14 and 30 are authenticated (whole
+        // file, no scratch tail); a changed body word still refuses them, and
+        // a tag outside the table (the two-player arenas) fails closed.
         for(unsigned number:{4u,13u,14u,30u}) {
             char path[512];std::snprintf(path,sizeof path,"%s/LEVEL%02u.OVR",argv[4],number);
             std::ifstream sized(path,std::ios::binary|std::ios::ate);const auto size=uint32_t(sized.tellg());
-            load(number,size);tick();assert(!ttk::movement_ready());
+            load(number,size);tick();assert(ttk::movement_ready());
+            const uint32_t last=0x800ca968+size-4;
+            psx_mod_write_word(last,psx_mod_read_word(last)^1);tick();assert(!ttk::movement_ready());
+            psx_mod_write_word(last,psx_mod_read_word(last)^1);tick();assert(ttk::movement_ready());
+        }
+        for(uint32_t tag:{0x1du,0x20u,0u}) {
+            psx_mod_write_word(0x800ca968,tag);tick();assert(!ttk::movement_ready());
         }
         std::copy(first.begin(),first.end(),ram+0xca968);++g_dirty_ram_code_gen;
         tick();assert(ttk::movement_ready());
-        std::puts("PASS: D22B all 21 selectable level overlays: own tag and body, scratch tails, last body word, cross-level tags, unlisted levels refused, apartment patch LEVEL00 only");
+        std::puts("PASS: D22B all 21 selectable level overlays: own tag and body, scratch tails, last body word, cross-level tags, D61 hidden levels 4/13/14/30 accepted, unlisted tags refused, apartment patch LEVEL00 only");
     }
     // D22B dodge rolls (PIG FACTORY trace): each observed animation/mode pair
     // keeps the camera-only lease; the original owns the motion (no locomotion
@@ -2943,7 +2952,7 @@ int main(int argc,char** argv) {
     // wheel/number request, tracks the actual weapon, and keeps native gait.
     psx_mod_write_half(p+0x2c6+28*4,20);
     const unsigned running_weapons[][3]={{3,11,6},{5,7,4},{6,3,9},{7,8,5},
-        {9,6,10},{10,9,13},{11,0,3},{27,6,10},{28,8,5}};
+        {9,6,10},{10,9,14},{11,0,3},{27,6,10},{28,8,5}};
     for(unsigned upper:{18u,19u})for(const auto& row:running_weapons) {
         const unsigned weapon=row[0];
         psx_mod_write_half(p+0x60,upper==18?76:78);

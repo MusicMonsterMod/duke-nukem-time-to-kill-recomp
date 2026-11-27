@@ -12,7 +12,9 @@
 #include <map>
 #include <vector>
 static uint8_t ram[0x200000];
-static std::map<uint32_t,PSXModFunctionEntryCallback> hooks;
+// TTK_REGISTER runs from a global constructor (D23AH), before file-scope
+// objects here are built: construct the hook table on first use.
+static std::map<uint32_t,PSXModFunctionEntryCallback>& hook_table(){static std::map<uint32_t,PSXModFunctionEntryCallback> table;return table;}
 static int32_t margin=0;
 static bool modern=true;
 static uint16_t projection=256;
@@ -22,7 +24,7 @@ extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(p
 extern "C" uint32_t psx_mod_read_word(uint32_t a){return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}
 extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){ram[a&0x1fffff]=v;ram[(a+1)&0x1fffff]=v>>8;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0x1fffff]=v>>(8*i);}
-extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){hooks[a]=cb;return 1;}
+extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){hook_table()[a]=cb;return 1;}
 extern "C" int32_t psx_mod_widescreen_x_margin(void){return margin;}
 namespace ttk {uint64_t input_host_frame(){static uint64_t f=0;return ++f;} bool input_modernized(){return modern;}}
 
@@ -30,7 +32,7 @@ static int16_t h(uint32_t a){return (int16_t)psx_mod_read_half(a);}
 static void sh(uint32_t a,int v){psx_mod_write_half(a,(uint16_t)(int16_t)v);}
 static void call(uint32_t address,uint32_t ra,uint32_t a0,uint32_t a1,uint32_t a2=0) {
     CPUState cpu{};cpu.gte_ctrl[26]=projection;cpu.gpr[31]=ra;cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;
-    hooks.at(address)(&cpu,address);
+    hook_table().at(address)(&cpu,address);
 }
 constexpr uint32_t packet=0x80100000u,matrix=0x801ffe00u,context=0x800d67a8u,camera=0x800d6eb0u;
 static void fill_packet() {
@@ -63,7 +65,7 @@ int main(int argc,char** argv) {
     assert(exe.size()>0x800 && std::memcmp(exe.data(),"PS-X EXE",8)==0);
     uint32_t base=0;std::memcpy(&base,exe.data()+0x18,4);
     std::memcpy(ram+(base&0x1fffff),exe.data()+0x800,exe.size()-0x800);
-    assert(hooks.count(0x8002bc18u) && hooks.count(0x800292a0u) && hooks.count(0x80010000u));
+    assert(hook_table().count(0x8002bc18u) && hook_table().count(0x800292a0u) && hook_table().count(0x80010000u));
 
     // 4:3 (Vanilla, widescreen off): nothing changes.
     margin=0;reset();run_all();assert(untouched());
@@ -140,7 +142,7 @@ int main(int argc,char** argv) {
     const uint32_t flag=cpu.gpr[29]+0x28;
     psx_mod_write_word(0x800da464,1);
     psx_mod_write_word(context+0x74,24576);
-    auto background=[&](){hooks.at(0x8002ffec)(&cpu,0x8002ffec);};
+    auto background=[&](){hook_table().at(0x8002ffec)(&cpu,0x8002ffec);};
     for(int m:{0,85,192}) {
         margin=m;psx_mod_write_word(flag,0);background();
         assert(psx_mod_read_word(flag)==1 && psx_mod_read_word(context+0x74)==24576);

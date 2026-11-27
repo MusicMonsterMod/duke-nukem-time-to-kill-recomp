@@ -847,8 +847,8 @@ no playtest is needed.
 
 ### D59A - Native controls test runs to the end again
 
-**Status: Todo (user request 2026-11-27: "yes add the check", found in
-D08A54). Dependencies: D59.**
+**Status: Done (user-accepted 2026-11-27: "lock it in close it out"; user
+request 2026-11-27: "yes add the check", found in D08A54). Dependencies: D59.**
 
 `ttk-controls-test` (not built in CI; run as in D59 with the owned EXE, the
 level-0 guard fixture and the extracted overlays) did not link after D08A51:
@@ -866,6 +866,44 @@ CI where they can run without retail data.
 **Acceptance:** `ttk-controls-test` runs to the end and passes, including the
 D08A54 slot-6 cases; other native targets build; any remaining failures listed
 with their cause.
+
+#### 2026-11-27 - Controls test passes to the end; whole native suite green (Needs review)
+
+Test-only changes (no gameplay, renderer or framework edits; no game
+executable change, so no playtest):
+
+- Line 2190 (D22B all-levels group, runs only with the overlay directory as
+  the fourth argument): the test expected the hidden level indices 4, 13, 14
+  and 30 to be refused. D61 (accepted 2026-11-25) deliberately authenticates
+  them (and BASEOVR, index 31) in `control_guards.inc` so level force and goto
+  keep the modern controls there. The group now requires them accepted, a
+  flipped last body word to refuse each, and tags outside the table (0x1d,
+  0x20, 0) to fail closed.
+- Line 2965 (D08A29 two-handed running loop, the first stop without the
+  overlay arguments): the weapon before the Pump Shotgun (10) is Dynamite (14)
+  under D08A54's slot-6 order Pipe Bomb, Holy Hand Grenade, Dynamite; the row
+  still had the old order's grenade (13).
+- `ttk-sky-test`, `ttk-gas-test`, `ttk-loading-test` crashed (SIGSEGV) at
+  start-up since D23AH: `TTK_REGISTER` runs the hook registration from a
+  global constructor before the test's file-scope `std::map` stub exists
+  (static initialization order). Their hook tables are now function-local
+  statics built on first use. The hooks under test are unchanged.
+
+Evidence (desktop, build-local): `ttk-controls-test` exit 0 with all four
+arguments (167 PASS groups, including the D08A54 slot-6 cases and D22B with the
+hidden levels), and exit 0 with two and three arguments. All 15 native targets
+build and pass: controls, near, input, flash, aim, sky, gas, music, loading,
+xa, live-env, audio, font, inventory, and `ttk-scene-test` against the local
+`psx_cps_exit_ram.bin` capture (50-node release case). Commands in
+[10-tooling](../documentation/10-tooling.md#running-the-whole-native-suite),
+now with the overlay arguments and the scene capture, plus a note on stub
+tables and `TTK_REGISTER`.
+
+Not done: CI still does not build the native targets. They live in the game's
+`CMakeLists.txt`, which needs the generated recompilation code and SDL3, and
+most need the owned EXE or extracted overlays; a CI build of the data-free
+ones (input, flash, near, live-env, audio, xa) would need a standalone test
+CMake project. Proposed as a follow-up job, not started.
 
 ### PRIV01 - Remove local usernames from repository content
 

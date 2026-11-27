@@ -10,7 +10,9 @@
 #include <map>
 #include <vector>
 static uint8_t ram[0x1000000];
-static std::map<uint32_t,PSXModFunctionEntryCallback> hooks;
+// TTK_REGISTER runs from a global constructor (D23AH), before file-scope
+// objects here are built: construct the hook table on first use.
+static std::map<uint32_t,PSXModFunctionEntryCallback>& hook_table(){static std::map<uint32_t,PSXModFunctionEntryCallback> table;return table;}
 static int32_t margin=0;
 static bool modern=true;
 static const char* wide="16:9";
@@ -21,7 +23,7 @@ extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(p
 extern "C" uint32_t psx_mod_read_word(uint32_t a){return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}
 extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){ram[a&0xffffff]=v;ram[(a+1)&0xffffff]=v>>8;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0xffffff]=v>>(8*i);}
-extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){hooks[a]=cb;return 1;}
+extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){hook_table()[a]=cb;return 1;}
 extern "C" int32_t psx_mod_widescreen_x_margin(void){return margin;}
 namespace ttk {uint64_t input_host_frame(){static uint64_t f=0;return ++f;} bool input_modernized(){return modern;}}
 
@@ -46,7 +48,7 @@ int main(int argc,char** argv) {
     uint32_t base;std::memcpy(&base,exe.data()+0x18,4);
     std::memcpy(ram+(base&0xffffff),exe.data()+0x800,exe.size()-0x800);
     CPUState cpu{};cpu.gpr[31]=0x80022270;cpu.gpr[5]=q-12;cpu.gpr[4]=0x7ff;
-    auto invoke=[&]{hooks.at(0x8002bc18)(&cpu,0x8002bc18);};
+    auto invoke=[&]{hook_table().at(0x8002bc18)(&cpu,0x8002bc18);};
     for(int m:{1,51,85,192,256,512}) {
         margin=m;packet();invoke();
         const uint32_t l=psx_mod_read_word(q)&0xffffff,r=psx_mod_read_word(l)&0xffffff;

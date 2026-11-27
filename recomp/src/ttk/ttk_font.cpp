@@ -60,63 +60,91 @@ bool load() {
     }
     loaded=true;return true;
 }
+// One character to draw and the byte of the source text it came from (D26L1:
+// the console's caret, selection and mouse need to know where each byte lands).
+struct Placed {char c;int src;};
 // D19T: '"' opens and closes in turn: the pack's '`' is the opening quote.
-std::string ascii(const char* text) {
-    std::string result;bool open=true;
-    for(const unsigned char* p=reinterpret_cast<const unsigned char*>(text);*p && result.size()<256;) {
+std::vector<Placed> ascii_placed(const char* text) {
+    std::vector<Placed> result;bool open=true;
+    const unsigned char* start=reinterpret_cast<const unsigned char*>(text);
+    for(const unsigned char* p=start;*p && result.size()<256;) {
+        const int src=int(p-start);
         unsigned c=*p++;
-        if(c=='"'){result.push_back(open?'`':'"');open=!open;}
-        else if(c>=32 && c<=126)result.push_back(char(c));
-        else if(c=='\n')result.push_back('\n');
-        else if(c=='\t')result.push_back(' ');
+        if(c=='"'){result.push_back({open?'`':'"',src});open=!open;}
+        else if(c>=32 && c<=126)result.push_back({char(c),src});
+        else if(c=='\n')result.push_back({'\n',src});
+        else if(c=='\t')result.push_back({' ',src});
         else {
-            result.push_back('?');
+            result.push_back({'?',src});
             // One deliberate fallback for a non-ASCII UTF-8 sequence.
             if(c>=0xc0)while((*p&0xc0)==0x80)++p;
         }
     }
     return result;
 }
+std::string ascii(const char* text) {
+    std::string result;
+    for(const Placed& p:ascii_placed(text))result.push_back(p.c);
+    return result;
+}
+// Word wrap shared by drawing and layout: rows of placed characters, breaking at
+// the last space that fits (the space is dropped), spaces never start a row.
+std::vector<std::vector<Placed>> wrap(const Set& set,const std::vector<Placed>& text,int limit) {
+    auto adv=[&](char c){return int(set.glyphs[(unsigned char)c-32].advance);};
+    std::vector<std::vector<Placed>> lines;std::vector<Placed> line;int extent=0;
+    for(const Placed& p:text) {
+        if(p.c=='\n'){lines.push_back(line);line.clear();extent=0;continue;}
+        while(extent+adv(p.c)>limit && !line.empty()) {
+            size_t space=line.size();
+            for(size_t i=line.size();i-->0;)if(line[i].c==' '){space=i;break;}
+            if(space!=line.size()) {
+                lines.emplace_back(line.begin(),line.begin()+long(space));
+                line.erase(line.begin(),line.begin()+long(space)+1);
+                extent=0;for(const Placed& d:line)extent+=adv(d.c);
+            } else {lines.push_back(line);line.clear();extent=0;}
+        }
+        if(line.empty() && p.c==' ')continue;
+        line.push_back(p);extent+=adv(p.c);
+    }
+    lines.push_back(line);
+    return lines;
+}
+struct Laid {const Set* set;int scale,padding,w,h;bool centered;std::vector<std::vector<Placed>> rows;};
+// Lays text out exactly as ttk_font_rasterize draws it; false where it would fail.
+bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid& out) {
+    if(!ttk::input_modernized() || !text || style<0 || style>3 || cap_w<32 || cap_h<16 || !load())return false;
+    out.centered=style==2;
+    out.set=&sets[style==1?1:style==3?2:0];
+    out.scale=int(out.set->scale);
+    out.padding=style==3?2:3;
+    const int limit=std::min(cap_w,available_w)/out.scale-2*out.padding-1;
+    if(limit<8)return false;
+    out.rows=wrap(*out.set,ascii_placed(text),limit);
+    int widest=1;
+    for(const auto& l:out.rows) {int n=0;for(const Placed& p:l)n+=int(out.set->glyphs[(unsigned char)p.c-32].advance);widest=std::max(widest,n);}
+    // One extra pixel each way holds the drop shadow.
+    out.w=(widest+2*out.padding+1)*out.scale;
+    out.h=(int(out.rows.size())*int(out.set->line_height)+2*out.padding+1)*out.scale;
+    return !(out.w>cap_w || out.w>available_w || out.h>cap_h);
+}
+int row_width(const Laid& laid,const std::vector<Placed>& row) {
+    int n=0;for(const Placed& p:row)n+=int(laid.set->glyphs[(unsigned char)p.c-32].advance);return n;
+}
 }
 extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,int cap_w,
                                   int cap_h,int available_w,int* width,int* height) {
-    if(!ttk::input_modernized() || !text || !pixels || !width || !height ||
-       style<0 || style>3 || cap_w<32 || cap_h<16 || !load())return 0;
-    const bool centered=style==2;
-    const Set& set=sets[style==1?1:style==3?2:0];
-    const int scale=int(set.scale);
-    const int padding=style==3?2:3;
-    const int limit=std::min(cap_w,available_w)/scale-2*padding-1;
-    if(limit<8)return 0;
-    auto g=[&](char c)->const Glyph& {return set.glyphs[(unsigned char)c-32];};
-    std::vector<std::string> lines;std::string line;int extent=0;
-    for(char c:ascii(text)) {
-        if(c=='\n'){lines.push_back(line);line.clear();extent=0;continue;}
-        while(extent+int(g(c).advance)>limit && !line.empty()) {
-            auto space=line.find_last_of(' ');
-            if(space!=std::string::npos) {
-                lines.push_back(line.substr(0,space));line=line.substr(space+1);extent=0;
-                for(char d:line)extent+=g(d).advance;
-            } else {lines.push_back(line);line.clear();extent=0;}
-        }
-        if(line.empty() && c==' ')continue;
-        line+=c;extent+=g(c).advance;
-    }
-    lines.push_back(line);
-    auto line_width=[&](const std::string& l){int n=0;for(char c:l)n+=g(c).advance;return n;};
-    int widest=1;
-    for(const auto& l:lines)widest=std::max(widest,line_width(l));
-    // One extra pixel each way holds the drop shadow.
-    const int w=(widest+2*padding+1)*scale,h=(int(lines.size())*int(set.line_height)+2*padding+1)*scale;
-    if(w>cap_w || w>available_w || h>cap_h)return 0;
+    Laid laid;
+    if(!pixels || !width || !height || !lay_out(text,style,cap_w,cap_h,available_w,laid))return 0;
+    const Set& set=*laid.set;
+    const int scale=laid.scale,padding=laid.padding,w=laid.w,h=laid.h;
     std::fill(pixels,pixels+w*h,0u);
     auto pixel=[&](int x,int y,uint32_t colour) {
         if(x>=0 && y>=0 && x<w && y<h)pixels[y*w+x]=colour;
     };
-    for(int shadow=set.shadow?1:0;shadow>=0;--shadow)for(size_t row=0;row<lines.size();++row) {
-        int x=centered?(w/scale-1-line_width(lines[row]))/2:padding;
-        for(char c:lines[row]) {
-            const Glyph& v=g(c);
+    for(int shadow=set.shadow?1:0;shadow>=0;--shadow)for(size_t row=0;row<laid.rows.size();++row) {
+        int x=laid.centered?(w/scale-1-row_width(laid,laid.rows[row]))/2:padding;
+        for(const Placed& p:laid.rows[row]) {
+            const Glyph& v=set.glyphs[(unsigned char)p.c-32];
             for(unsigned iy=0;iy<v.h;++iy)for(unsigned ix=0;ix<v.w;++ix) {
                 const uint32_t colour=u32(pack.data()+16+v.offset+4*(iy*v.w+ix));
                 if(!(colour>>24))continue;
@@ -128,6 +156,33 @@ extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,in
         }
     }
     *width=w;*height=h;return 1;
+}
+// D26L1: where ttk_font_rasterize puts each byte of `text`, in pixels of its
+// image: left edge xs[i], advance ws[i] (0 for a byte not drawn: a space dropped
+// at a wrap or a row start, a UTF-8 continuation) and row rows[i]. Row r's top
+// is *top + r * *line_height. Returns the row count, or 0 where rasterize fails.
+extern "C" int ttk_font_layout(const char* text,int style,int cap_w,int cap_h,int available_w,
+                               int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top) {
+    Laid laid;
+    if(!xs || !ws || !rows || max_bytes<0 || !lay_out(text,style,cap_w,cap_h,available_w,laid))return 0;
+    const int n=std::min(max_bytes,int(std::strlen(text)));
+    for(int i=0;i<n;++i)ws[i]=-1;
+    for(size_t row=0;row<laid.rows.size();++row) {
+        int x=laid.centered?(laid.w/laid.scale-1-row_width(laid,laid.rows[row]))/2:laid.padding;
+        for(const Placed& p:laid.rows[row]) {
+            const int adv=int(laid.set->glyphs[(unsigned char)p.c-32].advance);
+            if(p.src<n){xs[p.src]=x*laid.scale;ws[p.src]=adv*laid.scale;rows[p.src]=int(row);}
+            x+=adv;
+        }
+    }
+    for(int i=0;i<n;++i)if(ws[i]<0) {
+        if(i){xs[i]=xs[i-1]+ws[i-1];rows[i]=rows[i-1];}
+        else {xs[i]=laid.padding*laid.scale;rows[i]=0;}
+        ws[i]=0;
+    }
+    if(line_height)*line_height=int(laid.set->line_height)*laid.scale;
+    if(top)*top=laid.padding*laid.scale;
+    return int(laid.rows.size());
 }
 // D24B: one line of text from glyph set `set` straight into an ARGB surface
 // (the savestate panel). No Modernized gate: callers decide. Returns the width

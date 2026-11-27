@@ -12,6 +12,11 @@ extern "C" {
 // existing generic renderer in that case.
 int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,int capacity_w,
                       int capacity_h,int available_w,int* width,int* height);
+// D26L1: where ttk_font_rasterize puts each byte of text (x, advance, row, in
+// pixels of its image; advance 0 for a byte it does not draw). Row r's top is
+// *top + r * *line_height. Returns the row count, 0 where rasterize would fail.
+int ttk_font_layout(const char* text,int style,int capacity_w,int capacity_h,int available_w,
+                    int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top);
 // D24B savestate panel: draw one line from a glyph set directly (sets 3..7:
 // panel title, slot title, selected slot title, text, dim text). Returns the
 // width drawn, or -1 without a valid pack/set. Line height in pixels, 0 if none.

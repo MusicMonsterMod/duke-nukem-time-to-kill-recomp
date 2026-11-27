@@ -2410,7 +2410,7 @@ Starting points:
   levels, quicksave, the option and lab commands. Unify their wording, their
   errors and their Modernized-only refusals.
 - **A text caret,** with editing at the caret: left and right, Home and End,
-  Delete. Today the line is append-only. The console is drawn in the framework
+  Delete. Built in D26L1 (2026-11-27), with mouse selection and copy and paste. The console is drawn in the framework
   (`host_osd.c`, the Quake-style console: 96-character lines, 512 history
   entries), so this is a framework edit plus the patch export.
 - **Font glyphs.** The console draws with the game's font pack
@@ -2418,17 +2418,19 @@ Starting points:
   Audit every printable ASCII character it can show, and add the missing ones
   in the same style. The pipe `|` is known to be missing. Until then, help text
   avoids `|`.
-- **A debug-port command to open the console** (`host_osd_console_open`), so
-  console screenshots can be checked offscreen. D61 could not show its help on
-  screen in an offscreen run: the test-input keys do not reach the console.
+- **A debug-port command to open the console**, so console screenshots can be
+  checked offscreen. D61 could not show its help on screen in an offscreen
+  run: the test-input keys do not reach the console. Done in D26L1: the
+  debug-port `console_ui` opens the console and drives keys, mouse and paste
+  (note 565); `present_shot` then captures it.
 - Nice to have: tab completion of command and landmark names, and the line
   history (up and down) checked.
 
 ### D26L1 - Console copy and paste
 
-**Status: Todo (backlog; user request 2026-11-27, part of the D26L console
-review). Dependencies: D26L (the caret; it can land first as an append at the
-end of the line).**
+**Status: Done (2026-11-27, user-accepted). Part of the D26L console review; the
+caret from D26L is built here at the user's request. See
+[note 565](../documentation/565-d26l1-console-copy-paste.md).**
 User, 2026-11-27, after testing `goto` lines from a report: "stand up a backlog
 job in the mean time which is to allow copy and paste into the console ...
 they can actually go into that overarcing story we'll look at for improvements
@@ -2461,6 +2463,42 @@ Wanted:
 Acceptance: a `goto ... face 95 quiet safe` line copied from a report pastes
 and runs; Ctrl+C then Ctrl+V of a typed line gives the same line; multi-line
 and over-long pastes behave as documented; user playtest.
+
+**Work log (2026-11-27, Needs playtest).** Discussed first, then a clickable
+mock-up (private artifact) settled the behaviour. User: "i wasnt thinking of
+right click for the menu, i was thinking right click pastes. middle click,
+also scratch that. drag, double, and triple click is solid", "add the caret in
+too", "we should have instant copy on select too", "multi line paste runs each
+line", "build it out. ok fine add ctrl+w and ctrl+u".
+
+- Caret editing (Left / Right, Ctrl for words, Home / End, Delete, Ctrl+W,
+  Ctrl+Backspace, Ctrl+U, Shift selection, Ctrl+A), click to place it.
+- Mouse selection over scrollback and the line (drag, double-click word,
+  triple-click line, Shift+click), copied at once on release to the clipboard
+  and the X11 primary selection; Ctrl+C / Ctrl+Shift+C / Ctrl+Insert copy the
+  selection or the line. Paste with Shift+Insert, Ctrl+V, Ctrl+Shift+V or a
+  right-click; no middle-click. Multi-line pastes run each complete line.
+- Paste tidying: lowercase, tabs and no-break spaces to spaces, a copied `> `
+  prompt dropped, pipe / backtick / non-ASCII left out with a note naming
+  them, the 95-character limit with a note.
+- `ttk_font_layout` (shared wrap with `ttk_font_rasterize`, output unchanged)
+  gives exact glyph positions; `host_osd.c` draws the caret, the highlight and
+  a short `COPIED ...` note and hit-tests the mouse; `main.cpp` holds the
+  editing, selection and clipboard. New debug-port `console_ui` drives the
+  console offscreen (also D26L's "open the console" command).
+- Evidence (offscreen, private settings and cards): editing, paste cleaning,
+  multi-line and over-long pastes, mouse word / line / drag / Shift selection,
+  right-click paste, screenshots of highlight, caret and note; X11 clipboard
+  both ways with `xclip`. `ttk-font-test` (new layout checks),
+  `ttk-inventory-test`, Python suite, runtime tests, `check_jobs.py`,
+  `check_repo.py` pass; the pinned framework plus the exported patch matches
+  all 99 files.
+- Remaining: the user's playtest on the real display (GNOME Terminal
+  Shift+Insert into the game, copy out into another app). Dragging above the
+  top row does not auto-scroll.
+
+**Closed out (2026-11-27, Done).** User: "lock it in and close it out. im so happy with it". Left for D26L: drag
+auto-scroll above the top row, wider keyboard typing, the pipe glyph.
 
 ### D26L2 - Console syntax highlighting
 

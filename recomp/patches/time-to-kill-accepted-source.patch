@@ -364,10 +364,10 @@ index ace31f11..fc3a6fb6 100644
  
  #ifdef __cplusplus
 diff --git a/runtime/include/host_osd.h b/runtime/include/host_osd.h
-index e4e6f307..72603b15 100644
+index e4e6f307..0fbee857 100644
 --- a/runtime/include/host_osd.h
 +++ b/runtime/include/host_osd.h
-@@ -16,11 +16,55 @@ extern "C" {
+@@ -16,11 +16,75 @@ extern "C" {
   * when OSD is gated off.
   */
  
@@ -420,6 +420,26 @@ index e4e6f307..72603b15 100644
 +/* Changes whenever the console image's pixels change (the GL renderer keeps
 + * its own texture and uploads it only then, not at every present). */
 +unsigned host_osd_console_generation(void);
++/* D26L1: text positions in the console. A row is a scrollback line's serial
++ * number (it stays valid while older lines scroll out of the 512 kept) or
++ * HOST_OSD_CONSOLE_PROMPT for the command line; col is a byte offset into
++ * that row's text (the command line's text, without its "> " prompt). */
++#define HOST_OSD_CONSOLE_PROMPT 0x7fffffffffffffffLL
++typedef struct { long long row; int col; } host_osd_console_pos;
++/* The caret in the command line (restarts its blink); -1 hides it. */
++void host_osd_console_set_caret(int col);
++/* The text position nearest window point (x, y), in a window win_w wide
++ * (the console spans the window's width). 0 while the console is not fully
++ * down or before it has laid text out. */
++int host_osd_console_hit(float x, float y, int win_w, host_osd_console_pos *out);
++/* Copies a row's text (NUL-terminated); its length, or -1 for a row no longer kept. */
++int host_osd_console_row_text(long long row, char *out, int size);
++/* Serial numbers of the oldest kept scrollback line and one past the newest. */
++void host_osd_console_rows(long long *first, long long *end);
++/* A short note at the command line's right end ("Copied 12 characters"), for 1.8 s. */
++void host_osd_console_flash(const char *msg);
++/* Highlights the text from a to b (either order); NULL clears. */
++void host_osd_console_set_selection(const host_osd_console_pos *a, const host_osd_console_pos *b);
 +/* Persistent debug overlay (separate from transient toasts). */
 +int host_osd_debug_image(const uint32_t **pixels, int *w, int *h);
  
@@ -1803,7 +1823,7 @@ index 0fe0d272..0863cb1c 100644
  #ifdef _WIN32
            Sleep(1);
 diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
-index 645f055e..dcf2df52 100644
+index 645f055e..5a812d1f 100644
 --- a/runtime/src/debug_server.c
 +++ b/runtime/src/debug_server.c
 @@ -128,6 +128,23 @@ static int    s_resp_overflow = 0;
@@ -1874,7 +1894,7 @@ index 645f055e..dcf2df52 100644
      s_fp_head  = (s_fp_head + 1) % FP_RING_CAP;
      s_fp_total++;
  }
-@@ -4975,6 +5011,23 @@ static void handle_ping(int id, const char *json)
+@@ -4975,6 +5011,51 @@ static void handle_ping(int id, const char *json)
               s_unknown_unique_count);
  }
  
@@ -1888,6 +1908,34 @@ index 645f055e..dcf2df52 100644
 +    send_fmt("{\"id\":%d,\"ok\":true,\"reply\":\"%s\"}", id, reply);
 +}
 +
++extern const char *psx_debug_console_ui(const char *op, const char *text, double x, double y,
++                                        int clicks, int ctrl, int shift, int right);
++/* D26L1: {"op":"open|close|paste|key|mouse|state","text":...,"x":..,"y":..,
++ * "clicks":n,"ctrl":0|1,"shift":0|1,"right":0|1}; x and y are whole window points. */
++static void handle_console_ui(int id, const char *json)
++{
++    char op[16], text[1024], reply[2048];
++    if (!json_get_str(json, "op", op, sizeof op)) op[0] = 0;
++    if (!json_get_str(json, "text", text, sizeof text)) text[0] = 0;
++    {
++        /* "hex": the text's bytes in hex, for newlines, tabs and quotes. */
++        char hex[2048];
++        if (json_get_str(json, "hex", hex, sizeof hex)) {
++            int n = 0;
++            for (const char *h = hex; h[0] && h[1] && n < (int)sizeof text - 1; h += 2) {
++                char pair[3] = {h[0], h[1], 0};
++                text[n++] = (char)strtoul(pair, NULL, 16);
++            }
++            text[n] = 0;
++        }
++    }
++    json_escape_string(reply, sizeof reply,
++                       psx_debug_console_ui(op, text, json_get_int(json, "x", 0), json_get_int(json, "y", 0),
++                                            json_get_int(json, "clicks", 1), json_get_int(json, "ctrl", 0),
++                                            json_get_int(json, "shift", 0), json_get_int(json, "right", 0)));
++    send_fmt("{\"id\":%d,\"ok\":true,\"reply\":\"%s\"}", id, reply);
++}
++
 +extern const char* ttk_input_debug_json(void);
 +static void handle_ttk_input(int id, const char *json)
 +{
@@ -1898,7 +1946,7 @@ index 645f055e..dcf2df52 100644
  static void handle_frame(int id, const char *json)
  {
      (void)json;
-@@ -4999,7 +5052,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -4999,7 +5080,7 @@ static void handle_frame_fingerprint(int id, const char *json)
      uint32_t avail = (s_fp_total < FP_RING_CAP) ? (uint32_t)s_fp_total : FP_RING_CAP;
      uint32_t start = (s_fp_total < FP_RING_CAP) ? 0 : s_fp_head;
  
@@ -1907,7 +1955,7 @@ index 645f055e..dcf2df52 100644
      char *out = (char *)malloc(BUF);
      if (!out) { send_err(id, "oom"); return; }
      size_t pos = 0;
-@@ -5014,7 +5067,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -5014,7 +5095,7 @@ static void handle_frame_fingerprint(int id, const char *json)
          pos += snprintf(out + pos, BUF - pos,
                          "%s{\"frame\":%u,\"wr\":\"0x%016llx\",\"pc\":\"0x%016llx\",\"wc\":%llu,"
                          "\"mmio\":\"0x%016llx\",\"mc\":%llu,"
@@ -1916,7 +1964,7 @@ index 645f055e..dcf2df52 100644
                          emitted ? "," : "", e->frame,
                          (unsigned long long)e->wr_hash,
                          (unsigned long long)e->pc_hash,
-@@ -5023,7 +5076,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -5023,7 +5104,7 @@ static void handle_frame_fingerprint(int id, const char *json)
                          (unsigned long long)e->mmio_count,
                          (unsigned long long)e->sp_hash,
                          (unsigned long long)e->sp_count,
@@ -1925,7 +1973,7 @@ index 645f055e..dcf2df52 100644
          emitted++;
      }
      pos += snprintf(out + pos, BUF - pos, "]}\n");
-@@ -5230,6 +5283,10 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5230,6 +5311,10 @@ static void handle_geom_correction(int id, const char *json)
       * game's vertex path never reaches us in a matchable form, which only
       * full value propagation can fix; a high ambiguous share instead means
       * distinct vertices are landing on the same pixel. */
@@ -1936,7 +1984,7 @@ index 645f055e..dcf2df52 100644
      uint32_t lookups = 0, hits = 0, unrec = 0, ambig = 0;
      gte_geometry_correction_stats(&lookups, &hits, &unrec, &ambig);
      /* PGXP dataflow census (per-vertex): the primary provenance source.
-@@ -5247,6 +5304,7 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5247,6 +5332,7 @@ static void handle_geom_correction(int id, const char *json)
      uint64_t tc_att = 0, tc_arm = 0, tc_off = 0, tc_nosrc = 0, tc_noz = 0;
      gpu_texture_correction_stats(&tc_att, &tc_arm, &tc_off, &tc_nosrc, &tc_noz);
      send_fmt("{\"id\":%d,\"ok\":true,"
@@ -1944,7 +1992,7 @@ index 645f055e..dcf2df52 100644
               "\"geometry_correction\":%d,"
               "\"geometry_vertex_hits\":%u,"
               "\"perspective_triangles\":%u,"
-@@ -5258,7 +5316,10 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5258,7 +5344,10 @@ static void handle_geom_correction(int id, const char *json)
               "\"native\":%llu,\"value_mismatch\":%llu,\"trunc_reject\":%llu,"
               "\"tolerance_reject\":%llu,\"w_valid\":%llu,"
               "\"produced\":%llu,\"swc2_stores\":%llu}}",
@@ -1956,7 +2004,7 @@ index 645f055e..dcf2df52 100644
               gte_geometry_correction_enabled(),
               (unsigned)hits,
               (unsigned)gpu_texture_correction_hits(),
-@@ -6683,6 +6744,7 @@ extern int psx_audio_out_stats(double *fill_ms, double *target_ms,
+@@ -6683,6 +6772,7 @@ extern int psx_audio_out_stats(double *fill_ms, double *target_ms,
                                 uint64_t *overflow_drops, double *correction,
                                 int *legacy, int *host_rate);
  
@@ -1964,7 +2012,7 @@ index 645f055e..dcf2df52 100644
  static void handle_audio_stats(int id, const char *json)
  {
      (void)json;
-@@ -6707,7 +6769,7 @@ static void handle_audio_stats(int id, const char *json)
+@@ -6707,7 +6797,7 @@ static void handle_audio_stats(int id, const char *json)
               "\"mutes\":%llu,\"unmutes\":%llu,\"events_total\":%llu,"
               "\"out\":{\"active\":%d,\"mode\":\"%s\",\"host_rate\":%d,"
               "\"fill_ms\":%.1f,\"target_ms\":%.1f,\"underruns\":%llu,"
@@ -1973,7 +2021,7 @@ index 645f055e..dcf2df52 100644
               "\"correction\":%.5f}}",
               id,
               (unsigned long long)st.tap_frames[0],
-@@ -6733,6 +6795,7 @@ static void handle_audio_stats(int id, const char *json)
+@@ -6733,6 +6823,7 @@ static void handle_audio_stats(int id, const char *json)
               fill_ms, target_ms,
               (unsigned long long)out_underruns,
               (unsigned long long)overflow_drops,
@@ -1981,7 +2029,7 @@ index 645f055e..dcf2df52 100644
               correction);
  }
  
-@@ -7843,6 +7906,86 @@ static void handle_gl_interp(int id, const char *json)
+@@ -7843,6 +7934,86 @@ static void handle_gl_interp(int id, const char *json)
               (unsigned long long)swaps);
  }
  
@@ -2068,7 +2116,7 @@ index 645f055e..dcf2df52 100644
  /* gl_wide_fast on=<0|1>: native-wide centre-blit fast path. 1 (default) = skip
   * the redundant centre mirror and copy the canonical 4:3 frame into the wide
   * surface centre at present (fast). 0 = re-rasterize the whole wide surface
-@@ -8571,7 +8714,7 @@ static void disp_ring_capture(void)
+@@ -8571,7 +8742,7 @@ static void disp_ring_capture(void)
      static int enabled = -1;
      if (enabled < 0) {
          const char *e = getenv("PSX_DISPLAY_RING");
@@ -2077,7 +2125,7 @@ index 645f055e..dcf2df52 100644
      }
      if (!enabled) return;
      if (!s_disp_ring_px) {
-@@ -8859,6 +9002,16 @@ static void handle_present_shot(int id, const char *json)
+@@ -8859,6 +9030,16 @@ static void handle_present_shot(int id, const char *json)
      if (!json_get_str(json, "path", path, sizeof(path)))
          strncpy(path, "psx_present_shot.png", sizeof(path) - 1);
      path[sizeof(path) - 1] = '\0';
@@ -2094,16 +2142,17 @@ index 645f055e..dcf2df52 100644
      if (!present_shot_request(path)) {
          send_err(id, "present_shot unavailable (headless, or the Vulkan backend "
                       "which has no present readback)");
-@@ -13667,6 +13820,8 @@ static const CmdEntry s_commands[] = {
+@@ -13667,6 +13848,9 @@ static const CmdEntry s_commands[] = {
      { "xprobe_arm",        handle_xprobe_arm },
      { "xprobe_watch",      handle_xprobe_watch },
      { "ce_profile",        handle_ce_profile },
 +    { "ttk_input",         handle_ttk_input },
 +    { "console",           handle_console },
++    { "console_ui",        handle_console_ui },
      { "frame",             handle_frame },
      { "frame_fingerprint", handle_frame_fingerprint },
      { "record_frame",      handle_record_frame },
-@@ -13702,6 +13857,9 @@ static const CmdEntry s_commands[] = {
+@@ -13702,6 +13886,9 @@ static const CmdEntry s_commands[] = {
      { "present_ring",      handle_present_ring },
      { "frame_perf",        handle_frame_perf },
      { "gl_ws_ablate",      handle_gl_ws_ablate },
@@ -2113,7 +2162,7 @@ index 645f055e..dcf2df52 100644
      { "gl_interp",         handle_gl_interp },
      { "gl_wide_fast",      handle_gl_wide_fast },
      { "synth_recurse",     handle_synth_recurse },
-@@ -14439,14 +14597,23 @@ void debug_server_init(int port)
+@@ -14439,14 +14626,23 @@ void debug_server_init(int port)
  static int recv_line(sock_t c, char *buf, int cap)
  {
      int len = 0;
@@ -2138,7 +2187,7 @@ index 645f055e..dcf2df52 100644
      buf[cap - 1] = '\0';
      return cap - 1;   /* over-long line: take what we have */
  }
-@@ -14463,6 +14630,17 @@ static int io_thread_main(void *arg)
+@@ -14463,6 +14659,17 @@ static int io_thread_main(void *arg)
          int clen = sizeof(caddr);
          sock_t c = accept(s_listen, (struct sockaddr *)&caddr, &clen);
          if (c == SOCK_INVALID) { if (!s_io_running) break; SDL_Delay(5); continue; }
@@ -2156,7 +2205,7 @@ index 645f055e..dcf2df52 100644
  
          char req[RECV_BUF_SIZE];
          int rl = recv_line(c, req, sizeof(req));
-@@ -14665,18 +14843,25 @@ void debug_server_check_watchpoints(void)
+@@ -14665,18 +14872,25 @@ void debug_server_check_watchpoints(void)
  
  void debug_server_shutdown(void)
  {
@@ -2186,7 +2235,7 @@ index 645f055e..dcf2df52 100644
      if (s_client != SOCK_INVALID) {
          sock_close(s_client);
          s_client = SOCK_INVALID;
-@@ -14726,3 +14911,14 @@ int debug_server_turbo_enabled(void)
+@@ -14726,3 +14940,14 @@ int debug_server_turbo_enabled(void)
  {
      return s_turbo_enabled != 0;
  }
@@ -12254,7 +12303,7 @@ index 5f66e0a9..b8b8c751 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..87a3370e 100644
+index 62c387d0..80a7b6bf 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -12280,7 +12329,7 @@ index 62c387d0..87a3370e 100644
  
  /* Public-domain 8x8 ASCII (32..126), row bitmasks LSB = left pixel.
   * Sourced from the font8x8_basic set (https://github.com/d7samurai/font8x8). */
-@@ -128,11 +129,34 @@ static const uint8_t FONT8X8[95][8] = {
+@@ -128,11 +129,54 @@ static const uint8_t FONT8X8[95][8] = {
  static char     s_msg[OSD_MAX_CHARS];
  static Uint32   s_expire_ms;
  static int      s_active;
@@ -12312,13 +12361,33 @@ index 62c387d0..87a3370e 100644
 +static float    s_console_drop;
 +static Uint32   s_console_tick;
 +static uint32_t s_console_img[CONSOLE_W * CONSOLE_H];
++/* D26L1: serial number of s_console_hist[0]; the caret; the selection. */
++static long long s_console_first;
++static int      s_console_caret = -1;
++static Uint32   s_console_caret_tick;
++static int      s_console_caret_lit = 1;
++static int      s_console_sel;
++static char     s_console_flash[64];
++static Uint32   s_console_flash_until;
++static host_osd_console_pos s_console_sel_a, s_console_sel_b; /* a before b */
++/* The rows the last rasterize drew, where, and where each byte landed, for
++ * mouse hits. skip: bytes drawn before the row's col 0 (the prompt's "> "). */
++#define CONSOLE_VIS 64
++#define CONSOLE_VIS_BYTES (CONSOLE_LINE + 4)
++typedef struct {
++    long long row;
++    int ox, oy, skip, n, rows, line_h, top;
++    int xs[CONSOLE_VIS_BYTES], ws[CONSOLE_VIS_BYTES], rs[CONSOLE_VIS_BYTES];
++} console_vis;
++static console_vis s_console_vis[CONSOLE_VIS];
++static int      s_console_vis_n;
 +static unsigned s_console_gen = 1;   /* bumped at each rasterize: the renderer uploads only then */
 +static int      s_console_w = CONSOLE_W;
 +static int      s_console_h = CONSOLE_H;
  
  static int      s_volume = 100;          /* host master 0..100 */
  static int      s_vol_pct = 100;         /* last shown bar fill */
-@@ -143,10 +167,97 @@ static int      s_vol_dirty = 1;
+@@ -143,10 +187,98 @@ static int      s_vol_dirty = 1;
  static int      s_needs_clear;
  
  #define OSD_IMG_W  ((OSD_PAD_X * 2 + OSD_MAX_CHARS * OSD_GLYPH_W) * OSD_SCALE)
@@ -12413,11 +12482,12 @@ index 62c387d0..87a3370e 100644
 +}
 +#if defined(TTK_CHEAT_OSD)
 +extern int ttk_font_rasterize(const char*, int, uint32_t*, int, int, int, int*, int*);
++extern int ttk_font_layout(const char*, int, int, int, int, int*, int*, int*, int, int*, int*);
 +#endif
  
  /* Vertical bar: outer 16x120 @ 2x → 32x240. Fill grows from the bottom. */
  #define VOL_BAR_W   (16 * OSD_SCALE)
-@@ -169,6 +280,9 @@ static int          s_sdl_rw_th;
+@@ -169,6 +301,9 @@ static int          s_sdl_rw_th;
  static SDL_Texture *s_sdl_ssm_tex;
  static int          s_sdl_ssm_tw;
  static int          s_sdl_ssm_th;
@@ -12427,7 +12497,7 @@ index 62c387d0..87a3370e 100644
  static SDL_Renderer *s_sdl_ren;
  #endif
  
-@@ -202,6 +316,12 @@ static int vol_visible(void) {
+@@ -202,6 +337,12 @@ static int vol_visible(void) {
  }
  
  static void rasterize_text(const char *msg) {
@@ -12440,7 +12510,7 @@ index 62c387d0..87a3370e 100644
      int n = (int)strlen(msg);
      if (n > OSD_MAX_CHARS) n = OSD_MAX_CHARS;
      s_img_w = (OSD_PAD_X * 2 + n * OSD_GLYPH_W) * OSD_SCALE;
-@@ -276,9 +396,23 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
+@@ -276,9 +417,23 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
                                   SDL_TEXTUREACCESS_STREAMING, w, h);
          *tw = w;
          *th = h;
@@ -12465,7 +12535,7 @@ index 62c387d0..87a3370e 100644
      void *locked = NULL;
      int pitch = 0;
  #if defined(PSX_SDL3)
-@@ -337,29 +471,251 @@ void host_osd_push(const char *msg, int duration_ms) {
+@@ -337,30 +492,410 @@ void host_osd_push(const char *msg, int duration_ms) {
      snprintf(s_msg, sizeof(s_msg), "%s", msg);
      s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
      s_active = 1;
@@ -12513,9 +12583,9 @@ index 62c387d0..87a3370e 100644
 +    snprintf(s_debug_msg, sizeof(s_debug_msg), "%s", msg);
 +    s_debug_active = 1;
 +    s_debug_dirty = 1;
-     s_needs_clear = 0;
- #endif
- }
++    s_needs_clear = 0;
++#endif
++}
 +void host_osd_set_debug(const char *msg) { host_osd_set_status(msg); }
 +
 +void host_osd_console_open(int open) {
@@ -12539,16 +12609,18 @@ index 62c387d0..87a3370e 100644
 +    if (!line) line = "";
 +    snprintf(s_console_line, sizeof(s_console_line), "%s", line);
 +    s_console_dirty = 1;
-+    s_needs_clear = 0;
-+#endif
-+}
-+
+     s_needs_clear = 0;
+ #endif
+ }
+ 
 +void host_osd_console_clear(void) {
 +#if !HOST_OSD_VISUAL
 +    return;
 +#else
++    s_console_first += s_console_hist_n;
 +    s_console_hist_n = 0;
 +    s_console_scroll = 0;
++    s_console_sel = 0;
 +    memset(s_console_hist, 0, sizeof s_console_hist);
 +    s_console_dirty = 1;
 +    s_needs_clear = 0;
@@ -12566,6 +12638,7 @@ index 62c387d0..87a3370e 100644
 +        ++s_console_hist_n;
 +    } else {
 +        memmove(s_console_hist[0], s_console_hist[1], (CONSOLE_HIST - 1) * CONSOLE_LINE);
++        ++s_console_first;
 +        snprintf(s_console_hist[CONSOLE_HIST - 1], CONSOLE_LINE, "%s", line);
 +    }
 +    s_console_scroll = 0; /* new output shows the newest lines */
@@ -12587,6 +12660,165 @@ index 62c387d0..87a3370e 100644
 +#endif
 +}
 +
++void host_osd_console_set_caret(int col) {
++#if HOST_OSD_VISUAL
++    s_console_caret = col;
++    s_console_caret_tick = SDL_GetTicks();
++    s_console_caret_lit = 1;
++    s_console_dirty = 1;
++#else
++    (void)col;
++#endif
++}
++
++void host_osd_console_flash(const char *msg) {
++#if HOST_OSD_VISUAL
++    snprintf(s_console_flash, sizeof s_console_flash, "%s", msg ? msg : "");
++    s_console_flash_until = SDL_GetTicks() + 1800u;
++    s_console_dirty = 1;
++#else
++    (void)msg;
++#endif
++}
++
++static int console_pos_cmp(const host_osd_console_pos *p, const host_osd_console_pos *q) {
++    if (p->row != q->row) return p->row < q->row ? -1 : 1;
++    return p->col < q->col ? -1 : p->col > q->col;
++}
++
++void host_osd_console_set_selection(const host_osd_console_pos *a, const host_osd_console_pos *b) {
++#if HOST_OSD_VISUAL
++    if (!a || !b) {
++        if (s_console_sel) { s_console_sel = 0; s_console_dirty = 1; }
++        return;
++    }
++    if (console_pos_cmp(a, b) > 0) { const host_osd_console_pos *t = a; a = b; b = t; }
++    if (s_console_sel && !console_pos_cmp(a, &s_console_sel_a) && !console_pos_cmp(b, &s_console_sel_b)) return;
++    s_console_sel = 1;
++    s_console_sel_a = *a;
++    s_console_sel_b = *b;
++    s_console_dirty = 1;
++#else
++    (void)a; (void)b;
++#endif
++}
++
++int host_osd_console_row_text(long long row, char *out, int size) {
++    const char *text = NULL;
++#if HOST_OSD_VISUAL
++    if (row == HOST_OSD_CONSOLE_PROMPT) text = s_console_line;
++    else if (row >= s_console_first && row < s_console_first + s_console_hist_n)
++        text = s_console_hist[row - s_console_first];
++#else
++    (void)row;
++#endif
++    if (!text) { if (out && size > 0) out[0] = 0; return -1; }
++    if (out && size > 0) snprintf(out, (size_t)size, "%s", text);
++    return (int)strlen(text);
++}
++
++void host_osd_console_rows(long long *first, long long *end) {
++#if HOST_OSD_VISUAL
++    if (first) *first = s_console_first;
++    if (end) *end = s_console_first + s_console_hist_n;
++#else
++    if (first) *first = 0;
++    if (end) *end = 0;
++#endif
++}
++
++int host_osd_console_hit(float x, float y, int win_w, host_osd_console_pos *out) {
++#if HOST_OSD_VISUAL
++    if (!out || !s_console_want || s_console_drop < 0.999f || win_w <= 0 || s_console_vis_n <= 0) return 0;
++    const float scale = (float)CONSOLE_W / (float)win_w;
++    const float ix = x * scale;
++    float iy = y * scale;
++    if (iy < 0.f) iy = 0.f;
++    if (iy > (float)(CONSOLE_H - 1)) iy = (float)(CONSOLE_H - 1);
++    /* The nearest drawn text row (a wrapped line has several). */
++    const console_vis *best = NULL;
++    int best_sub = 0;
++    float best_d = 1e30f;
++    for (int v = 0; v < s_console_vis_n; ++v) {
++        const console_vis *cv = &s_console_vis[v];
++        for (int k = 0; k < cv->rows; ++k) {
++            const float y0 = (float)(cv->oy + cv->top + k * cv->line_h), y1 = y0 + (float)cv->line_h;
++            const float d = iy < y0 ? y0 - iy : iy >= y1 ? iy - y1 + 1.f : 0.f;
++            if (d < best_d) { best_d = d; best = cv; best_sub = k; }
++        }
++    }
++    if (!best) return 0;
++    /* The byte whose middle lies right of the point; past the row's last drawn
++     * byte, just after it (before a space the wrap dropped). */
++    int col = -1, last = -1, first = -1;
++    for (int i = best->skip; i < best->n; ++i) {
++        if (best->rs[i] != best_sub) continue;
++        if (first < 0) first = i;
++        if (best->ws[i] <= 0) continue;
++        if (ix < (float)(best->ox + best->xs[i]) + (float)best->ws[i] * 0.5f) { col = i; break; }
++        last = i;
++    }
++    if (col < 0) col = last >= 0 ? last + 1 : first >= 0 ? first : best->skip;
++    out->row = best->row;
++    out->col = col - best->skip;
++    if (out->col < 0) out->col = 0;
++    return 1;
++#else
++    (void)x; (void)y; (void)win_w; (void)out;
++    return 0;
++#endif
++}
++
++#if HOST_OSD_VISUAL && defined(TTK_CHEAT_OSD)
++static void console_blit(const uint32_t *buf, int tw, int th, int ox, int oy) {
++    for (int row = 0; row < th; ++row) for (int col = 0; col < tw; ++col) {
++        uint32_t c = buf[row * tw + col];
++        if (!(c >> 24)) continue;
++        int px = ox + col, py = oy + row;
++        if ((unsigned)px < (unsigned)CONSOLE_W && (unsigned)py < (unsigned)CONSOLE_H)
++            s_console_img[py * CONSOLE_W + px] = c;
++    }
++}
++static void console_fill(int x, int y, int w, int h, uint32_t c) {
++    for (int py = y; py < y + h; ++py) for (int px = x; px < x + w; ++px)
++        if ((unsigned)px < (unsigned)CONSOLE_W && (unsigned)py < (unsigned)CONSOLE_H)
++            s_console_img[py * CONSOLE_W + px] = c;
++}
++/* Lays out and draws one console row ending at y bottom, at x 8; its height in
++ * *th_out. Records it for mouse hits and paints the selection behind it.
++ * Returns 0 when it cannot be laid out, -1 when its top would be above min_top. */
++static int console_draw_row(long long row, const char *text, int skip, uint32_t *buf, int bottom, int min_top,
++                            int *th_out) {
++    int tw = 0, th = 0;
++    if (!ttk_font_rasterize(text, 3, buf, CONSOLE_W, 64, CONSOLE_W - 16, &tw, &th) || tw < 1 || th < 1) return 0;
++    int oy = bottom - th;
++    if (oy < min_top) return -1;
++    *th_out = th;
++    console_vis tmp, *cv = s_console_vis_n < CONSOLE_VIS ? &s_console_vis[s_console_vis_n] : &tmp;
++    cv->row = row; cv->ox = 8; cv->oy = oy; cv->skip = skip;
++    cv->n = (int)strlen(text);
++    if (cv->n > CONSOLE_VIS_BYTES) cv->n = CONSOLE_VIS_BYTES;
++    cv->rows = ttk_font_layout(text, 3, CONSOLE_W, 64, CONSOLE_W - 16, cv->xs, cv->ws, cv->rs, cv->n, &cv->line_h, &cv->top);
++    if (cv->rows > 0 && cv != &tmp) ++s_console_vis_n;
++    if (cv->rows > 0 && s_console_sel && row >= s_console_sel_a.row && row <= s_console_sel_b.row) {
++        const int from = (row == s_console_sel_a.row ? s_console_sel_a.col : 0) + skip;
++        const int to = row == s_console_sel_b.row ? s_console_sel_b.col + skip : cv->n;
++        for (int i = from < skip ? skip : from; i < to && i < cv->n; ++i)
++            if (cv->ws[i] > 0)
++                console_fill(cv->ox + cv->xs[i], oy + cv->top + cv->rs[i] * cv->line_h, cv->ws[i], cv->line_h, 0xe02f5f8fu);
++    }
++    console_blit(buf, tw, th, 8, oy);
++    if (row == HOST_OSD_CONSOLE_PROMPT && cv->rows > 0 && s_console_caret >= 0 && s_console_caret_lit) {
++        const int i = s_console_caret + skip;
++        int cx, cr;
++        if (i < cv->n) { cx = cv->xs[i]; cr = cv->rs[i]; }
++        else { cx = cv->xs[cv->n - 1] + cv->ws[cv->n - 1]; cr = cv->rs[cv->n - 1]; }
++        console_fill(cv->ox + cx, oy + cv->top + cr * cv->line_h + 1, 2, cv->line_h - 1, 0xfff2b440u);
++    }
++    return 1;
++}
++#endif
++
 +static void rasterize_console(void) {
 +#if HOST_OSD_VISUAL
 +    s_console_w = CONSOLE_W;
@@ -12604,18 +12836,14 @@ index 62c387d0..87a3370e 100644
 +        char prompt[CONSOLE_LINE + 4];
 +        static uint32_t text_buf[CONSOLE_W * 64];
 +        int tw = 0, th = 0;
++        s_console_vis_n = 0;
 +        snprintf(prompt, sizeof prompt, "> %s", s_console_line);
 +        int y = CONSOLE_H - 12;
-+        if (ttk_font_rasterize(prompt, 3, text_buf, CONSOLE_W, 64, CONSOLE_W - 16, &tw, &th) && tw > 0 && th > 0) {
++        if (s_console_flash[0] &&
++            ttk_font_rasterize(s_console_flash, 3, text_buf, CONSOLE_W, 64, CONSOLE_W / 3, &tw, &th) && tw > 0 && th > 0)
++            console_blit(text_buf, tw, th, CONSOLE_W - 8 - tw, CONSOLE_H - 10 - th);
++        if (console_draw_row(HOST_OSD_CONSOLE_PROMPT, prompt, 2, text_buf, CONSOLE_H - 10, 4, &th) > 0) {
 +            y = CONSOLE_H - th - 10;
-+            if (y < 4) y = 4;
-+            for (int row = 0; row < th; ++row) for (int col = 0; col < tw; ++col) {
-+                uint32_t c = text_buf[row * tw + col];
-+                if (!(c >> 24)) continue;
-+                int px = 8 + col, py = y + row;
-+                if ((unsigned)px < (unsigned)CONSOLE_W && (unsigned)py < (unsigned)CONSOLE_H)
-+                    s_console_img[py * CONSOLE_W + px] = c;
-+            }
 +            drew = 1;
 +            y -= 2;
 +        }
@@ -12624,29 +12852,17 @@ index 62c387d0..87a3370e 100644
 +            if (ttk_font_rasterize("-- MORE BELOW: PGDN / END --", 3, text_buf, CONSOLE_W, 64, CONSOLE_W - 16, &tw, &th) &&
 +                tw > 0 && th > 0) {
 +                y -= th;
-+                for (int row = 0; row < th; ++row) for (int col = 0; col < tw; ++col) {
-+                    uint32_t c = text_buf[row * tw + col];
-+                    if (!(c >> 24)) continue;
-+                    int px = 8 + col, py = y + row;
-+                    if ((unsigned)px < (unsigned)CONSOLE_W && (unsigned)py < (unsigned)CONSOLE_H)
-+                        s_console_img[py * CONSOLE_W + px] = c;
-+                }
++                console_blit(text_buf, tw, th, 8, y);
 +                y -= 2;
 +            }
 +        }
 +        for (int i = s_console_hist_n - 1 - s_console_scroll; i >= 0 && y > 6; --i) {
-+            tw = th = 0;
-+            if (!ttk_font_rasterize(s_console_hist[i], 3, text_buf, CONSOLE_W, 64, CONSOLE_W - 16, &tw, &th) ||
-+                tw < 1 || th < 1) continue;
++            th = 0;
++            /* Only a row that fits wholly is drawn. */
++            const int drawn = console_draw_row(s_console_first + i, s_console_hist[i], 0, text_buf, y, 4, &th);
++            if (drawn < 0) break;
++            if (!drawn) continue;
 +            y -= th;
-+            if (y < 4) break;
-+            for (int row = 0; row < th; ++row) for (int col = 0; col < tw; ++col) {
-+                uint32_t c = text_buf[row * tw + col];
-+                if (!(c >> 24)) continue;
-+                int px = 8 + col, py = y + row;
-+                if ((unsigned)px < (unsigned)CONSOLE_W && (unsigned)py < (unsigned)CONSOLE_H)
-+                    s_console_img[py * CONSOLE_W + px] = c;
-+            }
 +            drew = 1;
 +            y -= 2;
 +        }
@@ -12670,6 +12886,12 @@ index 62c387d0..87a3370e 100644
 +                }
 +            }
 +        }
++        if (s_console_line[0] && s_console_caret >= 0 && s_console_caret_lit && s_console_caret <= 60)
++            for (int row = -1; row < 9; ++row) for (int col = 0; col < 2; ++col) {
++                int x = 8 + s_console_caret * 7 - 1 + col, y = CONSOLE_H - 18 + row;
++                if ((unsigned)x < (unsigned)CONSOLE_W && (unsigned)y < (unsigned)CONSOLE_H)
++                    s_console_img[y * CONSOLE_W + x] = 0xfff2b440u;
++            }
 +    }
 +    s_console_dirty = 0;
 +    s_console_gen++;
@@ -12713,6 +12935,12 @@ index 62c387d0..87a3370e 100644
 +        if (y) *y = 0;
 +        return 0;
 +    }
++    if (s_console_want && s_console_caret >= 0) {
++        /* D26L1: the caret blinks (530 ms each way), solid again after each edit. */
++        const int lit = ((now - s_console_caret_tick) / 530u) % 2u == 0u;
++        if (lit != s_console_caret_lit) { s_console_caret_lit = lit; s_console_dirty = 1; }
++    }
++    if (s_console_flash[0] && (int)(now - s_console_flash_until) >= 0) { s_console_flash[0] = 0; s_console_dirty = 1; }
 +    if (s_console_dirty) rasterize_console();
 +    if (pixels) *pixels = s_console_img;
 +    if (w) *w = s_console_w;
@@ -12721,10 +12949,11 @@ index 62c387d0..87a3370e 100644
 +    return 1;
 +#endif
 +}
- 
++
  void host_osd_show_volume(int percent, int duration_ms) {
  #if !HOST_OSD_VISUAL
-@@ -398,7 +754,7 @@ int host_osd_needs_present(void) {
+     (void)percent;
+@@ -398,7 +933,7 @@ int host_osd_needs_present(void) {
  #if !HOST_OSD_VISUAL
      return 0;
  #else
@@ -12733,7 +12962,7 @@ index 62c387d0..87a3370e 100644
      return s_needs_clear;
  #endif
  }
-@@ -410,21 +766,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -410,21 +945,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
      if (h) *h = 0;
      return 0;
  #else
@@ -12758,7 +12987,7 @@ index 62c387d0..87a3370e 100644
      if (pixels) *pixels = s_img;
      if (w) *w = s_img_w;
      if (h) *h = s_img_h;
-@@ -432,6 +781,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -432,6 +960,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
  #endif
  }
  
@@ -12819,7 +13048,7 @@ index 62c387d0..87a3370e 100644
  int host_osd_volume_image(const uint32_t **pixels, int *w, int *h) {
  #if !HOST_OSD_VISUAL
      if (pixels) *pixels = NULL;
-@@ -457,14 +860,63 @@ void host_osd_present_done(void) {
+@@ -457,14 +1039,63 @@ void host_osd_present_done(void) {
  #if !HOST_OSD_VISUAL
      return;
  #else
@@ -12884,7 +13113,7 @@ index 62c387d0..87a3370e 100644
  #if HOST_OSD_VISUAL
      {
          const uint32_t *px;
-@@ -477,9 +929,158 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+@@ -477,9 +1108,158 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
          if (ui < 1) ui = 1;
          if (ui > 8) ui = 8;
          margin = 8 * ui;
@@ -12934,7 +13163,8 @@ index 62c387d0..87a3370e 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-+            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                          margin, margin, w * ui, h * ui);
 +                          margin, margin, w * tui, h * tui);
 +        }
 +        if (host_osd_image(&px, &w, &h) && px) {
@@ -12969,8 +13199,7 @@ index 62c387d0..87a3370e 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
--                          margin, margin, w * ui, h * ui);
++            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
 +                          host_osd_text_centered() ? (lw-w*tui)/2 : margin, margin, w * tui, h * tui);
 +        }
 +        /* Inventory is a separate temporary surface; never replaces quotes.
@@ -13530,7 +13759,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..cfe6844d 100644
+index fe317583..30d4907d 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -5,6 +5,9 @@
@@ -13570,7 +13799,7 @@ index fe317583..cfe6844d 100644
  #if defined(PSX_SDL3)
  /*
   * SDL_main.h is a single-header implementation in SDL3. Keep it in the one
-@@ -592,9 +601,216 @@ static void fps_telemetry_toggle(void) {
+@@ -592,11 +601,654 @@ static void fps_telemetry_toggle(void) {
      if (!enabled && sdl_window && !s_fps_base_title.empty())
          SDL_SetWindowTitle(sdl_window, s_fps_base_title.c_str());
      if (!enabled)
@@ -13578,7 +13807,8 @@ index fe317583..cfe6844d 100644
 +        host_osd_set_debug(NULL);
      s_fps_base_title.clear();
 -    host_osd_push(enabled ? "FPS readout on" : "FPS readout off", 1500);
-+}
+ }
+-
 +/* Time to Kill D20I: OPTIONS > DISPLAY > FPS. The request is applied on the
 + * frontend frame (the window title belongs to that thread). */
 +static std::atomic<int> s_mod_fps_request{-1};
@@ -13593,15 +13823,56 @@ index fe317583..cfe6844d 100644
 +static bool s_debug_console;
 +static char s_console_line[96];
 +static size_t s_console_len;
++/* D26L1: editing at a caret, a selection over the scrollback and the command
++ * line (anchor a, head b), mouse drags by character, word or line. */
++static constexpr size_t CONSOLE_MAX = sizeof s_console_line - 1;
++static size_t s_console_caret;
++static bool s_console_sel;
++static host_osd_console_pos s_console_sel_a, s_console_sel_b;
++static int s_console_drag; /* mouse held: 1 characters, 2 words, 3 lines */
++static host_osd_console_pos s_console_drag_lo, s_console_drag_hi; /* the unit first pressed */
++static int console_pos_cmp(const host_osd_console_pos& p, const host_osd_console_pos& q) {
++    if (p.row != q.row) return p.row < q.row ? -1 : 1;
++    return p.col < q.col ? -1 : p.col > q.col;
++}
++static bool console_sel_range(host_osd_console_pos& lo, host_osd_console_pos& hi) {
++    if (!s_console_sel) return false;
++    lo = s_console_sel_a; hi = s_console_sel_b;
++    if (console_pos_cmp(lo, hi) > 0) std::swap(lo, hi);
++    return console_pos_cmp(lo, hi) < 0;
++}
++/* The selection when it lies wholly in the command line, as [a, b). */
++static bool console_prompt_sel(size_t& a, size_t& b) {
++    host_osd_console_pos lo, hi;
++    if (!console_sel_range(lo, hi) || lo.row != HOST_OSD_CONSOLE_PROMPT) return false;
++    a = std::min((size_t)lo.col, s_console_len);
++    b = std::min((size_t)hi.col, s_console_len);
++    return a < b;
++}
++/* Edits move the command line's text, so a selection touching it goes. */
++static void console_drop_prompt_sel(void) {
++    if (s_console_sel && (s_console_sel_a.row == HOST_OSD_CONSOLE_PROMPT || s_console_sel_b.row == HOST_OSD_CONSOLE_PROMPT)) {
++        s_console_sel = false;
++        s_console_drag = 0;
++    }
++}
 +static void debug_console_refresh(void) {
 +    char buf[128];
 +    std::snprintf(buf, sizeof buf, "%.*s", (int)s_console_len, s_console_line);
 +    host_osd_console_set_line(buf);
++    size_t a, b;
++    host_osd_console_set_caret(console_prompt_sel(a, b) ? -1 : (int)s_console_caret);
++    if (s_console_sel) host_osd_console_set_selection(&s_console_sel_a, &s_console_sel_b);
++    else host_osd_console_set_selection(nullptr, nullptr);
 +}
 +static void debug_console_close(void) {
 +    s_debug_console = false;
 +    s_console_len = 0;
++    s_console_caret = 0;
 +    s_console_line[0] = 0;
++    s_console_sel = false;
++    s_console_drag = 0;
++    host_osd_console_set_selection(nullptr, nullptr);
 +    host_osd_console_open(0);
 +    host_osd_console_set_line("");
 +    ttk::input_console(false);
@@ -13617,6 +13888,7 @@ index fe317583..cfe6844d 100644
 +}
 +static void debug_console_run(void) {
 +    s_console_line[s_console_len] = 0;
++    console_drop_prompt_sel();
 +    char echoed[128];
 +    if (s_console_len) {
 +        std::snprintf(echoed, sizeof echoed, "> %s", s_console_line);
@@ -13655,8 +13927,11 @@ index fe317583..cfe6844d 100644
 +        debug_console_say("  quit        Exit the game");
 +        debug_console_say("  renderer R  Switch renderer: polymorph or classic (this session)");
 +        debug_console_say("  spawn X     Spawn item X (name or type) in front of Duke");
++        debug_console_say("Paste: Shift+Insert, Ctrl+V or right-click. Selecting copies; Ctrl+C copies the line");
 +    } else if (!std::strcmp(s_console_line, "clear")) {
 +        host_osd_console_clear();
++        s_console_sel = false;
++        s_console_drag = 0;
 +    } else if (!std::strcmp(s_console_line, "quit")) {
 +        debug_console_say("Quitting...");
 +        SDL_Event quit{};
@@ -13670,6 +13945,7 @@ index fe317583..cfe6844d 100644
 +        debug_console_say(err);
 +    }
 +    s_console_len = 0;
++    s_console_caret = 0;
 +    s_console_line[0] = 0;
 +    if (s_debug_console) debug_console_refresh();
 +}
@@ -13685,6 +13961,257 @@ index fe317583..cfe6844d 100644
 +    return replies.c_str();
 +}
 +extern "C" void host_osd_console_scroll(int delta);
++/* D26L1: copy and paste. Text goes to the clipboard and to X11's primary
++ * selection; paste reads the clipboard. */
++static std::string console_line_text(void) { return std::string(s_console_line, s_console_len); }
++static void console_put_line(const std::string& text, size_t caret) {
++    const size_t n = std::min(text.size(), CONSOLE_MAX);
++    std::memcpy(s_console_line, text.data(), n);
++    s_console_line[n] = 0;
++    s_console_len = n;
++    s_console_caret = std::min(caret, n);
++}
++static bool console_delete_sel(void) {
++    size_t a, b;
++    if (!console_prompt_sel(a, b)) return false;
++    std::string t = console_line_text();
++    t.erase(a, b - a);
++    s_console_sel = false;
++    console_put_line(t, a);
++    return true;
++}
++/* Inserts at the caret over any command-line selection; false when cut short. */
++static bool console_insert(const std::string& text) {
++    console_delete_sel();
++    console_drop_prompt_sel();
++    std::string t = console_line_text();
++    const size_t room = CONSOLE_MAX - t.size();
++    const std::string add = text.substr(0, room);
++    t.insert(s_console_caret, add);
++    console_put_line(t, s_console_caret + add.size());
++    return add.size() == text.size();
++}
++static size_t console_word_left(size_t c) {
++    while (c > 0 && s_console_line[c - 1] == ' ') --c;
++    while (c > 0 && s_console_line[c - 1] != ' ') --c;
++    return c;
++}
++static size_t console_word_right(size_t c) {
++    while (c < s_console_len && s_console_line[c] == ' ') ++c;
++    while (c < s_console_len && s_console_line[c] != ' ') ++c;
++    return c;
++}
++static int console_row_text(long long row, char *out, int size) {
++    if (row == HOST_OSD_CONSOLE_PROMPT) {
++        std::snprintf(out, (size_t)size, "%.*s", (int)s_console_len, s_console_line);
++        return (int)std::strlen(out);
++    }
++    return host_osd_console_row_text(row, out, size);
++}
++/* The selected text, rows joined by newlines. */
++static std::string console_sel_text(void) {
++    std::string out;
++    host_osd_console_pos lo, hi;
++    if (!console_sel_range(lo, hi)) return out;
++    long long first = 0, end = 0;
++    host_osd_console_rows(&first, &end);
++    long long row = lo.row;
++    int from = lo.col;
++    if (row != HOST_OSD_CONSOLE_PROMPT && row < first) { row = first; from = 0; }
++    if (row != HOST_OSD_CONSOLE_PROMPT && row >= end) { row = HOST_OSD_CONSOLE_PROMPT; from = 0; }
++    char text[160];
++    for (;;) {
++        const int n = console_row_text(row, text, sizeof text);
++        if (n >= 0) {
++            const int a = std::min(from, n), b = row == hi.row ? std::min(hi.col, n) : n;
++            if (b > a) out.append(text + a, (size_t)(b - a));
++        }
++        if (row == hi.row || row == HOST_OSD_CONSOLE_PROMPT) break;
++        out += '\n';
++        from = 0;
++        row = row + 1 < end ? row + 1 : HOST_OSD_CONSOLE_PROMPT;
++    }
++    return out;
++}
++static void console_copy(const std::string& text, bool selection) {
++    if (text.empty()) { host_osd_console_flash("Nothing to copy"); return; }
++    SDL_SetClipboardText(text.c_str());
++    SDL_SetPrimarySelectionText(text.c_str());
++    char msg[64];
++    if (selection) std::snprintf(msg, sizeof msg, "Copied %zu character%s", text.size(), text.size() == 1 ? "" : "s");
++    else std::snprintf(msg, sizeof msg, "Copied the command line");
++    host_osd_console_flash(msg);
++}
++/* One pasted line as the console takes it: tabs and no-break spaces become
++ * spaces, the ends are trimmed, a copied "> " prompt is dropped, letters are
++ * lowercased (commands are typed lowercase) and characters it does not take
++ * (the pipe the font lacks, the backtick, other control and non-ASCII
++ * characters) are left out and listed in `dropped`. */
++static std::string console_clean(const std::string& raw, std::string& dropped, bool& other) {
++    std::string t;
++    for (size_t i = 0; i < raw.size(); ++i) {
++        const unsigned char c = (unsigned char)raw[i];
++        if (c == '\t') t += ' ';
++        else if (c == 0xc2 && i + 1 < raw.size() && (unsigned char)raw[i + 1] == 0xa0) { t += ' '; ++i; }
++        else if (c >= 0x80) {
++            other = true;
++            if (c >= 0xc0) while (i + 1 < raw.size() && ((unsigned char)raw[i + 1] & 0xc0) == 0x80) ++i;
++        }
++        else if (c < 32 || c == 127) other = true;
++        else if (c == '|' || c == '`') { if (dropped.find((char)c) == std::string::npos) dropped += (char)c; }
++        else t += (char)std::tolower(c);
++    }
++    size_t a = t.find_first_not_of(' ');
++    if (a == std::string::npos) return std::string();
++    t = t.substr(a, t.find_last_not_of(' ') - a + 1);
++    if (t[0] == '>') {
++        a = t.find_first_not_of(' ', 1);
++        t = a == std::string::npos ? std::string() : t.substr(a);
++    }
++    return t;
++}
++/* Pastes at the caret. Each complete line runs in turn, as typed; text after
++ * the last newline stays on the command line. */
++static void console_paste(const char *raw) {
++    if (!raw || !raw[0]) { host_osd_console_flash("The clipboard is empty"); return; }
++    std::vector<std::string> lines(1);
++    for (const char *p = raw; *p; ++p) {
++        if (*p == '\n') lines.emplace_back();
++        else if (*p != '\r') lines.back() += *p;
++    }
++    bool ends_with_newline = false;
++    if (lines.size() > 1 && lines.back().find_first_not_of(" \t") == std::string::npos) {
++        ends_with_newline = true;
++        lines.pop_back();
++    }
++    std::string dropped;
++    bool other = false;
++    std::vector<std::string> clean;
++    for (const std::string& l : lines) {
++        std::string c = console_clean(l, dropped, other);
++        if (!c.empty()) clean.push_back(c);
++    }
++    if (clean.empty()) { host_osd_console_flash("Nothing in the clipboard the console can use"); return; }
++    console_delete_sel();
++    console_drop_prompt_sel();
++    const std::string line = console_line_text();
++    const std::string after = line.substr(s_console_caret);
++    std::string all = line.substr(0, s_console_caret);
++    for (size_t i = 0; i < clean.size(); ++i) { if (i) all += '\n'; all += clean[i]; }
++    if (ends_with_newline) all += '\n';
++    all += after;
++    std::vector<std::string> parts(1);
++    for (char c : all) { if (c == '\n') parts.emplace_back(); else parts.back() += c; }
++    std::string last = parts.back();
++    parts.pop_back();
++    bool cut = false;
++    for (std::string& part : parts) {
++        if (part.size() > CONSOLE_MAX) { part.resize(CONSOLE_MAX); cut = true; }
++        console_put_line(part, part.size());
++        debug_console_run();
++        if (!s_debug_console) return; /* a command closed the console: the rest is dropped */
++    }
++    const size_t caret = last.size() - after.size();
++    if (last.size() > CONSOLE_MAX) { last.resize(CONSOLE_MAX); cut = true; }
++    console_put_line(last, caret);
++    if (cut) debug_console_say("Paste cut to 95 characters (the console line limit)");
++    if (!dropped.empty() || other) {
++        /* Named, since the font cannot draw the pipe itself. */
++        std::string msg = "Left out characters the console does not take:";
++        for (size_t i = 0; i < dropped.size(); ++i) {
++            msg += i ? ", " : " ";
++            msg += dropped[i] == '|' ? "pipe" : "backtick";
++        }
++        if (other) msg += dropped.empty() ? " non-ASCII or control characters" : ", non-ASCII or control characters";
++        debug_console_say(msg.c_str());
++    }
++    debug_console_refresh();
++}
++static void console_paste_clipboard(void) {
++    char *text = SDL_GetClipboardText();
++    console_paste(text);
++    SDL_free(text);
++}
++/* Moves the caret; extend grows a command-line selection from its anchor. */
++static void console_move(size_t to, bool extend) {
++    to = std::min(to, s_console_len);
++    if (extend) {
++        size_t a, b;
++        host_osd_console_pos anchor{HOST_OSD_CONSOLE_PROMPT, (int)s_console_caret};
++        if (console_prompt_sel(a, b))
++            anchor = (size_t)s_console_sel_b.col == s_console_caret ? s_console_sel_a : s_console_sel_b;
++        s_console_sel = true;
++        s_console_sel_a = anchor;
++        s_console_sel_b = host_osd_console_pos{HOST_OSD_CONSOLE_PROMPT, (int)to};
++    } else console_drop_prompt_sel();
++    s_console_caret = to;
++}
++/* The character, word (a run of non-spaces, or of spaces) or whole row at p. */
++static void console_unit(const host_osd_console_pos& p, int unit, host_osd_console_pos& lo, host_osd_console_pos& hi) {
++    lo = hi = p;
++    if (unit <= 1) return;
++    char text[160];
++    const int n = console_row_text(p.row, text, sizeof text);
++    if (n < 0) return;
++    if (unit >= 3) { lo.col = 0; hi.col = n; return; }
++    if (n == 0) return;
++    int c = std::min(p.col, n - 1);
++    const bool word = text[c] != ' ';
++    int a = c, b = c + 1;
++    while (a > 0 && (text[a - 1] != ' ') == word) --a;
++    while (b < n && (text[b] != ' ') == word) ++b;
++    lo.col = a;
++    hi.col = b;
++}
++static void console_drag_to(const host_osd_console_pos& p) {
++    host_osd_console_pos lo, hi;
++    console_unit(p, s_console_drag, lo, hi);
++    if (console_pos_cmp(lo, s_console_drag_lo) < 0) { s_console_sel_a = s_console_drag_hi; s_console_sel_b = lo; }
++    else { s_console_sel_a = s_console_drag_lo; s_console_sel_b = hi; }
++    s_console_sel = true;
++    if (s_console_sel_a.row == HOST_OSD_CONSOLE_PROMPT && s_console_sel_b.row == HOST_OSD_CONSOLE_PROMPT)
++        s_console_caret = std::min((size_t)s_console_sel_b.col, s_console_len);
++}
++/* Left: drag selects (double-click words, triple-click lines, Shift extends)
++ * and the selection is copied on release; a click in the command line places
++ * the caret. Right: pastes. */
++static void console_mouse(const SDL_Event& ev) {
++    int ww = 0, wh = 0;
++    if (!sdl_window) return;
++    SDL_GetWindowSize(sdl_window, &ww, &wh);
++    host_osd_console_pos p;
++    if (ev.type == SDL_MOUSEBUTTONDOWN) {
++        if (ev.button.button == SDL_BUTTON_RIGHT) { s_console_drag = 0; console_paste_clipboard(); return; }
++        if (ev.button.button != SDL_BUTTON_LEFT) return;
++        if (!host_osd_console_hit((float)ev.button.x, (float)ev.button.y, ww, &p)) return;
++        if ((SDL_GetModState() & KMOD_SHIFT) && s_console_sel) {
++            s_console_drag = 1;
++            s_console_drag_lo = s_console_drag_hi = s_console_sel_a;
++            console_drag_to(p);
++        } else {
++            const int unit = ev.button.clicks >= 3 ? 3 : ev.button.clicks == 2 ? 2 : 1;
++            s_console_drag = unit;
++            console_unit(p, unit, s_console_drag_lo, s_console_drag_hi);
++            s_console_sel = true;
++            s_console_sel_a = s_console_drag_lo;
++            s_console_sel_b = s_console_drag_hi;
++            if (p.row == HOST_OSD_CONSOLE_PROMPT && unit == 1) s_console_caret = std::min((size_t)p.col, s_console_len);
++            else if (s_console_sel_b.row == HOST_OSD_CONSOLE_PROMPT)
++                s_console_caret = std::min((size_t)s_console_sel_b.col, s_console_len);
++        }
++        debug_console_refresh();
++    } else if (ev.type == SDL_MOUSEMOTION) {
++        if (!s_console_drag || !host_osd_console_hit((float)ev.motion.x, (float)ev.motion.y, ww, &p)) return;
++        console_drag_to(p);
++        debug_console_refresh();
++    } else if (ev.type == SDL_MOUSEBUTTONUP && ev.button.button == SDL_BUTTON_LEFT && s_console_drag) {
++        s_console_drag = 0;
++        host_osd_console_pos lo, hi;
++        if (console_sel_range(lo, hi)) console_copy(console_sel_text(), true);
++        else s_console_sel = false;
++        debug_console_refresh();
++    }
++}
 +static bool debug_console_event(const SDL_Event& ev) {
 +#if defined(PSX_SDL3)
 +    if (s_debug_console && ev.type == SDL_EVENT_MOUSE_WHEEL) {
@@ -13697,9 +14224,16 @@ index fe317583..cfe6844d 100644
 +        else if (wheel < 0) host_osd_console_scroll(-3);
 +        return true;
 +    }
++    if (s_debug_console && (ev.type == SDL_MOUSEBUTTONDOWN || ev.type == SDL_MOUSEBUTTONUP || ev.type == SDL_MOUSEMOTION)) {
++        console_mouse(ev);
++        return true;
++    }
 +    /* D26J: focus/window events still reach input (focus loss releases). */
 +#if defined(PSX_SDL3)
-+    if (ev.type >= SDL_EVENT_WINDOW_FIRST && ev.type <= SDL_EVENT_WINDOW_LAST) return false;
++    if (ev.type >= SDL_EVENT_WINDOW_FIRST && ev.type <= SDL_EVENT_WINDOW_LAST) {
++        if (ev.type == SDL_EVENT_WINDOW_FOCUS_LOST) s_console_drag = 0;
++        return false;
++    }
 +#else
 +    if (ev.type == SDL_WINDOWEVENT) return false;
 +#endif
@@ -13718,7 +14252,10 @@ index fe317583..cfe6844d 100644
 +        else {
 +            s_debug_console = true;
 +            s_console_len = 0;
++            s_console_caret = 0;
 +            s_console_line[0] = 0;
++            s_console_sel = false;
++            s_console_drag = 0;
 +            s_console_recall = s_console_cmds.size();
 +            ttk::input_console(true);
 +            host_osd_console_open(1);
@@ -13737,30 +14274,97 @@ index fe317583..cfe6844d 100644
 +        else if (scancode == SDL_SCANCODE_KP_3) scancode = SDL_SCANCODE_PAGEDOWN;
 +        else if (scancode == SDL_SCANCODE_KP_7) scancode = SDL_SCANCODE_HOME;
 +        else if (scancode == SDL_SCANCODE_KP_1) scancode = SDL_SCANCODE_END;
++        else if (scancode == SDL_SCANCODE_KP_4) scancode = SDL_SCANCODE_LEFT;
++        else if (scancode == SDL_SCANCODE_KP_6) scancode = SDL_SCANCODE_RIGHT;
++        else if (scancode == SDL_SCANCODE_KP_0) scancode = SDL_SCANCODE_INSERT;
++        else if (scancode == SDL_SCANCODE_KP_PERIOD) scancode = SDL_SCANCODE_DELETE;
 +    }
-+    /* Scrollback: PgUp/PgDn a page, Ctrl+Home/Ctrl+End the oldest/newest line. */
++    const bool ctrl = (mod & KMOD_CTRL) != 0, shift = (mod & KMOD_SHIFT) != 0;
++    /* D26L1: copy (Ctrl+C, Ctrl+Shift+C, Ctrl+Insert: the selection, else the
++     * command line) and paste (Ctrl+V, Ctrl+Shift+V, Shift+Insert). */
++    if (ctrl && (scancode == SDL_SCANCODE_C || scancode == SDL_SCANCODE_INSERT)) {
++        const std::string selected = console_sel_text();
++        if (!selected.empty()) console_copy(selected, true);
++        else console_copy(console_line_text(), false);
++        return true;
++    }
++    if ((ctrl && scancode == SDL_SCANCODE_V) || (shift && !ctrl && scancode == SDL_SCANCODE_INSERT)) {
++        console_paste_clipboard();
++        return true;
++    }
++    if (ctrl && scancode == SDL_SCANCODE_A) {
++        s_console_sel = s_console_len > 0;
++        s_console_sel_a = host_osd_console_pos{HOST_OSD_CONSOLE_PROMPT, 0};
++        s_console_sel_b = host_osd_console_pos{HOST_OSD_CONSOLE_PROMPT, (int)s_console_len};
++        s_console_caret = s_console_len;
++        debug_console_refresh();
++        return true;
++    }
++    if (ctrl && scancode == SDL_SCANCODE_U) { /* clears the line before the caret */
++        if (!console_delete_sel()) { console_drop_prompt_sel(); console_put_line(console_line_text().substr(s_console_caret), 0); }
++        debug_console_refresh();
++        return true;
++    }
++    if (ctrl && (scancode == SDL_SCANCODE_W || scancode == SDL_SCANCODE_BACKSPACE)) { /* the word before the caret */
++        if (!console_delete_sel()) {
++            console_drop_prompt_sel();
++            const size_t a = console_word_left(s_console_caret);
++            std::string t = console_line_text();
++            t.erase(a, s_console_caret - a);
++            console_put_line(t, a);
++        }
++        debug_console_refresh();
++        return true;
++    }
++    if (scancode == SDL_SCANCODE_LEFT || scancode == SDL_SCANCODE_RIGHT) {
++        const bool left = scancode == SDL_SCANCODE_LEFT;
++        size_t a, b;
++        if (!shift && console_prompt_sel(a, b)) console_move(left ? a : b, false); /* collapses to that end */
++        else if (ctrl) console_move(left ? console_word_left(s_console_caret) : console_word_right(s_console_caret), shift);
++        else console_move(left ? (s_console_caret ? s_console_caret - 1 : 0) : s_console_caret + 1, shift);
++        debug_console_refresh();
++        return true;
++    }
 +    if (scancode == SDL_SCANCODE_UP || scancode == SDL_SCANCODE_DOWN) {
 +        /* Recall typed commands, newest first; Down past the newest clears the line. */
 +        if (s_console_recall > s_console_cmds.size()) s_console_recall = s_console_cmds.size();
 +        if (scancode == SDL_SCANCODE_UP && s_console_recall > 0) --s_console_recall;
 +        else if (scancode == SDL_SCANCODE_DOWN && s_console_recall < s_console_cmds.size()) ++s_console_recall;
 +        const char *text = s_console_recall < s_console_cmds.size() ? s_console_cmds[s_console_recall].c_str() : "";
-+        std::snprintf(s_console_line, sizeof s_console_line, "%s", text);
-+        s_console_len = std::strlen(s_console_line);
++        console_drop_prompt_sel();
++        console_put_line(text, CONSOLE_MAX);
 +        debug_console_refresh();
 +        return true;
 +    }
++    /* Scrollback: PgUp/PgDn a page, Ctrl+Home/Ctrl+End the oldest/newest line;
++     * Home/End also move the caret to the line's start/end. */
 +    if (scancode == SDL_SCANCODE_PAGEUP) { host_osd_console_scroll(8); return true; }
 +    if (scancode == SDL_SCANCODE_PAGEDOWN) { host_osd_console_scroll(-8); return true; }
-+    if (scancode == SDL_SCANCODE_HOME && (mod & KMOD_CTRL)) { host_osd_console_scroll(1 << 20); return true; }
-+    if (scancode == SDL_SCANCODE_END) { host_osd_console_scroll(-(1 << 20)); return true; }
++    if (scancode == SDL_SCANCODE_HOME && ctrl) { host_osd_console_scroll(1 << 20); return true; }
++    if (scancode == SDL_SCANCODE_HOME) { console_move(0, shift); debug_console_refresh(); return true; }
++    if (scancode == SDL_SCANCODE_END) {
++        host_osd_console_scroll(-(1 << 20));
++        if (!ctrl) { console_move(s_console_len, shift); debug_console_refresh(); }
++        return true;
++    }
 +    if (scancode == SDL_SCANCODE_RETURN || scancode == SDL_SCANCODE_KP_ENTER) {
 +        debug_console_run();
 +        return true;
 +    }
-+    /* Backspace and characters take the OS key repeat, like a desktop text field. */
-+    if (scancode == SDL_SCANCODE_BACKSPACE) {
-+        if (s_console_len) { --s_console_len; s_console_line[s_console_len]=0; debug_console_refresh(); }
++    /* Backspace, Delete and characters take the OS key repeat, like a desktop text field. */
++    if (scancode == SDL_SCANCODE_BACKSPACE || scancode == SDL_SCANCODE_DELETE) {
++        if (!console_delete_sel()) {
++            console_drop_prompt_sel();
++            std::string t = console_line_text();
++            if (scancode == SDL_SCANCODE_BACKSPACE && s_console_caret > 0) {
++                t.erase(s_console_caret - 1, 1);
++                console_put_line(t, s_console_caret - 1);
++            } else if (scancode == SDL_SCANCODE_DELETE && s_console_caret < t.size()) {
++                t.erase(s_console_caret, 1);
++                console_put_line(t, s_console_caret);
++            }
++        }
++        debug_console_refresh();
 +        return true;
 +    }
 +    if (mod & (KMOD_CTRL|KMOD_ALT|KMOD_GUI)) return true;
@@ -13780,16 +14384,80 @@ index fe317583..cfe6844d 100644
 +    else if (scancode == SDL_SCANCODE_KP_PLUS) ch = '+';
 +    else if (scancode == SDL_SCANCODE_KP_MULTIPLY) ch = '*';
 +    else if (scancode == SDL_SCANCODE_KP_DIVIDE) ch = '/';
-+    if (ch && s_console_len + 1 < sizeof s_console_line) {
-+        s_console_line[s_console_len++] = ch;
-+        s_console_line[s_console_len] = 0;
++    if (ch) {
++        if (!console_insert(std::string(1, ch))) host_osd_console_flash("Line full (95 characters)");
 +        debug_console_refresh();
 +    }
 +    return true;
- }
- 
++}
++/* D26L1 debug port "console_ui": drives the console as the keyboard and mouse
++ * do, for offscreen tests (the test-input keys do not reach the console).
++ *   open / close                  the backtick
++ *   paste TEXT                    as a paste of TEXT (newlines allowed)
++ *   key NAME [ctrl] [shift]       one key press (SDL scancode names)
++ *   mouse down|move|up X Y [clicks] [right]   window points
++ *   state                         returns the line, caret and selection */
++extern "C" const char *psx_debug_console_ui(const char *op, const char *text, double x, double y,
++                                            int clicks, int ctrl, int shift, int right) {
++    static std::string out;
++    out.clear();
++    op = op ? op : "";
++    if (!std::strcmp(op, "open") && !s_debug_console) {
++        SDL_Event ev{}; ev.type = SDL_KEYDOWN;
++#if defined(PSX_SDL3)
++        ev.key.scancode = SDL_SCANCODE_GRAVE;
++#else
++        ev.key.keysym.scancode = SDL_SCANCODE_GRAVE;
++#endif
++        debug_console_event(ev);
++    } else if (!std::strcmp(op, "close") && s_debug_console) debug_console_close();
++    else if (!std::strcmp(op, "paste") && s_debug_console) console_paste(text);
++    else if (!std::strcmp(op, "key") && s_debug_console) {
++        SDL_Event ev{}; ev.type = SDL_KEYDOWN;
++        const SDL_Scancode sc = SDL_GetScancodeFromName(text ? text : "");
++        const Uint16 m = (Uint16)((ctrl ? KMOD_LCTRL : 0) | (shift ? KMOD_LSHIFT : 0));
++#if defined(PSX_SDL3)
++        ev.key.scancode = sc; ev.key.mod = m;
++#else
++        ev.key.keysym.scancode = sc; ev.key.keysym.mod = m;
++#endif
++        if (sc == SDL_SCANCODE_UNKNOWN) out = "unknown key; ";
++        else debug_console_event(ev);
++    } else if (!std::strcmp(op, "mouse") && s_debug_console) {
++        SDL_Event ev{};
++        const char *what = text ? text : "";
++        ev.type = !std::strcmp(what, "down") ? SDL_MOUSEBUTTONDOWN : !std::strcmp(what, "up") ? SDL_MOUSEBUTTONUP : SDL_MOUSEMOTION;
++        if (ev.type == SDL_MOUSEMOTION) { ev.motion.x = (float)x; ev.motion.y = (float)y; }
++        else {
++            ev.button.x = (float)x; ev.button.y = (float)y;
++            ev.button.button = right ? SDL_BUTTON_RIGHT : SDL_BUTTON_LEFT;
++            ev.button.clicks = (Uint8)(clicks > 0 ? clicks : 1);
++        }
++        if (shift) SDL_SetModState(KMOD_LSHIFT);
++        debug_console_event(ev);
++        if (shift) SDL_SetModState(KMOD_NONE);
++    }
++    char buf[512];
++    host_osd_console_pos lo{}, hi{};
++    const bool sel = console_sel_range(lo, hi);
++    int ww = 0, wh = 0;
++    if (sdl_window) SDL_GetWindowSize(sdl_window, &ww, &wh);
++    std::snprintf(buf, sizeof buf, "win=%dx%d open=%d caret=%zu line=[%.*s] selection=%s", ww, wh, s_debug_console ? 1 : 0,
++                  s_console_caret, (int)s_console_len, s_console_line, sel ? "" : "none");
++    out += buf;
++    if (sel) {
++        long long first = 0, end = 0;
++        host_osd_console_rows(&first, &end);
++        auto row = [&](long long r) { return r == HOST_OSD_CONSOLE_PROMPT ? std::string("prompt") : std::to_string(r - first); };
++        out += '['; out += console_sel_text(); out += "] rows " + row(lo.row) + ":" + std::to_string(lo.col) + "-" +
++            row(hi.row) + ":" + std::to_string(hi.col) + " of " + std::to_string(end - first);
++    }
++    return out.c_str();
++}
  /* Hold-to-act host hotkeys must not fire while the game window does not hold
-@@ -1006,11 +1222,20 @@ static void post_load_probe_on_vblank(int turbo_active, int present_reached) {
+  * keyboard focus.
+  *
+@@ -1006,11 +1658,20 @@ static void post_load_probe_on_vblank(int turbo_active, int present_reached) {
   * longjmp). Clears present latches and forces the next vblank to show the
   * restored VRAM — including a blank if display was disabled in the snapshot. */
  static void savestate_input_guard_arm(void);
@@ -13811,7 +14479,7 @@ index fe317583..cfe6844d 100644
      if (is_load && ok)
          savestate_input_guard_arm();
      if (is_load) {
-@@ -1029,7 +1254,61 @@ extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok)
+@@ -1029,7 +1690,61 @@ extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok)
      host_osd_push(buf, 2000);
  }
  
@@ -13873,7 +14541,7 @@ index fe317583..cfe6844d 100644
      mod_runtime_on_savestate_loaded();
      s_disabled_frame_presented = false;
      s_force_present_after_load = true;
-@@ -1266,6 +1545,18 @@ static int           g_frame_interpolation_blend =
+@@ -1266,6 +1981,18 @@ static int           g_frame_interpolation_blend =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
  static int           g_frame_interpolation_blend_default =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
@@ -13892,7 +14560,7 @@ index fe317583..cfe6844d 100644
  static std::array<int, PSX_MAX_PLAYERS> g_mod_controller_mode_override =
      [] {
          std::array<int, PSX_MAX_PLAYERS> modes{};
-@@ -1308,6 +1599,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
+@@ -1308,6 +2035,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
      return 0;                                            /* windowed */
  }
  
@@ -13967,7 +14635,7 @@ index fe317583..cfe6844d 100644
  /* FMV auto-skip detection hooks (cdrom.c / mdec.c). */
  extern "C" int      cdrom_xa_stream_active(void);
  extern "C" uint32_t mdec_get_decode_count(void);
-@@ -1455,6 +1814,72 @@ extern "C" int psx_mod_set_frame_interpolation(
+@@ -1455,6 +2250,72 @@ extern "C" int psx_mod_set_frame_interpolation(
      return 1;
  }
  
@@ -14040,7 +14708,7 @@ index fe317583..cfe6844d 100644
  extern "C" int psx_mod_set_frame_interpolation_blend(
      uint32_t blend_mode) {
      if (blend_mode != PSX_MOD_FRAME_INTERPOLATION_LINEAR &&
-@@ -1515,6 +1940,23 @@ extern "C" int psx_mod_set_load_acceleration(
+@@ -1515,6 +2376,23 @@ extern "C" int psx_mod_set_load_acceleration(
      return 1;
  }
  
@@ -14064,7 +14732,7 @@ index fe317583..cfe6844d 100644
  extern "C" int psx_mod_set_disc_speed(
      uint32_t divisor, uint32_t instant_max_per_frame) {
      /* Any positive divisor is arithmetically safe: cdrom.c divides the sector
-@@ -1749,6 +2191,109 @@ static void update_adaptive_widescreen() {
+@@ -1749,6 +2627,109 @@ static void update_adaptive_widescreen() {
      refresh_widescreen_projection();
  }
  
@@ -14174,7 +14842,7 @@ index fe317583..cfe6844d 100644
  /* SDL GL attributes are global inputs to the next context creation.  Set the
   * runtime requirements immediately before every GL window, because launcher
   * teardown resets them and macOS otherwise supplies a legacy 2.1 context. */
-@@ -1770,6 +2315,32 @@ extern "C" void psx_ws_set_native_wide(int on) {
+@@ -1770,6 +2751,32 @@ extern "C" void psx_ws_set_native_wide(int on) {
  extern "C" int psx_ws_get_native_wide(void) { return g_ws_native_wide; }
  
  static bool          g_gl_active = false;    /* GL context live -> GL present path */
@@ -14207,7 +14875,7 @@ index fe317583..cfe6844d 100644
  static bool          g_vk_active = false;    /* Vulkan context live -> VK present path */
  
  /* present_shot — capture the COMPOSED present surface, i.e. the frame after the
-@@ -1802,6 +2373,31 @@ static char             s_present_shot_path[512];
+@@ -1802,6 +2809,31 @@ static char             s_present_shot_path[512];
  static bool             s_present_shot_pending = false;
  static std::atomic<int> s_present_shot_seq{0};   /* bumps on every completion */
  static std::atomic<int> s_present_shot_ok{0};    /* 1 = last completion wrote a PNG */
@@ -14239,7 +14907,7 @@ index fe317583..cfe6844d 100644
  
  extern "C" int present_shot_request(const char *path)
  {
-@@ -1816,6 +2412,7 @@ extern "C" int present_shot_request(const char *path)
+@@ -1816,6 +2848,7 @@ extern "C" int present_shot_request(const char *path)
          std::lock_guard<std::mutex> lk(s_present_shot_mtx);
          std::snprintf(s_present_shot_path, sizeof(s_present_shot_path), "%s", path);
          s_present_shot_pending = true;
@@ -14247,7 +14915,7 @@ index fe317583..cfe6844d 100644
      }
      return 1;
  }
-@@ -1827,6 +2424,11 @@ extern "C" int present_shot_take(char *out, int n)
+@@ -1827,6 +2860,11 @@ extern "C" int present_shot_take(char *out, int n)
      if (!out || n <= 0) return 0;
      std::lock_guard<std::mutex> lk(s_present_shot_mtx);
      if (!s_present_shot_pending) return 0;
@@ -14259,7 +14927,7 @@ index fe317583..cfe6844d 100644
      std::snprintf(out, (size_t)n, "%s", s_present_shot_path);
      s_present_shot_pending = false;   /* claimed */
      return 1;
-@@ -2900,7 +3502,7 @@ static int present_vsync_owns_cadence(void) {
+@@ -2900,7 +3938,7 @@ static int present_vsync_owns_cadence(void) {
          return 0;
      if (g_frame_period_ms <= 0.0)
          return 0;
@@ -14268,7 +14936,7 @@ index fe317583..cfe6844d 100644
          return 0;
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
-@@ -2938,6 +3540,8 @@ static void present_track_video_standard(void) {
+@@ -2938,6 +3976,8 @@ static void present_track_video_standard(void) {
  static int present_effective_swap_interval(void) {
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
@@ -14277,7 +14945,7 @@ index fe317583..cfe6844d 100644
      if (g_frame_interpolation)
          return 0;
      if (g_frame_period_ms <= 0.0)
-@@ -2953,6 +3557,7 @@ static int present_should_wall_pace(void) {
+@@ -2953,6 +3993,7 @@ static int present_should_wall_pace(void) {
      if (g_frame_interpolation && g_gl_active &&
          gl_renderer_interpolation_owns_cadence())
          return 0;
@@ -14285,7 +14953,7 @@ index fe317583..cfe6844d 100644
      /* Run the pacer even when driver vsync is SUPPOSED to own the cadence.
       *
       * Skipping it here trusts the swap to block, and a swap that does not
-@@ -2985,6 +3590,108 @@ static void apply_present_cadence(void) {
+@@ -2985,6 +4026,108 @@ static void apply_present_cadence(void) {
  #endif
  }
  
@@ -14394,7 +15062,7 @@ index fe317583..cfe6844d 100644
  static void log_present_cadence(void) {
      if (present_vsync_owns_cadence()) {
          /* The pacer still runs underneath as a deadline cap (see
-@@ -3050,7 +3757,20 @@ static void netplay_soft_exit(const char *origin) {
+@@ -3050,7 +4193,20 @@ static void netplay_soft_exit(const char *origin) {
      std::exit(0);
  }
  
@@ -14415,7 +15083,7 @@ index fe317583..cfe6844d 100644
      /* (sljit removed 2026-07-15: overlay_compile_worker_stop joined the
       * off-thread JIT worker here; the worker no longer exists.) */
      psx_netplay_shutdown();
-@@ -3074,6 +3794,19 @@ static void shutdown_runtime(void) {
+@@ -3074,6 +4230,19 @@ static void shutdown_runtime(void) {
      debug_server_shutdown();
  }
  
@@ -14435,7 +15103,7 @@ index fe317583..cfe6844d 100644
  /* Tear down the game window/GL/audio after a lobby soft-return. Leaves SDL
   * subsystems and the lobby WebSocket intact for the next launcher session. */
  static void teardown_game_session_keep_lobby(void) {
-@@ -3133,6 +3866,13 @@ static void sdl_audio_gain_ramp(int16_t* buf, int frames, float g0, float g1) {
+@@ -3133,6 +4302,13 @@ static void sdl_audio_gain_ramp(int16_t* buf, int frames, float g0, float g1) {
   * sdl_audio_fadein_left is declared with present_session_reset. */
  static const int sdl_audio_fade_samples = 44100 * 40 / 1000;  /* 40 ms */
  
@@ -14449,7 +15117,7 @@ index fe317583..cfe6844d 100644
  static void sdl_audio_pump(bool discard_output = false) {
      /* Guest-cycle SPU advance must not depend on host audio device/backpressure.
       * Win↔Linux rollback forked on aux/spu when one peer skipped spu_render
-@@ -3197,13 +3937,29 @@ static void sdl_audio_pump(bool discard_output = false) {
+@@ -3197,13 +4373,29 @@ static void sdl_audio_pump(bool discard_output = false) {
      static uint64_t cycle_carry = 0;
      const uint64_t now_cycles = psx_cycle_count;
      if (g_audio_cycle_resync) {
@@ -14480,7 +15148,7 @@ index fe317583..cfe6844d 100644
          return;
      }
      if (last_cycles == 0) last_cycles = now_cycles;
-@@ -3230,7 +3986,10 @@ static void sdl_audio_pump(bool discard_output = false) {
+@@ -3230,7 +4422,10 @@ static void sdl_audio_pump(bool discard_output = false) {
      int host_frames = 0;
      while (remaining > 0) {
          const int chunk = remaining > 2048 ? 2048 : remaining;
@@ -14491,7 +15159,7 @@ index fe317583..cfe6844d 100644
          remaining -= chunk;
          host_frames = chunk;
          if (discard_output) {
-@@ -3321,6 +4080,16 @@ extern "C" int psx_audio_out_stats(double *fill_ms, double *target_ms,
+@@ -3321,6 +4516,16 @@ extern "C" int psx_audio_out_stats(double *fill_ms, double *target_ms,
      return 1;
  }
  
@@ -14508,7 +15176,7 @@ index fe317583..cfe6844d 100644
  /* Lightweight production-safe cadence probe. Unlike the TCP debug build this
   * adds no per-block or per-instruction recording. All counter/timer work below
   * is opt-in via PSX_RUNTIME_PERF_DIAG; the normal Release path pays only the
-@@ -3671,6 +4440,18 @@ static void sdl_audio_pump_midframe(void) {
+@@ -3671,6 +4876,18 @@ static void sdl_audio_pump_midframe(void) {
      }
  }
  
@@ -14527,7 +15195,7 @@ index fe317583..cfe6844d 100644
  static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
      {   /* Tag audio events with the vblank frame counter. */
          extern uint64_t s_frame_count;
-@@ -3682,6 +4463,8 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3682,6 +4899,8 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
      static int sink_was_active = 0;
  
      if (hard_mute_active) {
@@ -14536,7 +15204,7 @@ index fe317583..cfe6844d 100644
          if (!muted) {
              int tail = sdl_audio_fade_samples;
              const int buf_cap = (int)(sizeof(sdl_audio_buf) / (2 * sizeof(int16_t)));
-@@ -3718,6 +4501,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3718,6 +4937,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
          audio_trace_event(AUDIO_EV_UNMUTE, (uint32_t)sdl_audio_fadein_left, 0);
          extern int g_audio_unmute_resync;
          g_audio_unmute_resync = 1;
@@ -14544,7 +15212,7 @@ index fe317583..cfe6844d 100644
      }
      if (turbo_sink_active) {
          if (!sink_was_active) {
-@@ -3736,6 +4520,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
+@@ -3736,6 +4956,7 @@ static void sdl_audio_update(int hard_mute_active, int turbo_sink_active) {
          audio_trace_event(AUDIO_EV_UNMUTE,
                            (uint32_t)sdl_audio_fadein_left, 2);
          g_audio_unmute_resync = 1;
@@ -14552,7 +15220,7 @@ index fe317583..cfe6844d 100644
      }
      s_audio_gate = AUDIO_GATE_NORMAL;
      sdl_audio_pump(false);
-@@ -4233,6 +5018,14 @@ static void close_controller(void) {
+@@ -4233,6 +5454,14 @@ static void close_controller(void) {
          close_player(g_players[s]);
  }
  
@@ -14567,7 +15235,7 @@ index fe317583..cfe6844d 100644
  static int device_claimed_by_other(int self_slot, SDL_JoystickID inst) {
      for (int o = 0; o < PSX_MAX_PLAYERS; o++) {
          if (o == self_slot) continue;
-@@ -4276,8 +5069,8 @@ static void open_player(PlayerInput& p, int self_slot) {
+@@ -4276,8 +5505,8 @@ static void open_player(PlayerInput& p, int self_slot) {
              SDL_JoystickGetGUIDString(g, p.guid, (int)sizeof(p.guid));
          }
          const char* name = SDL_GameControllerName(p.handle);
@@ -14578,7 +15246,7 @@ index fe317583..cfe6844d 100644
          p.rumble_known = false;
          p.rumble_warned = false;
      }
-@@ -4298,7 +5091,9 @@ static void update_controller_rumble(void) {
+@@ -4298,7 +5527,9 @@ static void update_controller_rumble(void) {
              host, g_controller_ports_swapped ? 1 : 0);
          PlayerInput& p = g_players[host];
          uint8_t small = 0, large = 0;
@@ -14589,7 +15257,7 @@ index fe317583..cfe6844d 100644
          if (!p.handle) {
              p.rumble_small = small;
              p.rumble_large = large;
-@@ -4478,6 +5273,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
+@@ -4478,6 +5709,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
   * (arrows=d-pad, X/S/Z/A=Cross/Circle/Square/Triangle, Q/W/E/R=L1/R1/L2/R2,
   * Return=Start, RShift=Select) plus T/Y=L3/R3 stick clicks. */
  static uint16_t pad_from_keyboard(int player) {
@@ -14598,7 +15266,7 @@ index fe317583..cfe6844d 100644
      const Uint8* keys = SDL_GetKeyboardState(NULL);
      return psx_keybinds_pad_word(keys, player);
  }
-@@ -4575,6 +5372,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
+@@ -4575,6 +5808,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
  static void pad_sticks_for(const PlayerInput& p, int player, uint8_t out[4]) {
      out[0] = out[1] = out[2] = out[3] = 0x80;
      if (p.kind == 1) {
@@ -14606,7 +15274,7 @@ index fe317583..cfe6844d 100644
          /* Keyboard analog: the configurable left/right stick-direction binds
           * (default = arrow keys on the LEFT stick; RIGHT stick unbound), so the
           * old keyboard analog behaviour is preserved unless the user rebinds. */
-@@ -5033,6 +5831,33 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5033,6 +6267,33 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      out->analog = 0;
      out->connected = 0;
  
@@ -14640,7 +15308,7 @@ index fe317583..cfe6844d 100644
      const int host = host_player_for_sio_slot(s);
      PlayerInput& p = g_players[host];
      const int  player  = host + 1;          /* keybinds.ini section (1..5) */
-@@ -5086,6 +5911,9 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5086,6 +6347,9 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
                                : (uint16_t)0xFFFF;
      /* kind==1 already consumed the binds inside pad_buttons_for — ANDing the
       * same word twice is idempotent, so this stays a plain source check. */
@@ -14650,7 +15318,7 @@ index fe317583..cfe6844d 100644
      if (src.keybinds)
          btn &= pad_from_keyboard(player);
      if (src.all_pads)
-@@ -5100,7 +5928,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5100,7 +6364,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
       * inside pad_sticks_for; psx_keybinds_sticks only widens a deflection, so
       * applying it twice is idempotent. */
      if (eff_analog) {
@@ -14659,7 +15327,7 @@ index fe317583..cfe6844d 100644
              const Uint8* keys = SDL_GetKeyboardState(NULL);
              psx_keybinds_sticks(keys, player, st);
          }
-@@ -5109,6 +5937,17 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5109,6 +6373,17 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      }
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -14677,7 +15345,7 @@ index fe317583..cfe6844d 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5153,6 +5992,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
+@@ -5153,6 +6428,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
  
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -14689,7 +15357,7 @@ index fe317583..cfe6844d 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5550,6 +6394,7 @@ static void netplay_barrier_admit(int override) {
+@@ -5550,6 +6830,7 @@ static void netplay_barrier_admit(int override) {
          if (!g_headless) {
              SDL_Event ev;
              while (SDL_PollEvent(&ev)) {
@@ -14697,7 +15365,7 @@ index fe317583..cfe6844d 100644
                  if (ev.type == SDL_QUIT) {
                      netplay_soft_exit("sdl_window_close");
                      if (psx_return_to_lobby_requested()) return;
-@@ -5616,6 +6461,9 @@ static void sample_pad_into_sio(int override) {
+@@ -5616,6 +6897,9 @@ static void sample_pad_into_sio(int override) {
      for (int s = 0; s < n; s++) {
          PsxNetPad pad;
          if (!capture_pad_slot(s, &pad)) continue;  /* no device in this port */
@@ -14707,7 +15375,7 @@ index fe317583..cfe6844d 100644
          /* Push sticks every frame; request the pad type (digital/analog) through
           * the coherent channel so a policy switch is applied only at an idle,
           * non-config bus boundary (never mid-poll / mid-handshake). This is the
-@@ -6086,9 +6934,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
+@@ -6086,9 +7370,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
      if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FULLSCREEN) == 0) {
          if (value < 0 || value > 2) return 0;
          g_fullscreen = value;
@@ -14720,7 +15388,7 @@ index fe317583..cfe6844d 100644
      } else if (std::strcmp(item->key,
                             RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) {
          if (value < 1 || value > 4) return 0;
-@@ -6702,9 +7552,11 @@ static void rewind_pause_present(void) {
+@@ -6702,9 +7988,11 @@ static void rewind_pause_present(void) {
  
  /* Freeze guest in vblank present while the rewind filmstrip is open. */
  static void rewind_host_pause_loop(void) {
@@ -14732,7 +15400,7 @@ index fe317583..cfe6844d 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6712,7 +7564,7 @@ static void rewind_host_pause_loop(void) {
+@@ -6712,7 +8000,7 @@ static void rewind_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14741,7 +15409,7 @@ index fe317583..cfe6844d 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6744,9 +7596,11 @@ static void rewind_host_pause_loop(void) {
+@@ -6744,9 +8032,11 @@ static void rewind_host_pause_loop(void) {
  
  /* Freeze guest in vblank present while the save-state slot menu is open. */
  static void savestate_menu_host_pause_loop(void) {
@@ -14753,7 +15421,7 @@ index fe317583..cfe6844d 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6754,7 +7608,7 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6754,7 +8044,7 @@ static void savestate_menu_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14762,7 +15430,7 @@ index fe317583..cfe6844d 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6792,9 +7646,11 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6792,9 +8082,11 @@ static void savestate_menu_host_pause_loop(void) {
   * Applying the routing permutation here means no guest instruction or SIO byte
   * transfer runs concurrently with the change. */
  static void runtime_settings_menu_host_pause_loop(void) {
@@ -14774,7 +15442,7 @@ index fe317583..cfe6844d 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6802,7 +7658,7 @@ static void runtime_settings_menu_host_pause_loop(void) {
+@@ -6802,7 +8094,7 @@ static void runtime_settings_menu_host_pause_loop(void) {
              } else if (ev.type == SDL_CONTROLLERDEVICEADDED) {
                  refresh_player_devices();
              } else if (ev.type == SDL_CONTROLLERDEVICEREMOVED) {
@@ -14783,7 +15451,7 @@ index fe317583..cfe6844d 100644
                  refresh_player_devices();
              } else if (ev.type == SDL_KEYDOWN) {
  #if defined(PSX_SDL3)
-@@ -6842,1178 +7698,1289 @@ struct NetplayVblankEpilogue {
+@@ -6842,1178 +8134,1289 @@ struct NetplayVblankEpilogue {
  };
  
  /* Called from gpu_vblank_tick() at each simulated vblank. */
@@ -14810,6 +15478,20 @@ index fe317583..cfe6844d 100644
 -    debug_server_poll();
 -    debug_server_record_frame();
 -    debug_server_check_watchpoints();
+-
+-    /* Check debug server input override. */
+-    int override = debug_server_get_input_override();
+-#else
+-    /* Production: skip debug server. Still need to advance frame counter
+-     * locally so anything else that reads it continues to work. */
+-    extern uint64_t s_frame_count;
+-    s_frame_count++;
+-    int override = -1;
+-#endif
+-
+-    runtime_perf_frame_begin();
+-    RuntimePerfFrameScope runtime_perf_frame_scope;
+-    runtime_perf_diag_tick();
 +static NetplayVblankEpilogue sdl_present_display(NetplayVblankEpilogue ep, int override);
 +static void flip_present_display(int override) {
 +    (void)sdl_present_display(NetplayVblankEpilogue{}, override);
@@ -14824,92 +15506,6 @@ index fe317583..cfe6844d 100644
 +    return 1;
 +}
  
--    /* Check debug server input override. */
--    int override = debug_server_get_input_override();
--#else
--    /* Production: skip debug server. Still need to advance frame counter
--     * locally so anything else that reads it continues to work. */
--    extern uint64_t s_frame_count;
--    s_frame_count++;
--    int override = -1;
-+/* The display half of a vblank present (sdl_vblank_present_body), also run
-+ * on its own when the present waits for the guest's flip (D23X). */
-+static NetplayVblankEpilogue sdl_present_display(NetplayVblankEpilogue ep, int override) {
-+    (void)override;
-+    int probe_reached = 1;
-+    (void)probe_reached;
-+    uint32_t w = 0, h = 0;
-+    uint32_t present_w = 0;  /* display width actually presented (w + native-wide EXTRA) */
-+    int active_scale = 1;   /* hi-res mirror used only for 15-bit display */
-+    bool fmv_frame = false;  /* FMV/boot — present pillarboxed 4:3 in widescreen */
-+    bool pin_43    = false;  /* pillarbox this present (FMV, or a native-wide
-+                                game frame that could not present wide) */
-+    bool depth24_frame = false;
-+    bool local_viewport_crop_applied = false;
-+    if (s_force_present_after_load && g_gl_active)
-+        gl_renderer_flush_cpu_uploads();
-+    {
-+        GpuDisplayInfo di;
-+        gpu_get_display_info(&di);
-+        depth24_frame = di.depth24 != 0;
-+        depth24_cutover_tick(depth24_frame ? 1 : 0);
-+        if (di.disabled || di.width == 0 || di.height == 0) {
-+            smooth_60_present(nullptr, 0, 0, false);
-+            present_ring_commit(PRES_PATH_BLANK, (uint16_t)di.width,
-+                                (uint16_t)di.height, 0);
-+#ifndef PSX_SDL_NO_RENDER
-+            /* After savestate load, always restage once even if we blanked
-+             * earlier in the session — otherwise the window keeps a stale
-+             * pre-load frame while vblanks (and FPS) keep advancing. */
-+            if (!s_disabled_frame_presented || s_force_present_after_load) {
-+                s_disabled_frame_presented = true;
-+                s_force_present_after_load = false;
-+                if (g_gl_active) {
-+                    gl_renderer_present_blank();
-+                } else if (g_vk_active) {
-+                    vk_renderer_present_blank();
-+                } else {
-+                    if (!sdl_renderer && ensure_sw_sdl_present() != 0)
-+                        return ep;
-+                    if (sdl_renderer) {
-+                        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
-+                        SDL_RenderClear(sdl_renderer);
-+                        host_osd_draw_sdl(sdl_renderer);
-+                        SDL_RenderPresent(sdl_renderer);
-+                    }
-+                }
-+            }
- #endif
-+            return ep;
-+        }
-+        s_disabled_frame_presented = false;
-+        s_force_present_after_load = false;
-+        w = di.width; h = di.height;
-+        /* 4:3-pinned frames: the pre-game BIOS boot, plus (once engaged) every
-+         * frame the widescreen layer presents native — FMV video and full-2D
-+         * menu/title screens. gpu_ws_present_native_43() is the single source
-+         * of truth, shared with the GTE/GPU squash so content and present stay
-+         * locked: we squash IFF we stretch. depth24 always classifies as FMV
-+         * even if the ws layer is not engaged yet (4:3 titles). */
-+        fmv_frame = di.depth24 || !g_ws_engaged || gpu_ws_present_native_43() != 0;
-+        /* MDEC movies are already decoded at their authored cadence and are
-+         * CPU/upload heavy. High-refresh crossfades only contend with decoding
-+         * and can starve audio, so present native-4:3/MDEC phases directly.
-+         * The classification catches the transition frame before the first
-+         * decode; the activity stamp also covers authentic 4:3 configurations. */
-+        if (g_gl_active)
-+            gl_renderer_set_interpolation_suspended(
-+                fmv_frame || mdec_recently_active(2));
-+        const int local_viewport_slot = netplay_local_viewport_slot();
-+        const bool local_viewport_crop = local_viewport_slot >= 0;
-+        bool local_viewport_wide =
-+            local_viewport_crop && g_ws_engaged && ws_native_wide_active() &&
-+            gr_wide_supported() && gpu_ws_netplay_local_viewport_width() > 0;
- 
--    runtime_perf_frame_begin();
--    RuntimePerfFrameScope runtime_perf_frame_scope;
--    runtime_perf_diag_tick();
--
 -    /* Lightweight frontend telemetry from PR #13. Count simulated vblanks rather
 -     * than presents so turbo and skipped-frame modes still report game speed.
 -     * Skip during netplay post-load barrier — admit is stalled and the window
@@ -14972,11 +15568,55 @@ index fe317583..cfe6844d 100644
 -                    snprintf(osd, sizeof(osd),
 -                             "Guest %.1f Hz/%.0f  %.0f%% RT | Host %.0f | Display %.0f FPS",
 -                             fps, ro.nominal_hz, speed * 100.0, host_fps, display_fps);
--                } else {
++/* The display half of a vblank present (sdl_vblank_present_body), also run
++ * on its own when the present waits for the guest's flip (D23X). */
++static NetplayVblankEpilogue sdl_present_display(NetplayVblankEpilogue ep, int override) {
++    (void)override;
++    int probe_reached = 1;
++    (void)probe_reached;
++    uint32_t w = 0, h = 0;
++    uint32_t present_w = 0;  /* display width actually presented (w + native-wide EXTRA) */
++    int active_scale = 1;   /* hi-res mirror used only for 15-bit display */
++    bool fmv_frame = false;  /* FMV/boot — present pillarboxed 4:3 in widescreen */
++    bool pin_43    = false;  /* pillarbox this present (FMV, or a native-wide
++                                game frame that could not present wide) */
++    bool depth24_frame = false;
++    bool local_viewport_crop_applied = false;
++    if (s_force_present_after_load && g_gl_active)
++        gl_renderer_flush_cpu_uploads();
++    {
++        GpuDisplayInfo di;
++        gpu_get_display_info(&di);
++        depth24_frame = di.depth24 != 0;
++        depth24_cutover_tick(depth24_frame ? 1 : 0);
++        if (di.disabled || di.width == 0 || di.height == 0) {
++            smooth_60_present(nullptr, 0, 0, false);
++            present_ring_commit(PRES_PATH_BLANK, (uint16_t)di.width,
++                                (uint16_t)di.height, 0);
++#ifndef PSX_SDL_NO_RENDER
++            /* After savestate load, always restage once even if we blanked
++             * earlier in the session — otherwise the window keeps a stale
++             * pre-load frame while vblanks (and FPS) keep advancing. */
++            if (!s_disabled_frame_presented || s_force_present_after_load) {
++                s_disabled_frame_presented = true;
++                s_force_present_after_load = false;
++                if (g_gl_active) {
++                    gl_renderer_present_blank();
++                } else if (g_vk_active) {
++                    vk_renderer_present_blank();
+                 } else {
 -                    snprintf(osd, sizeof(osd),
 -                             "Guest %.1f Hz/%.0f  %.0f%% RT | Host %.0f FPS",
 -                             fps, ro.nominal_hz, speed * 100.0, host_fps);
--                }
++                    if (!sdl_renderer && ensure_sw_sdl_present() != 0)
++                        return ep;
++                    if (sdl_renderer) {
++                        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
++                        SDL_RenderClear(sdl_renderer);
++                        host_osd_draw_sdl(sdl_renderer);
++                        SDL_RenderPresent(sdl_renderer);
++                    }
+                 }
 -                host_osd_set_status(osd);
 -            }
 -            if (fps_telemetry_log_enabled()) {
@@ -14985,7 +15625,7 @@ index fe317583..cfe6844d 100644
 -                    "host_loop=%.1f fps window=%.2fs cycles=%llu\n",
 -                    ro.guest_hz, ro.nominal_hz, ro.speed, ro.realtime, host_fps,
 -                    seconds, (unsigned long long)d_cycles);
--            }
+             }
 -            if (netplay_timing_on() && s_np_timing_frames > 0) {
 -                const double invf = 1000.0 / (double)frequency;
 -                const double admit_ms =
@@ -15022,34 +15662,42 @@ index fe317583..cfe6844d 100644
 -            std::fflush(stderr);
 -            s_fps_last_time = now;
 -            s_fps_last_frame = s_frame_count;
-+        /* Canonical present width. Native-wide does NOT widen the canonical read
-+         * (that bled across adjacent framebuffers); it composites into a separate
-+         * wide surface and presents from there instead (see gpu wide compositor). */
-+        present_w = w;
-+
-+        /* Native-wide present: on a game frame, if the active backend has the
-+         * wide compositor, present the wider surface (canonical width + EXTRA)
-+         * from the displayed buffer's surface. FMV/menu frames stay 4:3. */
-+        bool wide_present = (!fmv_frame && !di.depth24 && g_ws_engaged &&
-+                             ws_native_wide_active() && gr_wide_supported() &&
-+                             (!local_viewport_crop || local_viewport_wide));
-+        if (wide_present) {
-+            present_w = local_viewport_wide
-+                ? (uint32_t)gpu_ws_netplay_local_viewport_width()
-+                : (w + (uint32_t)ws_nw_extra());
++#endif
++            return ep;
          }
 -    }
++        s_disabled_frame_presented = false;
++        s_force_present_after_load = false;
++        w = di.width; h = di.height;
++        /* 4:3-pinned frames: the pre-game BIOS boot, plus (once engaged) every
++         * frame the widescreen layer presents native — FMV video and full-2D
++         * menu/title screens. gpu_ws_present_native_43() is the single source
++         * of truth, shared with the GTE/GPU squash so content and present stay
++         * locked: we squash IFF we stretch. depth24 always classifies as FMV
++         * even if the ws layer is not engaged yet (4:3 titles). */
++        fmv_frame = di.depth24 || !g_ws_engaged || gpu_ws_present_native_43() != 0;
++        /* MDEC movies are already decoded at their authored cadence and are
++         * CPU/upload heavy. High-refresh crossfades only contend with decoding
++         * and can starve audio, so present native-4:3/MDEC phases directly.
++         * The classification catches the transition frame before the first
++         * decode; the activity stamp also covers authentic 4:3 configurations. */
++        if (g_gl_active)
++            gl_renderer_set_interpolation_suspended(
++                fmv_frame || mdec_recently_active(2));
++        const int local_viewport_slot = netplay_local_viewport_slot();
++        const bool local_viewport_crop = local_viewport_slot >= 0;
++        bool local_viewport_wide =
++            local_viewport_crop && g_ws_engaged && ws_native_wide_active() &&
++            gr_wide_supported() && gpu_ws_netplay_local_viewport_width() > 0;
  
 -    /* Host-stack-usage profile sample — frame counter is now current, and we are
 -     * on the guest fiber (see §17 block above). BEFORE the turbo/fast-boot early
 -     * returns so the curve is captured even when presents are skipped. */
 -    stack_profile_sample();
-+        /* Native-wide invariant: canonical (320-wide) content is NEVER
-+         * stretched across the wide window — a game frame that cannot present
-+         * wide (compositor unsupported, or the surface fallback below)
-+         * pillarboxes 4:3 like FMV/menus instead. Only squash mode (1) may
-+         * stretch: its canonical content is pre-squashed FOR the stretch. */
-+        const bool nw_pin = g_ws_engaged && g_ws_native_wide;
++        /* Canonical present width. Native-wide does NOT widen the canonical read
++         * (that bled across adjacent framebuffers); it composites into a separate
++         * wide surface and presents from there instead (see gpu wide compositor). */
++        present_w = w;
  
 -    /* Step 2.8 automation ticks — BEFORE the turbo/fast-boot early returns
 -     * below, so capture detection and compile pickup keep running while the
@@ -15068,13 +15716,17 @@ index fe317583..cfe6844d 100644
 -        runtime_perf_section_end(perf_start,
 -                                 &g_runtime_perf.provider_poll_ticks);
 -    }
-+        /* Ring the classification now that it's final (only the software/CPU
-+         * wide path below can still fall back — it amends this entry). A
-+         * CANONICAL game frame on a widescreen window IS the stretch. */
-+        PresRingEntry* pres_entry = present_ring_commit(
-+            fmv_frame ? PRES_PATH_NATIVE_43
-+                      : (wide_present ? PRES_PATH_WIDE : PRES_PATH_CANONICAL),
-+            (uint16_t)w, (uint16_t)h, (uint16_t)present_w);
++        /* Native-wide present: on a game frame, if the active backend has the
++         * wide compositor, present the wider surface (canonical width + EXTRA)
++         * from the displayed buffer's surface. FMV/menu frames stay 4:3. */
++        bool wide_present = (!fmv_frame && !di.depth24 && g_ws_engaged &&
++                             ws_native_wide_active() && gr_wide_supported() &&
++                             (!local_viewport_crop || local_viewport_wide));
++        if (wide_present) {
++            present_w = local_viewport_wide
++                ? (uint32_t)gpu_ws_netplay_local_viewport_width()
++                : (w + (uint32_t)ws_nw_extra());
++        }
  
 -    if (!g_headless) {
 -        /* Pump SDL events to prevent window freeze. */
@@ -15188,6 +15840,21 @@ index fe317583..cfe6844d 100644
 -                        SDL_SetWindowFullscreen(sdl_window, target);
 -                        host_osd_push("Fullscreen", 1500);
 -                    }
++        /* Native-wide invariant: canonical (320-wide) content is NEVER
++         * stretched across the wide window — a game frame that cannot present
++         * wide (compositor unsupported, or the surface fallback below)
++         * pillarboxes 4:3 like FMV/menus instead. Only squash mode (1) may
++         * stretch: its canonical content is pre-squashed FOR the stretch. */
++        const bool nw_pin = g_ws_engaged && g_ws_native_wide;
++
++        /* Ring the classification now that it's final (only the software/CPU
++         * wide path below can still fall back — it amends this entry). A
++         * CANONICAL game frame on a widescreen window IS the stretch. */
++        PresRingEntry* pres_entry = present_ring_commit(
++            fmv_frame ? PRES_PATH_NATIVE_43
++                      : (wide_present ? PRES_PATH_WIDE : PRES_PATH_CANONICAL),
++            (uint16_t)w, (uint16_t)h, (uint16_t)present_w);
++
 +        /* OpenGL: 15-bit frames ALWAYS present straight from the authoritative
 +         * VRAM FBO — one deterministic path (the old per-frame FBO-vs-CPU
 +         * alternation caused the menu seam/jitter). 24-bit (FMV) frames and
@@ -17160,7 +17827,7 @@ index fe317583..cfe6844d 100644
  static void sdl_vblank_present(void) {
      NetplayVblankEpilogue ep = sdl_vblank_present_body();
      /* Selfcheck span-end rewind: after present-body C++ RAII, before any
-@@ -11437,7 +12404,16 @@ namespace {
+@@ -11437,7 +12840,16 @@ namespace {
  }  // namespace
  #endif
  
@@ -17177,7 +17844,7 @@ index fe317583..cfe6844d 100644
      /* Force line-buffered output so messages appear even if killed. */
      std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
      std::setvbuf(stderr, nullptr, _IOLBF, BUFSIZ);
-@@ -11481,6 +12457,12 @@ int main(int argc, char** argv) {
+@@ -11481,6 +12893,12 @@ int main(int argc, char** argv) {
      int         cli_renderer   = -1;   /* 0=software 1=opengl 2=vulkan */
      const char* cli_window_title = nullptr;  /* label windows in a fleet */
      const char* cli_memcard_dir = nullptr;   /* isolate writable state in a fleet */
@@ -17190,7 +17857,7 @@ index fe317583..cfe6844d 100644
      std::vector<std::string> cli_path_arg_storage;
      cli_path_arg_storage.reserve((size_t)argc);
      auto is_cli_option = [](const char* arg) {
-@@ -11551,6 +12533,33 @@ int main(int argc, char** argv) {
+@@ -11551,6 +12969,33 @@ int main(int argc, char** argv) {
              if      (std::strcmp(r, "software") == 0) cli_renderer = 0;
              else if (std::strcmp(r, "opengl")   == 0) cli_renderer = 1;
              else if (std::strcmp(r, "vulkan")   == 0) cli_renderer = 2;
@@ -17224,7 +17891,7 @@ index fe317583..cfe6844d 100644
          } else if (std::strcmp(argv[i], "--window-title") == 0 && i + 1 < argc) {
              cli_window_title = argv[++i];
          } else if (std::strcmp(argv[i], "--launcher") == 0) {
-@@ -13568,6 +14577,22 @@ int main(int argc, char** argv) {
+@@ -13568,6 +15013,22 @@ int main(int argc, char** argv) {
      if (cli_debug_port >= 0) debug_port      = (uint16_t)cli_debug_port;
      if (cli_renderer   >= 0) g_video_renderer = cli_renderer;
      if (cli_window_title)    window_title     = cli_window_title;
@@ -17247,7 +17914,7 @@ index fe317583..cfe6844d 100644
      if (cli_memcard_dir) {
          memcard_dir = std::filesystem::path(cli_memcard_dir);
          if (memcard_dir.is_relative())
-@@ -13764,6 +14789,13 @@ session_reboot:
+@@ -13764,6 +15225,13 @@ session_reboot:
      gpu_texture_correction_set(g_video_perspective_texturing);
      pgxp_set_cpu_mode(g_video_pgxp_cpu_mode);
      pgxp_set_tolerance(g_video_pgxp_tolerance);
@@ -17261,7 +17928,7 @@ index fe317583..cfe6844d 100644
      if (g_video_geometry_correction || g_video_perspective_texturing) {
          std::fprintf(stdout,
                       "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
-@@ -14078,6 +15110,17 @@ session_reboot:
+@@ -14078,6 +15546,17 @@ session_reboot:
  #endif
  
      Uint32 win_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
@@ -17279,7 +17946,7 @@ index fe317583..cfe6844d 100644
      if (g_video_renderer == 1) {
          configure_core_gl_context_attributes();
          win_flags |= SDL_WINDOW_OPENGL;
-@@ -14086,7 +15129,7 @@ session_reboot:
+@@ -14086,7 +15565,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -17288,7 +17955,7 @@ index fe317583..cfe6844d 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +15148,9 @@ session_reboot:
+@@ -14105,7 +15584,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -17298,7 +17965,7 @@ index fe317583..cfe6844d 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +15255,19 @@ session_reboot:
+@@ -14210,6 +15691,19 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -17318,7 +17985,7 @@ index fe317583..cfe6844d 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +15634,8 @@ session_reboot:
+@@ -14576,6 +16070,8 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -17327,7 +17994,7 @@ index fe317583..cfe6844d 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15826,7 @@ session_reboot:
+@@ -14766,6 +16262,7 @@ session_reboot:
          }
      }
  
@@ -17335,7 +18002,7 @@ index fe317583..cfe6844d 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15866,28 @@ session_reboot:
+@@ -14805,11 +16302,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }

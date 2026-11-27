@@ -2486,8 +2486,43 @@ OPTIONS > DISPLAY > FPS and is saved. Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
 through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed
-(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. The numpad types too: with Num Lock on its digits and `.`, and `- + * /` always; with Num Lock off its 8 / 2 recall commands, 9 / 3 scroll and 1 jumps to the newest line. Keypad Enter runs the line. While scrolled up, `-- MORE BELOW: PGDN / END --`
+(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. The numpad types too: with Num Lock on its digits and `.`, and `- + * /` always; with Num Lock off its 8 / 2 recall commands, 9 / 3 scroll, 7 / 1 are Home / End, 4 / 6 move the caret, 0 is Insert and `.` is Delete. Keypad Enter runs the line. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
+
+**Editing, copy and paste in the console.** The command line has a blinking
+caret, and you type and delete where it is:
+
+- **Left / Right** move the caret, **Ctrl+Left / Ctrl+Right** a word at a time;
+  **Home / End** go to the start / end of the line (End also scrolls to the
+  newest output). **Backspace** and **Delete** remove the character before /
+  after the caret; **Ctrl+W** (or Ctrl+Backspace) the word before it, and
+  **Ctrl+U** everything before it.
+- **Select with the mouse** anywhere in the console, the scrollback or the
+  command line: drag, **double-click** a word, **triple-click** a whole line,
+  **Shift+click** to extend. Selecting copies at once: the text is on the
+  clipboard as soon as you let go (`COPIED 34 CHARACTERS` shows briefly at the
+  right). A click in the command line places the caret there.
+- **Shift+Left / Shift+Right** (with Ctrl for words) and **Shift+Home / End**
+  select in the command line; **Ctrl+A** selects the whole line. Typing,
+  Backspace or Delete replace or remove a selection in the line.
+- **Copy:** **Ctrl+C**, **Ctrl+Shift+C** or **Ctrl+Insert** copy the
+  selection, or the whole command line when nothing is selected.
+- **Paste** at the caret: **Shift+Insert**, **Ctrl+V**, **Ctrl+Shift+V** or a
+  **right-click**. Middle-click does nothing. The text comes from the desktop
+  clipboard, so a command copied from a report, the manual or a terminal pastes
+  straight in. Each complete line of a multi-line paste runs in turn, as if you
+  had typed it and pressed Enter; text after the last line break stays on the
+  command line for you to edit or run.
+- A paste is tidied the way the console types: letters become lowercase, tabs
+  and no-break spaces become spaces, a copied `> ` prompt is dropped (so an
+  echoed command from the scrollback runs again), and characters the console
+  does not take (the pipe, which its font lacks, the backtick, non-ASCII and
+  control characters) are left out, with a note naming them. A line keeps the
+  95-character limit; a paste cut short says so.
+
+Typing from the keyboard still takes only lowercase letters, digits, space and
+`- = .` (and the keypad's `+ * /`); other characters such as `_` or `:` come
+in by pasting.
 In Modernized play the console does not pause the game and does not change
 Duke's state: a C crouch stays crouched and a hovering jetpack holds its
 altitude while you type. Nothing you type reaches Duke. Keys held when it opens

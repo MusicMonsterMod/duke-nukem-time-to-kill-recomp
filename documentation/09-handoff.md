@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-27 - D26L1 closed out (Done)
+
+User-accepted: "lock it in and close it out. im so happy with it". Drag auto-scroll, wider typing and the pipe glyph stay with D26L.
+
+## 2026-11-27 - D26L1 console caret, copy and paste (Needs playtest)
+
+The backtick console has a blinking caret with desktop editing (Ctrl+W, Ctrl+U), mouse selection over scrollback and the line (drag, double-click word, triple-click line) that copies at once, Ctrl+C, and paste with Shift+Insert, Ctrl+V or a right-click; multi-line pastes run each line. New debug-port `console_ui`. See [note 565](565-d26l1-console-copy-paste.md). Next: user playtest on the real display.
+
 ## 2026-11-27 - D17BF1, D17BF2, D17BF3 closed out (Done)
 
 User-accepted: "its working. that's genuinely amazing. the test passed playing my slot 2 from far away. lock it in and close it out". Follow-ups D17BF4 (blasts, flames, kick, beam lock, auto-aim on copies) and D17BF5 (enemy pool outside the game heap) filed.

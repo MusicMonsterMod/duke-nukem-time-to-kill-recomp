@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <algorithm>
 #include <vector>
 namespace ttk {bool modern=true;bool input_modernized(){return modern;}}
 // D24A: the TTK disc-font pack (build_ttk_fonts.py). argv[1] pack, optional
@@ -23,6 +24,34 @@ int main(int argc,char**argv) {
         for(int i=0;i<w*h;++i){transparent|=image[i]==0;colour|=(image[i]&0xffffff)!=0;shadow|=image[i]==0xff0c0c18u;}
         assert(transparent && colour);
         if(style!=1)assert(shadow); // messages and console carry the navy drop shadow
+    }
+    // D26L1: the layout matches what rasterize draws, byte for byte: drawn bytes
+    // advance left to right inside the image, a space dropped at a wrap has no
+    // width and sits at its row's end, and the image is exactly the rows' size.
+    for(int width:{304,624,1008})for(const char* text:texts) {
+        assert(ttk_font_rasterize(text,3,image.data(),1024,512,width,&w,&h));
+        const int n=int(std::string(text).size());
+        std::vector<int> xs(n),ws(n),rs(n);int lh=0,top=0;
+        const int rows=ttk_font_layout(text,3,1024,512,width,xs.data(),ws.data(),rs.data(),n,&lh,&top);
+        assert(rows>=1 && lh>0 && top>0);
+        assert(h==rows*lh+2*top+top/2);
+        int right=0;
+        for(int i=0;i<n;++i) {
+            assert(rs[i]>=0 && rs[i]<rows && xs[i]>=top && xs[i]+ws[i]<=w);
+            if(i && rs[i]==rs[i-1])assert(xs[i]==xs[i-1]+ws[i-1]);
+            if(i)assert(rs[i]>=rs[i-1]);
+            right=std::max(right,xs[i]+ws[i]);
+        }
+        assert(right+top+top/2==w);
+    }
+    {
+        const char* wrapped="Long message with words that must wrap safely within a small window.";
+        const int n=int(std::string(wrapped).size());
+        std::vector<int> xs(n),ws(n),rs(n);int lh=0,top=0;
+        const int rows=ttk_font_layout(wrapped,3,1024,512,304,xs.data(),ws.data(),rs.data(),n,&lh,&top);
+        assert(rows>=2);
+        for(int i=1;i<n;++i)if(rs[i]!=rs[i-1]){assert(wrapped[i-1]==' ' && ws[i-1]==0);}
+        ttk::modern=false;assert(!ttk_font_layout(wrapped,3,1024,512,304,xs.data(),ws.data(),rs.data(),n,&lh,&top));ttk::modern=true;
     }
     // Lower case is drawn as upper case (all caps).
     std::vector<uint32_t> lower(1024*512),upper(1024*512);int lw=0,lh=0,uw=0,uh=0;

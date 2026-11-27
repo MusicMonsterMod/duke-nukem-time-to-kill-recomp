@@ -64,10 +64,16 @@ bool load() {
 }
 // One character to draw and the byte of the source text it came from (D26L1:
 // the console's caret, selection and mouse need to know where each byte lands).
-struct Placed {char c;int src;};
+// w: its advance, set by wrap() (a tab's depends on where it falls).
+struct Placed {char c;int src;int w=0;};
+// D26L4: how a console row lays out (the console rasterize and layout only).
+// Its leading spaces are kept (indents), and a tab advances to the next of
+// stops[] (font units from the text's left edge; host_osd.c's elastic tab
+// stops line up a block of tabbed rows), or a two-space gap past them.
+struct Tabs {const int* stops=nullptr;int count=0;bool console=false;};
 // D19T: '"' opens and closes in turn: the pack's glyph 127 is the opening
 // quote (D26L; it was '`', which is now a backquote of its own).
-std::vector<Placed> ascii_placed(const char* text) {
+std::vector<Placed> ascii_placed(const char* text,bool keep_tabs=false) {
     std::vector<Placed> result;bool open=true;
     const unsigned char* start=reinterpret_cast<const unsigned char*>(text);
     for(const unsigned char* p=start;*p && result.size()<256;) {
@@ -76,7 +82,7 @@ std::vector<Placed> ascii_placed(const char* text) {
         if(c=='"'){result.push_back({open?open_quote:'"',src});open=!open;}
         else if(c>=32 && c<=126)result.push_back({char(c),src});
         else if(c=='\n')result.push_back({'\n',src});
-        else if(c=='\t')result.push_back({' ',src});
+        else if(c=='\t')result.push_back({keep_tabs?'\t':' ',src});
         else {
             result.push_back({'?',src});
             // One deliberate fallback for a non-ASCII UTF-8 sequence.
@@ -91,23 +97,45 @@ std::string ascii(const char* text) {
     return result;
 }
 // Word wrap shared by drawing and layout: rows of placed characters, breaking at
-// the last space that fits (the space is dropped), spaces never start a row.
-std::vector<std::vector<Placed>> wrap(const Set& set,const std::vector<Placed>& text,int limit) {
-    auto adv=[&](char c){return int(set.glyphs[(unsigned char)c-32].advance);};
+// the last space that fits (the space is dropped), spaces never start a row
+// (D26L4: a console row keeps the spaces it starts with; only a wrapped
+// continuation drops them). Each placed character gets its advance.
+std::vector<std::vector<Placed>> wrap(const Set& set,const std::vector<Placed>& text,int limit,const Tabs& tabs={}) {
+    auto glyph=[&](char c){return int(set.glyphs[(unsigned char)c-32].advance);};
+    auto adv=[&](char c,int extent) {
+        if(c!='\t')return glyph(c);
+        for(int i=0;i<tabs.count;++i)if(tabs.stops[i]>extent)return tabs.stops[i]-extent;
+        return 2*glyph(' ');
+    };
     std::vector<std::vector<Placed>> lines;std::vector<Placed> line;int extent=0;
-    for(const Placed& p:text) {
-        if(p.c=='\n'){lines.push_back(line);line.clear();extent=0;continue;}
-        while(extent+adv(p.c)>limit && !line.empty()) {
+    bool fresh=true;   // the row starts a source line (not a wrapped continuation)
+    // D26L4: a console row that wraps inside a tabbed cell goes on under that
+    // cell: the continuation starts with an indent ('\v', drawn as nothing,
+    // src -1) as wide as the cell's left edge.
+    auto redo=[&]{extent=0;for(Placed& d:line){if(d.c!='\v')d.w=adv(d.c,extent);extent+=d.w;}};
+    for(const Placed& src:text) {
+        Placed p=src;
+        if(p.c=='\n'){lines.push_back(line);line.clear();extent=0;fresh=true;continue;}
+        p.w=adv(p.c,extent);
+        while(extent+p.w>limit && !line.empty()) {
             size_t space=line.size();
-            for(size_t i=line.size();i-->0;)if(line[i].c==' '){space=i;break;}
+            for(size_t i=line.size();i-->0;)if(line[i].c==' ' || line[i].c=='\t'){space=i;break;}
+            int hang=0;
+            if(tabs.console && tabs.count) {
+                int x=0;const size_t end=space!=line.size()?space:line.size();
+                for(size_t i=0;i<end;++i){x+=line[i].w;if(line[i].c=='\t' || line[i].c=='\v')hang=x;}
+                if(hang>limit/2)hang=0;
+            }
             if(space!=line.size()) {
                 lines.emplace_back(line.begin(),line.begin()+long(space));
                 line.erase(line.begin(),line.begin()+long(space)+1);
-                extent=0;for(const Placed& d:line)extent+=adv(d.c);
-            } else {lines.push_back(line);line.clear();extent=0;}
+                if(tabs.console)while(!line.empty() && (line[0].c==' ' || line[0].c=='\t'))line.erase(line.begin());
+            } else {lines.push_back(line);line.clear();}
+            if(hang){Placed indent{'\v',-1,hang};line.insert(line.begin(),indent);}
+            fresh=false;redo();p.w=adv(p.c,extent);
         }
-        if(line.empty() && p.c==' ')continue;
-        line.push_back(p);extent+=adv(p.c);
+        if(line.empty() && (p.c==' ' || p.c=='\t') && !(tabs.console && fresh))continue;
+        line.push_back(p);extent+=p.w;
     }
     lines.push_back(line);
     return lines;
@@ -115,7 +143,8 @@ std::vector<std::vector<Placed>> wrap(const Set& set,const std::vector<Placed>& 
 struct Laid {const Set* set;int scale,padding,w,h;bool centered;std::vector<std::vector<Placed>> rows;};
 // Lays text out exactly as ttk_font_rasterize draws it; false where it would fail.
 // any_profile (D26L2): the console, a developer tool, uses the fonts in Vanilla too.
-bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid& out,bool any_profile=false) {
+bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid& out,bool any_profile=false,
+             const Tabs& tabs={}) {
     if((!any_profile && !ttk::input_modernized()) || !text || style<0 || style>3 || cap_w<32 || cap_h<16 || !load())return false;
     out.centered=style==2;
     out.set=&sets[style==1?1:style==3?2:0];
@@ -123,16 +152,16 @@ bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid
     out.padding=style==3?2:3;
     const int limit=std::min(cap_w,available_w)/out.scale-2*out.padding-1;
     if(limit<8)return false;
-    out.rows=wrap(*out.set,ascii_placed(text),limit);
+    out.rows=wrap(*out.set,ascii_placed(text,tabs.console),limit,tabs);
     int widest=1;
-    for(const auto& l:out.rows) {int n=0;for(const Placed& p:l)n+=int(out.set->glyphs[(unsigned char)p.c-32].advance);widest=std::max(widest,n);}
+    for(const auto& l:out.rows) {int n=0;for(const Placed& p:l)n+=p.w;widest=std::max(widest,n);}
     // One extra pixel each way holds the drop shadow.
     out.w=(widest+2*out.padding+1)*out.scale;
     out.h=(int(out.rows.size())*int(out.set->line_height)+2*out.padding+1)*out.scale;
     return !(out.w>cap_w || out.w>available_w || out.h>cap_h);
 }
-int row_width(const Laid& laid,const std::vector<Placed>& row) {
-    int n=0;for(const Placed& p:row)n+=int(laid.set->glyphs[(unsigned char)p.c-32].advance);return n;
+int row_width(const Laid&,const std::vector<Placed>& row) {
+    int n=0;for(const Placed& p:row)n+=p.w;return n;
 }
 // D26L2: a glyph pixel recoloured by a tint, keeping the font's own shading:
 // the steel ramp's luminance scales the tint up to the letters' body (about
@@ -148,9 +177,9 @@ uint32_t tinted(uint32_t colour,uint32_t tint) {
     return (colour&0xff000000u)|ch(16)<<16|ch(8)<<8|ch(0);
 }
 int rasterize(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,int available_w,int* width,int* height,
-              const uint32_t* tints,int tint_count,bool any_profile) {
+              const uint32_t* tints,int tint_count,bool any_profile,const Tabs& tabs={}) {
     Laid laid;
-    if(!pixels || !width || !height || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile))return 0;
+    if(!pixels || !width || !height || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile,tabs))return 0;
     const Set& set=*laid.set;
     const int scale=laid.scale,padding=laid.padding,w=laid.w,h=laid.h;
     std::fill(pixels,pixels+w*h,0u);
@@ -160,6 +189,7 @@ int rasterize(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,in
     for(int shadow=set.shadow?1:0;shadow>=0;--shadow)for(size_t row=0;row<laid.rows.size();++row) {
         int x=laid.centered?(w/scale-1-row_width(laid,laid.rows[row]))/2:padding;
         for(const Placed& p:laid.rows[row]) {
+            if(p.c=='\t' || p.c=='\v'){x+=p.w;continue;}
             const Glyph& v=set.glyphs[(unsigned char)p.c-32];
             const uint32_t tint=tints && p.src<tint_count ? tints[p.src] : 0u;
             for(unsigned iy=0;iy<v.h;++iy)for(unsigned ix=0;ix<v.w;++ix) {
@@ -170,22 +200,22 @@ int rasterize(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,in
                 for(int dy=0;dy<scale;++dy)for(int dx=0;dx<scale;++dx)
                     pixel((x+int(ix)+shadow)*scale+dx,(padding+int(row)*int(set.line_height)+int(v.y+iy)+shadow)*scale+dy,colour);
             }
-            x+=int(v.advance);
+            x+=p.w;
         }
     }
     *width=w;*height=h;return 1;
 }
 int layout(const char* text,int style,int cap_w,int cap_h,int available_w,
-           int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top,bool any_profile) {
+           int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top,bool any_profile,const Tabs& tabs={}) {
     Laid laid;
-    if(!xs || !ws || !rows || max_bytes<0 || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile))return 0;
+    if(!xs || !ws || !rows || max_bytes<0 || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile,tabs))return 0;
     const int n=std::min(max_bytes,int(std::strlen(text)));
     for(int i=0;i<n;++i)ws[i]=-1;
     for(size_t row=0;row<laid.rows.size();++row) {
         int x=laid.centered?(laid.w/laid.scale-1-row_width(laid,laid.rows[row]))/2:laid.padding;
         for(const Placed& p:laid.rows[row]) {
-            const int adv=int(laid.set->glyphs[(unsigned char)p.c-32].advance);
-            if(p.src<n){xs[p.src]=x*laid.scale;ws[p.src]=adv*laid.scale;rows[p.src]=int(row);}
+            const int adv=p.w;
+            if(p.src>=0 && p.src<n){xs[p.src]=x*laid.scale;ws[p.src]=adv*laid.scale;rows[p.src]=int(row);}
             x+=adv;
         }
     }
@@ -207,7 +237,14 @@ extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,in
 // (0 keeps the font's colour; the drop shadow is never tinted).
 extern "C" int ttk_font_rasterize_console(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,
                                           int available_w,int* width,int* height,const uint32_t* tints,int tint_count) {
-    return rasterize(text,style,pixels,cap_w,cap_h,available_w,width,height,tints,tint_count,true);
+    return ttk_font_rasterize_console_tabs(text,style,pixels,cap_w,cap_h,available_w,width,height,tints,tint_count,nullptr,0);
+}
+// D26L4: the console row with its tab stops (font units; see Tabs).
+extern "C" int ttk_font_rasterize_console_tabs(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,
+                                               int available_w,int* width,int* height,const uint32_t* tints,int tint_count,
+                                               const int* stops,int stop_count) {
+    Tabs tabs;tabs.stops=stops;tabs.count=stops?std::max(stop_count,0):0;tabs.console=true;
+    return rasterize(text,style,pixels,cap_w,cap_h,available_w,width,height,tints,tint_count,true,tabs);
 }
 // D26L1: where ttk_font_rasterize puts each byte of `text`, in pixels of its
 // image: left edge xs[i], advance ws[i] (0 for a byte not drawn: a space dropped
@@ -220,7 +257,23 @@ extern "C" int ttk_font_layout(const char* text,int style,int cap_w,int cap_h,in
 // D26L2: ttk_font_layout for ttk_font_rasterize_console (either profile).
 extern "C" int ttk_font_layout_console(const char* text,int style,int cap_w,int cap_h,int available_w,
                                        int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top) {
-    return layout(text,style,cap_w,cap_h,available_w,xs,ws,rows,max_bytes,line_height,top,true);
+    return ttk_font_layout_console_tabs(text,style,cap_w,cap_h,available_w,xs,ws,rows,max_bytes,line_height,top,nullptr,0);
+}
+extern "C" int ttk_font_layout_console_tabs(const char* text,int style,int cap_w,int cap_h,int available_w,
+                                            int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top,
+                                            const int* stops,int stop_count) {
+    Tabs tabs;tabs.stops=stops;tabs.count=stops?std::max(stop_count,0):0;tabs.console=true;
+    return layout(text,style,cap_w,cap_h,available_w,xs,ws,rows,max_bytes,line_height,top,true,tabs);
+}
+// D26L4: the width of text[0..len) in the console's glyph set, in font units
+// (the unit of the tab stops), or -1 without the pack.
+extern "C" int ttk_font_measure_console(int style,const char* text,int len) {
+    if(!text || style<0 || style>3 || !load())return -1;
+    const Set& set=sets[style==1?1:style==3?2:0];
+    const std::string s(text,size_t(std::max(len,0)));
+    int n=0;
+    for(const Placed& p:ascii_placed(s.c_str()))if(p.c!='\n')n+=int(set.glyphs[(unsigned char)p.c-32].advance);
+    return n;
 }
 // D24B: one line of text from glyph set `set` straight into an ARGB surface
 // (the savestate panel). No Modernized gate: callers decide. Returns the width

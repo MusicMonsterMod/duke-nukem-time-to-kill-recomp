@@ -24,6 +24,17 @@ int ttk_font_rasterize_console(const char* text,int style,uint32_t* pixels,int c
                                int available_w,int* width,int* height,const uint32_t* tints,int tint_count);
 int ttk_font_layout_console(const char* text,int style,int capacity_w,int capacity_h,int available_w,
                             int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top);
+// D26L4: the console row with tab stops: its leading spaces are kept and a tab
+// advances to the next of stops[] (font units from the text's left edge), or a
+// two-space gap past the last. host_osd.c lines up blocks of tabbed rows with
+// them (elastic tab stops); measure gives a cell's width in the same units.
+int ttk_font_rasterize_console_tabs(const char* text,int style,uint32_t* pixels,int capacity_w,int capacity_h,
+                                    int available_w,int* width,int* height,const uint32_t* tints,int tint_count,
+                                    const int* stops,int stop_count);
+int ttk_font_layout_console_tabs(const char* text,int style,int capacity_w,int capacity_h,int available_w,
+                                 int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top,
+                                 const int* stops,int stop_count);
+int ttk_font_measure_console(int style,const char* text,int len);
 // D24B savestate panel: draw one line from a glyph set directly (sets 3..7:
 // panel title, slot title, selected slot title, text, dim text). Returns the
 // width drawn, or -1 without a valid pack/set. Line height in pixels, 0 if none.

@@ -21,6 +21,7 @@
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include "pc_input.h"
+#include "console_syntax.h"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -106,27 +107,45 @@ void init_hook(CPUState* cpu,uint32_t address) {
     psx_mod_write_word(level,uint32_t(n));
 }
 
+// D26L4: the list as a grid, one row per era (user 2026-11-27: "it just feels
+// like a brick wall of text"). Tabs separate the cells; the console lines a
+// block of tabbed rows up (elastic tab stops) and colours the label, numbers
+// and names. Era rows follow level_era() (the savestate panel's).
+struct Row {const char* label;std::array<int,3> levels;};
+const Row campaign[]={
+    {"PRESENT DAY",{0,5,9}},{"OLD WEST",{1,2,3}},{"MEDIEVAL",{6,7,8}},{"ANCIENT ROME",{10,11,12}},
+    {"BOSSES",{27,28,29}},{"CHALLENGE STAGES",{21,22,23}},{"",{24,25,26}},
+};
+const Row hidden[]={
+    {"CUT LEVELS",{4,13,30}},{"TEST MAPS",{14,31,-1}},
+    {"2-PLAYER ARENAS",{15,16,17}},{"",{18,19,20}},
+};
+void grid(const Row* rows,size_t count,bool here,unsigned current,void (*say)(const char*)) {
+    for(size_t r=0;r<count;++r) {
+        std::string line=rows[r].label;
+        for(int n:rows[r].levels) {
+            if(n<0)continue;
+            std::string title=name(unsigned(n));
+            if(title.empty())title="?";
+            // "CHALLENGE STAGE 4" under its CHALLENGE STAGES label reads as "STAGE 4".
+            if(n>=21 && n<=26 && !title.compare(0,10,"CHALLENGE "))title.erase(0,10);
+            char cell[64];
+            std::snprintf(cell,sizeof cell,"\t%s%u %s",here && unsigned(n)==current?"*":"",unsigned(n),title.c_str());
+            line+=cell;
+        }
+        say(line.c_str());
+    }
+}
 void list(void (*say)(const char*)) {
     const bool here=in_play();
     const uint32_t current=psx_mod_read_word(level);
-    say("Levels (type level N):");
-    char line[96]{};
-    size_t used=0;unsigned column=0;
-    for(unsigned n=0;n<30;++n) {
-        if(!selectable(n))continue;
-        const std::string title=name(n);
-        char entry[56];
-        std::snprintf(entry,sizeof entry,"%s%2u %s",here && n==current?"*":" ",n,title.empty()?"?":title.c_str());
-        if(column==3 || used+std::strlen(entry)+3>=sizeof line) {say(line);used=0;column=0;line[0]=0;}
-        used+=std::snprintf(line+used,sizeof line-used,"%s%s",column?"   ":"",entry);
-        ++column;
-    }
-    if(used)say(line);
+    say(here ? "Levels: type level N to travel (* is this level)" : "Levels: type level N to travel");
+    grid(campaign,sizeof campaign/sizeof campaign[0],here,current,say);
     // D61: the indices the title cheat skips (note 101) load too (developer).
-    say("Hidden (developer: goto N, or level force N):");
-    say("   4 TRUE GRIT    13 MODERN 4    14 ANIMATION TEST LEVEL");
-    say("  15 MESA   16 CASTLE   17 DUNGEON   18 COLISEUM   19 WAREHOUSE   20 FACTORY");
-    say("  30 BOSS 4   31 SOUND TEST");
+    // goto is Modernized only; Vanilla reaches them with level force N.
+    say(input_modernized() ? "Hidden levels: type goto N (developer: unfinished maps the campaign never visits)"
+                           : "Hidden levels: type level force N (developer: unfinished maps the campaign never visits)");
+    grid(hidden,sizeof hidden/sizeof hidden[0],here,current,say);
 }
 }
 
@@ -217,15 +236,30 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
         char reply[64];std::snprintf(reply,sizeof reply,"Forcing level index %ld...",n);say(reply);
         close=true;return true;
     }
+    if(!std::strcmp(line,"level force")) {say("Usage: level force N (0-31; developer: skipped indices may not be levels)");return true;}
     const bool all=!std::strcmp(line,"levels") || !std::strcmp(line,"level");
-    if(!all && std::strncmp(line,"level ",6))return false;
+    if(!all && std::strncmp(line,"level ",6)) {
+        // D26L4: every other line gets an answer here: a known command's usage,
+        // or the nearest command to a typo.
+        if(!*line)return false;
+        if(!console_usage(line,say))console_unknown(line,say);
+        return true;
+    }
     if(!authentic()) {say("Level select unavailable: unrecognised game code");return true;}
     if(all) {list(say);return true;}
     char* end=nullptr;
     const long n=std::strtol(line+6,&end,10);
-    if(end==line+6 || *end || n<0 || n>31) {say("Unknown level - type levels for the list");return true;}
+    if(end==line+6 || *end) {say("Try: level 3 (type levels for the list)");return true;}
+    if(n<0 || n>31) {char reply[96];std::snprintf(reply,sizeof reply,"Level: no such level %ld. Type levels for the list",n);say(reply);return true;}
     if(!selectable(n)) {
-        char reply[96];std::snprintf(reply,sizeof reply,"Level %ld is hidden: type goto %ld (or level force %ld)",n,n,n);say(reply);return true;
+        // D26L4: say which hidden level it is (user 2026-11-27 asked whether
+        // the arenas can be reached): goto takes every hidden index.
+        const std::string title=name(unsigned(n));
+        const char* kind=n>=15 && n<=20 ? "a 2-player arena" : n==14 || n==31 ? "a test map" : "a cut level";
+        char reply[128];
+        std::snprintf(reply,sizeof reply,"Level %ld%s%s is hidden (%s): type %s %ld",n,title.empty()?"":" ",title.c_str(),kind,
+                      input_modernized()?"goto":"level force",n);
+        say(reply);return true;
     }
     const std::string title=name(unsigned(n));
     if(title.empty()) {say("Level select unavailable: level names not found");return true;}

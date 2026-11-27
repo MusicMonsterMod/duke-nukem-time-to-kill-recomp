@@ -29,7 +29,7 @@ int console_option_value(const std::string& k,const std::string& w,bool p) {
 }
 using ttk::Syn;
 // One letter per byte: . plain, > prompt, C command, K keyword, 0 number,
-// n name, p placeholder, ? unknown, E error, W warning.
+// n name, p placeholder, ? unknown, E error, W warning, H heading (D26L4).
 static std::string code(const char* text,bool typed,int caret=-1) {
     const int n=int(std::strlen(text));
     std::vector<Syn> s(static_cast<size_t>(n),Syn::plain);
@@ -39,7 +39,7 @@ static std::string code(const char* text,bool typed,int caret=-1) {
         case Syn::plain: out+='.';break; case Syn::prompt: out+='>';break; case Syn::command: out+='C';break;
         case Syn::keyword: out+='K';break; case Syn::number: out+='0';break; case Syn::name: out+='n';break;
         case Syn::placeholder: out+='p';break; case Syn::unknown: out+='?';break; case Syn::error: out+='E';break;
-        case Syn::warning: out+='W';break;
+        case Syn::warning: out+='W';break; case Syn::heading: out+='H';break;
     }
     return out;
 }
@@ -90,7 +90,7 @@ int main() {
            "..CCCC.KKKK.00...................................CCCC.KKKKK...........");
     expect("  palfrom I R G B  Flash the screen, Duke3D units (alias flash)",false,
            "..CCCCCCC.p.p.p.p..............................................");
-    expect("Levels (type level N):",false,".............CCCCC.p..");
+    expect("Levels (type level N):",false,"HHHHHHHHHHHHHCCCCCHpHH");
     expect("Usage: beamfollow [on|off|default] (on: energy beams)",false,
            "WWWWWWWCCCCCCCCCCWWKKWKKKWKKKKKKKWWWWWWWWWWWWWWWWWWWW");
     expect("  3  goto room 12",false,"..0..CCCC.KKKK.00");
@@ -99,10 +99,36 @@ int main() {
     expect("Spawn: unknown item - type items for the list",false,
            "EEEEEEEEEEEEEEEEEEEEEEEEEEECCCCCEEEEEEEEEEEEE");
     expect("Travelling to 3 TOXIC WASTE...",false,"..............................");
-    expect("Lamp: lamp list | scan [threshold] | signs",false,"......CCCC.KKKK...KKKK..ppppppppp....KKKKK");
+    expect("Lamp: lamp list | scan [threshold] | signs",false,"HHHHH.CCCC.KKKK...KKKK..ppppppppp....KKKKK");
     expect("  face 90                 face that compass direction",false,"..KKKK.00............................................");
     expect("  quiet                   invisible for 8 seconds",false,"..KKKKK..........................................");
     expect("  on   the light",false,"................");   // a word many commands know: not coloured
+    // D26L4: headings and tabbed lists.
+    expect("Weapons here:",false,"HHHHHHHHHHHHH");
+    expect("OLD WEST\t1 DUKE HILL\t2 MINER 69ER",false,"HHHHHHHH.0.nnnnnnnnn.0.nnnnnnnnnn");
+    expect("\t*0 TIME TO KILL\t5 OBEY OR DIE",false,".H0.nnnnnnnnnnnn.0.nnnnnnnnnnn");
+    expect("ITEMS\tarmor 320\tkey 1 153",false,"HHHHH.nnnnn.000.nnnnn.000");
+    expect("OTHER (TYPE)\t54 155 156",false,"HHHHHHHHHHHH.00.000.000");
+    expect("TRAVEL\tgoto help\tPut Duke anywhere",false,"HHHHHH.CCCC.KKKK..................");
+    expect("\tlevel N\tTravel to level N",false,".CCCCC.p..................");
+    expect("  goto room 12\troom 12 of this level",false,"..CCCC.KKKK.00......................");
+    expect("0 TIME TO KILL\tttk-start\tthe level start",false,"HHHHHHHHHHHHHH.nnnnnnnnn................");
+    expect("Levels: type level N to travel",false,"HHHHHHH......CCCCC.p..........");
+    expect("Renderer: Polymorph.",false,"HHHHHHHHH...........");
+    expect("Unknown command: gotoo. Try: goto help (help: every command)",false,
+           "EEEEEEEEEEEEEEEEEEEEEEEEEEEEECCCCEKKKKEECCCCEEEEEEEEEEEEEEEE");
+    expect("Level 15 MESA is hidden (a 2-player arena): type goto 15",false,
+           "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWCCCCW00");
+    // D26L4: a known command with arguments nothing took gives its usage; an
+    // unknown word, the nearest command.
+    static std::string said;
+    auto say=[](const char* l){said+=l;said+='\n';};
+    said.clear();assert(ttk::console_usage("warp",say) && said=="Usage: warp x y z [degrees] - Move Duke (warp object N [distance] [degrees])\n");
+    said.clear();assert(ttk::console_usage("flash 1 2",say) && said.find("Usage: palfrom I R G B")==0);   // an alias: its command
+    said.clear();assert(!ttk::console_usage("zzz",say) && said.empty());
+    said.clear();ttk::console_unknown("gotoo room 3",say);assert(said=="Unknown command: gotoo. Try: goto help (help: every command)\n");
+    said.clear();ttk::console_unknown("lvels",say);assert(said.find("Try: levels")!=std::string::npos);
+    said.clear();ttk::console_unknown("zzz",say);assert(said=="Unknown command: zzz. Type help for the list\n");
     // The table: every command once, help lists them.
     for(int i=0;i<ttk::console_command_count();++i)
         for(int j=i+1;j<ttk::console_command_count();++j)

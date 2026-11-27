@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D26L4 closed out (Done)
+
+User-accepted: "absolutely stunning work!! lock it in and close it out". D26L continues with tab completion (the D26L2 table). Open decision: whether the arenas 15-20 should keep the original controls (they play Modernized through `BASEOVR.OVR`; note 568 section 6).
+
+## 2026-11-27 - D26L4 console lists that read at a glance (Needs playtest)
+
+Selected from D26L ("levels ... just feels like a brick wall of text"). The console lines up tabbed reply columns (elastic tab stops in `host_osd.c`, tab-aware console layout in `ttk_font.cpp`), keeps indents, hangs wrapped rows under their cell and holds 191-byte rows; headings and labels are near white, list numbers green and names violet. `levels` is an era grid with the hidden levels grouped below; `help`, `items`, `enemies`, `goto help` / `landmarks` and `lamp help` are tabulated; known commands without arguments give their usage and typos a nearest-command suggestion. Finding: the arenas 15-20 (reachable by `goto N` / `level force N` since D61) load `BASEOVR.OVR` and so play Modernized; left for the user to decide. Tested offscreen in Modernized and Vanilla; the real display is the playtest. See [note 568](568-d26l4-console-lists.md).
+
 ## 2026-11-27 - D26L2 closed out (Done)
 
 User-accepted: "lock it in and close it out". D26L continues with the command review and tab completion (which can read the D26L2 table).

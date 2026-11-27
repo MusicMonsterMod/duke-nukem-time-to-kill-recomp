@@ -17,6 +17,7 @@ enum class Syn : uint8_t {
     unknown,     // a word nothing knows: a typo shows before Enter
     error,       // the text of an error reply
     warning,     // the text of a usage / Try: / note reply
+    heading,     // D26L4: a reply's heading line or a tabbed row's label cell
 };
 // Run-time names the table cannot hold (they come from game data). Each
 // returns 0 for no, 1 for a whole name, 2 when `word` only begins one (asked
@@ -33,6 +34,11 @@ void console_classify(const char* text,bool typed,int caret,Syn* out,int n);
 uint32_t console_colour(Syn s);
 // Help from the table: the everyday commands, or with all every command.
 void console_help(void (*say)(const char*),bool all);
+// D26L4: says the usage of line's first word when the table knows it
+// (returns false for an unknown command).
+bool console_usage(const char* line,void (*say)(const char*));
+// D26L4: "Unknown command: X" with the nearest command, from the table.
+void console_unknown(const char* line,void (*say)(const char*));
 // The table's first words, for the anti-drift test and tab completion.
 int console_command_count();
 const char* console_command_name(int i);

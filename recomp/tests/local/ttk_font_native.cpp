@@ -92,6 +92,40 @@ int main(int argc,char**argv) {
         assert(ttk_font_layout_console(line,3,1024,64,1264,xs,ws,rs,n,&lh,&top)==1);
         ttk::modern=true;
     }
+    {   // D26L4: console rows keep their indent and honour tab stops; other text is unchanged.
+        int xs[200],ws[200],rs[200],lh=0,top=0;
+        std::vector<uint32_t> a(1280*128),b(1280*128);int aw=0,ah=0,bw=0,bh=0;
+        // Menus and cards still drop leading spaces.
+        assert(ttk_font_rasterize("  x",3,a.data(),1280,128,1264,&aw,&ah) && ttk_font_rasterize("x",3,b.data(),1280,128,1264,&bw,&bh));
+        assert(aw==bw && std::equal(a.begin(),a.begin()+aw*ah,b.begin()));
+        // The console keeps them.
+        assert(ttk_font_layout_console_tabs("  x",3,1280,128,1264,xs,ws,rs,3,&lh,&top,nullptr,0)==1);
+        int x0[4],w0[4],r0[4];
+        assert(ttk_font_layout_console_tabs("x",3,1280,128,1264,x0,w0,r0,1,&lh,&top,nullptr,0)==1);
+        assert(xs[2]>x0[0] && ws[0]>0);
+        // A tab lands its cell on the stop (font units from the text's left edge).
+        const int scale=ws[2]/std::max(1,ttk_font_measure_console(3,"x",1));
+        const int stops[2]={100,220};
+        assert(ttk_font_layout_console_tabs("ab\tc\td",3,1280,128,1264,xs,ws,rs,6,&lh,&top,stops,2)==1);
+        assert(xs[3]-x0[0]==100*scale && xs[5]-x0[0]==220*scale);
+        // Past the last stop a tab is a two-space gap.
+        assert(ttk_font_layout_console_tabs("ab\tc",3,1280,128,1264,xs,ws,rs,4,&lh,&top,nullptr,0)==1);
+        assert(ws[2]==2*ttk_font_measure_console(3," ",1)*scale && xs[3]-xs[2]==ws[2]);
+        // Rasterize and layout agree, and a tab draws nothing.
+        assert(ttk_font_rasterize_console_tabs("ab\tc",3,a.data(),1280,128,1264,&aw,&ah,nullptr,0,stops,1));
+        assert(ttk_font_rasterize_console_tabs("abc",3,b.data(),1280,128,1264,&bw,&bh,nullptr,0,nullptr,0));
+        assert(aw>bw && ah==bh);
+        // A tabbed row that wraps goes on under its cell (hanging indent).
+        std::string longrow="name\t";
+        for(int i=0;i<40;++i)longrow+="word ";
+        const int n=int(longrow.size());
+        std::vector<int> lx(static_cast<size_t>(n)),lw(static_cast<size_t>(n)),lr(static_cast<size_t>(n));
+        const int rows=ttk_font_layout_console_tabs(longrow.c_str(),3,1280,128,600,lx.data(),lw.data(),lr.data(),n,&lh,&top,stops,1);
+        assert(rows>=2);
+        int first_second=-1;for(int i=0;i<n;++i)if(lr[size_t(i)]==1 && lw[size_t(i)]>0){first_second=i;break;}
+        assert(first_second>0 && lx[size_t(first_second)]==lx[5]);
+        assert(ttk_font_measure_console(3,"",0)==0 && ttk_font_measure_console(3,"ab",2)>ttk_font_measure_console(3,"a",1));
+    }
     if(argc>2) {
         std::vector<uint32_t> sheet(640*1100,0xff303030);
         int y=8;

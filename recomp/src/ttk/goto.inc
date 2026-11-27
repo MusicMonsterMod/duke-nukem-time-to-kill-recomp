@@ -406,34 +406,43 @@ static std::string goto_level_name(long n) {
     return t;
 }
 static void goto_help(void (*say)(const char*)) {
+    // D26L4: tabbed rows; the console lines them up (elastic tab stops).
     say("GOTO puts Duke anywhere, standing and ready. Examples:");
-    say("  goto room 12            room 12 of this level (goto rooms: how many)");
-    say("  goto 3 room 12          room 12 of level 3 (type levels for numbers)");
-    say("  goto 13                 the start of level 13, hidden levels too");
-    say("  goto gag-lava-south     a saved spot (goto landmarks: the list)");
-    say("  goto object 17          beside level object 17");
-    say("  goto 45000 -300 -20600  a map point x y z (goto 3 at x y z: in level 3)");
+    say("  goto room 12\troom 12 of this level (goto rooms: how many)");
+    say("  goto 3 room 12\troom 12 of level 3 (type levels for numbers)");
+    say("  goto 13\tthe start of level 13, hidden levels too");
+    say("  goto gag-lava-south\ta saved spot (goto landmarks: the list)");
+    say("  goto object 17\tbeside level object 17");
+    say("  goto 45000 -300 -20600\ta map point x y z (goto 3 at x y z: in level 3)");
     say("Add to any of them:");
-    say("  face 90                 face that compass direction (0 to 359)");
-    say("  quiet                   invisible for 8 seconds");
-    say("  safe                    invincible for 20 seconds");
+    say("  face 90\tface that compass direction (0 to 359)");
+    say("  quiet\tinvisible for 8 seconds");
+    say("  safe\tinvincible for 20 seconds");
     say("Also: goto here (where Duke is), goto face 90 (turn now), goto fix");
-    say("Hidden levels: 4 True Grit, 13 Modern 4, 14 animation test,");
-    say("  15-20 two-player arenas, 30 empty, 31 sound test");
+    say("Hidden levels (cut levels, test maps, 2-player arenas): type levels for the list");
 }
 static bool goto_console_command(const char* line,void (*say)(const char*),bool& close) {
     if(std::strcmp(line,"goto") && std::strncmp(line,"goto ",5))return false;
     if(!input_modernized()) {say("Goto: Modernized profile only (Vanilla is unchanged)");return true;}
     const char* rest=line[4]?line+5:"";
     while(*rest==' ')++rest;
-    char reply[160];
+    char reply[192];
     if(!*rest || !std::strcmp(rest,"help")) {goto_help(say);return true;}
     if(!std::strcmp(rest,"landmarks")) {
         const auto marks=goto_landmarks();
         if(marks.empty()){say("No landmarks (assets/atlas/landmarks.txt)");return true;}
         say("Landmarks (goto NAME):");
+        // D26L4: grouped by level, one aligned block (level, name, note).
+        long last=-1;
         for(const auto& m:marks) {
-            std::snprintf(reply,sizeof reply,"  %-20s level %2ld %s",m.name.c_str(),m.level,m.note.c_str());say(reply);
+            char label[64]="";
+            if(m.level!=last) {
+                char title[48];
+                if(ttk::level_title(unsigned(m.level),title,sizeof title))std::snprintf(label,sizeof label,"%ld %s",m.level,title);
+                else std::snprintf(label,sizeof label,"LEVEL %ld",m.level);
+                last=m.level;
+            }
+            std::snprintf(reply,sizeof reply,"%s\t%s\t%s",label,m.name.c_str(),m.note.c_str());say(reply);
         }
         return true;
     }

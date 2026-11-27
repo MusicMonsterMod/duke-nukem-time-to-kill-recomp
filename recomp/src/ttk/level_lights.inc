@@ -1499,14 +1499,43 @@ bool lamp_console_command(const char* line,void (*say)(const char*),bool& close)
     if(ttk_world_classic()) {say("Lamp: level lights need the Polymorph renderer");return true;}
     const char* arg=line+4;while(*arg==' ')++arg;
     if(!*arg || !std::strcmp(arg,"help")) {
-        say("Lamp (level lights): lamp list | scan [threshold] | signs | add [r g b [radius]] | here | pick [n]");
-        say("  move | nudge dx dy dz | color r g b | radius R | power K | style S | note text | del");
-        say("  save | reload | clear | off | on | gate on|off | props on|off | crystals on|off | emitters fixtures|all.  Styles: steady flicker pulse candle strobe broken signal wave [phase] [depth]");
-        say("  bind (selected lamp: out with the prop at the crosshair) | bind all (lamps that name a prop type) | unbind | breaks on|off");
-        say("  ambient [P [unlit|outdoor|room N|here]] | ambient clear [room N|here]: how far RELIT dims this level's painted light");
-        say("  club [on|off]: the nightclub rule (D57J): dark club rooms lit by their fixtures; off reloads the lamps without it");
-        say("  scan: lamps from the painted light; signs: lamps at glowing props (EXIT, neon). Each replaces its own.");
-        say("  add/move/pick use the point the crosshair meets. Edits show at once; save writes the level file.");
+        // D26L4: sections of aligned rows (the console's elastic tab stops).
+        say("Lamp edits this level's lights. Edits show at once; lamp save writes the level file.");
+        static const char* const rows[]={
+            "FIND\tlamp list\tthe level's lamps",
+            "\tlamp scan [threshold]\tlamps from the painted light (replaces its own)",
+            "\tlamp signs\tlamps at glowing props: EXIT, neon (replaces its own)",
+            "\tlamp pick [n]\tselect lamp n, or the one nearest the crosshair",
+            "ADD, MOVE\tlamp add [r g b [radius]]\ta lamp where the crosshair meets",
+            "\tlamp here [r g b [radius]]\ta lamp above Duke",
+            "\tlamp move\tthe selected lamp to the crosshair",
+            "\tlamp nudge dx dy dz\tthe selected lamp by world units",
+            "\tlamp del\tdelete the selected lamp",
+            "LOOK\tlamp color r g b\tits colour (also colour)",
+            "\tlamp radius R\tits reach",
+            "\tlamp power K\tits strength",
+            "\tlamp style S\tsteady flicker pulse candle strobe broken signal, wave [phase] [depth]",
+            "\tlamp note text\ta note saved with it",
+            "PROPS\tlamp bind\tthe selected lamp goes out with the prop at the crosshair",
+            "\tlamp bind all\tbind the lamps that name a prop type",
+            "\tlamp unbind\tunbind the selected lamp",
+            "\tlamp breaks on|off\ta lamp goes out when its prop breaks",
+            "FILE\tlamp save\twrite the level file",
+            "\tlamp reload\tread it again",
+            "\tlamp clear\tremove every lamp (lamp reload undoes)",
+            "SWITCHES\tlamp on|off\tshow or hide the level lights (session)",
+            "\tlamp gate on|off\ta lamp lights only while its room is shown",
+            "\tlamp props on|off\tthe lit props: woodburners, chandeliers, fire barrels ...",
+            "\tlamp crystals on|off\tthe moved crystals' light",
+            "\tlamp pickups on|off\tglowing pickups",
+            "\tlamp emitters fixtures|all\tonly light fixtures glow as emitters, or any model",
+            "\tlamp club [on|off]\tthe nightclub rule (D57J): dark club rooms lit by their fixtures",
+            "AMBIENT\tlamp ambient\tthis room's target and why",
+            "\tlamp ambient P [where]\thow far RELIT dims the painted light (P 20-100; where: unlit, outdoor, room N, here)",
+            "\tlamp ambient clear [room N|here]\tthe level's defaults, or that room follows the level",
+            "\tlamp ambient lamps G | reach R\tRELIT lamp strength and reach",
+        };
+        for(const char* r:rows)say(r);
         return true;
     }
     if(!std::strcmp(arg,"off")) {level_lamps_shown.store(0);say("Lamp: level lights hidden (session)");return true;}

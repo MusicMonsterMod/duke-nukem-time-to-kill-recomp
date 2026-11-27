@@ -2392,7 +2392,7 @@ gadget, first and third person):
 
 ### D26L - Console review: a rock-solid backtick console
 
-**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; the command review and tab completion remain). Dependencies: D26, D61.**
+**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; D26L4 Done (the list layout and command review); tab completion remains). Dependencies: D26, D61.**
 User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
 job for just a review of the cli, and enhance it so it feels like a more rock
 solid experience for the user. im even thinking we add in a caret. fix up some
@@ -2631,6 +2631,56 @@ lit texels on thin diagonals. Font tests pass; page and showcase regenerated
 
 **Closed out (2026-11-27, Done).** User: "lock it in and close it out". Left for D26L: the command review (help, errors, Modernized-only refusals), tab completion, drag auto-scroll. Six runtime tests outside CI fail with or without
   this change (note 566).
+### D26L4 - Console lists that read at a glance
+
+**Status: Done (2026-11-27, user-accepted). Part of the D26L console review (its
+command review). See [note 568](../documentation/568-d26l4-console-lists.md).
+Dependencies: D26L, D26L2 (reply colours, the command table).**
+User, 2026-11-27, selecting D26L: "so i dont know if it falls into syntax
+highlighting or not but stuff like "levels" for example, it just feels like a
+brick wall of text. it shows the hidden levels, and the multiplayer levels too
+(it's opened up the ability to warp to the multiplayer levels i believe from
+the level command, if im not mistaken???). anyway, i'd say lets do another
+autonomous session".
+
+Wanted: lists in the console (`levels` first) that read at a glance instead
+of a wall of text, and the D26L review's consistent help and errors.
+
+Acceptance: `levels`, `help`, `items` and the other lists read clearly on the
+real display; Vanilla unchanged in play; user playtest.
+
+**Work log (2026-11-27, Needs playtest).** Autonomous session.
+
+- Cause found offscreen: the proportional console font never lined up
+  space-padded columns, the shared wrap dropped every leading space, all text
+  was one colour, and scrollback rows were cut at 95 bytes.
+- Elastic tab stops: replies separate columns with tabs and the framework
+  console (`host_osd.c`) lines up each block of tabbed rows; console rows keep
+  their indents, a wrapped tabbed row hangs under its cell, rows hold 191
+  bytes. Copy keeps the tabs. Menus and cards lay out as before.
+- Colours: a near-white heading tone (headings, row labels, `Levels:`), green
+  numbers and violet names in list cells, the current level's `*` white.
+- `levels` is an era grid (PRESENT DAY, OLD WEST, MEDIEVAL, ANCIENT ROME,
+  BOSSES, CHALLENGE STAGES) with the hidden levels below as CUT LEVELS, TEST
+  MAPS and 2-PLAYER ARENAS; `level N` on a hidden index names it and points to
+  `goto N` (Vanilla: `level force N`). `help` / `help all` in sections,
+  `items`, `enemies`, `goto help`, `goto landmarks` and `lamp help` tabulated.
+- A known command without what it needs gives its usage (`warp`, `option`,
+  `sfx`, `quicksave x`, `level force`); an unknown word suggests the nearest
+  command.
+- The user's question: yes, the arenas 15-20 are reachable since D61, with
+  `goto 15` or `level force 15`, not `level 15`. Found here: they load
+  `BASEOVR.OVR` (tag `0x12`, authenticated in D61 for the sound test), so they
+  pass the identity check and play Modernized, unlike note 559's intent. Left
+  unchanged for the user to decide.
+- Evidence: native console-syntax and font tests, Python suite (291, 2
+  skipped), CI runtime tests, inventory test, offscreen before/after replies
+  and screenshots in Modernized and Vanilla, patch verified against the pinned
+  framework (99 files). Not yet seen on the real display.
+
+User playtest, 2026-11-27: accepted ("absolutely stunning work!! lock it in
+and close it out"). Done.
+
 ### D29 - Progression items and objectives legibility (research and design first)
 
 **Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The

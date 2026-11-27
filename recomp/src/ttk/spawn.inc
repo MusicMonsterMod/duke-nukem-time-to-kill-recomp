@@ -438,12 +438,13 @@ static void enemy_list(void (*say)(const char*)) {
         ++n[j];
     }
     if(!k) {say("Spawn enemy: no enemies placed in this level");return;}
-    say("Enemies you can spawn here (spawn enemy <type>):");
+    say("Enemies you can spawn here: spawn enemy TYPE");
     for(unsigned j=0;j<k;++j) {
         const unsigned cls=psx_mod_read_byte(types+28*seen[j]+6);
         const char* name=enemy_name(seen[j]);
-        char row[64];std::snprintf(row,sizeof row,"  %u%s%s%s - %u placed%s",seen[j],name?" ":"",name?name:"",
-            "",n[j],cls==8?" (non-hostile)":"");
+        // D26L4: aligned rows (type, name, how many the level places).
+        char row[96];std::snprintf(row,sizeof row,"%s\t%u%s%s\t(%u placed%s)",j?"":"TYPE",seen[j],name?" ":"",name?name:"",
+            n[j],cls==8?", non-hostile":"");
         say(row);
     }
 }
@@ -476,39 +477,46 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
     }
     const unsigned level=psx_mod_read_word(0x800be570);
     if(list) {
-        char row[100]{};size_t used=0;
-        // D08A33: weapons and their ammo get their own lists (user, 2026-11-02).
-        static const char* const titles[]={"Spawnable here (spawn <name> or spawn <type>):",
-            "Weapons here:","Ammo here:"};
+        // D26L4: one aligned block (label, then three "name type" cells a row;
+        // the console lines the tabbed rows up). D08A33: weapons and their ammo
+        // get their own rows (user, 2026-11-02).
+        say("Spawnable here: spawn NAME or spawn TYPE");
+        std::string row;unsigned cells=0;
+        auto flush=[&]{if(cells)say(row.c_str());row.clear();cells=0;};
+        auto cell=[&](const char* label,const std::string& text) {
+            if(cells==3)flush();
+            if(!cells)row=label;
+            row+='\t';row+=text;++cells;
+        };
+        static const char* const labels[]={"ITEMS","WEAPONS","AMMO"};
         for(unsigned group=0;group<3;++group) {
-            bool first=true;
+            const char* label=labels[group];
             for(auto& item:spawn_items) {
                 if(item.group!=group || (item.level>=0 && unsigned(item.level)!=level) || !spawn_model_ready(item.type))continue;
-                if(first){say(titles[group]);first=false;}
-                char entry[40];std::snprintf(entry,sizeof entry,"%s (%u)",item.name,item.type);
-                if(used+std::strlen(entry)+2>=44) {say(row);used=0;row[0]=0;}
-                used+=std::snprintf(row+used,sizeof row-used,"%s%s",used?", ":"  ",entry);
+                char entry[48];std::snprintf(entry,sizeof entry,"%s %u",item.name,item.type);
+                cell(label,entry);label="";
             }
-            if(used)say(row);
-            used=0;row[0]=0;
-            if(group==0 && spawn_crystal_level(level))
-                say("  Crystals: red energy crystal (1761), blue (2761), green (3761)");
+            flush();
+            if(group==0 && spawn_crystal_level(level)) {
+                const char* l="CRYSTALS";
+                for(auto& c:spawn_crystals){char entry[48];std::snprintf(entry,sizeof entry,"%s %d",c.name,c.number);cell(l,entry);l="";}
+                flush();
+            }
         }
         // Every other pickup-class type (type byte 6 == 1) whose model this
         // level has loaded, by number: unnamed slots.
         const uint32_t types=psx_mod_read_word(spawn_types);
-        bool first=true;
+        std::string others;
         for(unsigned type=1;cheat_ram(types,28*spawn_type_count) && type<spawn_type_count;++type) {
             if(psx_mod_read_byte(types+28*type+6)!=1 || !(psx_mod_read_word(types+28*type)&2) || !spawn_model_ready(type))continue;
             bool named=false;
             for(auto& item:spawn_items)named|=item.type==type && (item.level<0 || unsigned(item.level)==level);
             if(named)continue;
-            if(first){say("Other pickups here (spawn <type>):");first=false;}
-            char entry[8];std::snprintf(entry,sizeof entry,"%u",type);
-            if(used+std::strlen(entry)+1>=44) {say(row);used=0;row[0]=0;}
-            used+=std::snprintf(row+used,sizeof row-used,"%s%s",used?" ":"  ",entry);
+            if(others.size()>60) {say(("OTHER (TYPE)\t"+others).c_str());others.clear();}
+            if(!others.empty())others+=' ';
+            others+=std::to_string(type);
         }
-        if(used)say(row);
+        if(!others.empty())say(("OTHER (TYPE)\t"+others).c_str());
         return true;
     }
     const char* what=line+6;

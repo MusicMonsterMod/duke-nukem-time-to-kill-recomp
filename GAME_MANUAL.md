@@ -2539,6 +2539,25 @@ typo shows before you press Enter:
 - Vanilla's console looks the same (it is a developer tool in both); its
   commands still refuse what Modernized alone does.
 
+**Lists in the console.** Replies that list things are laid out as aligned
+columns with white labels, green numbers and violet names:
+
+- `levels` is a grid, one row per era (PRESENT DAY, OLD WEST, MEDIEVAL,
+  ANCIENT ROME, BOSSES, CHALLENGE STAGES), with `*` on the level you are in.
+  `level N` travels to any of them. Below them are the hidden levels the
+  campaign never visits: CUT LEVELS (4 True Grit, 13 Modern 4, 30 Boss 4),
+  TEST MAPS (14, 31) and the 2-PLAYER ARENAS (15-20). `level N` does not take
+  those (it says which one it is); `goto N` reaches them in Modernized, and
+  `level force N` in either profile. They are unfinished developer content.
+- `help` is in sections (TRAVEL, SPAWN, GAME, CONSOLE; `help all` adds the
+  developer labs), `items` groups ITEMS, CRYSTALS, WEAPONS and AMMO three to a
+  row with their type numbers, and `goto landmarks` groups the landmarks by
+  level. A long row wraps under its own column.
+- A command typed without what it needs (`warp`, `option`, `sfx`) shows its
+  usage, and a misspelt one suggests the nearest command
+  (`Unknown command: gotoo. Try: goto help`).
+- Copying a list keeps its tabs, so it pastes into a document as columns.
+
 The keyboard types every printable character your keyboard layout gives,
 with Shift too (`_ : | { } ! @ # $ & * ( ) " < > ? ~` and the rest); letters
 are always lowercase. The backtick key itself opens and closes the console,

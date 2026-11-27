@@ -153,9 +153,9 @@ struct Word {int a,b;std::string s;};
 std::vector<Word> words_of(const char* text,int from,int to) {
     std::vector<Word> out;
     for(int i=from;i<to;) {
-        while(i<to && text[i]==' ')++i;
+        while(i<to && (text[i]==' ' || text[i]=='\t'))++i;   // D26L4: tabbed replies
         if(i>=to)break;
-        int e=i;while(e<to && text[e]!=' ')++e;
+        int e=i;while(e<to && text[e]!=' ' && text[e]!='\t')++e;
         out.push_back({i,e,std::string(text+i,size_t(e-i))});
         i=e;
     }
@@ -231,7 +231,7 @@ Syn reply_tone(const char* t) {
     for(const char* e:error_parts)if(contains(t,e))return Syn::error;
     static const char* const warnings[]={"Usage:","Try:","Note:"};
     for(const char* w:warnings)if(starts(t,w) || contains(t,w))return Syn::warning;
-    if(contains(t,"is off in OPTIONS") || contains(t,"is hidden:"))return Syn::warning;
+    if(contains(t,"is off in OPTIONS") || contains(t,"is hidden:") || contains(t,"is hidden ("))return Syn::warning;
     return Syn::plain;
 }
 bool all_caps(const std::string& w) {
@@ -275,7 +275,7 @@ void classify_examples(const char* text,int len,Syn* out,int n) {
         std::string core=w[i].s;
         int lead=0;
         while(lead<int(core.size()) && (core[size_t(lead)]=='(' || core[size_t(lead)]=='\''))++lead;
-        bool at=i==0 || lead>0;
+        bool at=i==0 || lead>0 || (i>0 && std::memchr(text+w[i-1].b,'\t',size_t(w[i].a-w[i-1].b)));   // a cell's start
         if(!at && i>0) {
             std::string prev=w[i-1].s;
             const char tail=prev.back();
@@ -304,7 +304,7 @@ void classify_examples(const char* text,int len,Syn* out,int n) {
         int depth=0;
         size_t j=i+1;
         for(;j<w.size();++j) {
-            if(w[j].a-w[j-1].b>=2)break;        // a column gap
+            if(w[j].a-w[j-1].b>=2 || std::memchr(text+w[j-1].b,'\t',size_t(w[j].a-w[j-1].b)))break;   // a column gap
             if(w[j].s=="|") continue;           // lamp list | scan | signs
             std::string s=w[j].s;size_t trim=s.size();
             while(trim && std::strchr(",:;.)'",s[trim-1]) && !(s[trim-1]==')' && depth))--trim;
@@ -328,12 +328,59 @@ void console_classify(const char* text,bool typed,int caret,Syn* out,int n) {
     {int i=0;while(i<len && text[i]==' ')++i;int d=i;while(d<len && std::isdigit((unsigned char)text[d]))++d;
      if(d>i && d+2<len && text[d]==' ' && text[d+1]==' ' && text[d+2]!=' ' && std::islower((unsigned char)text[d+2])) {
          fill(out,n,i,d,Syn::number);classify_command(text,d+2,len,-1,out,n);return;}}
-    if(starts(text,"Unknown command: ")) {fill(out,n,0,len,Syn::error);return;}
+    if(starts(text,"Unknown command: ")) {
+        fill(out,n,0,len,Syn::error);
+        // D26L4: the suggestion after "Try:" is coloured as an example; the
+        // typed word before it stays error.
+        if(const char* t=std::strstr(text,"Try: ")) {
+            const int off=int(t-text);
+            std::vector<Syn> ex(size_t(n),Syn::plain);
+            classify_examples(text+off,len-off,ex.data()+off,n-off);
+            for(int i=off;i<len;++i)if(ex[size_t(i)]!=Syn::plain)out[i]=ex[size_t(i)];
+        }
+        return;
+    }
     const Syn tone=reply_tone(text);
     fill(out,n,0,len,tone);
+    // D26L4: a reply's heading: an unindented line ending in ':' ("Weapons
+    // here:"), or the label cell that starts an unindented tabbed row
+    // ("OLD WEST<tab>1 DUKE HILL<tab>...").
+    const char* tab=static_cast<const char*>(std::memchr(text,'\t',size_t(len)));
+    if(tone==Syn::plain && text[0]!=' ' && text[0]!='\t') {
+        int e=len;while(e>0 && text[e-1]==' ')--e;
+        if(tab)fill(out,n,0,int(tab-text),Syn::heading);
+        else if(e>0 && text[e-1]==':')fill(out,n,0,len,Syn::heading);
+        else {
+            // A label of one or two capitalised words before ':' ("Levels:",
+            // "Hidden levels:", "Renderer:").
+            int c=0;while(c<len && c<24 && text[c]!=':' && (std::isalpha((unsigned char)text[c]) || text[c]==' ' || text[c]=='-'))++c;
+            int spaces=0;for(int i=0;i<c;++i)spaces+=text[i]==' ';
+            if(c>1 && c<len && text[c]==':' && spaces<=1 && std::isupper((unsigned char)text[0]))fill(out,n,0,c+1,Syn::heading);
+        }
+    }
     std::vector<Syn> ex(size_t(n),Syn::plain);
     classify_examples(text,len,ex.data(),n);
     for(int i=0;i<len;++i)if(ex[size_t(i)]!=Syn::plain)out[i]=ex[size_t(i)];
+    // D26L4: the entries of a tabbed list (every cell after the first): a
+    // cell of a number and a name ("12 BLOOD BATHS", "*0 TIME TO KILL",
+    // "armor 320") shows the number green and the name violet.
+    if(tone!=Syn::plain || !tab)return;
+    for(int a=int(tab-text)+1;a<len;) {
+        int b=a;while(b<len && text[b]!='\t')++b;
+        bool numbers=b>a;   // "54 155 156": a cell of numbers only
+        for(int i=a;i<b;++i)numbers&=std::isdigit((unsigned char)text[i]) || text[i]==' ';
+        if(numbers) {for(int i=a;i<b;++i)if(text[i]!=' ')out[i]=Syn::number;a=b+1;continue;}
+        int x=a;if(x<b && text[x]=='*') {fill(out,n,a,a+1,Syn::heading);++x;}   // this level
+        int d=x;while(d<b && std::isdigit((unsigned char)text[d]))++d;
+        if(d>x && d+1<b && text[d]==' ') {fill(out,n,x,d,Syn::number);fill(out,n,d+1,b,Syn::name);}
+        else if(b>a && console_landmark_name(std::string(text+a,size_t(b-a)),false)==1)fill(out,n,a,b,Syn::name);
+        else {
+            int e=b;while(e>a && text[e-1]==' ')--e;
+            int f=e;while(f>a && std::isdigit((unsigned char)text[f-1]))--f;
+            if(f<e && f-1>a && text[f-1]==' ') {fill(out,n,a,f-1,Syn::name);fill(out,n,f,e,Syn::number);}
+        }
+        a=b+1;
+    }
 }
 
 uint32_t console_colour(Syn s) {
@@ -347,23 +394,96 @@ uint32_t console_colour(Syn s) {
     case Syn::unknown: return 0xffff5c4cu;     // red
     case Syn::error: return 0xffff8c7cu;       // soft red
     case Syn::warning: return 0xffffcc70u;     // amber
+    case Syn::heading: return 0xfff4f8ffu;     // near white (D26L4)
     case Syn::plain: break;
     }
     return 0u;
 }
 
+// D26L4: help in sections, one aligned block of tabbed rows (section, usage,
+// summary). A command no section names is listed under OTHER.
+struct Section {const char* label;const char* names;};
+const Section sections[]={
+    {"TRAVEL","goto levels level endlevel quicksave quickload"},
+    {"SPAWN","spawn items enemies"},
+    {"GAME","option renderer palfrom fps"},
+    {"CONSOLE","help history clear quit"},
+    {"WORLD LABS","warp farhits earthquake light chainsound lamp sfx"},
+    {"AIM LABS","autoaim pointblank shotview shootseen roundfollow beamfollow beamanim boltlaunch boltbarrel testmove"},
+    {"DUKE LABS","fov fpidle hangpose crouchstand crouchwalk crouchscan"},
+    {"RENDER LABS","redrawonly hostvis smoothquads"},
+};
 void console_help(void (*say)(const char*),bool all) {
-    say(all ? "All commands (help: the everyday ones):" : "Available commands (help all: developer ones too):");
-    std::vector<const Command*> rows;
-    for(const Command& c:table)if(c.tier==0 || (all && c.tier==1))rows.push_back(&c);
-    std::sort(rows.begin(),rows.end(),[](const Command* a,const Command* b){return std::strcmp(a->name,b->name)<0;});
-    for(const Command* c:rows) {
-        char line[160];
-        std::snprintf(line,sizeof line,"  %-17s %s",c->usage,c->summary);
-        if(std::strlen(c->usage)>=17)std::snprintf(line,sizeof line,"  %s  %s",c->usage,c->summary);
-        say(line);
+    say(all ? "Commands, with the developer labs (help: the everyday ones):"
+            : "Commands (help all: the developer labs too):");
+    std::vector<bool> shown(size_t(table_n),false);
+    auto listed=[&](const Command& c){return c.tier==0 || (all && c.tier==1);};
+    auto row=[&](const char* label,bool& first,const Command& c) {
+        char line[192];
+        std::snprintf(line,sizeof line,"%s\t%s\t%s",first?label:"",c.usage,c.summary);
+        say(line);first=false;
+    };
+    for(const Section& sec:sections) {
+        bool first=true;
+        for(const char* p=sec.names;*p;) {
+            while(*p==' ')++p;
+            const char* e=p;while(*e && *e!=' ')++e;
+            const std::string w(p,size_t(e-p));p=e;
+            for(int i=0;i<table_n;++i)
+                if(!shown[size_t(i)] && w==table[i].name && listed(table[i])) {shown[size_t(i)]=true;row(sec.label,first,table[i]);}
+        }
     }
+    bool first=true;
+    for(int i=0;i<table_n;++i)if(!shown[size_t(i)] && listed(table[i]))row("OTHER",first,table[i]);
     say("Paste: Shift+Insert, Ctrl+V or right-click. Selecting copies; Ctrl+C copies the line");
+}
+// D26L4: a known command whose arguments no handler took: its usage, so it
+// never answers "Unknown command" (warp, option, sfx alone, quicksave x).
+bool console_usage(const char* line,void (*say)(const char*)) {
+    if(!line)return false;
+    const char* e=line;while(*e && *e!=' ')++e;
+    const Command* c=find_command(std::string(line,size_t(e-line)),false,nullptr);
+    if(!c)return false;
+    while(c->tier==2) {   // an alias: its summary names the command
+        const Command* to=find_command(c->summary,false,nullptr);
+        if(!to || to==c)break;
+        c=to;
+    }
+    char reply[192];
+    std::snprintf(reply,sizeof reply,"Usage: %s - %s",c->usage,c->summary);
+    say(reply);
+    return true;
+}
+// D26L4: an unknown first word: the nearest listed command (edit distance
+// up to 2, or a word that begins one), else a pointer to help.
+void console_unknown(const char* line,void (*say)(const char*)) {
+    const char* e=line;while(*e && *e!=' ')++e;
+    const std::string w(line,size_t(e-line));
+    auto distance=[](const std::string& a,const std::string& b) {
+        std::vector<size_t> d(b.size()+1);
+        for(size_t j=0;j<=b.size();++j)d[j]=j;
+        for(size_t i=1;i<=a.size();++i) {
+            size_t diag=d[0];d[0]=i;
+            for(size_t j=1;j<=b.size();++j) {
+                const size_t up=d[j];
+                d[j]=std::min({d[j]+1,d[j-1]+1,diag+(a[i-1]==b[j-1]?0:1)});
+                diag=up;
+            }
+        }
+        return d[b.size()];
+    };
+    const Command* best=nullptr;size_t best_d=3;
+    for(const Command& c:table) {
+        if(c.tier==2)continue;
+        const std::string name=c.name;
+        size_t d=distance(w,name);
+        if(w.size()>=3 && !name.compare(0,w.size(),w))d=std::min<size_t>(d,1);
+        if(d<best_d){best_d=d;best=&c;}
+    }
+    char reply[192];
+    if(best && w.size()>=2)std::snprintf(reply,sizeof reply,"Unknown command: %s. Try: %s (help: every command)",w.c_str(),best->usage);
+    else std::snprintf(reply,sizeof reply,"Unknown command: %s. Type help for the list",w.c_str());
+    say(reply);
 }
 int console_command_count() {return table_n;}
 const char* console_command_name(int i) {return i>=0 && i<table_n ? table[i].name : nullptr;}

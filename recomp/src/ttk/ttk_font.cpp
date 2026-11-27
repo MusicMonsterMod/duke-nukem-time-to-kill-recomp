@@ -114,8 +114,9 @@ std::vector<std::vector<Placed>> wrap(const Set& set,const std::vector<Placed>& 
 }
 struct Laid {const Set* set;int scale,padding,w,h;bool centered;std::vector<std::vector<Placed>> rows;};
 // Lays text out exactly as ttk_font_rasterize draws it; false where it would fail.
-bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid& out) {
-    if(!ttk::input_modernized() || !text || style<0 || style>3 || cap_w<32 || cap_h<16 || !load())return false;
+// any_profile (D26L2): the console, a developer tool, uses the fonts in Vanilla too.
+bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid& out,bool any_profile=false) {
+    if((!any_profile && !ttk::input_modernized()) || !text || style<0 || style>3 || cap_w<32 || cap_h<16 || !load())return false;
     out.centered=style==2;
     out.set=&sets[style==1?1:style==3?2:0];
     out.scale=int(out.set->scale);
@@ -133,11 +134,23 @@ bool lay_out(const char* text,int style,int cap_w,int cap_h,int available_w,Laid
 int row_width(const Laid& laid,const std::vector<Placed>& row) {
     int n=0;for(const Placed& p:row)n+=int(laid.set->glyphs[(unsigned char)p.c-32].advance);return n;
 }
+// D26L2: a glyph pixel recoloured by a tint, keeping the font's own shading:
+// the steel ramp's luminance scales the tint up to the letters' body (about
+// 200 of 255), and the brighter highlights above it lean towards white.
+uint32_t tinted(uint32_t colour,uint32_t tint) {
+    const int r=int(colour>>16&255),g=int(colour>>8&255),b=int(colour&255);
+    const int lum=(r*77+g*150+b*29)>>8,k=lum*256/200;
+    auto ch=[&](int shift) {
+        const int t=int(tint>>shift&255);
+        const int v=k<=256 ? t*k>>8 : t+(255-t)*std::min(k-256,64)*3/(64*10);
+        return uint32_t(std::min(v,255));
+    };
+    return (colour&0xff000000u)|ch(16)<<16|ch(8)<<8|ch(0);
 }
-extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,int cap_w,
-                                  int cap_h,int available_w,int* width,int* height) {
+int rasterize(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,int available_w,int* width,int* height,
+              const uint32_t* tints,int tint_count,bool any_profile) {
     Laid laid;
-    if(!pixels || !width || !height || !lay_out(text,style,cap_w,cap_h,available_w,laid))return 0;
+    if(!pixels || !width || !height || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile))return 0;
     const Set& set=*laid.set;
     const int scale=laid.scale,padding=laid.padding,w=laid.w,h=laid.h;
     std::fill(pixels,pixels+w*h,0u);
@@ -148,26 +161,24 @@ extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,in
         int x=laid.centered?(w/scale-1-row_width(laid,laid.rows[row]))/2:padding;
         for(const Placed& p:laid.rows[row]) {
             const Glyph& v=set.glyphs[(unsigned char)p.c-32];
+            const uint32_t tint=tints && p.src<tint_count ? tints[p.src] : 0u;
             for(unsigned iy=0;iy<v.h;++iy)for(unsigned ix=0;ix<v.w;++ix) {
-                const uint32_t colour=u32(pack.data()+16+v.offset+4*(iy*v.w+ix));
+                uint32_t colour=u32(pack.data()+16+v.offset+4*(iy*v.w+ix));
                 if(!(colour>>24))continue;
+                if(shadow)colour=set.shadow_colour;
+                else if(tint)colour=tinted(colour,tint);
                 for(int dy=0;dy<scale;++dy)for(int dx=0;dx<scale;++dx)
-                    pixel((x+int(ix)+shadow)*scale+dx,(padding+int(row)*int(set.line_height)+int(v.y+iy)+shadow)*scale+dy,
-                          shadow?set.shadow_colour:colour);
+                    pixel((x+int(ix)+shadow)*scale+dx,(padding+int(row)*int(set.line_height)+int(v.y+iy)+shadow)*scale+dy,colour);
             }
             x+=int(v.advance);
         }
     }
     *width=w;*height=h;return 1;
 }
-// D26L1: where ttk_font_rasterize puts each byte of `text`, in pixels of its
-// image: left edge xs[i], advance ws[i] (0 for a byte not drawn: a space dropped
-// at a wrap or a row start, a UTF-8 continuation) and row rows[i]. Row r's top
-// is *top + r * *line_height. Returns the row count, or 0 where rasterize fails.
-extern "C" int ttk_font_layout(const char* text,int style,int cap_w,int cap_h,int available_w,
-                               int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top) {
+int layout(const char* text,int style,int cap_w,int cap_h,int available_w,
+           int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top,bool any_profile) {
     Laid laid;
-    if(!xs || !ws || !rows || max_bytes<0 || !lay_out(text,style,cap_w,cap_h,available_w,laid))return 0;
+    if(!xs || !ws || !rows || max_bytes<0 || !lay_out(text,style,cap_w,cap_h,available_w,laid,any_profile))return 0;
     const int n=std::min(max_bytes,int(std::strlen(text)));
     for(int i=0;i<n;++i)ws[i]=-1;
     for(size_t row=0;row<laid.rows.size();++row) {
@@ -186,6 +197,30 @@ extern "C" int ttk_font_layout(const char* text,int style,int cap_w,int cap_h,in
     if(line_height)*line_height=int(laid.set->line_height)*laid.scale;
     if(top)*top=laid.padding*laid.scale;
     return int(laid.rows.size());
+}
+}
+extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,int cap_w,
+                                  int cap_h,int available_w,int* width,int* height) {
+    return rasterize(text,style,pixels,cap_w,cap_h,available_w,width,height,nullptr,0,false);
+}
+// D26L2: the console's text, in either profile, each byte i drawn in tints[i]
+// (0 keeps the font's colour; the drop shadow is never tinted).
+extern "C" int ttk_font_rasterize_console(const char* text,int style,uint32_t* pixels,int cap_w,int cap_h,
+                                          int available_w,int* width,int* height,const uint32_t* tints,int tint_count) {
+    return rasterize(text,style,pixels,cap_w,cap_h,available_w,width,height,tints,tint_count,true);
+}
+// D26L1: where ttk_font_rasterize puts each byte of `text`, in pixels of its
+// image: left edge xs[i], advance ws[i] (0 for a byte not drawn: a space dropped
+// at a wrap or a row start, a UTF-8 continuation) and row rows[i]. Row r's top
+// is *top + r * *line_height. Returns the row count, or 0 where rasterize fails.
+extern "C" int ttk_font_layout(const char* text,int style,int cap_w,int cap_h,int available_w,
+                               int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top) {
+    return layout(text,style,cap_w,cap_h,available_w,xs,ws,rows,max_bytes,line_height,top,false);
+}
+// D26L2: ttk_font_layout for ttk_font_rasterize_console (either profile).
+extern "C" int ttk_font_layout_console(const char* text,int style,int cap_w,int cap_h,int available_w,
+                                       int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top) {
+    return layout(text,style,cap_w,cap_h,available_w,xs,ws,rows,max_bytes,line_height,top,true);
 }
 // D24B: one line of text from glyph set `set` straight into an ARGB surface
 // (the savestate panel). No Modernized gate: callers decide. Returns the width

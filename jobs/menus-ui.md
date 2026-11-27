@@ -2392,7 +2392,7 @@ gadget, first and third person):
 
 ### D26L - Console review: a rock-solid backtick console
 
-**Status: In progress (2026-11-27: D26L1 and D26L3 Done; the command review and tab completion remain). Dependencies: D26, D61.**
+**Status: In progress (2026-11-27: D26L1, D26L2 and D26L3 Done; the command review and tab completion remain). Dependencies: D26, D61.**
 User, 2026-11-25, after the D61 `goto` help was redone: "stand up a backlog
 job for just a review of the cli, and enhance it so it feels like a more rock
 solid experience for the user. im even thinking we add in a caret. fix up some
@@ -2503,9 +2503,9 @@ auto-scroll above the top row, wider keyboard typing, the pipe glyph.
 
 ### D26L2 - Console syntax highlighting
 
-**Status: Todo (backlog; user request 2026-11-27, part of the D26L console
-review). Dependencies: D26L (font glyphs, the command review); best after
-D26L1.**
+**Status: Done (2026-11-27, user-accepted; part of the D26L console review). See
+[note 567](../documentation/567-d26l2-console-syntax-highlighting.md).
+Dependencies: D26L (font glyphs, the command review); best after D26L1.**
 User, 2026-11-27: "another which is syntax highlighting for the console".
 
 Wanted:
@@ -2532,6 +2532,52 @@ Wanted:
 Acceptance: commands, keywords, numbers and unknown words visibly distinct
 while typing and in `goto help`; no extra GPU cost with the console open at
 180 Hz (D23S measure); user playtest.
+
+**Work log (2026-11-27, Needs playtest).** User: "you can make all the
+decisions on this one, work autonomously".
+
+- **Colours:**
+  - Typing: gold commands, cyan keywords, green numbers, violet run-time
+    names (spawn items, goto landmarks, option keys / values), red unknown
+    words. The word at the caret stays plain while it can still become a
+    known word.
+  - Replies: the echoed command and `history` rows coloured as typed;
+    errors soft red, `Usage:` / `Try:` / warnings amber. Command examples
+    in help, `goto help` and `Try:` lines coloured, help placeholders dim
+    blue.
+- **One table** `src/ttk/console_syntax.cpp` holds every first word (45 with
+  aliases, the framework built-ins included) and the words each knows. The
+  game's names come from providers in `goto.inc` and `game_menu.cpp`.
+  `help` / new `help all` are built from it; the hand-written list in
+  `main.cpp` is gone. `test_console_syntax.py` fails when a handler parses
+  a first word the table lacks, a table command has no handler, or the
+  lamp styles, fpidle gestures and hangpose shapes are missing from their
+  commands.
+- **Drawing:** `ttk_font_rasterize_console` / `ttk_font_layout_console` take
+  a tint per source byte (shading and alpha kept, shadow untinted, no bleed
+  on the slant) and skip the Modernized gate. Vanilla's console now has the
+  TTK font and scrollback like Modernized's; before, it drew only the
+  command line in the 8x8 fallback. `host_osd.c` asks the game for tints
+  (`ttk_console_tints`).
+- **Cost:** tints are applied in the CPU rasterize that already runs only
+  when the image changes, so uploads are unchanged (D23S). Classifying a
+  25-row page takes about 35 us.
+- **Evidence:**
+  - New `ttk-console-syntax-test` (40 classifications, partial words, help
+    fits, timing) and new `ttk-font-test` checks (untinted equals
+    rasterize, a tint changes only its word, works in Vanilla).
+  - Offscreen in game, Modernized, Vanilla and night vision (lab
+    `recomp/analysis/d26l2/`).
+  - Python suite, CI runtime tests, `ttk-inventory-test`, `check_jobs.py`
+    and `check_repo.py` pass. Pinned framework plus patch matches all 99
+    files.
+- **Remaining:**
+  - The user's playtest on the real display.
+  - The D23S 180 Hz GPU figure (none added by construction).
+  - Reply tones are read from wording (note 567, Limits).
+  - Tab completion stays a D26L item; it can use the same table.
+
+**Closed out (2026-11-27, Done).** User: "lock it in and close it out". Left for D26L: the command review, tab completion (from this table), drag auto-scroll.
 
 
 ### D26L3 - Every printable character in the TTK fonts

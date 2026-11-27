@@ -218,7 +218,7 @@ set_source_files_properties("${PSXRECOMP_ROOT}/runtime/src/host_osd.c" PROPERTIE
 # input. Fonts and HUD icons are extracted from the player's own prepared disc
 # (disc/, made by build.py) at build time; never committed. Without a prepared
 # disc the runtime keeps its generic host font and the switcher shows no icons.
-target_sources(psx-runtime PRIVATE src/ttk/ttk_font.cpp src/ttk/inventory_hud.cpp src/ttk/savestate_panel.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/ttk_font.cpp src/ttk/inventory_hud.cpp src/ttk/savestate_panel.cpp src/ttk/console_syntax.cpp)
 target_sources(psx-runtime PRIVATE src/ttk/hidden_level_sound.cpp src/ttk/hidden_level_look.cpp)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(TTK_DISC_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/disc/time-to-kill.bin")
@@ -331,6 +331,12 @@ if(TARGET SDL3::SDL3)
     target_compile_features(ttk-font-test PRIVATE cxx_std_17)
     target_link_libraries(ttk-font-test PRIVATE SDL3::SDL3)
 endif()
+
+# D26L2: the console's syntax classifier, its run-time names stubbed.
+add_executable(ttk-console-syntax-test EXCLUDE_FROM_ALL tests/local/console_syntax_native.cpp src/ttk/console_syntax.cpp)
+target_include_directories(ttk-console-syntax-test PRIVATE src/ttk)
+target_compile_options(ttk-console-syntax-test PRIVATE -UNDEBUG)
+target_compile_features(ttk-console-syntax-test PRIVATE cxx_std_17)
 
 # live_env.cpp owns the SDL draw clock (D23N1), so it needs the player's SDL3.
 if(TARGET SDL3::SDL3)

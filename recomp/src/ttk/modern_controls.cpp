@@ -31,6 +31,7 @@
 #include "lamp_bake.h"
 #include "lamp_bake_map.h"
 #include "security_monitor.h"
+#include "console_syntax.h"
 #include "prop_lights.h"
 #include "sky_borrow.h"
 #include "duke_flicker.h"

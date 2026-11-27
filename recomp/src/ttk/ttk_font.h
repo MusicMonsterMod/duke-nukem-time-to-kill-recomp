@@ -17,6 +17,13 @@ int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,int capacity_
 // *top + r * *line_height. Returns the row count, 0 where rasterize would fail.
 int ttk_font_layout(const char* text,int style,int capacity_w,int capacity_h,int available_w,
                     int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top);
+// D26L2: the console's text in either profile (the console is a developer tool
+// in Vanilla too): as above, byte i of text drawn in tints[i] (ARGB, 0 keeps the
+// font's colour, the tint keeps its shading; the shadow is never tinted).
+int ttk_font_rasterize_console(const char* text,int style,uint32_t* pixels,int capacity_w,int capacity_h,
+                               int available_w,int* width,int* height,const uint32_t* tints,int tint_count);
+int ttk_font_layout_console(const char* text,int style,int capacity_w,int capacity_h,int available_w,
+                            int* xs,int* ws,int* rows,int max_bytes,int* line_height,int* top);
 // D24B savestate panel: draw one line from a glyph set directly (sets 3..7:
 // panel title, slot title, selected slot title, text, dim text). Returns the
 // width drawn, or -1 without a valid pack/set. Line height in pixels, 0 if none.

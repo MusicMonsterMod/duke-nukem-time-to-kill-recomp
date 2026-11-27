@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include "console_syntax.h"
 #include "hidden_titles.h"
 #include "ttk_register.h"
 #include <cctype>
@@ -3564,6 +3565,36 @@ bool option_console_command(const char* line,void (*say)(const char*),bool& clos
         say(reply);close=false;return true;
     }
     say("Option: no such settings key");return true;
+}
+// D26L2 (console_syntax.cpp): option keys and values for the highlighter,
+// the rows option_console_command accepts.
+static int console_word_match(const std::string& word,const char* name,bool prefix) {
+    const size_t n=std::strlen(name);
+    if(word.size()>n || std::strncmp(word.c_str(),name,word.size()))return 0;
+    return word.size()==n ? 1 : prefix ? 2 : 0;
+}
+int console_option_key(const std::string& word,bool prefix) {
+    int best=0;
+    for(const Screen& sc:screens)for(const Row& r:sc.rows) {
+        if(!r.key || r.slider || r.link || r.heading)continue;
+        const int m=console_word_match(word,r.key,prefix);
+        if(m==1)return 1;
+        best=std::max(best,m);
+    }
+    return best;
+}
+int console_option_value(const std::string& key,const std::string& word,bool prefix) {
+    int best=0;
+    for(const Screen& sc:screens)for(const Row& r:sc.rows) {
+        if(!r.key || key!=r.key || r.slider || r.link || r.heading)continue;
+        for(const Choice& c:r.choices) {
+            if(!c.env)continue;
+            const int m=console_word_match(word,c.env,prefix);
+            if(m==1)return 1;
+            best=std::max(best,m);
+        }
+    }
+    return best;
 }
 } // namespace ttk
 

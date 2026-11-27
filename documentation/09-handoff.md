@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-27 - D26L2 closed out (Done)
+
+User-accepted: "lock it in and close it out". D26L continues with the command review and tab completion (which can read the D26L2 table).
+
+## 2026-11-27 - D26L2 console syntax highlighting (Needs playtest)
+
+The backtick console colours its text as you type and in replies: gold commands, cyan keywords, green numbers, violet game names (spawn items, landmarks, option keys / values), red typos (not the word still being typed), soft red errors, amber usage hints. One command table (`src/ttk/console_syntax.cpp`) feeds the colours and `help` / `help all`; `test_console_syntax.py` keeps it in step with every handler. Vanilla's console now uses the TTK font with scrollback like Modernized's. No GPU change (tints in the CPU rasterize). See [note 567](567-d26l2-console-syntax-highlighting.md). Next: the user's look on the real display; then the rest of D26L (command review, tab completion from the same table).
+
 ## 2026-11-27 - D26L3 closed out (Done)
 
 User-accepted: "lock it in and close it out", after the thicker `^ ~` and redrawn `{ }`. D26L continues with the command review and tab completion.

@@ -1,3 +1,4 @@
+#include <cstring>
 #include "ttk_font.h"
 #include <cassert>
 #include <cstdlib>
@@ -68,6 +69,29 @@ int main(int argc,char**argv) {
     assert(ttk_font_rasterize("God Mode: On",0,image.data(),1024,512,624,&w,&h));auto reference=image;
     assert(ttk_font_rasterize("God Mode: On",0,image.data(),1024,512,624,&w,&h));assert(image==reference);
     ttk::modern=false;assert(!ttk_font_rasterize("God Mode: On",0,image.data(),1024,512,624,&w,&h));ttk::modern=true;
+    {   // D26L2: the console's entry points, in both profiles, tinted per byte.
+        const char* line="goto room 12";const int n=int(std::strlen(line));
+        std::vector<uint32_t> plain(1024*64),tinted(1024*64),vanilla(1024*64);int pw=0,ph=0,tw=0,th=0,vw=0,vh=0;
+        assert(ttk_font_rasterize("goto room 12",3,image.data(),1024,512,1264,&w,&h));
+        assert(ttk_font_rasterize_console(line,3,plain.data(),1024,64,1264,&pw,&ph,nullptr,0) && pw==w && ph==h);
+        assert(std::equal(plain.begin(),plain.begin()+pw*ph,image.begin()));   // untinted: the same picture
+        std::vector<uint32_t> tints(size_t(n),0u);for(int i=0;i<4;++i)tints[size_t(i)]=0xfff4bc48u;
+        assert(ttk_font_rasterize_console(line,3,tinted.data(),1024,64,1264,&tw,&th,tints.data(),n) && tw==pw && th==ph);
+        int changed=0,alpha_kept=1;
+        for(int i=0;i<pw*ph;++i)if(plain[size_t(i)]!=tinted[size_t(i)]) {
+            ++changed;
+            if((plain[size_t(i)]>>24)!=(tinted[size_t(i)]>>24))alpha_kept=0;
+        }
+        assert(changed>0 && alpha_kept);
+        // Only "goto" changes: nothing right of its last glyph.
+        int xs[16],ws[16],rs[16],lh=0,top=0;
+        assert(ttk_font_layout_console(line,3,1024,64,1264,xs,ws,rs,n,&lh,&top)==1);
+        for(int y=0;y<ph;++y)for(int x=xs[5];x<pw;++x)assert(plain[size_t(y*pw+x)]==tinted[size_t(y*pw+x)]);
+        ttk::modern=false;
+        assert(ttk_font_rasterize_console(line,3,vanilla.data(),1024,64,1264,&vw,&vh,nullptr,0) && vw==pw);
+        assert(ttk_font_layout_console(line,3,1024,64,1264,xs,ws,rs,n,&lh,&top)==1);
+        ttk::modern=true;
+    }
     if(argc>2) {
         std::vector<uint32_t> sheet(640*1100,0xff303030);
         int y=8;

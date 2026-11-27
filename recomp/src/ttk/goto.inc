@@ -536,3 +536,33 @@ static bool goto_console_command(const char* line,void (*say)(const char*),bool&
     close=true;
     return true;
 }
+// D26L2 (console_syntax.cpp): the run-time names the highlighter colours. A
+// word only begins a name while it is still being typed (prefix).
+static int console_name_match(const std::string& word,const char* name,bool prefix) {
+    const size_t n=std::strlen(name);
+    if(word.size()>n)return 0;
+    for(size_t i=0;i<word.size();++i)if(std::tolower((unsigned char)word[i])!=std::tolower((unsigned char)name[i]))return 0;
+    return word.size()==n ? 1 : prefix ? 2 : 0;
+}
+int console_spawn_name(const std::string& rest,bool prefix) {
+    int best=0;
+    for(const auto& item:spawn_items)best=std::max(best,console_name_match(rest,item.name,prefix)==1?3:console_name_match(rest,item.name,prefix));
+    for(const auto& c:spawn_crystals)best=std::max(best,console_name_match(rest,c.name,prefix)==1?3:console_name_match(rest,c.name,prefix));
+    return best==3 ? 1 : best;
+}
+int console_landmark_name(const std::string& word,bool prefix) {
+    // landmarks.txt is read again at most every two seconds (the console
+    // classifies every visible row each time it redraws).
+    static std::vector<std::string> names;
+    static uint32_t read_at;
+    static bool read;
+    const uint32_t now=SDL_GetTicks();
+    if(!read || now-read_at>2000) {
+        names.clear();
+        for(const auto& m:goto_landmarks())names.push_back(m.name);
+        read=true;read_at=now;
+    }
+    int best=0;
+    for(const auto& n:names){const int m=console_name_match(word,n.c_str(),prefix);if(m==1)return 1;best=std::max(best,m);}
+    return best;
+}

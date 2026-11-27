@@ -2478,7 +2478,7 @@ key or mouse button:
 outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
-Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
+Italic font in both profiles, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`, `help all`,
 `fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `earthquake` (see Earthquakes), `renderer` (see Renderer), `light` (see Dynamic lights), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay); in Modernized it is the same setting as
@@ -2519,6 +2519,25 @@ caret, and you type and delete where it is:
   does not take (non-ASCII and control characters) are left out, with a note.
   Every printable ASCII character is kept, the pipe `|` and the backtick
   included. A line keeps the 95-character limit; a paste cut short says so.
+
+**Colours in the console.** The command line is coloured as you type, so a
+typo shows before you press Enter:
+
+- **gold** a command (`goto`, `spawn`, `level`), **cyan** a word that command
+  knows (`room`, `face`, `quiet`, `on`, `off`), **green** a number (`12`,
+  `-300`, `+45`, `0x100f`), **violet** a name from the game (a `spawn` item, a
+  `goto` landmark, an `option` key or value), and **red** a word nothing knows.
+- The word you are still typing (where the caret is) stays plain until it
+  can no longer become a known word, so `goto ro` does not flash red on the
+  way to `goto room`.
+- Replies use the same colours: your echoed command (a typo stays red there),
+  the examples in `help`, `goto help` and `Try:` suggestions, with errors in
+  soft red and usage hints and warnings in amber. Help's placeholders (`N`,
+  `KEY`, `[radius]`) are a dim blue.
+- `help` lists the everyday commands; `help all` adds the developer ones.
+  Both come from the same list the colours use.
+- Vanilla's console looks the same (it is a developer tool in both); its
+  commands still refuse what Modernized alone does.
 
 The keyboard types every printable character your keyboard layout gives,
 with Shift too (`_ : | { } ! @ # $ & * ( ) " < > ? ~` and the rest); letters

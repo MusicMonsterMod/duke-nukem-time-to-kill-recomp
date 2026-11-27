@@ -712,6 +712,10 @@ def write_host_pack(group, path):
     # a left-leg roundhouse, written by tp_kick.inc.
     import ttk_quick_kick
     entries += ttk_quick_kick.pack_entries(group)
+    # D08J10: the legs stepping onto a ladder from the floor (ttk_ladder_entry.py),
+    # written by ladder_grab.inc during the ground mount's step-in.
+    import ttk_ladder_entry
+    entries += ttk_ladder_entry.pack_entries(group)
     # Padding after the last clip: the original stepper (0x80059db0) loops a
     # channel within the animation's own clip, so if it ever advanced a
     # host-driven channel it would walk on past the extra clips; with a weapon

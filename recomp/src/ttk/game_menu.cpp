@@ -512,6 +512,9 @@ std::vector<Screen> make_screens() {
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"CROUCH",Section::Controls,"crouch","DNTTK_CROUCH",true,"MODERN: CROUCH WALK AND CROUCH ON LANDING",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
+        // D08J10: the ladder grabs climb on at once (ladder_grab.inc).
+        {"LADDER CLIMBING",Section::Controls,"ladder_climbing","DNTTK_LADDER_CLIMBING",true,"MODERN: ONTO THE LADDER WITH THE HAND-OVER-HAND CLIMB",
+         {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""}},0},
         {"SWIMMING",Section::Controls,"swimming","DNTTK_SWIMMING",true,"MODERN: SHIFT WALKS OR RUNS IN WATER AS ON LAND",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         // D08O6: air on surfacing (swim.inc).

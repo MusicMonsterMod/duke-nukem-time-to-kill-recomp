@@ -3615,6 +3615,121 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08J7B mantle fire queue, landing draw request and 2x draw, refusals, pull-up 1.6x on all four channels (D36H10) and Vanilla");
     }
     {
+        // D08J10 LADDER CLIMBING: MODERN enters a plain ladder through the
+        // climb step 188. The ground mount (185 after the floor) is attached
+        // at once and eased onto the climbing line (200 off the panel, facing
+        // it); a catch (147/148) hands over once the swing stops going down,
+        // lifted to where the original's climb starts; 156/210 start 188 at
+        // once. The step-off (185 after the ladder), 207, a pole, CLASSIC and
+        // Vanilla stay original.
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto json=[]{return std::string(ttk::controls_debug_json());};
+        const uint32_t object=0x801ea000,table=0x801e8000,box=0x801e9000;
+        const auto old_table=psx_mod_read_word(0x800d2660),old_owner=psx_mod_read_word(p+0x17c),old_flags=psx_mod_read_word(table+28*46);
+        const auto equip=psx_mod_read_byte(p+0x3b8);
+        uint32_t saved_pose[3];for(int k=0;k<3;++k)saved_pose[k]=psx_mod_read_word(p+4+4*k);
+        const auto saved_yaw=psx_mod_read_half(p+0x1c),saved_heading=psx_mod_read_half(p+0x24);
+        const uint32_t saved_sub=psx_mod_read_word(p+0x1c4);const uint16_t saved_box=psx_mod_read_half(p+0x180);
+        psx_mod_write_word(0x800d2660,table);psx_mod_write_half(object+0x2c,46);psx_mod_write_word(table+28*46,0x200);
+        psx_mod_write_word(object+4,9225);psx_mod_write_word(object+8,-10239);psx_mod_write_word(object+12,13769);
+        psx_mod_write_half(object+0x1c,1024);psx_mod_write_word(object+0x44,0);psx_mod_write_word(object+0x40,box-4);
+        const int16_t panel[8]={-189,-1023,0,0,189,1023,0,0};
+        for(int k=0;k<8;++k)psx_mod_write_half(box+2*k,uint16_t(panel[k]));
+        psx_mod_write_byte(p+0x3b8,0);
+        auto put=[&](unsigned anim,unsigned mode,int32_t x,int32_t y,uint32_t owner){
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode);
+            psx_mod_write_word(p+4,x);psx_mod_write_word(p+8,y);psx_mod_write_word(p+12,13769);psx_mod_write_word(p+0x17c,owner);};
+        auto x=[&]{return int32_t(psx_mod_read_word(p+4));};
+        auto entries=[&](const char* key){const auto t=json();const auto k=t.find(std::string("\"ladder_grab\":{"));
+            const auto at=t.find(std::string("\"")+key+"\":",k);return std::atoi(t.c_str()+at+std::strlen(key)+3);};
+        // Ground mount.
+        put(63,0,8950,-9739,object);psx_mod_write_half(p+0x1c,900);update();
+        put(185,8,8950,-9739,object);psx_mod_write_byte(p+0x22d,8);update();
+        assert(psx_mod_read_half(p+0x60)==188 && psx_mod_read_byte(p+0x22c)==3 && psx_mod_read_word(p+0x17c)==object);
+        assert(psx_mod_read_word(p+0x1c4)==0 && entries("ground")==1);
+        int last=x();
+        for(int k=0;k<8;++k) {psx_mod_write_half(p+0x60,188);update();assert(x()>=last-4);last=x();}
+        assert(std::abs(x()-9025)<=4 && (psx_mod_read_half(p+0x1c)&4095)==1024);
+        assert(json().find("\"settle\":false")!=std::string::npos);
+        // The original sets 185 after the animation update: converted at
+        // 0x800411b8 in that same update, from where Duke stood (an angled
+        // approach is not snapped onto the centre line first).
+        {
+            put(63,0,8900,-9739,0);psx_mod_write_word(p+12,13600);update();
+            put(185,8,8950,-9739,object);
+            CPUState late{};late.gpr[4]=p;late.gpr[29]=0x801fff00;late.gpr[31]=0x80042634;
+            hooks().at(0x800411b8)(&late,0x800411b8);
+            assert(psx_mod_read_half(p+0x60)==188 && psx_mod_read_byte(p+0x22c)==3);
+            assert(x()==8900 && int32_t(psx_mod_read_word(p+12))==13600 && entries("late")==1);
+            assert(json().find("\"legs\":true")!=std::string::npos);
+            for(int k=0;k<9;++k) {psx_mod_write_half(p+0x60,188);update();}
+            assert(std::abs(x()-9025)<=4 && std::abs(int32_t(psx_mod_read_word(p+12))-13769)<=4);
+            assert(json().find("\"legs\":false")!=std::string::npos);
+        }
+        // The step-off at the bottom: 185 after the ladder.
+        put(188,3,9025,-10005,object);update();put(185,8,9025,-10005,object);update();
+        assert(psx_mod_read_half(p+0x60)==185 && entries("ground")==2);
+        // A running catch: the swing goes down, then the hand-over lifted.
+        put(63,0,8740,-9700,0);update();
+        int32_t ys[]={-10013,-10003,-9947,-9781,-9792};
+        for(int k=0;k<5;++k) {put(148,3,8740,ys[k],object);update();if(k<4)assert(psx_mod_read_half(p+0x60)==148);}
+        assert(psx_mod_read_half(p+0x60)==188 && entries("catch")==1);
+        // D08J10 third candidate: after a catch the legs hang (207) until the
+        // toes 188 would place reach the lowest rung (bottom - 234). Under a
+        // high ladder (bottom -11276) they stay hanging; once Duke is high
+        // enough each leg swings onto 188's and the hang ends.
+        {
+            const int clip=int16_t(psx_mod_read_half(0x800c2d64+8*188));
+            assert(clip>0 && clip<2048);
+            const uint32_t anm=0x800d8328+4*clip,frm_ptr=0x800d8324,frm=0x801e7000;
+            const uint32_t saved_anm=psx_mod_read_word(anm),saved_frm=psx_mod_read_word(frm_ptr);
+            psx_mod_write_half(anm,40);psx_mod_write_half(anm+2,3);psx_mod_write_word(frm_ptr,frm);
+            for(int k=0;k<3;++k)psx_mod_write_word(frm+8*(40+k)+4,uint32_t(12)<<16);
+            psx_mod_write_word(object+8,-12299);   // bottom -11276
+            put(63,0,4300,-9700,0);update();
+            int32_t hy[]={-10992,-10992,-10992};
+            for(int k=0;k<3;++k){put(147,3,4300,hy[k],object);update();}
+            assert(psx_mod_read_half(p+0x60)==188 && json().find("\"dangle\":true")!=std::string::npos);
+            auto climb=[&](int32_t y){psx_mod_write_half(p+0x60,188);psx_mod_write_byte(p+0x22c,3);psx_mod_write_word(p+0x17c,object);
+                psx_mod_write_half(p+0x64,40);psx_mod_write_half(p+0x66,40);psx_mod_write_half(p+0x62,12);psx_mod_write_word(p+8,y);update();};
+            for(int k=0;k<6;++k)climb(-11000);
+            assert(json().find("\"dangle\":true,\"dangle_w\":[0.00,0.00]")!=std::string::npos);
+            climb(-11800);   // left toe 289 below: -11511, on the lowest rung; right 535 below: not yet
+            assert(json().find("\"dangle_w\":[0.25,0.00]")!=std::string::npos);
+            for(int k=0;k<4;++k)climb(-12100);
+            assert(json().find("\"dangle\":false")!=std::string::npos);
+            psx_mod_write_word(object+8,-10239);psx_mod_write_word(anm,saved_anm);psx_mod_write_word(frm_ptr,saved_frm);
+        }
+        // The standing catch hands over as soon as it is still.
+        put(63,0,8990,-9700,0);update();
+        put(147,3,8990,-10544,object);update();put(147,3,8990,-10544,object);update();assert(psx_mod_read_half(p+0x60)==147);
+        put(147,3,8990,-10544,object);update();assert(psx_mod_read_half(p+0x60)==188 && entries("catch")==3);
+        // The feet transfers start the climb at once.
+        put(63,0,8990,-9700,0);update();
+        for(unsigned a:{156u,210u}){put(a,3,8990,-10000,object);update();assert(psx_mod_read_half(p+0x60)==188);put(188,3,9025,-10000,object);for(int k=0;k<9;++k)update();}
+        assert(entries("transfer")==2);
+        // Refused: the hang 207, a pole, no owner, CLASSIC, Vanilla.
+        put(63,0,8990,-9700,0);update();
+        put(207,3,8990,-10000,object);update();assert(psx_mod_read_half(p+0x60)==207);
+        psx_mod_write_word(table+28*46,0x600);put(156,3,8990,-10000,object);update();assert(psx_mod_read_half(p+0x60)==156);
+        psx_mod_write_word(table+28*46,0x200);put(156,3,8990,-10000,0);update();assert(psx_mod_read_half(p+0x60)==156);
+        ttk_live_env_set("DNTTK_LADDER_CLIMBING","classic");
+        put(156,3,8990,-10000,object);update();assert(psx_mod_read_half(p+0x60)==156);
+        put(63,0,8950,-9739,object);update();put(185,8,8950,-9739,object);update();assert(psx_mod_read_half(p+0x60)==185);
+        assert(json().find("\"ladder_grab\":{\"modern\":false,")!=std::string::npos);
+        ttk_live_env_set("DNTTK_LADDER_CLIMBING","modern");
+        ttk::modern=false;put(156,3,8990,-10000,object);update();assert(psx_mod_read_half(p+0x60)==156);ttk::modern=true;
+        psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x17c,old_owner);psx_mod_write_word(table+28*46,old_flags);
+        psx_mod_write_byte(p+0x3b8,equip);
+        put(63,0,0,0,old_owner);
+        for(int ch=0;ch<4;++ch)psx_mod_write_half(p+0x60+0x14*ch,63);update();
+        for(int k=0;k<3;++k)psx_mod_write_word(p+4+4*k,saved_pose[k]);
+        psx_mod_write_half(p+0x1c,saved_yaw);psx_mod_write_half(p+0x24,saved_heading);
+        psx_mod_write_word(p+0x1c4,saved_sub);psx_mod_write_half(p+0x180,saved_box);
+        for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(p+v,0);
+        std::puts("PASS: D08J10 ladder entry through the climb: ground mount attached and eased to the line, catch hand-over at the swing's low point, feet transfers; step-off, hang, pole, no owner, CLASSIC and Vanilla original");
+    }
+    {
         // D08J8: held fire inside a climb over a lip draws the sidearm at once
         // (mantles, pull-up, water exit, ladder/chain/wall tops), swapping the
         // selection; the mantles with table bit 0x2000 get their fire track

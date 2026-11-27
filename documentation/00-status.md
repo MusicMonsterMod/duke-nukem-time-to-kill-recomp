@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-11-27 - D08J10 closed out (Done); D08J11 filed
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)): user "great!! the best yet ... lock it all in and close us out". Done: Modern LADDER CLIMBING enters ladders through the hand-over-hand climb, with step-in legs from the floor and the ledge hang below the rungs. D08J11 filed (backlog, not started): a one-armed full hang while the sidearm is drawn, three candidate poses.
+
+## 2026-11-27 - D08J10 sixth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), sixth candidate: while Duke hangs below the rungs he now takes the ledge hang (149) from the hips down, with its slight idle, and a slight sway while he climbs; the climb's pelvis roll that twisted his hips is gone and the upper body is unchanged. Waiting for the user.
+
+## 2026-11-27 - D08J10 fifth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), fifth candidate (user: "so much better"): while the legs hang after a catch they now hang straight down at rest (solved host clip 62) and sway only while he climbs. Waiting for the user.
+
+## 2026-11-27 - D08J10 fourth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), fourth candidate: after a jump catch the legs now hang and sway (the original hang loop 207) while the hands climb, each joining the climb once its foot can reach the ladder's lowest rung; from the floor the step-in legs of the third candidate stay. Measured at the user's spot under the second alley ladder. Waiting for the user.
+
+## 2026-11-27 - D08J10 third candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), third candidate: the upper body keeps the accepted hand-over-hand climb; from the floor the legs now step onto the ladder (right foot planted, left onto the bottom rung; host clip 61 from `ttk_ladder_entry.py`) instead of climbing the air 75 units short of the rungs, and Duke turns and steps in from where he stood instead of the original's snap onto the ladder's centre. Offscreen only; waiting for the user on the real display.
+
+## 2026-11-26 - D08J10 second candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), second candidate after the user rejected the speed-up: MODERN LADDER CLIMBING enters a ladder through Duke's normal hand-over-hand climb step (188). From the floor he reaches up and pulls onto the rungs at once; after a jump catch he hangs as his hands take his weight, then muscles up. He is eased onto the climbing line instead of snapping. CLASSIC and Vanilla original. Offscreen only so far; waiting for the user on the real display.
+
 ## 2026-11-26 - D61B closed out (Done)
 
 - D61B ([note 561](561-d61b-hidden-levels.md)): user "lock in todays efforts, and close us out". Done after playtest fixes (pause-menu beep: samples rewritten after the VB upload; totems drawn again, rebuilt four-box collision; borrowed skies without the cloud deck; Drak head on the totems; TRUE GRIT, MODERN 4, BOSS 4 titles). Backlog filed: D08A51-D08A53 (grenade look setting, grenade shake, weapon steadiness), D61C-D61X (scuba breath, True Grit stone circles and review, Modern 4 fixes). New hook `0x8006A3AC` in `game.local.toml`: other machines regenerate before building.

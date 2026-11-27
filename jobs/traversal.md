@@ -4930,7 +4930,7 @@ LTO+PGO rebuilt and installed on the desktop.
 
 ### D08J10 - Ladder grab climbs at full speed (Modern / Classic)
 
-**Status: Todo (backlog; user playthrough commentary 2026-11-14). Dependencies: D08J, D35E.**
+**Status: Done (user-accepted 2026-11-27: "great!! the best yet", then "commit and push, lock it all in and close us out! good work"; [note 562](../documentation/562-d08j10-ladder-grab.md)). Dependencies: D08J, D35E.**
 Source: the user's long playthrough on 2026-11-14 (spoken commentary, tidied into a list; the user's own words are kept where they matter).
 
 User, 2026-11-14: Duke climbs unusually slowly at the start of a ladder,
@@ -4939,6 +4939,112 @@ MODERN full climbing speed from the grab, CLASSIC the original start.
 Work: shorten or speed up the entry phase in Modern without position or
 animation errors; third-person timing and first person (D35E) consistent.
 Acceptance: Modern has no sluggish start, Classic and Vanilla unchanged.
+
+Work log, 2026-11-26 ([note 562](../documentation/562-d08j10-ladder-grab.md)):
+measured on the first alley ladder, the ground mount 185 took 64 fields
+(1.07 s) for 269 units, a third of the climb's rate, and the jump catches
+147/148 + 156 took 56 fields (0.93 s) before the first climb step. New
+LADDER CLIMBING (OPTIONS > ADVANCED > MOVEMENT; `modern` default, `classic`;
+schema 82, `run.py --ladder-climbing`, Vanilla always classic,
+`ladder_grab.inc`): MODERN scales the animation runner's time 2.5x for the
+ground mount (a 185 after the floor, not the step-off after the ladder), the
+catches 147/148, the hang climb 210 and the feet transfer 156 (not during the
+D08U top mount), on every channel that plays them, plain ladders only; the
+hang 207 and the climb keep their pace, root motion and end points the
+original's. Offscreen: ground mount 26 fields (0.43 s), running catch 22
+(0.37 s), step-off 64 in both; CLASSIC measures as before. Native D08J10 group
+and the whole controls suite pass; unit tests 285 OK. Not seen live: the top
+mount (an enemy held Duke below the alley top in both modes, D08U2) and 207 ->
+210. Needs playtest: the feel on the player's display, first and third person.
+
+Work log, 2026-11-26 (second candidate): the user rejected the speed-up ("it's
+just the low rungs anim speeded up ... more like his normal hand climb style
+like muscling himself up"). Replaced: MODERN now enters a plain ladder through
+the climb step 188. The ground mount is attached on 185's first update (as the
+catches attach) and 188 lifts Duke from standing height; a catch (147/148)
+plays until the swing bottoms out, then 188 starts from the low point with a
+lift to where the original's climb starts (his hands keep the rung); 156/210
+start 188 at once. The host eases him onto the climbing line over 8 updates
+(the original snapped). Offscreen: alley and sewer ladders, both faces, the
+sewer top exit (Modern 478 fields to the top vs 524, same standing point),
+step-off unchanged; third- and first-person frames reviewed. Native group
+rewritten; controls suite passes. Still Needs playtest on the real display.
+
+Work log, 2026-11-27 (third candidate, legs): user: "the top part of his body
+is great!! but now you need to sort the legs out, because hes miming as if
+he's on the rungs when hes not". Measured offline: the climb's toes reach the
+rungs (floor - 234 - 259 n) only from the climbing line, and the grab starts
+75 short of it. New host clip 61 (`ttk_ladder_entry.py`, in `ttk-anim.pack`):
+over the step's opening hold the right foot stays planted (two-bone IK) while
+the left steps onto the bottom rung, then 188's legs take over across 4
+updates. The ground conversion also runs at 0x800411b8 of the update the
+original sets 185, from where Duke stood, so the original's snap onto the
+ladder's centre (up to 200 sideways after an angled approach) is never drawn;
+the ease takes 3 updates. Offscreen: alley and room 68 sewer (angled), catch
+lattice unchanged, Classic unchanged; native group extended (late conversion,
+floor pose, legs). Needs playtest.
+
+Work log, 2026-11-27 (fourth candidate, hanging legs): user, testing under
+the second alley ladder (room 7, x 4346; a jump catch): "i see no change at
+all ... his legs climb up invisible rungs. basically the legs can dangle or
+sway naturally until they are high enough for him to put his feet on the
+rungs". After a catch each leg now hangs on the original bottom-hang loop 207
+(slow sway) until the toe 188/189 would place is on or above the ladder's
+lowest rung (bottom - 234, from its collision box), then swings onto the
+climb's leg. At the user's spot: legs hang through the first steps, right
+then left foot onto the rungs, climb to the top exit. Native group extended
+(a high ladder keeps both legs hanging; each leg switches once reachable).
+Needs playtest.
+
+Work log, 2026-11-27 (fifth candidate): user: "this is now so much better,
+here is the final adjustment i think - at rest, duke's legs should always
+dangle straight down, and then the sway anim only when climbing". While the
+legs hang, at rest (186/187) they now hold a straight hang (host clip 62,
+solved by `ttk_ladder_entry.py straight_pose`: ankles under the hips; no
+native frame hangs straight) and the 207 sway plays only during a climb step
+(188/189), eased over 300 ms. Offscreen at the user's spot: rest straight,
+climbing swaying. Needs playtest.
+
+Work log, 2026-11-27 (sixth candidate): user: "no, the legs are now
+unnaturally close together like a pencil dive, and duke's ass is twisted to
+the side ... the exact hang that duke should do is when you mantle something
+but leave it idle ... this hang while idle, and a slight sway while climbing"
+(video `Video_2026-11-27_01-34-43.mp4`, the ledge hang 149). The straight
+clip is removed. While hanging Duke now takes the ledge hang's pelvis and
+legs with their own idle; the climb's pelvis roll (10-12 degrees, the twist
+and the legs pointing left) is replaced and the chest turned back so the
+upper body is unchanged; 35% of the climb's roll comes through during a step
+as the sway. Offscreen at the user's spot: square hips, relaxed legs at rest.
+Needs playtest.
+
+### D08J11 - One-armed hang on a ladder while armed
+
+**Status: Todo (backlog; user request 2026-11-27, not started). Dependencies: D08J10, D08J6.**
+
+User, 2026-11-27, accepting D08J10: "review duke's pose when hanging from the
+ladder - rather than hang, he immediately pulls up. this can look jarring if
+you start shooting because he's doing half a pull up while shooting enemies!
+so my proposal is that during the hang phase, duke's position reverts to a
+full hang with one arm if the pistol is drawn. this will need some fine
+tuning so we will progressively iterate until we find the one that works, so
+maybe we build out 3 poses and i choose the best one of the 3."
+
+Context: after a jump catch below the rungs (D08J10), Duke's upper body plays
+the climb step 188 from the moment he hangs, while his hips and legs take the
+ledge hang 149 (`ladder_dangle_pose` in `ladder_grab.inc`). With the sidearm
+drawn on the ladder (D08J6 climb fire), the free arm and chest keep that
+half pull-up while he shoots.
+
+Work: while the hang phase lasts (legs not yet on the rungs) and the sidearm
+is out, Duke hangs at full stretch from one hand (the free arm straight, the
+body below it), the gun arm on the D08J6 aim; build three candidate poses
+(for example: hanging straight under the grip hand; turned side-on toward the
+aim; a slight one-arm pull with the chest raised) that the user can switch
+between in game, then refine the chosen one. Keep the unarmed hang, the
+ledge-hang legs, the climb, D08J6/D08J6B firing and first person unchanged.
+Acceptance: the user picks one of the three and it reads naturally while
+shooting; no half pull-up while armed in the hang; Classic and Vanilla
+unchanged.
 
 ### D08O6 - Air refills at once on surfacing (option)
 

@@ -1384,6 +1384,22 @@ up with the ladder in the air if you were a little to one side. Without E
 nothing changes: Duke stops at the wall as before. Vanilla is unchanged; there
 you jump with E held.
 
+**LADDER CLIMBING (Modernized, D08J10).** In OPTIONS > ADVANCED > MOVEMENT.
+**MODERN** (the default): Duke gets onto a ladder with his normal hand-over-hand
+climb. From the floor (W + E at the ladder) he reaches up, steps his left
+foot onto the bottom rung while the right stays on the floor, and pulls
+himself up at once, instead of the original slow step-up; he turns and steps
+in from where he stood rather than jumping onto the ladder; after a jump
+catch with E he hangs for a moment as his hands take his weight, then muscles
+himself up into the climb, his legs hanging until his feet can reach the
+rungs: hanging as he does from a ledge while he holds still, swaying a
+little as he pulls himself up
+(under a ladder that ends high above the floor he pulls himself up by
+his hands for a few rungs first). The climb itself, stepping off at the bottom and
+climbing down from the top (D08U) are unchanged. **CLASSIC**: the original
+ladder start. The change applies at once on CONFIRM. Launcher:
+`--ladder-climbing modern|classic` (saved). Vanilla always uses CLASSIC.
+
 **Climbing off a ladder with an enemy at the top (Modernized, D08U2).**
 In the original game an enemy (or other character) standing near the top of a
 ladder keeps Duke on the top rung for as long as it stays there. In

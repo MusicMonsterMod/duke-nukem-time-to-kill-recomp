@@ -138,7 +138,25 @@ class OwnedDisc(unittest.TestCase):
             path = Path(tmp) / 'anim.pack'
             cw.write_host_pack(self.g, path)
             data = path.read_bytes()
-        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 21)  # walk/idle, run, matching upper clips, one-hand pull-up, quick kick (D12E1), padding
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 22)  # walk/idle, run, matching upper clips, one-hand pull-up, quick kick (D12E1), ladder step-in (D08J10), padding
+
+    def test_ladder_entry_legs(self):
+        # D08J10: the ground mount's step-in legs. The right foot stays planted
+        # (IK), the left ends on the bottom rung, 188's own first-frame leg.
+        import ttk_ladder_entry as le
+        frames = le.frames(self.g)
+        self.assertEqual(len(frames), le.KEYS + 2)   # a leading copy, then the keys
+        for f in frames:
+            self.assertEqual(sorted(c['joint'] for c in f['commands']), list(le.LEG_IDS))
+            for c in f['commands']:
+                t.encode_command(c)
+        rows = le.contact_report(self.g)
+        for r in rows:
+            self.assertLess(abs(r['right_toe'][0] - rows[0]['right_toe'][0]), 3)   # planted
+            self.assertLess(abs(r['right_toe'][1] - rows[0]['right_toe'][1]) + abs(r['right_ankle'][2] - rows[0]['right_ankle'][2]), 6)
+        self.assertLess(abs(rows[-1]['left_toe'][0] - le.RUNG0), 15)   # on the bottom rung
+        self.assertLess(abs(rows[-1]['left_toe'][1]), 20)              # at the panel
+        self.assertGreater(rows[1]['left_toe'][0], rows[0]['left_toe'][0] + 50)   # lifting
 
     def test_onehand_pullup(self):
         # D08J7C: the one-handed pull-up upper body, frame for frame with 140.

@@ -1,5 +1,29 @@
 # Next-session handoff
 
+## 2026-11-27 - D08J10 closed out (Done); D08J11 filed
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)): user "great!! the best yet ... lock it all in and close us out". Done: Modern LADDER CLIMBING enters ladders through the hand-over-hand climb, with step-in legs from the floor and the ledge hang below the rungs. D08J11 filed (backlog, not started): a one-armed full hang while the sidearm is drawn, three candidate poses.
+
+## 2026-11-27 - D08J10 sixth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), sixth candidate: waiting for the user (catch under the second alley ladder, `goto 4346 -9726 13754 face 271`, rest on the rungs, then climb). Hang: `ladder_dangle_pose` in `ladder_grab.inc` (149's pelvis and legs, chest compensated, `ladder_sway_share` 0.35).
+
+## 2026-11-27 - D08J10 fifth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), fifth candidate: waiting for the user (catch under the second alley ladder, `goto 4346 -9726 13754 face 271`; stop on the rungs to see the straight hang). Straight pose: `ttk_ladder_entry.py straight_pose` (clip 62, `--render DIR` writes straight-side/front sheets).
+
+## 2026-11-27 - D08J10 fourth candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), fourth candidate: waiting for the user at their spot (level 0 room 7, `goto 4346 -9726 13754 face 271`, a standing jump with E under the second alley ladder, then W) and from the floor. Hanging legs: `ladder_dangle_*` in `ladder_grab.inc` (toe table from `recomp/analysis/d08j10/feet.py table`).
+
+## 2026-11-27 - D08J10 third candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), third candidate: waiting for the user to try ladder grabs from the floor (straight and at an angle) and jump catches, in both views. The step-in legs are host clip 61 (`ttk_ladder_entry.py --render DIR` for side/quarter sheets with the rungs); tune there, not with speed. The alley ladder has an enemy on top (D08U2); use the room 68 sewer ladder (`goto -4636 510 75928 face 51` for an angled approach) for full climbs and camera room. Probes in `recomp/analysis/d08j10/`.
+
+## 2026-11-26 - D08J10 second candidate (Needs playtest)
+
+- D08J10 ([note 562](562-d08j10-ladder-grab.md)), second candidate: waiting for the user to try ladder grabs (W + E from the floor; a running or standing jump with E) in first and third person. If the start from the floor still reads as a pop, the next step is a short authored lead-in clip (note 188 recipe), not a speed change. The alley ladder has an enemy on top that stops Duke below it in both modes (D08U2); use the room 68 sewer ladder (`goto -4536 510 76328 face 90`) for full climbs. Probes in `recomp/analysis/d08j10/`.
+
 ## 2026-11-26 - D61B closed out (Done)
 
 - D61B ([note 561](561-d61b-hidden-levels.md)): user "lock in todays efforts, and close us out". Done after playtest fixes (pause-menu beep: samples rewritten after the VB upload; totems drawn again, rebuilt four-box collision; borrowed skies without the cloud deck; Drak head on the totems; TRUE GRIT, MODERN 4, BOSS 4 titles). Backlog filed: D08A51-D08A53 (grenade look setting, grenade shake, weapon steadiness), D61C-D61X (scuba breath, True Grit stone circles and review, Modern 4 fixes). New hook `0x8006A3AC` in `game.local.toml`: other machines regenerate before building.

@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-28 - D49G closed out (Done)
+
+User-accepted: "the fix is in! now we have solid looking energy weapons, and freezethrower. lock it in close it out". The Energy Weapon's and Freezer's muzzle flashes are drawn behind the gun, and the flash and beam leave the gun's drawn tip (Modernized first person). See [note 574](574-d49g-muzzle-at-drawn-tip.md).
+
+## 2026-11-28 - D49G round 2 (Needs playtest)
+
+Round 2: the Energy Weapon's muzzle flash was painted over the whole gun (since D36N the gun is drawn in a finer camera space than the flash, and D36O's depth slice took the flash for the nearest part); the flash and held items now share the gun's view lock, so the gun is in front and the flash and beam leave its front end. Round 1 (muzzle point scaled with the 1.4 gun, also the Freezer) is kept. Playtest: fire the Energy Weapon still, turning, strafing and running, then the other weapons. See [note 574](574-d49g-muzzle-at-drawn-tip.md).
+
 ## 2026-11-28 - D36O closed out (Done)
 
 User-accepted: "lock it in and close it out!! its working!!". First-person weapons hold up at any angle: no faces vanish when turned and the weapon's own parts no longer blink over each other; the Energy Weapon moves as freely as the rest (Modernized). Left as is: the Crossbow's opening beside the trigger. See [note 573](573-d36o-weapon-model-survey.md).

@@ -398,9 +398,10 @@ static void motion_view(double* out) {
 static double motion_value(int i) {return render_override ? override_motion_pose[i] : motion_pose_live[i];}
 static const char* motion_debug_json() {
     static char buf[2600];
-    std::snprintf(buf,sizeof buf,"{\"rolls\":\"%s\",\"scale\":%.2f,\"updates\":%llu,\"resets\":%llu,\"landings\":%llu,\"impact\":%.0f,\"weight\":%.3f,\"bob\":%.3f,\"carry\":%.3f,\"breath\":%.3f,\"land\":%.3f,\"slide\":%.3f,\"grip\":%.3f,\"subunit\":%.0f,\"subunit_limited\":%llu,\"pose\":[%.3f,%.3f,%.3f,%.3f,%.3f,%.3f]}",
+    std::snprintf(buf,sizeof buf,"{\"rolls\":\"%s\",\"scale\":%.2f,\"updates\":%llu,\"resets\":%llu,\"landings\":%llu,\"impact\":%.0f,\"weight\":%.3f,\"bob\":%.3f,\"carry\":%.3f,\"breath\":%.3f,\"land\":%.3f,\"slide\":%.3f,\"grip\":%.3f,\"subunit\":%.0f,\"subunit_limited\":%llu,\"pose\":[%.3f,%.3f,%.3f,%.3f,%.3f,%.3f],\"muzzle_scale\":%.2f,\"muzzle_flashes\":%llu,\"muzzle_ok\":%s,\"muzzle_tip\":[%.1f,%.1f,%.1f],\"attached_locks\":%llu}",
         arm_roll_json(),input_modernized() ? weapon_motion_scale() : 0.0,(unsigned long long)motion.updates,(unsigned long long)motion.resets,(unsigned long long)motion.landings,motion.last_impact,motion.weight,motion.bob_amount,motion.carry,motion.breath_w,motion.land_now,
         motion_pose_live[6],motion_pose_live[7],view_subunit_frame,(unsigned long long)view_subunit_limited,
-        motion_pose_live[0],motion_pose_live[1],motion_pose_live[2],motion_pose_live[3],motion_pose_live[4],motion_pose_live[5]);
+        motion_pose_live[0],motion_pose_live[1],motion_pose_live[2],motion_pose_live[3],motion_pose_live[4],motion_pose_live[5],
+        drawn_muzzle_scale(),(unsigned long long)muzzle_scaled_flashes,fp_muzzle_ok?"true":"false",fp_muzzle_view[0],fp_muzzle_view[1],fp_muzzle_view[2],(unsigned long long)attached_locks);
     return buf;
 }

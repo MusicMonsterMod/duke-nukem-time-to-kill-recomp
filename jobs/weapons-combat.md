@@ -499,7 +499,7 @@ matrix as the Laser Gatling, its rounds are unchanged; stills
 
 ### D49G - Shots and muzzle effects lined up with the new weapon motion
 
-**Status: Todo (user report 2026-11-28). Dependencies: D49, D36N, D36O.**
+**Status: Done (user-accepted 2026-11-28: "the fix is in! now we have solid looking energy weapons, and freezethrower. lock it in close it out"; [note 574](../documentation/574-d49g-muzzle-at-drawn-tip.md)). Dependencies: D49, D36N, D36O.**
 User: "the energy weapon blast doesnt line up with the tip of the gun.
 probably worth a quick review too to line everything up after the new
 animations". D49 rooted the drawn beam on the barrel tip in first person,
@@ -528,6 +528,55 @@ move world hits to hide a gap (D49D). Matched before/after captures for the
 README. Tests: the D49 lab measurements, `ttk-near-test` (D36O group),
 `ttk-controls-test` (D36N group), `ttk-aim-test`. Acceptance: user playtest
 of the Energy Weapon moving and turning, then the other weapons.
+
+**Work log (2026-11-28, Needs playtest).** Cause, measured: not the D36N
+motion (the recorded barrel point is taken after the motion pose, from the
+gun's own matrix) but the mesh's display scale. The eye view draws the Energy
+Weapon and Freezer at 1.4 (slot 8 at 1.2) about the hand, while the muzzle
+vector (`0x800c45b0 + slot*0x2c`; Energy Weapon (-8, 350, -16), its mesh's
+front end at about (18, 353, -12)) stayed unscaled. The muzzle flash, the
+beam's root (D49) and the D49E/F bolt point sat about 140 units back inside
+the barrel. This shows since D36O depth-tests the gun in front of the beam:
+the start of the beam is now hidden in the gun and it seems to leave the
+barrel's side. Fix (`first_person.inc`, Modernized first person):
+`drawn_muzzle_scale()` (the mesh's own `slot_scale`) scales the vector for
+the recorded tip, which the beam root, D49E streak and D49F launch already
+read, and for the native flash (its `a3` gets a scaled guest copy; the game's
+table is untouched). A/B `DNTTK_FP_MUZZLE_SCALE=0`. Lab
+`recomp/analysis/d49g/` (private slot 8 copy, offscreen): Energy Weapon tip
+(81, 177, 746) -> (66, 172, 885) firing, Freezer 150 units out, Gatling and
+Flamethrower identical; projected (f fitted on the Gatling's tip) the new
+point lands on the drawn front end of both enlarged meshes and the beam's
+root follows it; 180 and 120 Hz. Review: every flash uses the one hook (slot
+8's vector is zero), the Laser Gatling is scale 1, D49B rounds launch from the
+game muzzle (D10H8), D49A glows are at the beam's end, so nothing else needed
+a change. Stills `research/before-after/D49G/`. Tests: new `ttk-controls-test`
+group D49G (fails with the switch off), 171 groups; `ttk-near-test`,
+`ttk-aim-test`, `ttk-input-test` pass. Limits: the flash keeps whole-unit
+placement (under 1 unit); third person and Vanilla unchanged (not run, code
+is first-person Modernized only); offscreen only. Executable
+`17f7bbd7a59d8530237903ab927fcb25525dfee697a73d852696796c2a8344dd`.
+
+**Work log (2026-11-28, round 2, Needs playtest).** User: "i tested both and
+see absolutely no difference whatsoever. the energy weapon seems to fire in
+front of where the weapon is"; asked, chose "blast drawn over gun". The blast
+is the native muzzle flash mesh (identified in the lab: beam follow off moves
+the streak, not the blast; a probe throwing the flash away removed it). Cause:
+D36N's view lock draws the gun and arms in a camera space 4 times finer, so
+their view depth is 4 times larger; the flash (and held item) transforms were
+not locked and kept factor 1, so D36O's depth slice and the held packets'
+sort took the flash for the nearest part and painted it over the whole gun.
+Fix: `view_locked_transform` also locks the flash (ra `0x8003437c`) and held
+item (ra `0x8003414c`) transforms at the frame's factor (A/B
+`DNTTK_FP_ATTACHED_LOCK=0`). Lab: the gun is drawn in front and the flash and
+beam come out of its front end; pistol, Shotgun, Gatling, Freezer and
+Flamethrower flashes at their barrels. Tests: controls 172 groups (new D49G
+flash-lock group replaces D08A53's "left alone" check), near 16, aim 11,
+input, Python 293 OK. Executable
+`4e085dfe6e803f0570e64a8494d7de7ff59d93b0f39346726eac83c87d1ffd2d`.
+[Note 574](../documentation/574-d49g-muzzle-at-drawn-tip.md) round 2.
+
+**Accepted (2026-11-28).** User playtest: "the fix is in! now we have solid looking energy weapons, and freezethrower. lock it in close it out". Closed out as Done: the Energy Weapon and Freezer flashes are drawn behind the gun and the flash and beam leave the drawn tip.
 
 ### D51 - Continuous fire stops when running into a wall
 

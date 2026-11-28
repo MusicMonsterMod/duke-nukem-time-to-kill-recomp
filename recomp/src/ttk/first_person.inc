@@ -687,6 +687,21 @@ static double slot_scale(unsigned slot) {
     }();
     (void)parsed;return slot<32?table[slot]:1;
 }
+// D49G: what sits at the drawn barrel scales with the mesh. The slot's muzzle
+// vector (shorts at 0x800c45b0 + slot*0x2c, the third-person tip) is in the
+// mesh's units at the original scale; the eye view draws the Energy Weapon and
+// Freezer at 1.4 and slot 8 at 1.2 about the hand, so their tips stood 1.4
+// times as far out as the muzzle flash, the beam's root and the D49E/F bolt
+// point: the Energy Weapon's 140 units back inside the barrel (hidden by the
+// gun since D36O depth-tests it, the beam then left the barrel's side).
+// Display only; DNTTK_FP_MUZZLE_SCALE=0 (A/B) keeps the unscaled vector.
+static unsigned weapon_view_slot();
+static double drawn_muzzle_scale() {
+    static const int on=ttk_env_switch("DNTTK_FP_MUZZLE_SCALE");
+    return on ? slot_scale(weapon_view_slot()) : 1.0;
+}
+static uint32_t drawn_muzzle_vector;   // guest copy for the flash's a3 (three shorts)
+static uint64_t muzzle_scaled_flashes;
 // Developer tuning only (not saved): DNTTK_FP_WEAPON_SLOT<n>=x,y,z replaces a
 // slot's offset.
 static const double* slot_offset(unsigned slot) {
@@ -1614,6 +1629,10 @@ static double view_subunit() {
     static const double k=[]{const char* t=std::getenv("DNTTK_FP_SUBUNIT");const int v=t?std::atoi(t):4;return double(std::clamp(v,1,4));}();
     return k;
 }
+// D49G: the muzzle flash and held item share the lock; A/B DNTTK_FP_ATTACHED_LOCK=0.
+static ViewExact attached_exact;
+static uint64_t attached_locks;
+static bool attached_lock_on() {static const int on=ttk_env_switch("DNTTK_FP_ATTACHED_LOCK");return on!=0;}
 static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     const bool enabled=view_exact_on();
     if(!input_modernized() || !weapon_duke_draw || fp_blend<0.999 || !orbit_valid || cpu->gpr[4]!=camera)return;
@@ -1625,14 +1644,31 @@ static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     } else if(ra==0x80033f14 && weapon_live && !(m&3) &&
               view_exact_matches(weapon_exact,m,true)) {
         x=&weapon_exact;   // the weapon mesh: 0x80033e40's scaled copy of the hand matrix
+    } else if((ra==0x8003437c || ra==0x8003414c) && weapon_live && !(m&3) && m>=0x80000000u && m<0x801fffe0u && attached_lock_on()) {
+        // D49G: the muzzle flash (0x800341e4) and held item (0x80033f5c)
+        // transforms, built on their stacks from the weapon matrix. Left at
+        // camera factor 1 they had a quarter of the view depth of the gun
+        // and arms (factor 4): D36O's depth slice took the flash for the
+        // nearest part and painted it over the whole gun. Same lock, same
+        // frame factor, offset from the matrix's own translation.
+        double cc[3][3];
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)cc[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
+        view_exact_camera(cc);
+        attached_exact={};attached_exact.valid=true;
+        for(int r=0;r<3;++r) {
+            double d=0;
+            for(int i=0;i<3;++i)d+=cc[r][i]*(int32_t(psx_mod_read_word(m+0x14+4*i))-int32_t(psx_mod_read_word(camera+0x14+4*i)));
+            attached_exact.view[r]=d;
+        }
+        x=&attached_exact;++attached_locks;
     }
     if(!x)return;
     if(!enabled) {
         // A/B: the world-rounded translation the GTE gets (traced like the locked one).
         if(present_trace_enabled()) {
             double w[3];for(int i=0;i<3;++i)w[i]=int32_t(psx_mod_read_word(m+0x14+4*i));
-            char name[16];const int part=x==&weapon_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
-            if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
+            char name[16];const int part=x==&weapon_exact || x==&attached_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
+            if(x==&attached_exact)std::snprintf(name,sizeof name,"gte_attached");else if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
             present_trace(name,w);
         }
         return;
@@ -1688,8 +1724,8 @@ static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     if(present_trace_enabled()) {
         // The world point the GTE now sees: eye + C^T dp (Vp dp = V C^T dp).
         double w[3];for(int i=0;i<3;++i)w[i]=eye[i]+c[0][i]*dp[0]+c[1][i]*dp[1]+c[2][i]*dp[2];
-        char name[16];const int part=x==&weapon_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
-        if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
+        char name[16];const int part=x==&weapon_exact || x==&attached_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
+        if(x==&attached_exact)std::snprintf(name,sizeof name,"gte_attached");else if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
         present_trace(name,w);
     }
     cpu->gpr[4]=view_lock_camera;cpu->gpr[5]=view_lock_matrix;++view_exact_draws;
@@ -1719,6 +1755,7 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     live_valid=false;
     if(!weapon_matrix) weapon_matrix=psx_mod_alloc_guest_memory(0x20,16);
     if(!weapon_matrix) return false;
+    if(!drawn_muzzle_vector) drawn_muzzle_vector=psx_mod_alloc_guest_memory(8,4);   // D49G
     double c[3][3],h[3][3];
     for(int r=0;r<3;++r) for(int k=0;k<3;++k) {
         c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
@@ -1849,7 +1886,8 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         // energy beam's drawn root starts here (frame_replay.cpp).
         const uint32_t ws=psx_mod_read_byte(player+0x3b9);
         double m[3],pw[3];
-        for(int i=0;i<3;++i) m[i]=(int16_t)psx_mod_read_half(0x800c45b0u+ws*0x2cu+2*i);
+        const double ms=drawn_muzzle_scale();   // D49G: the tip of the mesh as drawn
+        for(int i=0;i<3;++i) m[i]=(int16_t)psx_mod_read_half(0x800c45b0u+ws*0x2cu+2*i)*ms;
         for(int i=0;i<3;++i) {
             double d=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*i);
             for(int r=0;r<3;++r) d+=(int16_t)psx_mod_read_half(weapon_matrix+2*(3*r+i))/4096.0*m[r];
@@ -2944,6 +2982,18 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
                 live_torso_q[0],live_torso_q[1],live_torso_q[2],live_torso_q[3],live_torso[0],live_torso[1],live_torso[2],psx_mod_read_half(player+0x60));
         }
         ++weapon_flashes;kick=1;
+        // D49G: the flash at the scaled mesh's tip (its a3, the muzzle vector).
+        const double ms=drawn_muzzle_scale();
+        const uint32_t src=cpu->gpr[7];
+        if(ms!=1 && src>=0x80000000u && src<0x801ffffau && !(src&1)) {
+            if(drawn_muzzle_vector) {
+                for(int i=0;i<3;++i) {
+                    const long v=std::lround((int16_t)psx_mod_read_half(src+2*i)*ms);
+                    psx_mod_write_half(drawn_muzzle_vector+2*i,(uint16_t)(int16_t)std::clamp(v,-32768L,32767L));
+                }
+                cpu->gpr[7]=drawn_muzzle_vector;++muzzle_scaled_flashes;
+            }
+        }
     }
     else if(address==0x80033f5c && ra==0x80035250) ++weapon_items;
     else return;

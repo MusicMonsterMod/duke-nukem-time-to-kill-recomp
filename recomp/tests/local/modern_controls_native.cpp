@@ -5536,8 +5536,71 @@ int main(int argc,char** argv) {
                 assert(hook(0x80033e40,hand,0,0x80035000,7).gpr[4]==hand);        // other caller
                 // Muzzle flash: placed from the same matrix, so it stays on the weapon.
                 assert(hook(0x800341e4,hand,4,0x80035348,7,0x801d7000).gpr[4]==vm);
-                // The flash's own transform (another caller) is left alone.
-                assert(hook(0x800292a0,c,0x801f0240,0x8003437c,7,0,0x801f0200).gpr[5]==0x801f0240);
+                assert(hook(0x800341e4,hand,4,0x80035348,7,0x801d7000).gpr[7]==0x801d7000);   // scale 1: native vector
+                {
+                    // D49G: the Energy Weapon's mesh is drawn at 1.4 about the hand;
+                    // its flash (a3) and the drawn barrel tip (beam root, D49E/F
+                    // bolts) take the muzzle vector at the same scale.
+                    const uint32_t table=0x800c45b0u+10*0x2cu,vec=0x801d7000;
+                    uint16_t saved_table[3],saved_vec[3];
+                    const int16_t mz[3]={-8,350,-16};
+                    for(int i=0;i<3;++i){saved_table[i]=psx_mod_read_half(table+2*i);saved_vec[i]=psx_mod_read_half(vec+2*i);
+                        psx_mod_write_half(table+2*i,uint16_t(mz[i]));psx_mod_write_half(vec+2*i,uint16_t(mz[i]));}
+                    psx_mod_write_byte(p+0x3b9,10);
+                    hook(0x800292a0,c,hand,0x80034c6c,7);
+                    const uint32_t wm=hook(0x80033e40,hand,0,0x8003531c,7).gpr[4];
+                    const auto f=hook(0x800341e4,hand,10,0x80035348,7,vec);
+                    assert(f.gpr[4]==wm && f.gpr[7]!=vec && f.gpr[7]>=0x801e0000);
+                    for(int i=0;i<3;++i){
+                        assert(int16_t(psx_mod_read_half(f.gpr[7]+2*i))==int16_t(std::lround(mz[i]*1.4)));
+                        assert(int16_t(psx_mod_read_half(vec+2*i))==mz[i]);   // the game's vector untouched
+                    }
+                    double tip[3],cr[3][3],pw[3];
+                    assert(ttk::first_person_drawn_muzzle(tip));
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k)cr[r][k]=(int16_t)psx_mod_read_half(c+2*(3*r+k))/4096.0;
+                    for(int i=0;i<3;++i){
+                        pw[i]=int32_t(psx_mod_read_word(wm+0x14+4*i))-int32_t(psx_mod_read_word(c+0x14+4*i));
+                        for(int r=0;r<3;++r)pw[i]+=(int16_t)psx_mod_read_half(wm+2*(3*r+i))/4096.0*mz[r]*1.4;
+                    }
+                    for(int r=0;r<3;++r){
+                        const double e=cr[r][0]*pw[0]+cr[r][1]*pw[1]+cr[r][2]*pw[2];
+                        assert(std::abs(tip[r]-e)<1.5);
+                    }
+                    psx_mod_write_byte(p+0x3b9,4);
+                    for(int i=0;i<3;++i){psx_mod_write_half(table+2*i,saved_table[i]);psx_mod_write_half(vec+2*i,saved_vec[i]);}
+                    hook(0x800292a0,c,hand,0x80034c6c,7);
+                    std::puts("PASS: D49G muzzle flash and drawn barrel tip at the weapon mesh's display scale (Energy Weapon 1.4; scale-1 weapons keep the native vector)");
+                }
+                {
+                    // D49G: the flash's own transform (its stack matrix, built from
+                    // the weapon matrix) shares the view lock and the frame's factor,
+                    // so D36O's depth slice sees it at the gun's depth scale (left at
+                    // factor 1 it read 4 times nearer and was painted over the gun).
+                    uint16_t sv[9];
+                    for(int i=0;i<9;++i){sv[i]=psx_mod_read_half(c+0x20+2*i);psx_mod_write_half(c+0x20+2*i,psx_mod_read_half(c+2*i));}
+                    const uint32_t fm=0x801f0240;
+                    for(int i=0;i<0x20;i+=4)psx_mod_write_word(fm+i,psx_mod_read_word(vm+i));
+                    const auto fl=hook(0x800292a0,c,fm,0x8003437c,7,0,0x801f0200);
+                    assert(fl.gpr[5]!=fm && fl.gpr[4]!=c && fl.gpr[4]>=0x801e0000);
+                    const uint32_t vc=fl.gpr[4],lm=fl.gpr[5];
+                    double V[3][3],Vp[3][3],M[3][3],Mp[3][3];
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                        V[r][k]=(int16_t)psx_mod_read_half(c+0x20+2*(3*r+k))/4096.0;Vp[r][k]=(int16_t)psx_mod_read_half(vc+0x20+2*(3*r+k))/4096.0;
+                        M[r][k]=(int16_t)psx_mod_read_half(fm+2*(3*r+k))/4096.0;Mp[r][k]=(int16_t)psx_mod_read_half(lm+2*(3*r+k))/4096.0;
+                    }
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                        double a=0,b=0;for(int i=0;i<3;++i){a+=V[r][i]*M[k][i];b+=Vp[r][i]*Mp[k][i];}
+                        assert(std::abs(4*a-b)<12.0/4096);   // factor 4, as the gun's
+                    }
+                    for(int r=0;r<3;++r) {
+                        double a=0,b=0;
+                        for(int i=0;i<3;++i){a+=V[r][i]*(int32_t(psx_mod_read_word(fm+0x14+4*i))-int32_t(psx_mod_read_word(c+0x14+4*i)));
+                            b+=Vp[r][i]*(int32_t(psx_mod_read_word(lm+0x14+4*i))-int32_t(psx_mod_read_word(vc+0x14+4*i)));}
+                        assert(std::abs(4*a-b)<10);
+                    }
+                    for(int i=0;i<9;++i)psx_mod_write_half(c+0x20+2*i,sv[i]);
+                    std::puts("PASS: D49G muzzle flash transform view-locked with the gun's factor (D36O depth slice)");
+                }
                 // Arm joints go to a matrix at the eye (culled by the loop); others untouched.
                 auto arm=hook(0x800292a0,c,mats+0x20*3,0x80034c6c,3);
                 assert(arm.gpr[5]!=mats+0x20*3 && !ttk::first_person_weapon_drawing());

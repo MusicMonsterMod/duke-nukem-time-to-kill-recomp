@@ -2598,7 +2598,7 @@ Work log, 2026-11-27 (implemented, Needs playtest; [note 570](../documentation/5
 
 ### D08A53 - Weapon steadiness review
 
-**Status: Todo (backlog; user request 2026-11-26: "a review of all the weapons
+**Status: Done (user-accepted 2026-11-28: "lock it in and close it out"; [note 571](../documentation/571-d08a53-steady-weapons.md); scope narrowed by the user: "this is basically gonna be entirely a first person piece - third person is totally unaffected ... our idle anims are absolutely perfect ... when duke walks around there are unusual little shakes, at his wrist, or the gun may very slightly (slightly) vibrate"). User request 2026-11-26: "a review of all the weapons
 for stabilization because i noticed a few vigorous shakes here and there, so
 we just wanna smooth everything out a bit and go for more 'realism' rather than
 jerkiness"). Dependencies: D08A52.**
@@ -2611,6 +2611,112 @@ unchanged.
 
 **Acceptance:** a per-weapon list of shakes found and fixed, and the user's
 playtest finds the weapons steady.
+
+**2026-11-27 implemented (Needs playtest).** First person only, Modernized
+only; [note 571](../documentation/571-d08a53-steady-weapons.md) has the
+measurements per weapon. Offscreen lab `recomp/analysis/d08a53/` (local), 180 Hz,
+private card copies, player files hash-checked unchanged. Four causes, all
+fixed in `recomp/src/ttk/first_person.inc` (render state in `modern_controls.cpp`):
+
+1. **Wrist and arm shakes walking and running.** The display arms took their
+   rotations and the support wrist from the live skeleton, whose fixed-point
+   rounding changes every tick once the root moves (idle exactly still). Old:
+   2-3 px rms on the Shotgun, Pipe Bomb, Knife, Axe and Crossbow; 1-1.4 px on
+   the Buffalo, Gatling and Eagle; half the steps reversing. They now come
+   from the joint records (the game's own local rotations, its blend and
+   timing). A rest bias per slot keeps the accepted live look exactly at rest
+   (rotation, scale, support wrist, bones; taken while still with held keys).
+   Walking is now 0 px for every weapon. A/B `DNTTK_FP_EXACT_ARMS=0`,
+   `DNTTK_FP_EXACT_BIAS=0`.
+2. **Run start/stop jerk.** The D36H3 run weight ramped with the timer while
+   the native arm crossed keys: the Shotgun's support hand swung about 100 px
+   out and back. Now from a ready or run key the weight applies at once (it
+   still ramps from a firing key). Running reversals went from 10-67% to 0-20%;
+   what is left is the kept run swing.
+3. **Knife, Axe, Crossbow.** No seed, so the live hand vibrated 1.8-3.5 px.
+   They take the channel hand standing, like D08A52's throwables. The
+   Crossbow's run whip (still for about 5 ticks, then 200-250 px) joins the
+   run blend toward its clip-20 ready key.
+4. **Gun hop when turning.** The weapon matrix's whole-unit world translation
+   re-rounds as the view turns, so the gun and arms hopped up to a unit (about
+   2.5 px at the grip) once per tick while the mouse or a turn moved the view.
+   `view_locked_transform` (entry of `0x800292a0`, hand and arm transforms and
+   the weapon mesh's own) passes a scale-only private camera and a view-space
+   matrix with the intended offset rounded once. Looking around while walking,
+   the grip went from 1.1-1.8 px rms (18-29% reversing) to 0.25-0.31 px, and
+   the Buffalo support hand from 1.5 to 0.2 px. A/B `DNTTK_FP_VIEW_EXACT=0`.
+
+Rest placement: arms on the live pixel; grip at its intended position (the old
+spot was only defined within the unit rounding, up to about 4-5 px). The Knife
+and Crossbow moved 4-7 px with the channel hand. Firing while walking: the same
+recoil, with smaller single steps. Vanilla has no first-person display.
+
+Tests: `ttk-controls-test` 169 groups pass (new D08A53 locked-transform check;
+D36H3, D08A52/D08K10, D11E and worker-eligibility expectations follow the new
+design), `ttk-near-test` and `ttk-input-test` pass, Python 292 OK (2
+skipped). Picture (local): `research/before-after/D08A53/steadiness-trace.png`.
+Limits: offscreen only (the playtest on the real display is the acceptance);
+whole-unit drawn positions still step 1 unit in slow motion; crouch, swim,
+climb and contact actions and the muzzle flash keep their own paths.
+
+**2026-11-28 user playtest of round 1, then round 2 (Needs playtest).** User:
+"the weapons themselves, including the holy hand grenade, are all noticably
+smoother, but the issues i see are in like, arms and wrists". Their test is
+running, turning and bunny-hopping. They saw:
+
+- the throwables' wrist vibrating, strongest when jumping;
+- the Energy Weapon's, the Freezer's and both Buffalo wrists the same; the
+  Crossbow milder;
+- the Knife, Axe, RPG and Shotgun acceptable.
+
+The user selected tiers 1 and 2 and put tier 3 on the board:
+[D36N](first-person.md#d36n---first-person-viewmodel-motion-and-grips). Lab
+`hop` case added; [note 571](../documentation/571-d08a53-steady-weapons.md)
+round 2.
+
+- **Jumping** (mode 9) had dropped back to the rounded skeleton. It is now
+  covered (`exact_arm_mode`); rest samples are taken on the ground only.
+- **The arm rig re-entered the camera rows' Q12 rounding.** With the lock it
+  uses them orthonormalized, and the weapon's unrounded rotation.
+- **Forearm roll** around the fixed hand: Gatling and Freezer 29-41 degrees
+  running, the Buffalo support wrist 27-89, looking around 38-117, fire clips
+  40-230. Each forearm now holds a per-slot rest roll, eased toward the native
+  roll only while standing still. The lock's strength eases in and out over
+  draws, switches and gaps, and both values are blended in redraws.
+  `DNTTK_FP_WRIST_ROLL=0` is the A/B.
+
+Hop test, all of D08A53 off against on: arm segments 1.1-7.9 px rms (44-70%
+reversing) to 0.18-1.15 px (0.4-24%). Roll running and hopping 27-89 degrees
+to 0.1-0.2 on the Gatling, Freezer and Buffalo, and at most 0.3 on the
+others. Native `ttk-controls-test` 169 groups, near and input tests pass.
+Picture (local): `research/before-after/D08A53/hop-trace.png`.
+
+**2026-11-28 user playtest of round 2, then round 3 (Needs playtest).** User:
+"there's no vibration on any of these anymore it's really good". Fine: the
+Knife, Axe, Eagle, Gatling, RPG, throwables, Energy Weapon and Crossbow. Left:
+
+- the Shotgun's left hand "weird rubbing thing";
+- the Buffalo's left arm "looks like it wants to move but it doesn't";
+- the Freezer's right arm "looks like it was to fiddle";
+- the quick kick "should always be below his hands and the guns".
+
+Round 3 ([note 571](../documentation/571-d08a53-steady-weapons.md)):
+
+- **Upper arms** rolled 75-340 degrees (Buffalo left, Freezer and Gatling
+  right). They now hold their roll against the locked forearm, about 1 degree.
+- **Shotgun:** the support hand kept a tenth of the run swing and slid 12-13
+  px along the gun. It is now held on the ready grip running (0 px).
+- **Kick:** the leg ranks first in the first-person layer, so the guns and
+  hands cover it; holstered hands join that layer while a quick kick plays.
+  `DNTTK_FP_KICK_BEHIND=0` is the A/B.
+- **Manual:** the kick note updated.
+- **Tests:** new `ttk-near-test` D08A53 group (legacy-geometry contracts;
+  that path already aborted later in D17AH, verified without this job's
+  changes). A `scroll` test-input word was added for the holster step.
+  Pictures (local): `kick-order.png`.
+
+**2026-11-28 accepted and closed.** User: "lock it in and close it out". Done.
+Follow-up: [D36N](first-person.md#d36n---first-person-viewmodel-motion-and-grips).
 
 ### D08A54 - Holy Hand Grenade off 6 6 6
 

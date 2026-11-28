@@ -251,7 +251,10 @@ constexpr uint32_t mask_frame_bytes=47*1024;
 // region takes two neighbouring ones (94 KB) after its host block.
 constexpr uint32_t mask_blocks=4, region_mask_bytes=mask_frame_bytes*(mask_blocks/host_regions);
 static_assert(mask_blocks%host_regions==0,"regions share the Bio Mask blocks evenly");
-struct HeldPacket { uint32_t prim,tag; double z; };
+// D08A53 round 3: rank 0 for the quick/door kick leg, 1 for the weapon, hands
+// and arms; the leg is drawn first, so the guns and hands always cover it (the
+// user: the kick "should always be below his hands and the guns").
+struct HeldPacket { uint32_t prim,tag; double z; uint8_t rank; };
 std::vector<HeldPacket> held_packets;
 uint32_t held_frame;
 // D20C: the region in use is mirrored in the word after the arena (mod memory,
@@ -473,7 +476,7 @@ struct Frame {
     bool flat_prop=false;
     double coverage=1.0;
     bool far=false; // scene mesh with every vertex at least far_z away
-    NearGte g;bool object,viewmodel;bool sky=false;bool borrowed=false;uint32_t far_limit,zsf3,zsf4;
+    NearGte g;bool object,viewmodel;bool kick_leg=false;bool sky=false;bool borrowed=false;uint32_t far_limit,zsf3,zsf4;
     // D41C: a primary-Duke presentation draw (first-person weapon layer,
     // display or contact limbs) that takes the frame's lights.
     bool duke_lit=false;
@@ -835,7 +838,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     const uint32_t slot=ordering+(uint32_t)index*8,head=psx_mod_read_word(slot),tag=((size>>2)-1)<<24;
     if(f.viewmodel) {
         double z=0;for(unsigned i=0;i<n;++i) z+=v[i].p[2]/n;
-        held_packets.push_back({prim,tag,z});
+        held_packets.push_back({prim,tag,z,uint8_t(f.kick_leg?0:1)});
     } else if(!head) {
         psx_mod_write_word(prim,tag);psx_mod_write_word(slot,prim);psx_mod_write_word(slot+4,prim);
         const uint32_t word=bitmap+((uint32_t)index>>5)*4;
@@ -2994,6 +2997,8 @@ void object(CPUState* cpu) {
     if(limb.fixed_projection()) f.g.h=256;
     trace_begin(f,cpu);
     f.viewmodel=viewmodel;f.coverage=coverage;
+    static const int kick_behind=ttk_env_switch("DNTTK_FP_KICK_BEHIND");   // A/B: 0 = the old depth order
+    f.kick_leg=kick_behind && viewmodel && limb.owner==LimbOwner::Kick;
     f.duke_lit=duke_light_on() && (first_person_duke_drawing() || third_person_duke_drawing()) &&
         (viewmodel || limb.owner!=LimbOwner::Native);
     f.scene=!viewmodel && !f.sky && !limb.fixed_projection();
@@ -3557,7 +3562,8 @@ void near_clip_viewmodel_flush() {
     // drawn head to tail, so the weapon follows anything else near the eye
     // (Duke's chest when looking down). The frame's OT link-up still patches
     // the tail's link, now the weapon's last packet.
-    std::stable_sort(held_packets.begin(),held_packets.end(),[](const HeldPacket& a,const HeldPacket& b){return a.z>b.z;});
+    // D08A53: the kick leg first (behind), then farthest first.
+    std::stable_sort(held_packets.begin(),held_packets.end(),[](const HeldPacket& a,const HeldPacket& b){return a.rank!=b.rank ? a.rank<b.rank : a.z>b.z;});
     for(size_t i=0;i+1<held_packets.size();++i)
         psx_mod_write_word(held_packets[i].prim,held_packets[i].tag|(held_packets[i+1].prim&0xffffff));
     const HeldPacket& last=held_packets.back();

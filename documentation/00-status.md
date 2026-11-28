@@ -1,5 +1,21 @@
 # Current status - 2026-10-04
 
+## 2026-11-28 - D08A53 closed out (Done)
+
+User-accepted: "lock it in and close it out". First-person arms, wrists and weapons are steady walking, running, jumping and turning; the quick kick passes behind the guns and hands. Next in this line: D36N (first-person viewmodel motion and grips, research first). See [note 571](571-d08a53-steady-weapons.md).
+
+## 2026-11-28 - D08A53 round 3: support hands, upper arms, kick behind the guns (Needs playtest)
+
+After the user's playtest of round 2 (no vibration left): the upper arms hold their roll (Buffalo left, Freezer right), the Shotgun's support hand no longer slides along the gun when running, and the quick kick's leg is drawn behind the weapon and hands, holstered hands included. Playtest: run, hop and kick with the Shotgun, Buffalo and Freezer, and kick holstered while hopping. See [note 571](571-d08a53-steady-weapons.md).
+
+## 2026-11-28 - D08A53 round 2: wrists steady when jumping and turning (Needs playtest)
+
+After the user's playtest of round 1 (weapons smoother, wrists still odd, worst when bunny-hopping and turning): jumping is covered by the steady arms, the arm rig is exact while turning, and each forearm holds its rest roll against the hand, so the Gatling, Freezer and Buffalo wrists no longer twist. Tier 3 (a purpose-built viewmodel with deliberate motion and camera-designed grips) is [D36N](../jobs/first-person.md#d36n---first-person-viewmodel-motion-and-grips). Playtest: run, turn and bunny-hop with each weapon. See [note 571](571-d08a53-steady-weapons.md).
+
+## 2026-11-27 - D08A53 steady weapons walking, running and turning (Needs playtest)
+
+First person, Modernized: the arms no longer vibrate walking or running (they come from the joint records, with the accepted rest look kept by a per-slot bias); a run start no longer swings the support hand out and back; the Knife, Axe and Crossbow hold the channel hand; the gun and arms no longer hop up to a unit when the view turns (view-locked transform). Playtest: walk, run and look around with each weapon on the real display. See [note 571](571-d08a53-steady-weapons.md).
+
 ## 2026-11-27 - D08A52 closed out (Done)
 
 User-accepted: "lock it in and close it out". The Holy Hand Grenade is drawn once on `6 6` and held steady. Next in this line: D08A53 (weapon steadiness review). See [note 570](570-d08a52-steady-grenade-hand.md).

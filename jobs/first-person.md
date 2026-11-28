@@ -2446,3 +2446,36 @@ first if the first-person arms own it. Acceptance: user playtest firing the
 Gatling in first and third person.
 
 **Done.** First-person left hand held on the ready grip (as D36H11).
+
+### D36N - First-person viewmodel motion and grips
+
+**Status: Todo (backlog; user request 2026-11-28 during D08A53: "I feel like we could do so much better with these weapon animations ... this is one of the most important visual aspects of the game and people are going to remember this"; on the Shotgun: "duke holds the shotgun with his left hand under the gun you know I'd like to see how other games do that same pose ... there is a lack of robustness to it or what you would expect out of a first person shooter"). Dependencies: D08A53.**
+
+Today the first-person arms are the native third-person animation attached to a
+weapon held still in front of the eye (D12/D36H): each segment's rotation comes
+from the animation, and only the segment directions and the grip are fixed for
+the camera. D08A53 removed the rounding noise, the run-start swing and the
+forearm roll; what is left is how the original animation reads from the eye.
+
+Scope: a purpose-built first-person rig, the arms and weapon moving as one
+assembly, with deliberate, tunable motion layered on it. Candidates:
+
+- weapon sway that lags behind turning and looking;
+- a bob tied to the footsteps;
+- a lift on jumping and a dip on landing;
+- a sprint carry while running;
+- grips posed for the camera, the Shotgun's support hand on the fore-end first.
+
+The native animation keeps firing, reloads, throws and draws. Start with
+research, with sources: how other shooters build and pose their viewmodels
+(Doom 2016/Eternal, Half-Life 2, Call of Duty, Duke Nukem 3D/EDuke32 and
+others). Bring the user options for the motion and the Shotgun grip before
+implementing. Read the D36 audit ([note 257](../documentation/257-d36-first-person-presentation-audit.md)) and the D36H5 arm
+notes (305, 306) first; keep D08A53's steadiness
+([note 571](../documentation/571-d08a53-steady-weapons.md)). Modernized only;
+Vanilla and third person unchanged; frame rate never changes.
+
+**Acceptance:** the user picks the motion and grip designs from the research,
+and their playtest finds the first-person weapons and arms clearly better than
+D08A53's.
+

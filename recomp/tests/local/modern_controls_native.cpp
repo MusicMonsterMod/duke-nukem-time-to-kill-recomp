@@ -5416,8 +5416,38 @@ int main(int argc,char** argv) {
                 assert(hand_owner.owner==ttk::LimbOwner::DisplayHand && hand_owner.parts==(1u<<0x0f));
                 assert(hand_owner.space==ttk::LimbSpace::CameraRelative && hand_owner.depth==ttk::LimbDepth::Viewmodel);
                 assert(hand_owner.light==ttk::LimbLight::CorrectProximityFade && !hand_owner.bridge_joint_depth);
-                const uint32_t vm=h.gpr[5];
-                assert(hook(0x80033e40,hand,0,0x8003531c,7).gpr[4]==vm);          // weapon mesh
+                // D08A53: the hand's own transform is view-locked: a private
+                // camera whose rows are only the projection scale and a private
+                // matrix in view axes. The GTE gets the same rotation and (within
+                // the one rounding) the same translation as from the weapon matrix.
+                const uint32_t vm=hook(0x80033e40,hand,0,0x8003531c,7).gpr[4];    // weapon mesh
+                assert(vm!=hand && vm>=0x801e0000 && vm!=h.gpr[5]);
+                {
+                    const uint32_t vc=h.gpr[4],lm=h.gpr[5];
+                    assert(vc!=c && vc>=0x801e0000 && lm>=0x801e0000);
+                    double V[3][3],Vp[3][3],M[3][3],Mp[3][3];
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                        V[r][k]=(int16_t)psx_mod_read_half(c+0x20+2*(3*r+k))/4096.0;
+                        Vp[r][k]=(int16_t)psx_mod_read_half(vc+0x20+2*(3*r+k))/4096.0;
+                        M[r][k]=(int16_t)psx_mod_read_half(vm+2*(3*r+k))/4096.0;
+                        Mp[r][k]=(int16_t)psx_mod_read_half(lm+2*(3*r+k))/4096.0;
+                        if(r!=k)assert(Vp[r][k]==0);
+                    }
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                        double a=0,b=0;
+                        for(int i=0;i<3;++i){a+=V[r][i]*M[k][i];b+=Vp[r][i]*Mp[k][i];}
+                        assert(std::abs(a-b)<3.0/4096);
+                    }
+                    for(int r=0;r<3;++r) {
+                        double a=0,b=0;
+                        for(int i=0;i<3;++i) {
+                            a+=V[r][i]*(int32_t(psx_mod_read_word(vm+0x14+4*i))-int32_t(psx_mod_read_word(c+0x14+4*i)));
+                            b+=Vp[r][i]*(int32_t(psx_mod_read_word(lm+0x14+4*i))-int32_t(psx_mod_read_word(vc+0x14+4*i)));
+                        }
+                        assert(std::abs(a-b)<2.5);
+                    }
+                    std::puts("PASS: D08A53 view-locked hand transform: scale-only private view rows, same GTE rotation and translation");
+                }
                 assert(hook(0x80033f5c,hand,4,0x80035250,7).gpr[4]==vm);          // held item
                 assert(hook(0x80033e40,hand,0,0x80035000,7).gpr[4]==hand);        // other caller
                 // Muzzle flash: placed from the same matrix, so it stays on the weapon.
@@ -5611,6 +5641,13 @@ int main(int argc,char** argv) {
                     const unsigned elbow=psx_mod_read_byte(desc+0x24+14);
                     for(unsigned k:{0u,8u})psx_mod_write_half(mats+32*elbow+2*k,2896);
                     psx_mod_write_half(mats+32*elbow+4,2896);psx_mod_write_half(mats+32*elbow+12,uint16_t(-2896));
+                    // D08A53: the display arms read the joint records (the local
+                    // rotations the game composes), relative to the right wrist.
+                    // In a record skeleton an elbow turn carries its wrist, so the
+                    // run twist the grip sees is the wrist's own: 45 degrees about
+                    // y (x, y, z, w in Q12) on the wrist record.
+                    {const uint32_t rec=desc+0x44+0x28*psx_mod_read_byte(desc+0x24+15)+4;const int32_t q[4]={0,1567,0,3784};
+                     for(int i=0;i<4;++i)psx_mod_write_word(rec+4*i,uint32_t(q[i]));}
                     const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                     const auto swung=arms(20,41,41,0),run=arms(18,37,37,0);
                     auto distance=[](const auto& a,const auto& b) {
@@ -5618,10 +5655,13 @@ int main(int argc,char** argv) {
                     };
                     assert(distance(run,rest)<distance(swung,rest)/4);
                     assert(run[5]==swung[5]); // right grip / weapon / muzzle unchanged
-                    assert(arms(18,41,37,100)==swung); // native transition begins at zero
-                    assert(arms(20,37,41,0)==swung); // and restores on its own last tick
-                    const auto middle=arms(18,41,37,50);
-                    assert(distance(middle,swung)>0 && distance(middle,run)>0);
+                    // D08A53: from a ready or run key the run weight applies at
+                    // once (a weight ramping with the timer let the arm swing out
+                    // and back), and holds until the ready key is held again.
+                    assert(arms(18,41,37,100)==run);
+                    assert(arms(20,37,41,0)==run);
+                    assert(arms(18,41,37,50)==run);
+                    assert(arms(20,41,41,0)==swung);
                     assert(arms(21,37,37,0)==swung); // firing never borrows run correction
                     arms(18,37,37,0);
                     std::vector<uint8_t> run_state(ttk::render_state_size()),idle_state(run_state.size());
@@ -5644,8 +5684,8 @@ int main(int argc,char** argv) {
                     const auto rifle_swung=arms(20,41,41,0),rifle_run=arms(18,37,37,0);
                     assert(distance(rifle_swung,rifle_run)>0);
                     for(unsigned n:{0u,1u,2u,5u})assert(rifle_swung[n]==rifle_run[n]);
-                    assert(arms(18,41,37,100)==rifle_swung);
-                    assert(arms(20,37,41,0)==rifle_swung);
+                    assert(arms(18,41,37,100)==rifle_run);   // D08A53, as above
+                    assert(arms(20,37,41,0)==rifle_run);
                     assert(arms(25,37,37,0)==rifle_swung);
                     assert(arms(27,37,37,0)==rifle_swung);
                     // A changing native elbow roll no longer changes the
@@ -5922,8 +5962,9 @@ int main(int argc,char** argv) {
                         // Original crouch and standing retain D12's live path,
                         // except the throwables 12-14 (D08A52): their hand is
                         // the channel's standing too, so the world hand moving
-                        // (the live skeleton's rounding) never moves it.
-                        const bool steady=slot>=12 && slot<=14;
+                        // (the live skeleton's rounding) never moves it; D08A53
+                        // gives the Throwing Knife, Axe and Crossbow (1-3) the same.
+                        const bool steady=(slot>=1 && slot<=3) || (slot>=12 && slot<=14);
                         setenv("DNTTK_CROUCH","original",1);assert((displayed()==neutral)==steady);
                         unsetenv("DNTTK_CROUCH");assert(displayed()==neutral);
                         psx_mod_write_half(p+0x60,63);assert((displayed()==neutral)==steady);
@@ -5945,8 +5986,9 @@ int main(int argc,char** argv) {
                         setenv("DNTTK_CROUCH","original",1);
                         psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);psx_mod_write_word(p+0x1c8,root[1]+2000);
                         psx_mod_write_byte(p+0x22c,5);psx_mod_write_half(p+0x60,128);
-                        // Slot 2, not 12: out of water the throwables keep the channel hand (D08A52).
-                        for(unsigned slot:{3u,2u,32u}) {
+                        // Empty hands only: out of water the throwables (D08A52) and
+                        // the Knife, Axe and Crossbow (D08A53) keep the channel hand.
+                        for(unsigned slot:{32u}) {
                             psx_mod_write_byte(p+0x3b8,slot==32?1:2);psx_mod_write_byte(p+0x3b9,slot==32?12:slot);
                             const auto corrected=displayed();
                             psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);assert(displayed()==corrected);
@@ -5976,7 +6018,10 @@ int main(int argc,char** argv) {
                         setenv("DNTTK_CROUCH","original",1);assert(displayed()==seeded);
                         unsetenv("DNTTK_CROUCH");assert(displayed()==seeded);
                     }
-                    psx_mod_write_byte(p+0x3b9,1);
+                    // Empty hands (slot 32): since D08A53 the Knife, Axe and
+                    // Crossbow keep the channel hand standing, like D08A52's
+                    // throwables, so only the held item still differs.
+                    psx_mod_write_byte(p+0x3b8,1);psx_mod_write_byte(p+0x3b9,12);
                     // A replay worker redraws with fork-time stance statics.
                     // Publish eligibility with each frame, including disabling it
                     // again for Original/standing frames in the same worker.

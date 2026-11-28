@@ -129,6 +129,8 @@ static int impact_id() {
     return value;
 }
 static bool kick_active, kick_sounded, kick_queued;
+// D08A53: a quick kick is playing (live, or as the redraw's render state carries it).
+static bool quick_kick_live() {return kick_active;}
 static uint64_t kick_start;
 static uint32_t kick_point, leg_matrices;
 static uint64_t kicks, kick_converts, kick_hit_calls, kick_sounds, kick_leg_draws, kick_cancels, kick_surface_points, kick_fire_starts, kick_thigh_draws, kick_queues, kick_repeats, kick_suppressed;

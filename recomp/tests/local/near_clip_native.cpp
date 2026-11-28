@@ -700,6 +700,36 @@ static void packet_contracts(const char* executable) {
             assert(ttk::near_clip_frame_state().host_bytes==frame.host_bytes);
         }
     };
+    // D08A53: in the viewmodel layer the kick leg is drawn first, behind the
+    // weapon and hands, although it is nearer the eye (farthest-first alone
+    // drew the boot over the guns and hands).
+    {
+        live_eye=true;test_viewmodel=true;
+        ttk::near_clip_load_frame_state({0,0,0,0});
+        test_owner=ttk::LimbOwner::DisplayHand;object_case(0x80034dd0,100,true,false,0,900);
+        const auto hand=ttk::near_clip_frame_state();
+        const uint32_t base=0x80f00000+hand.host_region*128*1024,hand_end=hand.host_bytes;
+        test_owner=ttk::LimbOwner::Kick;object_case(0x80034dd0,100,true,false,0,200);
+        const auto both=ttk::near_clip_frame_state();
+        assert(both.host_region==hand.host_region && both.host_bytes>hand_end);
+        // Native HUD in slot 0 (a frame with an empty OT is discarded).
+        word(ot+8,0);word(ot+12,0);
+        word(bm,0x80000000u);word(ot,0x801f0000);word(ot+4,0x801f0000);word(0x801f0000,0x03000000u);
+        ttk::near_clip_viewmodel_flush();
+        uint32_t node=psx_mod_read_word(ot+8);
+        unsigned kicks=0,hands=0;bool hand_seen=false;
+        while(node) {
+            assert(kicks+hands<10000);
+            const uint32_t off=(node&0xffffff)-(base&0xffffff);
+            const bool kick=off>=hand_end;
+            if(kick) {assert(!hand_seen);++kicks;} else {hand_seen=true;++hands;}
+            node=psx_mod_read_word(node)&0xffffff;
+            if(node)node|=0x80000000u;
+        }
+        assert(kicks>0 && hands>0);
+        test_owner=ttk::LimbOwner::DisplayHand;test_viewmodel=false;ttk::near_clip_load_frame_state({0,0,0,0});
+        std::puts("PASS: D08A53 viewmodel layer draws the kick leg before the weapon and hands");
+    }
     // D17AH: sky layers retain native painter composition while keeping
     // perspective UV/depth metadata. Adjacent callers and changed sky code
     // must remain ordinary depth-tested geometry; Vanilla never takes over.

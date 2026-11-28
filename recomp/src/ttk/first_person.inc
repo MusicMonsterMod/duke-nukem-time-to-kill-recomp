@@ -996,15 +996,252 @@ static bool arm_reference(unsigned anim,unsigned key,RunArms& pose) {
     for(int r=0;r<3;++r)for(int k=0;k<3;++k)pose.left[r]+=inverse[r][k]*(points[2][k]-points[5][k]);
     return true;
 }
+// D08A53: the drawn arms while Duke walks and runs. display_arm_matrix
+// takes each arm segment's rotation and the support wrist from the live
+// skeleton relative to the live hand. Those joint matrices are rounded (Q12
+// rotations, whole-unit positions, GTE products down the chain), and once
+// Duke's root moves every tick the rounding differs from tick to tick: the
+// forearm and support hand vibrated 2-3 px rms (up to 9 px at 2560 wide)
+// in an unchanged upper clip, while standing still they did not move at all.
+// The same pose is rebuilt here from the arm channels themselves (previous
+// -> current key at the clip timer, as 0x80059004 blends; the model's bone
+// offsets), relative to the right wrist like arm_reference, so the arms keep
+// their animation without the rounding. Standing ground modes only (crouch
+// and swim have their own channel paths, D08K10 / D11E). Redraw workers
+// blend the published per-tick pose (D17AY). DNTTK_FP_EXACT_ARMS=0 (A/B).
+// Running (D36H3 / D08A29): the seeded weapons keep about a tenth of the
+// native run swing, blended toward their ready chain. That weight used to
+// ramp over the first run key while the native arm crossed from the ready
+// key to the run key, so midway it had moved and the weight had not: the
+// Shotgun's support hand swung about 100 px out and back at each run start.
+// The weight is now applied to each key (a ready key 0, a run key 0.9 with
+// the same per-weapon chains), and the two blended keys are interpolated by
+// the clip timer, so the arm moves straight to its run pose (run_baked).
+struct ExactArms {bool valid, run_baked, run_keys, held_keys, has_bones; double q[6][4]; double left[3];
+    double bone[6][3];   // has_bones: shoulder/elbow child offsets in the joint frame (the live rest bias)
+    double scale[6];     // has_bones: the live joint matrices' scale (about 0.99)
+    bool has_roll[4]; double roll[4],roll_w[2];   // rest rolls (left upper, left forearm, right upper, right forearm), the lock's eased weight per side
+};
+static ExactArms override_exact_arms;
+// One key's chains (left from channel 2, right from channel 1), relative to
+// the right wrist like arm_reference.
+static bool exact_arms_from(const std::array<CrouchQuat,32>* arm,ExactArms& e) {
+    const uint32_t desc=duke_model();if(!desc)return false;
+    Mat3 joints[6];double points[6][3];
+    for(unsigned side=0;side<2;++side) {
+        const unsigned shoulder=side?13:10;
+        Mat3 m={{1,0,0},{0,1,0},{0,0,1}};double pos[3]{};
+        for(unsigned part=shoulder;part<shoulder+3;++part) {
+            const int j=duke_part_joint(desc,part);if(j<0)return false;
+            const uint32_t rec=desc+0x44+0x28*j;
+            if(psx_mod_read_byte(rec+2)!=part-shoulder+3)return false;
+            double offset[3];for(int k=0;k<3;++k)offset[k]=int32_t(psx_mod_read_word(rec+0x14+4*k));
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)pos[r]+=m[r][k]*offset[k];
+            const auto& a=arm[side][part];
+            const double q[4]={a[3],-a[0],-a[1],-a[2]};Mat3 local;quat_mat(q,local);mat_mul(m,local,m);
+            std::memcpy(joints[part-10],m,sizeof m);std::memcpy(points[part-10],pos,sizeof pos);
+        }
+    }
+    Mat3 inverse;for(int r=0;r<3;++r)for(int k=0;k<3;++k)inverse[r][k]=joints[5][k][r];
+    for(unsigned n=0;n<6;++n) {Mat3 relative;mat_mul(inverse,joints[n],relative);mat_quat(relative,e.q[n]);}
+    for(int r=0;r<3;++r){e.left[r]=0;for(int k=0;k<3;++k)e.left[r]+=inverse[r][k]*(points[2][k]-points[5][k]);}
+    e.valid=true;
+    return true;
+}
+// A frame's quaternions for one channel's arm joints (missing joints from
+// the other key, as crouch_channel_pose does).
+static bool exact_key_quats(uint32_t frame,uint32_t other,std::array<CrouchQuat,32>& out,unsigned shoulder) {
+    std::array<std::array<int32_t,4>,32> a{},b{};uint32_t ma=0,mb=0;
+    if(!crouch_frame_quats(frame,a,ma))return false;
+    if(!crouch_frame_quats(other,b,mb))mb=0;
+    for(unsigned j=shoulder;j<shoulder+3;++j) {
+        const auto* s=(ma>>j&1) ? &a[j] : (mb>>j&1) ? &b[j] : nullptr;
+        if(!s) {
+            // No key in either frame (retail ready clip 29's right chain has
+            // no wrist): the game keeps the joint record's rotation, so do we.
+            const uint32_t desc=duke_model(),r=desc ? crouch_joint_record(desc,j) : 0;
+            if(!r)return false;
+            out[j]=crouch_record_q(r);continue;
+        }
+        out[j]=crouch_qnorm({double((*s)[0]),double((*s)[1]),double((*s)[2]),double((*s)[3])});
+    }
+    return true;
+}
+static void exact_nlerp(double* q,const double* p,double t) {
+    const double sign=q[0]*p[0]+q[1]*p[1]+q[2]*p[2]+q[3]*p[3]<0 ? -1 : 1;
+    double n=0;
+    for(int i=0;i<4;++i) {q[i]+=(sign*p[i]-q[i])*t;n+=q[i]*q[i];}
+    n=std::sqrt(n);
+    if(n>1e-9) for(int i=0;i<4;++i) q[i]/=n;
+}
+static bool run_arm_eligible(unsigned slot,unsigned upper);
+// The accepted rest look is the live skeleton's (D36H1/H2 grips, painter
+// order within a unit). Standing still that pose is exact to the pixel and
+// repeatable: its fixed-point rounding is a constant bias (0.15-0.46 degrees
+// a joint, about 1.7 units at the support wrist, 5-8 px at 2560 wide), the
+// same at every spot. On each live draw while Duke's root and heading hold
+// still, the drawn live pose's offset from the channel pose is taken per
+// weapon slot (a rotation per joint, the support wrist's shift, the upper arm
+// and forearm bones as drawn); it is added to each key, so at rest
+// the arms are drawn as before and moving they keep that look without the
+// per-tick noise. DNTTK_FP_EXACT_BIAS=0 (A/B) draws the pure channel pose.
+struct ArmBias {bool valid; Mat3 rot[6]; double left[3]; double bone[6][3]; double scale[6];};
+static ArmBias arm_bias[33];
+// D08A53 round 2: the forearms rolled about their own axis against the fixed
+// hand: 33-39 degrees through the Gatling's and Freezer's run and hop, 77-89
+// on the Buffalo's support wrist, 38-117 as the view pitched while walking,
+// 40-230 in fire clips. The forearm always keeps a rest roll per slot, eased
+// (30% a tick) toward the drawn roll only while Duke stands still on the
+// ground, so at rest it settles on the old look within about 0.3 s and
+// nothing ever snaps; moving, it holds. The bend and swing stay animated.
+// DNTTK_FP_WRIST_ROLL=0 (A/B) keeps the animated roll.
+struct ArmRoll {bool valid; double deg;};
+static ArmRoll arm_roll[33][4];
+// The lock's weight eases (30% a tick) toward 1 while a weapon is drawn with a
+// rest roll and toward 0 otherwise (the empty hand of a draw, holster or
+// switch, slot 32), from 0 again after any gap in the exact pose (crouch,
+// swim, climbs): a draw or switch never snaps the forearm (a Pipe Bomb redraw
+// turned it 65 degrees in one tick when the lock simply switched off).
+static double roll_weight[2],roll_last[4];
+static uint64_t roll_tick=~0ull,roll_valid_tick;
+static uint32_t arm_bias_root[3];
+static uint64_t arm_bias_updates;
+static bool arm_still() {
+    // Root ground position and heading unchanged since the previous game
+    // tick (the idle clip moves the root height, D17C; that adds no noise).
+    const uint32_t now[3]={psx_mod_read_word(player+4),psx_mod_read_word(player+12),psx_mod_read_half(player+0x1c)};
+    const bool same=std::memcmp(now,arm_bias_root,sizeof now)==0;
+    std::memcpy(arm_bias_root,now,sizeof now);
+    return same;
+}
+static bool arm_still_tick;
+static void arm_bias_apply(const ArmBias& b,ExactArms& e) {
+    for(unsigned n=0;n<6;++n) {Mat3 k,o;quat_mat(e.q[n],k);mat_mul(b.rot[n],k,o);mat_quat(o,e.q[n]);}
+    for(int r=0;r<3;++r)e.left[r]+=b.left[r];
+}
+// The ready grip a run blends toward gets the same rest bias, so starting and
+// stopping a run moves only by the run swing.
+static void arm_bias_apply_run(const ArmBias& b,RunArms& p) {
+    for(unsigned n=0;n<6;++n) {Mat3 k,o;quat_mat(p.q[n],k);mat_mul(b.rot[n],k,o);mat_quat(o,p.q[n]);}
+    for(int r=0;r<3;++r)p.left[r]+=b.left[r];
+}
+// Ground (0, 1) and jumping or falling (9): D08A53 round 2, the user bunny
+// hops while running and turning, and in the air the arms fell back to the
+// rounded skeleton (the wrist vibrating 5 px rms, half the steps reversing),
+// with a pose switch at take-off and landing.
+static bool exact_arm_mode() {
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    return mode<=1 || mode==9;
+}
+static ExactArms exact_arm_pose_live() {
+    static const int enabled=ttk_env_switch("DNTTK_FP_EXACT_ARMS");
+    ExactArms e{};
+    if(!enabled || !input_modernized() || crouch_weapon_active() || swim_weapon_view_active() ||
+       !exact_arm_mode())return e;
+    const uint32_t desc=duke_model();if(!desc)return e;
+    const unsigned slot=weapon_view_slot(),upper=psx_mod_read_half(player+0x74);
+    // The current pose: the arm joints' records, the local rotations the game
+    // composes this frame (its own blend and timing, and a joint without a key
+    // keeps its record, as retail ready clip 29's right wrist does).
+    std::array<CrouchQuat,32> arm[2]{};
+    for(unsigned side=0;side<2;++side)
+        for(unsigned j=side?13:10;j<(side?16u:13u);++j) {
+            const uint32_t r=crouch_joint_record(desc,j);if(!r)return e;
+            arm[side][j]=crouch_record_q(r);
+        }
+    if(!exact_arms_from(arm,e))return e;
+    // Per channel (2 = left, 1 = right): keys and timer fraction.
+    uint32_t pf[2],cf[2];double t[2];
+    for(unsigned side=0;side<2;++side) {
+        const uint32_t c=player+0x60+0x14*(side?1:2);
+        pf[side]=psx_mod_read_half(c+4);cf[side]=psx_mod_read_half(c+6);
+        if(pf[side]==0xffff || cf[side]==0xffff)return {};
+        const uint32_t ticks=psx_mod_read_word(psx_mod_read_word(0x800d8324)+8*cf[side])>>16,left=psx_mod_read_half(c+2);
+        t[side]=ticks ? std::clamp(double(int32_t(ticks)-int32_t(left))/double(ticks),0.0,1.0) : 1.0;
+    }
+    const unsigned ready_clip=slot==7 || slot==11?29:20;
+    RunArms ready;
+    const bool run=run_arm_eligible(slot,upper) && arm_reference(ready_clip,0,ready);
+    // This chain's run weight (D08A29 / D36H2 chains) for one key.
+    auto key_weight=[&](unsigned side,uint32_t frame,bool& rest) {
+        unsigned first,count;bool running=false;
+        for(unsigned anim:{18u,19u})
+            if(arm_clip(anim,side?1:2,first,count) && frame>=first && frame<first+count)running=true;
+        rest=running || (arm_clip(ready_clip,side?1:2,first,count) && frame>=first && frame<first+count);
+        double v=running ? .9 : 0;
+        // D08A53 round 3: the Shotgun's support hand kept a tenth of the run
+        // swing and slid 12-13 px along the gun ("weird rubbing", user); it is
+        // held on the ready grip like the Gatling and Freezer support hands.
+        if(slot==5 && !side)v=running ? 1 : 0;
+        if(slot==7 || slot==11)v=side ? 0 : (running ? 1 : 0);
+        if(slot==6)v=side ? (running ? 1 : 0) : 0;
+        return v;
+    };
+    double w[2]{};bool run_keys=false;
+    if(run)for(unsigned side=0;side<2;++side) {
+        bool prest,crest;
+        const double wp=key_weight(side,pf[side],prest),wc=key_weight(side,cf[side],crest);
+        // From a ready or run key the weight is the larger one at once, so the
+        // arm moves straight to its run pose while the native pose crosses
+        // (a weight ramping with the timer let it swing out and back). From
+        // another key (a firing key) it ramps, so that pose does not snap.
+        w[side]=prest ? std::max(wp,wc) : (1-t[side])*wp+t[side]*wc;
+        if(wp>0 || wc>0)run_keys=true;
+    }
+    static const int bias_on=ttk_env_switch("DNTTK_FP_EXACT_BIAS");
+    const unsigned bslot=slot<32?slot:32;
+    if(bias_on) {
+        // Once per live game tick (the hand pass), never in a redraw.
+        static uint64_t measured=~0ull;
+        const uint64_t tick=input_host_frame();
+        if(tick!=measured) {measured=tick;arm_still_tick=arm_still();}
+        if(arm_bias[bslot].valid) {arm_bias_apply(arm_bias[bslot],e);if(run)arm_bias_apply_run(arm_bias[bslot],ready);}
+    }
+    if(run) {
+        for(unsigned n=0;n<6;++n) {
+            const double wn=w[n<3?0:1];
+            if(wn<=0)continue;
+            const auto q=crouch_slerp({e.q[n][0],e.q[n][1],e.q[n][2],e.q[n][3]},
+                {ready.q[n][0],ready.q[n][1],ready.q[n][2],ready.q[n][3]},wn);
+            for(int i=0;i<4;++i)e.q[n][i]=q[i];
+        }
+        for(int r=0;r<3;++r)e.left[r]+=(ready.left[r]-e.left[r])*w[0];
+    }
+    e.run_baked=run;e.run_keys=run_keys;e.held_keys=pf[0]==cf[0] && pf[1]==cf[1];e.valid=true;
+    if(bias_on && arm_bias[bslot].valid) {
+        e.has_bones=true;std::memcpy(e.bone,arm_bias[bslot].bone,sizeof e.bone);std::memcpy(e.scale,arm_bias[bslot].scale,sizeof e.scale);
+    }
+    {
+        const uint64_t tick=input_host_frame();
+        if(tick!=roll_tick) {
+            if(tick-roll_valid_tick>4)roll_weight[0]=roll_weight[1]=0;
+            for(int s=0;s<2;++s) {
+                const bool on=slot<32 && arm_roll[bslot][2*s+1].valid;
+                if(on)for(int i=0;i<2;++i)if(arm_roll[bslot][2*s+i].valid)roll_last[2*s+i]=arm_roll[bslot][2*s+i].deg;
+                roll_weight[s]+=((on?1.0:0.0)-roll_weight[s])*0.3;
+                if(roll_weight[s]<0.001)roll_weight[s]=0;
+            }
+            roll_tick=tick;
+        }
+        roll_valid_tick=tick;
+    }
+    for(int k=0;k<4;++k){e.has_roll[k]=roll_weight[k/2]>0 && arm_roll[bslot][k].valid;e.roll[k]=roll_last[k];}
+    for(int s=0;s<2;++s)e.roll_w[s]=roll_weight[s];
+    return e;
+}
+static ExactArms exact_arm_pose() {return render_override ? override_exact_arms : exact_arm_pose_live();}
+static bool run_arm_eligible(unsigned slot,unsigned upper) {
+    return input_modernized() && weapon_ready_pose() &&
+       (slot==3 || slot==5 || slot==6 || slot==7 || slot==9 || slot==10 || slot==11) &&
+       (upper==18 || upper==19 || upper==20 || upper==29) &&
+       !crouch_weapon_active() && !swim_weapon_view_active() &&
+       exact_arm_mode();
+}
 static RunArms running_arm_pose() {
     if(render_override)return override_run_arms;
     RunArms pose;
     const unsigned slot=weapon_view_slot(),upper=psx_mod_read_half(player+0x74);
-    if(!input_modernized() || !weapon_ready_pose() ||
-       !(slot==5 || slot==6 || slot==7 || slot==9 || slot==10 || slot==11) ||
-       !(upper==18 || upper==19 || upper==20 || upper==29) ||
-       crouch_weapon_active() || swim_weapon_view_active() ||
-       psx_mod_read_byte(player+0x22c)>1)return pose;
+    if(!run_arm_eligible(slot,upper))return pose;
     auto run_frame=[](unsigned frame) {
         for(unsigned anim:{18u,19u}) {
             unsigned first,count;
@@ -1028,14 +1265,54 @@ static RunArms running_arm_pose() {
 // even in their one-key hold (clip 39). Their hand is taken from the same
 // channel rebuild standing too: exact clip data, so the hold is still and the
 // draw and throw keep their motion. Developer A/B: DNTTK_FP_THROW_HAND=live.
+// D08A53: the Throwing Knife, Throwing Axe and Crossbow (1-3) have no seed
+// either; walking and running their live hand vibrated 2-4 px (a third to
+// over half of the steps reversing), so they take the channel hand too.
 static bool throwable_channel_hand(unsigned slot) {
     static const bool live=[]{const char* t=std::getenv("DNTTK_FP_THROW_HAND");return t && !std::strcmp(t,"live");}();
-    return !live && input_modernized() && (slot==12 || slot==13 || slot==14);
+    return !live && input_modernized() && ((slot>=1 && slot<=3) || slot==12 || slot==13 || slot==14);
 }
 static bool animated_weapon_channel_live(double* q,double* pos) {
     const unsigned slot=weapon_view_slot();
     if((!crouch_weapon_active() && !swim_weapon_view_active() && !throwable_channel_hand(slot)) ||
        !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
+    // D08A53: the Crossbow shares the Shotgun's ready (20) and run (18, 19)
+    // clips but has no seed, so running its hand showed the whole native run
+    // swing: the tip held still for about five ticks, then whipped 200-250 px
+    // across the view. Standing, the hand is taken 0.9 of the way to the
+    // ready key's while a run key is involved (the run-arm weight, D36H3),
+    // with exact_arm_pose_live's per-key rule.
+    if(slot==3 && !crouch_weapon_active() && !swim_weapon_view_active() &&
+       run_arm_eligible(slot,psx_mod_read_half(player+0x74))) {
+        const uint32_t desc=duke_model(),pf=psx_mod_read_half(player+0x78),cf=psx_mod_read_half(player+0x7a);
+        unsigned rf,rc;
+        if(desc && pf!=0xffff && cf!=0xffff && arm_clip(20,1,rf,rc)) {
+            // The current hand from the right arm's joint records (as
+            // exact_arm_pose_live), the ready hand from clip 20's key.
+            std::array<CrouchQuat,32> cur{},rdy{};bool ok=true;
+            for(unsigned j=13;j<16 && ok;++j) {const uint32_t r=crouch_joint_record(desc,j);ok=r!=0;if(ok)cur[j]=crouch_record_q(r);}
+            ok=ok && exact_key_quats(rf,rf,rdy,13);
+            Mat3 hc,hr;double pc[3],pr[3],qc[4],qr[4];
+            if(ok && display_arm_channel(cur,hc,pc) && display_arm_channel(rdy,hr,pr)) {
+                mat_quat(hc,qc);mat_quat(hr,qr);
+                auto weight=[&](uint32_t f,bool& rest) {
+                    unsigned first,count;bool running=false;
+                    for(unsigned anim:{18u,19u})
+                        if(arm_clip(anim,1,first,count) && f>=first && f<first+count)running=true;
+                    rest=running || (f>=rf && f<rf+rc);
+                    return running ? .9 : 0.0;
+                };
+                const uint32_t ticks=psx_mod_read_word(psx_mod_read_word(0x800d8324)+8*cf)>>16,left=psx_mod_read_half(player+0x76);
+                const double tt=ticks ? std::clamp(double(int32_t(ticks)-int32_t(left))/double(ticks),0.0,1.0) : 1.0;
+                bool prest,crest;const double wp=weight(pf,prest),wc=weight(cf,crest);
+                const double w=prest ? std::max(wp,wc) : (1-tt)*wp+tt*wc;
+                exact_nlerp(qc,qr,w);
+                for(int i=0;i<4;++i)q[i]=qc[i];
+                for(int i=0;i<3;++i)pos[i]=pc[i]+(pr[i]-pc[i])*w;
+                return true;
+            }
+        }
+    }
     std::array<CrouchQuat,32> arm{};uint32_t mask=0;
     if(!crouch_channel_pose(1,arm,mask) || (mask&0xe000u)!=0xe000u)return false;
     Mat3 hand;double rel[3];
@@ -1227,6 +1504,125 @@ bool first_person_drawn_muzzle(double v[3]) {
     for(int i=0;i<3;++i) v[i]=fp_muzzle_view[i];
     return true;
 }
+// D08A53: view-locked transforms. The weapon and display arm matrices are
+// placed from the eye (eye + C^T v), but their world translation is stored in
+// whole units, and 0x800292a0 forms the GTE translation as the view rows
+// times (translation - eye). As the view turns, the rotated offset meets the
+// unit grid at a new point, so the gun and arms hopped up to about a unit
+// against the view (about 2.5 px at 2560 wide on the grip, more nearer the
+// eye) whenever the mouse or a turn moved the camera; holding still they did
+// not move. For these draws only, 0x800292a0 gets a private camera whose view
+// rows are the projection scale alone and a private matrix M C^T whose
+// translation is the intended view offset, rounded once in view space: the GTE
+// rotation is the same, and the translation no longer changes as the view
+// turns. Each matrix's view offset is kept with a copy of the bytes it was
+// written as; another writer of the same scratch never matches.
+// DNTTK_FP_VIEW_EXACT=0 (A/B) keeps the world-rounded transform.
+struct ViewExact {bool valid,has_rot; double view[3],rot[3][3]; uint32_t bytes[8];};
+static ViewExact weapon_exact, hidden_exact;
+static uint32_t view_lock_camera, view_lock_matrix;
+static uint64_t view_exact_draws;
+// view: the intended offset from the eye in view axes (C (pos - eye)) as the
+// matrix was placed; rounded once at the transform, it stays fixed however
+// the camera rows' rounding moves between the write and the draw.
+static void view_exact_keep(ViewExact& x,uint32_t matrix,const double* view) {
+    x.valid=true;x.has_rot=false;std::memcpy(x.view,view,sizeof x.view);
+    for(int i=0;i<8;++i)x.bytes[i]=psx_mod_read_word(matrix+4*i);
+}
+static bool view_exact_matches(const ViewExact& x,uint32_t matrix,bool translation_only) {
+    if(!x.valid)return false;
+    for(int i=translation_only?5:0;i<8;++i)if(psx_mod_read_word(matrix+4*i)!=x.bytes[i])return false;
+    return true;
+}
+static bool view_exact_on() {
+    static const int enabled=ttk_env_switch("DNTTK_FP_VIEW_EXACT");
+    return enabled && input_modernized();
+}
+// The camera rows are Q12 and not quite orthonormal; going to the world and
+// back (C C^T) then moves a view offset by about 0.1 unit, differently as the
+// view turns, and an offset near a half unit flips a whole unit (the forearm
+// flickered 1 unit, a third of the steps reversing, while turning). With the
+// lock the view-locked geometry uses the rows orthonormalized (forward first,
+// then up, right from their cross product with the camera's own sign).
+static void view_exact_camera(double c[3][3]) {
+    if(!view_exact_on())return;
+    auto norm=[](double* v){const double n=std::sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);if(n>1e-9)for(int i=0;i<3;++i)v[i]/=n;};
+    double f[3]={c[2][0],c[2][1],c[2][2]},u[3]={c[1][0],c[1][1],c[1][2]};
+    norm(f);
+    const double fu=f[0]*u[0]+f[1]*u[1]+f[2]*u[2];
+    for(int i=0;i<3;++i)u[i]-=fu*f[i];
+    norm(u);
+    double r[3]={u[1]*f[2]-u[2]*f[1],u[2]*f[0]-u[0]*f[2],u[0]*f[1]-u[1]*f[0]};
+    if(r[0]*c[0][0]+r[1]*c[0][1]+r[2]*c[0][2]<0)for(double& x:r)x=-x;
+    for(int i=0;i<3;++i){c[0][i]=r[i];c[1][i]=u[i];c[2][i]=f[i];}
+}
+static void view_locked_transform(CPUState* cpu,uint32_t ra) {
+    const bool enabled=view_exact_on();
+    if(!input_modernized() || !weapon_duke_draw || fp_blend<0.999 || !orbit_valid || cpu->gpr[4]!=camera)return;
+    const uint32_t m=cpu->gpr[5];
+    const ViewExact* x=nullptr;
+    if(ra==0x80034c6c && cpu->gpr[20]==player) {
+        if(weapon_matrix && m==weapon_matrix && view_exact_matches(weapon_exact,m,false))x=&weapon_exact;
+        else if(hidden_matrix && m==hidden_matrix && view_exact_matches(hidden_exact,m,false))x=&hidden_exact;
+    } else if(ra==0x80033f14 && weapon_live && !(m&3) &&
+              view_exact_matches(weapon_exact,m,true)) {
+        x=&weapon_exact;   // the weapon mesh: 0x80033e40's scaled copy of the hand matrix
+    }
+    if(!x)return;
+    if(!enabled) {
+        // A/B: the world-rounded translation the GTE gets (traced like the locked one).
+        if(present_trace_enabled()) {
+            double w[3];for(int i=0;i<3;++i)w[i]=int32_t(psx_mod_read_word(m+0x14+4*i));
+            char name[16];const int part=x==&weapon_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
+            if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
+            present_trace(name,w);
+        }
+        return;
+    }
+    if(!view_lock_camera)view_lock_camera=psx_mod_alloc_guest_memory(0x40,16);
+    if(!view_lock_matrix)view_lock_matrix=psx_mod_alloc_guest_memory(0x20,16);
+    if(!view_lock_camera || !view_lock_matrix)return;
+    double c[3][3],v[3][3],mm[3][3],vp[3][3],mp[3][3];
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+        c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
+        v[r][k]=(int16_t)psx_mod_read_half(camera+0x20+2*(3*r+k))/4096.0;
+        mm[r][k]=(int16_t)psx_mod_read_half(m+2*(3*r+k))/4096.0;
+    }
+    view_exact_camera(c);   // D08A53
+    // V is C with each row scaled (the projection's x scale): Vp = that scale
+    // exactly (its Q12 rounding then never changes as the view turns), and
+    // Mp = M C^T, so Vp Mp^T = S C M^T = V M^T.
+    for(int r=0;r<3;++r) {
+        const double cn=std::sqrt(c[r][0]*c[r][0]+c[r][1]*c[r][1]+c[r][2]*c[r][2]);
+        const double vn=std::sqrt(v[r][0]*v[r][0]+v[r][1]*v[r][1]+v[r][2]*v[r][2]);
+        const double dot=v[r][0]*c[r][0]+v[r][1]*c[r][1]+v[r][2]*c[r][2];
+        if(cn<0.5 || dot<0.99*vn*cn)return;   // V's rows are not C's, scaled: leave the call alone
+        for(int k=0;k<3;++k)vp[r][k]=r==k ? vn/cn : 0;
+        for(int k=0;k<3;++k)mp[r][k]=mm[r][0]*c[k][0]+mm[r][1]*c[k][1]+mm[r][2]*c[k][2];
+    }
+    int32_t eye[3];
+    for(int i=0;i<3;++i)eye[i]=int32_t(psx_mod_read_word(camera+0x14+4*i));
+    for(int i=0;i<0x40;i+=4)psx_mod_write_word(view_lock_camera+i,psx_mod_read_word(camera+i));
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+        psx_mod_write_half(view_lock_camera+0x20+2*(3*r+k),uint16_t(int16_t(std::clamp(std::lround(vp[r][k]*4096),-32768L,32767L))));
+        psx_mod_write_half(view_lock_matrix+2*(3*r+k),uint16_t(int16_t(std::clamp(std::lround(mp[r][k]*4096),-32768L,32767L))));
+    }
+    psx_mod_write_half(view_lock_matrix+0x12,psx_mod_read_half(m+0x12));
+    double dp[3];
+    for(int r=0;r<3;++r) {
+        dp[r]=double(std::lround(x->view[r]));
+        psx_mod_write_word(view_lock_matrix+0x14+4*r,uint32_t(eye[r]+int32_t(dp[r])));
+    }
+    if(present_trace_enabled()) {
+        // The world point the GTE now sees: eye + C^T dp (Vp dp = V C^T dp).
+        double w[3];for(int i=0;i<3;++i)w[i]=eye[i]+c[0][i]*dp[0]+c[1][i]*dp[1]+c[2][i]*dp[2];
+        char name[16];const int part=x==&weapon_exact ? -1 : duke_joint_part(duke_model(),cpu->gpr[23]);
+        if(part<0)std::snprintf(name,sizeof name,"gte_weapon");else std::snprintf(name,sizeof name,"garm%d",part);
+        present_trace(name,w);
+    }
+    cpu->gpr[4]=view_lock_camera;cpu->gpr[5]=view_lock_matrix;++view_exact_draws;
+}
+static bool quick_kick_live();   // kick.inc (D08A53)
 static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=false) {
     if(!advance && display_hand_done)return true;
     live_valid=false;
@@ -1237,6 +1633,7 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
         h[r][k]=(int16_t)psx_mod_read_half(real+2*(3*r+k))/4096.0;
     }
+    view_exact_camera(c);   // D08A53
     // Level frame: the camera's right and forward axes without pitch (game Y down).
     const double rl=std::hypot(c[0][0],c[0][2]),fl=std::hypot(c[2][0],c[2][2]);
     if(rl<0.5 || fl<0.1) return false;
@@ -1323,10 +1720,13 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2)
         psx_mod_write_half(weapon_matrix+2*(3*r+k2),(uint16_t)(int16_t)std::clamp(std::lround(out[r][k2]*4096),-32768L,32767L));
     psx_mod_write_half(weapon_matrix+0x12,0);
+
     for(int i=0;i<3;++i) {
         const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
         psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
     }
+    view_exact_keep(weapon_exact,weapon_matrix,v);
+    std::memcpy(weapon_exact.rot,out,sizeof out);weapon_exact.has_rot=true;
     {
         // D49: the drawn barrel tip, as the muzzle flash 0x800341e4 places it
         // (hand translation + transpose(hand) times the slot's muzzle vector,
@@ -1350,6 +1750,14 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         double hand[3];
         for(int i=0;i<3;++i) hand[i]=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*i));
         present_trace("weapon_hand",hand);
+        // D08A53: a point off the grip along all three weapon axes, through
+        // the written Q12 rotation, so a rotation-only vibration shows too.
+        double axis[3];
+        for(int k=0;k<3;++k) {
+            axis[k]=hand[k];
+            for(int r=0;r<3;++r) axis[k]+=(int16_t)psx_mod_read_half(weapon_matrix+2*(3*r+k))/4096.0*128;
+        }
+        present_trace("weapon_axis",axis);
     }
     if(advance)display_hand_done=true;
     return true;
@@ -1372,10 +1780,24 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         d[r][k]=(int16_t)psx_mod_read_half(weapon_matrix+2*(3*r+k))/4096.0;
         c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
     }
+    view_exact_camera(c);   // D08A53
+    // D08A53: with the lock, the weapon's unrounded rotation (not its Q12 copy).
+    if(view_exact_on() && weapon_matrix && weapon_exact.has_rot && view_exact_matches(weapon_exact,weapon_matrix,false))
+        std::memcpy(d,weapon_exact.rot,sizeof d);
     for(int r=0;r<3;++r)for(int k=0;k<3;++k)
         delta[r][k]=d[0][r]*h[0][k]+d[1][r]*h[1][k]+d[2][r]*h[2][k];
+    // D08A53: the grip the chains hang from, unrounded (view_locked_transform),
+    // so the arms do not inherit the weapon matrix's whole-unit translation.
+    double grip_w[3];
+    {
+        const bool exact=view_exact_on() && weapon_matrix && view_exact_matches(weapon_exact,weapon_matrix,false);
+        for(int r=0;r<3;++r) {
+            grip_w[r]=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*r));
+            if(exact) {grip_w[r]=int32_t(psx_mod_read_word(camera+0x14+4*r));for(int k=0;k<3;++k)grip_w[r]+=c[k][r]*weapon_exact.view[k];}
+        }
+    }
     for(int n=0;n<3;++n)for(int r=0;r<3;++r) {
-        native[n][r]=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*r);
+        native[n][r]=grip_w[r];
         for(int k=0;k<3;++k)native[n][r]+=delta[r][k]*((int32_t)psx_mod_read_word(source[n]+0x14+4*k)-(int32_t)psx_mod_read_word(real+0x14+4*k));
     }
     Mat3 posed[3];
@@ -1383,8 +1805,85 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         Mat3 j;for(int r=0;r<3;++r)for(int k=0;k<3;++k)j[r][k]=(int16_t)psx_mod_read_half(source[n]+2*(3*r+k))/4096.0;
         for(int r=0;r<3;++r)for(int k=0;k<3;++k)posed[n][r][k]=j[r][0]*delta[k][0]+j[r][1]*delta[k][1]+j[r][2]*delta[k][2];
     }
+    // Move a chain toward a pose relative to the right wrist (q per joint,
+    // left: the support wrist), keeping the native bone lengths.
+    auto toward=[&](const double (*pq)[4],const double* pleft,double weight,const double (*pbone)[3]=nullptr,const double* pscale=nullptr) {
+        const unsigned base=part<13?0:3;
+        for(int n=0;n<3;++n) {
+            Mat3 relative,reference,current;quat_mat(pq[base+n],relative);
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                reference[r][k]=relative[0][r]*d[0][k]+relative[1][r]*d[1][k]+relative[2][r]*d[2][k];
+                current[r][k]=posed[n][r][k];
+            }
+            double qa[4],qb[4];mat_quat(current,qa);mat_quat(reference,qb);
+            const auto q=crouch_slerp({qa[0],qa[1],qa[2],qa[3]},{qb[0],qb[1],qb[2],qb[3]},weight);
+            quat_mat(q.data(),posed[n]);
+            if(pscale)for(auto& row:posed[n])for(double& x:row)x*=pscale[base+n];
+        }
+        if(part<13)for(int r=0;r<3;++r) {
+            double wrist=grip_w[r];
+            for(int k=0;k<3;++k)wrist+=d[k][r]*pleft[k];
+            native[2][r]+=(wrist-native[2][r])*weight;
+        }
+        // Reconstruct parent origins from the rotated native child offsets:
+        // blending positions independently would shorten bones and open seams.
+        for(int n=1;n>=0;--n) {
+            const unsigned child=duke_part_joint(desc,wrist_part-1+n);
+            for(int r=0;r<3;++r) {
+                native[n][r]=native[n+1][r];
+                for(int k=0;k<3;++k)native[n][r]-=posed[n][k][r]*(pbone ? pbone[(part<13?0:3)+n][k] : double(int32_t(psx_mod_read_word(desc+0x44+0x28*child+0x14+4*k))));
+            }
+        }
+    };
+    // D08A53: the current pose from exact channel data, not the rounded skeleton.
+    ExactArms exact=exact_arm_pose();
+    static const int bias_on=ttk_env_switch("DNTTK_FP_EXACT_BIAS");
+    // Only while both arm channels hold one key: then the live skeleton and
+    // the channel pose show the same pose, and the difference is the rest
+    // bias alone (moving between keys they can be a tick apart; a run key is
+    // blended toward the ready grip, which the live pose is not).
+    const bool rest_sample=exact.valid && bias_on && !render_override && arm_still_tick && !exact.run_keys && exact.held_keys &&
+       psx_mod_read_byte(player+0x22c)==0;
+    if(rest_sample) {
+        // A still live draw: this chain's drawn live pose (posed, native) sets
+        // the slot's rest bias, B = R_live E^T B_old (E carries B_old), then the
+        // pose is taken again with it.
+        const unsigned bslot=weapon_view_slot();
+        ArmBias& b=arm_bias[bslot<32?bslot:32];
+        if(!b.valid) {b={};for(auto& m:b.rot)for(int r=0;r<3;++r)for(int k=0;k<3;++k)m[r][k]=r==k;for(double& s:b.scale)s=1;}
+        const unsigned base=part<13?0:3;
+        for(int n=0;n<3;++n) {
+            Mat3 live,e,et,tmp,rot;
+            // The live matrix is scale s times a rotation: keep both.
+            const Mat3& P=posed[n];
+            const double det=P[0][0]*(P[1][1]*P[2][2]-P[1][2]*P[2][1])-P[0][1]*(P[1][0]*P[2][2]-P[1][2]*P[2][0])+P[0][2]*(P[1][0]*P[2][1]-P[1][1]*P[2][0]);
+            const double s=std::cbrt(std::abs(det));
+            if(s<0.5 || s>2)return false;
+            {double q[4];mat_quat(P,q);quat_mat(q,rot);}
+            b.scale[base+n]=s;
+            // relative = d rot^T (posed = relative^T d)
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k){live[r][k]=0;for(int i=0;i<3;++i)live[r][k]+=d[r][i]*rot[k][i];}
+            quat_mat(exact.q[base+n],e);
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)et[r][k]=e[k][r];
+            mat_mul(live,et,tmp);mat_mul(tmp,b.rot[base+n],b.rot[base+n]);
+            if(n<2) {
+                // bone = -(1/s) rot (parent - child), so (s rot)^T bone = child - parent
+                double v[3];for(int r=0;r<3;++r)v[r]=native[n][r]-native[n+1][r];
+                for(int k=0;k<3;++k)b.bone[base+n][k]=-(rot[k][0]*v[0]+rot[k][1]*v[1]+rot[k][2]*v[2])/s;
+            }
+        }
+        if(part<13) {
+            double v[3],l[3];
+            for(int r=0;r<3;++r)v[r]=native[2][r]-grip_w[r];
+            for(int r=0;r<3;++r)l[r]=d[r][0]*v[0]+d[r][1]*v[1]+d[r][2]*v[2];
+            for(int r=0;r<3;++r)b.left[r]=l[r]-(exact.left[r]-b.left[r]);
+        }
+        b.valid=true;++arm_bias_updates;
+        exact=exact_arm_pose_live();
+    }
+    if(exact.valid)toward(exact.q,exact.left,1.0,exact.has_bones ? exact.bone : nullptr,exact.has_bones ? exact.scale : nullptr);
     auto run=running_arm_pose();
-    double arm_weight=run.weight;
+    double arm_weight=exact.valid && exact.run_baked ? 0 : run.weight;
     const unsigned slot=weapon_view_slot();
     // Keep the accepted right-arm motion. These support hands use the full
     // walking grip during running, with the same native transition ramp.
@@ -1428,37 +1927,11 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         RunArms held;
         if(arm_reference(unsigned(gatling_hold[0]),unsigned(gatling_hold[1]),held)) {run=held;arm_weight=1;}
     }
-    if(arm_weight>0) {
-        const unsigned base=part<13?0:3;
-        for(int n=0;n<3;++n) {
-            Mat3 relative,reference,current;quat_mat(run.q[base+n],relative);
-            for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
-                reference[r][k]=relative[0][r]*d[0][k]+relative[1][r]*d[1][k]+relative[2][r]*d[2][k];
-                current[r][k]=posed[n][r][k];
-            }
-            double qa[4],qb[4];mat_quat(current,qa);mat_quat(reference,qb);
-            const auto q=crouch_slerp({qa[0],qa[1],qa[2],qa[3]},{qb[0],qb[1],qb[2],qb[3]},arm_weight);
-            quat_mat(q.data(),posed[n]);
-        }
-        if(part<13)for(int r=0;r<3;++r) {
-            double wrist=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*r));
-            for(int k=0;k<3;++k)wrist+=d[k][r]*run.left[k];
-            native[2][r]+=(wrist-native[2][r])*arm_weight;
-        }
-        // Reconstruct parent origins from the rotated native child offsets:
-        // blending positions independently would shorten bones and open seams.
-        for(int n=1;n>=0;--n) {
-            const unsigned child=duke_part_joint(desc,wrist_part-1+n);
-            for(int r=0;r<3;++r) {
-                native[n][r]=native[n+1][r];
-                for(int k=0;k<3;++k)native[n][r]-=posed[n][k][r]*int32_t(psx_mod_read_word(desc+0x44+0x28*child+0x14+4*k));
-            }
-        }
-    }
+    if(arm_weight>0)toward(run.q,run.left,arm_weight);
     if(part<13) {
         const double scale=slot_scale(weapon_view_slot());
         for(int r=0;r<3;++r) {
-            const double grip=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*r);
+            const double grip=grip_w[r];
             const double shift=(native[2][r]-grip)*(scale-1);
             for(int n=0;n<3;++n)native[n][r]+=shift;
         }
@@ -1505,7 +1978,7 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
             // and moving the connected chain with its wrist.
             offset[1]+=6-70*rifle_reload_pose().pull;
             for(int r=0;r<3;++r) {
-                double wrist=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*r));
+                double wrist=grip_w[r];
                 for(int k=0;k<3;++k)wrist+=d[k][r]*offset[k]*slot_scale(6);
                 const double shift=wrist-native[2][r];
                 for(int n=0;n<3;++n)native[n][r]+=shift;
@@ -1532,34 +2005,110 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         for(int r=0;r<3;++r)target[n][r]=target[n+1][r]+length*(c[0][r]*dir[0]+c[1][r]*dir[1]+c[2][r]*dir[2])/norm;
     }
     const unsigned n=part-(wrist_part-2);
-    Mat3 swing={{1,0,0},{0,1,0},{0,0,1}};
-    if(n<2) {
-        double a[3],b[3],an=0,bn=0;
-        for(int r=0;r<3;++r) {a[r]=native[n+1][r]-native[n][r];b[r]=target[n+1][r]-target[n][r];an+=a[r]*a[r];bn+=b[r]*b[r];}
-        for(int r=0;r<3;++r){a[r]/=std::sqrt(an);b[r]/=std::sqrt(bn);}
-        const double dot=std::clamp(a[0]*b[0]+a[1]*b[1]+a[2]*b[2],-1.0,1.0);
-        if(dot<-.9999) {
-            double axis[3]={0,-a[2],a[1]};
-            if(std::abs(a[0])>.9){axis[0]=-a[1];axis[1]=a[0];axis[2]=0;}
-            const double len=std::sqrt(axis[0]*axis[0]+axis[1]*axis[1]+axis[2]*axis[2]);
-            for(double& v:axis)v/=len;
-            for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]=2*axis[r]*axis[k]-(r==k?1:0);
-        } else {
-            const double v[3]={a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
-            const Mat3 cross={{0,-v[2],v[1]},{v[2],0,-v[0]},{-v[1],v[0],0}};
-            Mat3 square;mat_mul(cross,cross,square);
-            for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]+=cross[r][k]+square[r][k]/(1+dot);
+    // A segment's drawn rotation: its pose turned so its bone points at its target.
+    auto segment=[&](unsigned i,Mat3 o) {
+        Mat3 swing={{1,0,0},{0,1,0},{0,0,1}};
+        if(i<2) {
+            double a[3],b[3],an=0,bn=0;
+            for(int r=0;r<3;++r) {a[r]=native[i+1][r]-native[i][r];b[r]=target[i+1][r]-target[i][r];an+=a[r]*a[r];bn+=b[r]*b[r];}
+            for(int r=0;r<3;++r){a[r]/=std::sqrt(an);b[r]/=std::sqrt(bn);}
+            const double dot=std::clamp(a[0]*b[0]+a[1]*b[1]+a[2]*b[2],-1.0,1.0);
+            if(dot<-.9999) {
+                double axis[3]={0,-a[2],a[1]};
+                if(std::abs(a[0])>.9){axis[0]=-a[1];axis[1]=a[0];axis[2]=0;}
+                const double len=std::sqrt(axis[0]*axis[0]+axis[1]*axis[1]+axis[2]*axis[2]);
+                for(double& v:axis)v/=len;
+                for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]=2*axis[r]*axis[k]-(r==k?1:0);
+            } else {
+                const double v[3]={a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
+                const Mat3 cross={{0,-v[2],v[1]},{v[2],0,-v[0]},{-v[1],v[0],0}};
+                Mat3 square;mat_mul(cross,cross,square);
+                for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]+=cross[r][k]+square[r][k]/(1+dot);
+            }
+        }
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)o[r][k]=posed[i][r][0]*swing[k][0]+posed[i][r][1]*swing[k][1]+posed[i][r][2]*swing[k][2];
+        if(rifle_support && i==2)std::memcpy(o,rifle_wrist,sizeof(Mat3));
+    };
+    Mat3 out;segment(n,out);
+    if(exact.valid && n<2) {
+        // D08A53: segment rolls. Each forearm keeps its roll about its own axis
+        // against the hand, and each upper arm against its forearm, at a rest
+        // value per slot (eased toward the drawn roll only while still); the
+        // bend and swing stay animated (joint rows are their axes in the world;
+        // twist by swing-twist of R = ref seg^T about a = ref b).
+        static const int roll_on=ttk_env_switch("DNTTK_FP_WRIST_ROLL");
+        const unsigned side=part<13?0:1,rslot=weapon_view_slot()<32?weapon_view_slot():32;
+        const bool sample=!render_override && arm_still_tick && !exact.run_keys && psx_mod_read_byte(player+0x22c)==0;
+        auto axis_of=[&](unsigned i,double* b) {
+            double bn=0;for(int r=0;r<3;++r){b[r]=target[i+1][r]-target[i][r];bn+=b[r]*b[r];}
+            bn=std::sqrt(bn);if(bn<=1)return false;
+            for(int r=0;r<3;++r)b[r]/=bn;
+            return true;
+        };
+        auto twist=[&](const Mat3& seg,const Mat3& ref,const double* b) {
+            Mat3 rel;double q[4],a[3];
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)rel[r][k]=ref[r][0]*seg[k][0]+ref[r][1]*seg[k][1]+ref[r][2]*seg[k][2];
+            mat_quat(rel,q);
+            for(int r=0;r<3;++r)a[r]=ref[r][0]*b[0]+ref[r][1]*b[1]+ref[r][2]*b[2];
+            const double an=std::sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);
+            return an<1e-6 ? 0.0 : 2*std::atan2((q[1]*a[0]+q[2]*a[1]+q[3]*a[2])/an,q[0])*57.29578;
+        };
+        // Turn a segment about its axis by +t (adds t to its twist against ref).
+        auto turn=[&](Mat3& o,const double* b,double deg) {
+            const double th=deg/57.29578,cs=std::cos(th),sn=std::sin(th);
+            for(int row=0;row<3;++row) {
+                double v[3];std::memcpy(v,o[row],sizeof v);
+                const double bv=b[0]*v[0]+b[1]*v[1]+b[2]*v[2];
+                const double cx[3]={b[1]*v[2]-b[2]*v[1],b[2]*v[0]-b[0]*v[2],b[0]*v[1]-b[1]*v[0]};
+                for(int r=0;r<3;++r)o[row][r]=v[r]*cs+cx[r]*sn+b[r]*bv*(1-cs);
+            }
+        };
+        auto lock=[&](Mat3& o,const Mat3& ref,unsigned i,bool live) {
+            double b[3];if(!axis_of(i,b))return;
+            const double ang=twist(o,ref,b);
+            const unsigned k=side*2+i;
+            if(live && sample) {
+                ArmRoll& rest=arm_roll[rslot][k];
+                static uint64_t eased[4]={~0ull,~0ull,~0ull,~0ull};
+                const uint64_t tick=input_host_frame();
+                if(!rest.valid)rest={true,ang};
+                else if(tick!=eased[k])rest.deg+=0.3*std::remainder(ang-rest.deg,360.0);
+                eased[k]=tick;
+            }
+            if(roll_on && exact.has_roll[k])turn(o,b,exact.roll_w[side]*std::remainder(exact.roll[k]-ang,360.0));
+        };
+        const Mat3& hand=rifle_support ? rifle_wrist : posed[2];
+        Mat3 ref;
+        if(n==1) {lock(out,hand,1,true);std::memcpy(ref,hand,sizeof ref);}
+        else {segment(1,ref);lock(ref,hand,1,false);lock(out,ref,0,true);}
+        if(present_trace_enabled()) {
+            double b[3];
+            if(axis_of(n,b)) {char name[16];std::snprintf(name,sizeof name,"tw%u",part);present_trace_value(name,twist(out,ref,b));}
         }
     }
-    Mat3 out;
-    for(int r=0;r<3;++r)for(int k=0;k<3;++k)out[r][k]=posed[n][r][0]*swing[k][0]+posed[n][r][1]*swing[k][1]+posed[n][r][2]*swing[k][2];
-    if(rifle_support && n==2)std::memcpy(out,rifle_wrist,sizeof out);
     if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
     if(!hidden_matrix)return false;
     for(int r=0;r<3;++r)for(int k=0;k<3;++k)
         psx_mod_write_half(hidden_matrix+2*(3*r+k),(uint16_t)(int16_t)std::clamp(std::lround(out[r][k]*4096),-32768L,32767L));
     psx_mod_write_half(hidden_matrix+0x12,0);
     for(int r=0;r<3;++r)psx_mod_write_word(hidden_matrix+0x14+4*r,(uint32_t)(int32_t)std::lround(target[n][r]));
+    {
+        double view[3];
+        for(int r=0;r<3;++r) {view[r]=0;for(int k=0;k<3;++k)view[r]+=c[r][k]*(target[n][k]-int32_t(psx_mod_read_word(camera+0x14+4*k)));}
+        view_exact_keep(hidden_exact,hidden_matrix,view);
+    }
+    if(present_trace_enabled()) {
+        // D08A53: each drawn arm segment's origin and a point off it along
+        // its three axes (the written matrix), as drawn.
+        double o[3],x[3];
+        for(int k=0;k<3;++k) {
+            o[k]=int32_t(psx_mod_read_word(hidden_matrix+0x14+4*k));x[k]=o[k];
+            for(int r=0;r<3;++r) x[k]+=(int16_t)psx_mod_read_half(hidden_matrix+2*(3*r+k))/4096.0*64;
+        }
+        char name[16];
+        std::snprintf(name,sizeof name,"arm%u",part);present_trace(name,o);
+        std::snprintf(name,sizeof name,"arm%ux",part);present_trace(name,x);
+    }
     return true;
 }
 // D14E1: the collision solver can move the eye outside the actor, especially
@@ -2150,6 +2699,11 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
             (unarmed && part>=10 && part<=15)) && mats>=0x80010000 && mats<=0x801ffd80 &&
            cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
             limb_claim(cpu,flying?LimbOwner::FlightArm:LimbOwner::Body,part,true);
+            // D08A53 round 3: while a quick kick plays, the empty hands join the
+            // first-person layer, drawn after the kick leg there, so the leg
+            // never covers them (in their world slots the later layer always did).
+            static const int kick_behind=ttk_env_switch("DNTTK_FP_KICK_BEHIND");
+            if(kick_behind && unarmed && part>=10 && part<=15 && quick_kick_live()) limb_draw.depth=LimbDepth::Viewmodel;
             if(part==int(part_spine)) first_person_torso_matrix(cpu,desc,mats);
             if(!flying && unarmed && part>=10 && part<=15) {
                 // D36H6: direct unarmed loads at 60 Hz can precede both a

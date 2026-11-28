@@ -2159,6 +2159,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         camera_target_near(cpu,ra);
     } else if (address==0x800292a0) {
         first_person_weapon_joint(cpu,ra);
+        view_locked_transform(cpu,ra);   // D08A53: after the joint's matrix is chosen
         if(ra==0x80034c6c) third_person_mesh_begin(cpu);
     } else if (address==0x80033e40 || address==0x800341e4 || address==0x80033f5c) {
         first_person_weapon_attached(cpu,address,ra);
@@ -2419,6 +2420,7 @@ struct RenderState {
     // jetpack flame re-arm's flight flag (workers fork before a flight).
     bool door_valid; double door_frame;
     ChannelHand channel_hand;
+    ExactArms exact_arms;   // D08A53
     double projection_blend;
     bool jet_flight;
     // D08J7D: the one-handed pull-up's off hand and viewmodel high ready.
@@ -2500,6 +2502,7 @@ void render_state_save(void* out) {
     r.kick_active=kick_active; r.kick_frame=kick_active ? kick_frame() : 0u;
     r.door_valid=door_kick_frame_live(r.door_frame);
     r.channel_hand={};r.channel_hand.valid=animated_weapon_channel_live(r.channel_hand.q,r.channel_hand.rel);
+    r.exact_arms=exact_arm_pose_live();
     r.projection_blend=fp_blend;
     r.jet_flight=jet_flight_live;
     r.kick_point=kick_point; r.leg_matrices=leg_matrices;
@@ -2552,6 +2555,18 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
         if(n>1e-9) for(int i=0;i<4;++i) q[i]/=n;
         for(int i=0;i<3;++i) a.channel_hand.rel[i]+=(b.channel_hand.rel[i]-a.channel_hand.rel[i])*alpha;
     }
+    // D08A53: the exact arm pose advances between ticks like the channel hand.
+    // D08A53: across a weapon change too (a draw's first tick), the same skeleton.
+    if(a.exact_arms.valid && b.exact_arms.valid && a.exact_arms.run_baked==b.exact_arms.run_baked) {
+        for(int j=0;j<6;++j) exact_nlerp(a.exact_arms.q[j],b.exact_arms.q[j],alpha);
+        for(int i=0;i<3;++i) a.exact_arms.left[i]+=(b.exact_arms.left[i]-a.exact_arms.left[i])*alpha;
+        for(int k=0;k<4;++k) {
+            if(a.exact_arms.has_roll[k] && b.exact_arms.has_roll[k])
+                a.exact_arms.roll[k]+=std::remainder(b.exact_arms.roll[k]-a.exact_arms.roll[k],360.0)*alpha;
+            else if(b.exact_arms.has_roll[k]) {a.exact_arms.has_roll[k]=true;a.exact_arms.roll[k]=b.exact_arms.roll[k];}
+        }
+        for(int s=0;s<2;++s) a.exact_arms.roll_w[s]+=(b.exact_arms.roll_w[s]-a.exact_arms.roll_w[s])*alpha;
+    }
     a.projection_blend+=(b.projection_blend-a.projection_blend)*alpha;
     a.onehand_view.raise+=(b.onehand_view.raise-a.onehand_view.raise)*alpha;
     if(a.weapon_slot==b.weapon_slot) for(int i=0;i<6;++i) a.fp_idle[i]+=(b.fp_idle[i]-a.fp_idle[i])*alpha;
@@ -2575,6 +2590,7 @@ void render_state_blend_newer(void* out,const void* older,double alpha) {
         if(a.kick_active && n.kick_active && n.kick_frame>=a.kick_frame && n.kick_frame-a.kick_frame<=8) n.kick_frame=f.kick_frame;
         if(a.door_valid && n.door_valid && n.door_frame>=a.door_frame) n.door_frame=f.door_frame;
         if(a.channel_hand.valid && n.channel_hand.valid && a.weapon_slot==n.weapon_slot) n.channel_hand=f.channel_hand;
+        if(a.exact_arms.valid && n.exact_arms.valid) n.exact_arms=f.exact_arms;
         n.projection_blend=f.projection_blend;
         n.onehand_view.raise=f.onehand_view.raise;
         if(a.weapon_slot==n.weapon_slot) std::memcpy(n.fp_idle,f.fp_idle,sizeof n.fp_idle);
@@ -2604,6 +2620,7 @@ void render_state_load(const void* in) {
     std::memcpy(override_fp_idle,r.fp_idle,sizeof override_fp_idle);
     override_door_valid=r.door_valid; override_door_frame=r.door_frame;
     override_channel_hand=r.channel_hand;
+    override_exact_arms=r.exact_arms;
     override_projection_blend=r.projection_blend;
     jet_flight_live=r.jet_flight;
     quake_view=r.quake;

@@ -1786,7 +1786,8 @@ including the Incendiary RPG in Challenge Stage 4. Holstering or drawing makes i
 appear at once. **Q** in first person is a quick kick, like Duke Nukem 3D's:
 Duke's leg snaps out from the lower left and kicks whatever the crosshair is
 on within leg reach (look down at a low prop such as a garbage bag to kick
-it), with any weapon still in hand, while standing, moving or jumping. With
+it), with any weapon still in hand, while standing, moving or jumping. The
+leg passes behind the weapon and Duke's hands, never over them. With
 the Mighty Boot selected (key 1), holding the left mouse button kicks too,
 also while running. E never kicks in first person. Tap Q repeatedly or hold
 it to chain kicks while running with any weapon. Kicks do not knock enemies

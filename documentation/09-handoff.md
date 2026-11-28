@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-11-28 - D36N closed out (Done)
+
+User-accepted: "lock this in and close it all out". First-person weapons and arms move as one with weight (OPTIONS > GAMEPLAY > WEAPON MOTION), the Shotgun is held by its pump, and slow viewmodel motion is smooth (quarter units). Next in this line: D36O (survey and repair of the weapon models so they hold up at any angle). See [note 572](572-d36n-viewmodel-motion.md).
+
+## 2026-11-28 - D36N round 3: Energy Weapon side (Needs playtest)
+
+The Energy Weapon's outer right side no longer disappears while running and turning (its motion turns slightly less toward the angle where the model has a hole). Playtest: run, jump and turn with the Energy Weapon. See [note 572](572-d36n-viewmodel-motion.md).
+
+## 2026-11-28 - D36N round 2: wrists and Energy Weapon (Needs playtest)
+
+After the user's playtest ("the new weapon motion looks fantastic"): the Gatling and Buffalo wrists hold from the moment they are drawn on the run, and the Energy Weapon shows Duke's hand at its rear without flicker. Playtest: switch weapons with the wheel while running non-stop, then the Energy Weapon running and turning. See [note 572](572-d36n-viewmodel-motion.md).
+
+## 2026-11-28 - D36N first-person weapon motion and Shotgun grip (Needs playtest)
+
+In first person the weapon and both arms now move together with weight: they trail turns, sway with the steps in Duke 3D's arc, lag on take-off, float in the air and dip on landing, settle a little lower running and hold still while firing (OPTIONS > GAMEPLAY > WEAPON MOTION). The Shotgun is held by its fore-end and racks along the wood. The viewmodel is placed in quarter units. Playtest on the real display at 180 Hz: walk, run, turn, bunny-hop and fire with every weapon. See [note 572](572-d36n-viewmodel-motion.md).
+
 ## 2026-11-28 - D08A53 closed out (Done)
 
 User-accepted: "lock it in and close it out". First-person arms, wrists and weapons are steady walking, running, jumping and turning; the quick kick passes behind the guns and hands. Next in this line: D36N (first-person viewmodel motion and grips, research first). See [note 571](571-d08a53-steady-weapons.md).

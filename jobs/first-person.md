@@ -2449,7 +2449,7 @@ Gatling in first and third person.
 
 ### D36N - First-person viewmodel motion and grips
 
-**Status: Todo (backlog; user request 2026-11-28 during D08A53: "I feel like we could do so much better with these weapon animations ... this is one of the most important visual aspects of the game and people are going to remember this"; on the Shotgun: "duke holds the shotgun with his left hand under the gun you know I'd like to see how other games do that same pose ... there is a lack of robustness to it or what you would expect out of a first person shooter"). Dependencies: D08A53.**
+**Status: Done (user-accepted 2026-11-28: "lock this in and close it all out"; [note 572](../documentation/572-d36n-viewmodel-motion.md)); filed 2026-11-28 during D08A53 (user: "I feel like we could do so much better with these weapon animations ... this is one of the most important visual aspects of the game and people are going to remember this"; on the Shotgun: "duke holds the shotgun with his left hand under the gun you know I'd like to see how other games do that same pose ... there is a lack of robustness to it or what you would expect out of a first person shooter"). Dependencies: D08A53.**
 
 Today the first-person arms are the native third-person animation attached to a
 weapon held still in front of the eye (D12/D36H): each segment's rotation comes
@@ -2479,3 +2479,118 @@ Vanilla and third person unchanged; frame rate never changes.
 and their playtest finds the first-person weapons and arms clearly better than
 D08A53's.
 
+**2026-11-28 implemented (Needs playtest).** User at selection: "work
+autonomously, including the deep research. all decisions will be yours";
+the research chose the design ([note 572](../documentation/572-d36n-viewmodel-motion.md)).
+
+- **Research:** three studies in `research/d36n/` (local, about 19,000
+  words): the released source of Duke 3D/EDuke32, Quake, Quake III,
+  Half-Life, Source 2013, Doom 3 BFG, GZDoom and UT; the readable scripts and
+  defs of games on this PC (Selaco, Doom 3 BFG, Ion Fury, Deus Ex; no game
+  launched); and studio talks, interviews and real pump-shotgun technique.
+  A private research page summarises them.
+- **Motion layer** (`recomp/src/ttk/viewmodel_motion.inc`): one pose about
+  the grip carrying the gun and both arms, added to the D53G gesture in
+  `prepare_display_matrix`, stepped once per live frame on the game's frame
+  step and blended in redraws (`RenderState.fp_motion`). Layers: look sway
+  (bounded, near-critical, no wobble), inertia (start, stop, strafe tilt),
+  air offset from vertical speed, an eased landing dip from the impact (150
+  ms down, 300 back), Duke 3D's U-arc step bob on the view bob's phase,
+  eased to 35% while firing, a subtle run carry cut by any shot, a faint
+  breath when still. Per slot: RPG halved, Energy Weapon only downward.
+- **OPTIONS > GAMEPLAY > WEAPON MOTION:** ON (default), SUBTLE, OFF; live;
+  profile schema 84, `run.py --weapon-motion`; Vanilla off.
+- **Shotgun:** support chain held on its ready grip through ready, run, fire
+  and pump; placed under the front of the fore-end with the knuckles round
+  its side; the rack drawn (34-unit pull along the wood, 7 degree cant toward
+  the centre) from the clip 26 key progress, in place of the native pump that
+  lifted the fist off the gun. At every WEAPON MOTION setting. A/B
+  `DNTTK_FP_SHOTGUN_GRIP=0`; developer `fpgrip`.
+- **Quarter-unit placement:** the GTE kept the viewmodel on a whole-unit grid
+  (2.5 px stair steps at the grip). The view lock now gives `0x800292a0` a
+  camera space four times finer with the same projection (rotation x4,
+  offset in quarter units): identical pictures, motion steps 0.6 px.
+  A/B `DNTTK_FP_SUBUNIT=1`.
+- **Evidence** (lab `recomp/analysis/d36n/`, offscreen 180 Hz, private
+  cards): walking 34-47 px side to side at 2560 wide, running 55-70 px, jumps
+  54-87 px vertical; all 14 weapons at most 0.88 px rms and 8.7% reversing
+  steps (vibration was 50-70%); stills of every weapon in every phase;
+  Vanilla unchanged.
+- **Tests:** `ttk-controls-test` 170 groups (new D36N group; the D08A53
+  view-lock group had compared 0 with 0 and now checks the 4x factor),
+  `ttk-near-test`, `ttk-input-test`, Python 293 OK.
+- **Limits:** offscreen and Xvfb only; the feel, sizes and the Shotgun from
+  the eye need the real display at 180 Hz. Grips other than the Shotgun are
+  unchanged; crouch, swim and climbs ease the layer out; the muzzle flash is
+  not view-locked.
+
+**2026-11-28 user playtest, round 2 (Needs playtest).** User: "the new
+weapon motion looks fantastic". Fixed ([note 572](../documentation/572-d36n-viewmodel-motion.md) round 2):
+
+- **Gatling and Buffalo wrist twisting** after switching while running
+  without stopping: the D08A53 roll lock learned a weapon's rest roll only at
+  rest. Each weapon now starts with its measured rest rolls (`arm_roll_seed`,
+  confirmed in fresh sessions); the Gatling's arm holds at 0 degrees from a
+  running switch (was 19-26) and the first stop moves it at most 5.6.
+- **Energy Weapon tearing:** its 1.4x mesh fell back to a coarser sub-unit
+  factor than the hand, so the rear housing covered Duke's right hand. One
+  factor per frame now; the Freezer and RPG had the same exposure.
+
+**2026-11-28 user playtest, round 3 (Needs playtest).** User: the Energy
+Weapon's "outer right-most section down the barrel ... continues to
+disappear ... that seems to be the only issue left!" The face sits about 2.5
+degrees from turning away (the model has nothing behind it); the look lag,
+bob and run carry crossed that. For the Energy Weapon only, the motion's
+muzzle-down, muzzle-left and top-left rotations are softly limited (0.8, 0.5,
+0.8 degrees) and its travel right to 4 units; stills sweeps confirm the face
+draws at the limits ([note 572](../documentation/572-d36n-viewmodel-motion.md) round 3).
+
+**2026-11-28 accepted and closed.** User, after round 3: "i can confirm it
+appears good on my end right now", then "lock this in and close it all out".
+Done. The Energy Weapon's motion limit (round 3) is a safety net: the user
+saw the same face vanish in its idle gestures and asked for "a real fix",
+filed as [D36O](#d36o---first-person-weapon-model-repair).
+
+### D36O - First-person weapon model repair
+
+**Status: Todo (backlog; user request 2026-11-28 at the D36N closeout: "i
+think we properly fix the weapon model ... that should also contain a review
+of all the other weapons to see if similar problems occur too. a real fix").
+Dependencies: D36N.**
+
+In first person the Energy Weapon's housing loses its outer right face
+(beside the green panel, down the barrel) once the muzzle turns about 2.5
+degrees left of ready, or less with the muzzle down, the top rolled left or
+the gun moved right; the street shows through. The user saw it while
+running (D36N rounds 2-3) and in the same spot during the Energy Weapon's
+idle gestures (D53G inspect). D36N limits the motion short of it
+([note 572](../documentation/572-d36n-viewmodel-motion.md) round 3); that
+is a safety net, not a fix. The original models were built for the
+original camera angles, so other weapons may have the same kind of gap at
+angles first person now reaches.
+
+Scope:
+
+- **Diagnose first:** draw the weapon with back-face culling off (lab only)
+  to tell a one-sided polygon culled when it turns away from a missing
+  surface; identify the mesh, its polygons and textures.
+- **Survey every weapon** (all 14 slots and the upgraded meshes): a lab sweep
+  turning each one through about +-15 degrees in pitch, yaw and roll, and its
+  motion-layer travel, at rest, at ready and in its idle gestures, flagging any
+  frame where the background shows through the silhouette. Report the gaps
+  per weapon with pictures.
+- **Repair the models** properly: closed geometry with matching textures
+  (purpose-built faces or meshes, shipped like the D08A51 grenade pack),
+  following the accepted mesh art guide
+  ([note 265](../documentation/265-native-mesh-art-style.md)) where new art is
+  needed, validated in game. Energy Weapon first.
+- Then remove D36N's Energy Weapon rotation and travel limit
+  (`motion_slot_shape`) and confirm the full motion.
+
+Keep: Modernized only (Vanilla and third person unchanged unless the repair
+is shared and identical there; decide and document), D08A53 steadiness, the
+D36N motion and the D53G gestures. No sliding hits, frame rate never changes.
+
+**Acceptance:** the survey's report of every weapon; the repaired weapons
+show no gaps through the sweep, the motion and the idle gestures; the user's
+playtest confirms the Energy Weapon at any angle.

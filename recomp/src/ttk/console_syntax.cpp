@@ -82,6 +82,7 @@ const Command table[]={
     // first_person.inc, console_idle.inc, ladder_armed_hang.inc
     {"fov","default",0,1,"fov [60..120|default]","First-person field of view"},
     {"fpidle","inspect heft rest pose off",0,1,"fpidle [inspect|heft|rest]","First-person idle gesture"},
+    {"fpgrip","off",0,6,"fpgrip ox oy oz [pitch yaw roll] | off","Shotgun support grip (developer)"},
     {"hangpose","hang side pull off tune",0,1,"hangpose [1|2|3|off]","Armed ladder hang pose (hangpose tune ...)"},
     // weapon_aim.cpp
     {"beamfollow",toggle,0,1,"beamfollow [on|off|default]","Energy beams follow the gun"},
@@ -424,7 +425,7 @@ const Section sections[]={
     {"CONSOLE","help history clear quit"},
     {"WORLD LABS","warp farhits earthquake light chainsound lamp sfx"},
     {"AIM LABS","autoaim pointblank shotview shootseen roundfollow beamfollow beamanim boltlaunch boltbarrel testmove"},
-    {"DUKE LABS","fov fpidle hangpose crouchstand crouchwalk crouchscan"},
+    {"DUKE LABS","fov fpidle fpgrip hangpose crouchstand crouchwalk crouchscan"},
     {"RENDER LABS","redrawonly hostvis smoothquads"},
 };
 void console_help(void (*say)(const char*),bool all) {

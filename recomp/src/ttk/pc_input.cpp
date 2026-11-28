@@ -1818,8 +1818,8 @@ uint16_t input_last_pad() {return last_pad;}
 }
 extern "C" const char* ttk_fast_timing_json(void);
 extern "C" const char* ttk_input_debug_json() {
-    // Holds controls_debug_json() (up to 12288) and the input fields.
-    static char buffer[16384];
+    // Holds controls_debug_json() (up to 20480, D36N) and the input fields.
+    static char buffer[24576];
     const auto& f = ttk::input_snapshot(ttk::Context::Gameplay);
     // D19G: the live binding codes, in action order.
     static char binds_text[512];

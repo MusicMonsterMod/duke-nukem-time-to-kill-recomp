@@ -465,6 +465,9 @@ std::vector<Screen> make_screens() {
         {"STATUS BARS",Section::Controls,"status_bars","DNTTK_STATUS_BARS",true,"FULL, BORDERLESS OR HIDDEN. MINUS / PLUS CHANGE LIVE",{{"FULL","full","\"full\""},{"BORDERLESS","borderless","\"borderless\""},{"HIDDEN","hidden","\"hidden\""}},0},
         {"VIEW BOB",Section::Controls,"view_bob","DNTTK_VIEW_BOB",true,"FIRST PERSON HEAD BOB WHILE WALKING",
          {{"OFF","off","\"off\""},{"SUBTLE","subtle","\"subtle\""},{"ON","on","\"on\""},{"STRONG","strong","\"strong\""}},2},
+        // D36N: the first-person weapon and arms' motion (viewmodel_motion.inc).
+        {"WEAPON MOTION",Section::Controls,"weapon_motion","DNTTK_WEAPON_MOTION",true,"FIRST PERSON GUN SWAY, STEP BOB, JUMPS AND LANDINGS",
+         {{"ON","on","\"on\""},{"SUBTLE","subtle","\"subtle\""},{"OFF","off","\"off\""}},0},
         // D39C: accessibility (D21). REDUCED halves a flash, at most a quarter.
         {"SCREEN FLASHES",Section::Controls,"screen_flashes","DNTTK_SCREEN_FLASHES",true,"COLOURED FULL SCREEN FLASHES. REDUCED: SOFTER",
          {{"ON","on","\"on\""},{"REDUCED","reduced","\"reduced\""},{"OFF","off","\"off\""}},0},

@@ -4871,6 +4871,73 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x3b8,saved_eq);psx_mod_write_byte(p+0x3b9,saved_w);psx_mod_write_byte(p+0x22c,saved_mode);psx_mod_write_byte(p+0x232,saved_beat);
         ttk::input=saved_input;update();
         std::puts("PASS: D53G first-person idle: ON in first person keeps the weapon and plays a gesture on the idle beat, activity eases it out, a shot cuts it, third person and Vanilla unchanged");
+        {
+            // D36N: the first-person viewmodel motion layer, one live update at
+            // a time (30 Hz frame step), with the camera rows given directly.
+            auto Jv=[](const char* key,int index=-1){
+                const char* t=std::strstr(ttk::controls_debug_json(),"\"fp_motion\":");assert(t);
+                char k[40];std::snprintf(k,sizeof k,"\"%s\":",key);const char* q=std::strstr(t,k);assert(q);q+=std::strlen(k);
+                if(index>=0){q=std::strchr(q,'[')+1;for(int i=0;i<index;++i)q=std::strchr(q,',')+1;}
+                return std::strtod(q,nullptr);
+            };
+            const uint32_t saved_root[3]={psx_mod_read_word(p+4),psx_mod_read_word(p+8),psx_mod_read_word(p+12)};
+            const uint32_t saved_step2=psx_mod_read_word(0x800d21fc);const uint32_t saved_pivot=psx_mod_read_word(p+0x7c0);
+            const uint8_t saved_eq2=psx_mod_read_byte(p+0x3b8),saved_w2=psx_mod_read_byte(p+0x3b9),saved_mode2=psx_mod_read_byte(p+0x22c);
+            const uint16_t saved_up2=psx_mod_read_half(p+0x74),saved_ut=psx_mod_read_half(p+0x76),saved_uk=psx_mod_read_half(p+0x78);
+            psx_mod_write_word(0x800d21fc,10);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x22c,0);
+            psx_mod_write_half(p+0x74,5);
+            ttk_live_env_set("DNTTK_WEAPON_MOTION","on");ttk::input.held[ttk::fire]=false;
+            double yaw=0;int32_t z=0,y=0;
+            auto step=[&](double turn_deg=0,int dz=0,int dy=0){
+                yaw+=turn_deg*3.14159265358979/180;z+=dz;y+=dy;
+                const double cs=std::cos(yaw),sn=std::sin(yaw);
+                const double rows[9]={cs,0,-sn, 0,1,0, sn,0,cs};
+                psx_mod_write_word(p+4,0);psx_mod_write_word(p+8,uint32_t(y));psx_mod_write_word(p+12,uint32_t(z));psx_mod_write_word(p+0x7c0,uint32_t(y));
+                ttk::viewmodel_motion_test_step(rows);
+            };
+            for(int i=0;i<40;++i)step();
+            assert(std::abs(Jv("pose",1))<1e-6 && std::abs(Jv("pose",3))<1e-6 && Jv("weight")>0.99);   // still: no sway
+            for(int i=0;i<20;++i)step(4);                       // turning right 120 degrees a second
+            const double lag=Jv("pose",1);
+            assert(lag<-1.5 && lag>-3.21);                       // the gun trails (muzzle left), soft-capped
+            double low=0;for(int i=0;i<30;++i){step();low=std::max(low,Jv("pose",1));}
+            assert(std::abs(Jv("pose",1))<0.05 && low<0.25);    // settles, no wobble back past centre
+            for(int i=0;i<60;++i)step(0,20);                     // walking: 600 units a second
+            assert(Jv("bob")>0.9 && Jv("carry")<0.01);
+            for(int i=0;i<30;++i)step(0,100);                    // running
+            assert(Jv("bob")>1.7 && Jv("carry")>0.9);
+            ttk::input.held[ttk::fire]=true;step(0,100);step(0,100);ttk::input.held[ttk::fire]=false;
+            assert(Jv("carry")<0.5);                             // a shot cuts the run carry at once
+            for(int i=0;i<30;++i)step();
+            const double landings=Jv("landings");
+            psx_mod_write_byte(p+0x22c,9);
+            for(int i=0;i<10;++i)step(0,0,-45);                  // jump: rising 1350 units a second
+            assert(Jv("pose",4)>1);                              // the gun lags low on the way up
+            for(int i=0;i<10;++i)step(0,0,50);                   // falling 1500 units a second
+            assert(Jv("pose",4)<0);                              // floats up
+            psx_mod_write_byte(p+0x22c,0);step();step();step();
+            assert(Jv("landings")==landings+1 && Jv("land")>5);  // the landing dips it
+            for(int i=0;i<20;++i)step();
+            assert(Jv("land")==0);                               // and it is back within half a second
+            ttk_live_env_set("DNTTK_WEAPON_MOTION","off");for(int i=0;i<5;++i)step(4,100);
+            for(int i=0;i<6;++i)assert(Jv("pose",i)==0);         // OFF: the gun is held still
+            ttk_live_env_set("DNTTK_WEAPON_MOTION","on");ttk::modern=false;for(int i=0;i<5;++i)step(4,100);
+            for(int i=0;i<6;++i)assert(Jv("pose",i)==0);ttk::modern=true;   // Vanilla: none
+            // Shotgun: the support grip is held and the rack drawn, at any setting.
+            psx_mod_write_byte(p+0x3b9,5);psx_mod_write_half(p+0x74,20);ttk_live_env_set("DNTTK_WEAPON_MOTION","off");
+            for(int i=0;i<10;++i)step();
+            assert(Jv("grip")>0.99 && Jv("slide")==0);
+            psx_mod_write_half(p+0x74,26);psx_mod_write_half(p+0x78,82);psx_mod_write_half(p+0x76,30);step();
+            psx_mod_write_half(p+0x76,10);step();
+            assert(Jv("slide")>0.9);                             // pulled back at the middle of the rack
+            psx_mod_write_half(p+0x74,40);for(int i=0;i<20;++i)step();
+            assert(Jv("grip")<0.01);                             // another clip (a draw) keeps the native arm
+            ttk_live_env_set("DNTTK_WEAPON_MOTION","on");
+            for(int i=0;i<3;++i)psx_mod_write_word(p+4+4*i,saved_root[i]);
+            psx_mod_write_word(0x800d21fc,saved_step2);psx_mod_write_word(p+0x7c0,saved_pivot);psx_mod_write_byte(p+0x3b8,saved_eq2);psx_mod_write_byte(p+0x3b9,saved_w2);psx_mod_write_byte(p+0x22c,saved_mode2);
+            psx_mod_write_half(p+0x74,saved_up2);psx_mod_write_half(p+0x76,saved_ut);psx_mod_write_half(p+0x78,saved_uk);
+            std::puts("PASS: D36N viewmodel motion: look lag soft-capped and settling without a wobble, walk and run bob, run carry cut by a shot, jump lag, fall float, landing dip and recovery, OFF and Vanilla still; Shotgun grip hold and rack at any setting");
+        }
     }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets
@@ -5410,6 +5477,11 @@ int main(int argc,char** argv) {
                 std::vector<uint8_t> before(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+0x20*19);
                 const uint32_t hand=mats+0x20*7;
                 call(0x800348d8,c,p,0x8003769c);
+                // D36N: the synthetic camera had no view rows (+0x20 all zero),
+                // which left the D08A53 rotation check comparing 0 with 0. Give it
+                // rows equal to its camera rows (projection scale 1) for this call.
+                uint16_t saved_view[9];
+                for(int i=0;i<9;++i){saved_view[i]=psx_mod_read_half(c+0x20+2*i);psx_mod_write_half(c+0x20+2*i,psx_mod_read_half(c+2*i));}
                 auto h=hook(0x800292a0,c,hand,0x80034c6c,7);
                 assert(h.gpr[5]!=hand && h.gpr[5]>=0x801e0000 && ttk::first_person_weapon_drawing());
                 const auto hand_owner=ttk::first_person_limb_presentation();
@@ -5433,10 +5505,20 @@ int main(int argc,char** argv) {
                         Mp[r][k]=(int16_t)psx_mod_read_half(lm+2*(3*r+k))/4096.0;
                         if(r!=k)assert(Vp[r][k]==0);
                     }
+                    // D36N: camera space k times finer (k 1..4, one factor for the
+                    // rotation and the translation), so the projection is the same.
+                    double kr=0,kn=0;
                     for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
                         double a=0,b=0;
                         for(int i=0;i<3;++i){a+=V[r][i]*M[k][i];b+=Vp[r][i]*Mp[k][i];}
-                        assert(std::abs(a-b)<3.0/4096);
+                        kr+=a*b;kn+=a*a;
+                    }
+                    const double ks=kr/kn,kk=std::round(ks);
+                    assert(kk>=1 && kk<=4 && std::abs(ks-kk)<0.01);
+                    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+                        double a=0,b=0;
+                        for(int i=0;i<3;++i){a+=V[r][i]*M[k][i];b+=Vp[r][i]*Mp[k][i];}
+                        assert(std::abs(kk*a-b)<3.0*kk/4096);
                     }
                     for(int r=0;r<3;++r) {
                         double a=0,b=0;
@@ -5444,10 +5526,12 @@ int main(int argc,char** argv) {
                             a+=V[r][i]*(int32_t(psx_mod_read_word(vm+0x14+4*i))-int32_t(psx_mod_read_word(c+0x14+4*i)));
                             b+=Vp[r][i]*(int32_t(psx_mod_read_word(lm+0x14+4*i))-int32_t(psx_mod_read_word(vc+0x14+4*i)));
                         }
-                        assert(std::abs(a-b)<2.5);
+                        assert(std::abs(kk*a-b)<2.5*kk);
                     }
-                    std::puts("PASS: D08A53 view-locked hand transform: scale-only private view rows, same GTE rotation and translation");
+                    assert(kk==4);   // a unit-scale hand: the full quarter-unit refinement
+                    std::puts("PASS: D08A53 view-locked hand transform: scale-only private view rows, same GTE rotation and translation (D36N: camera space 4 times finer)");
                 }
+                for(int i=0;i<9;++i)psx_mod_write_half(c+0x20+2*i,saved_view[i]);
                 assert(hook(0x80033f5c,hand,4,0x80035250,7).gpr[4]==vm);          // held item
                 assert(hook(0x80033e40,hand,0,0x80035000,7).gpr[4]==hand);        // other caller
                 // Muzzle flash: placed from the same matrix, so it stays on the weapon.

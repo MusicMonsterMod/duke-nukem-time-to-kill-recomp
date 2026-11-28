@@ -154,6 +154,7 @@ bool pole_view_from_front(bool sidestep_held);
 /* D08J5: S rests at the end of a pole or chain with nothing to step onto: let go (Square). */
 bool pole_let_go_ready();
 const char* controls_debug_json();
+void viewmodel_motion_test_step(const double rows[9]);   // D36N native test
 // D17: draw-time host state for render replay workers (frame_replay.cpp).
 // D17B late camera (live process only): the view the next game update would
 // take from the mouse input pumped so far (yaw/pitch, radians, as the orbit

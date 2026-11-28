@@ -738,7 +738,8 @@ static bool kick_leg_joint(CPUState* cpu);
 // End a verified draw scope with restoration; world/replay replacement instead
 // discards ownership without restoring bytes into a different RAM image.
 static void limb_scope_end(CPUState* cpu) {fade_restore(cpu);limb_draw={};}
-static void limb_scope_forget() {limb_draw={};joint_light_save={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;}
+static bool motion_frame_done;   // D36N: the motion layer stepped in this live frame
+static void limb_scope_forget() {limb_draw={};joint_light_save={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;motion_frame_done=false;}
 static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false) {
     limb_draw=limb_presentation(owner,part,bridge);
     // D14A: widening past H=256 admits the native root through its H cutoff.
@@ -776,7 +777,7 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
     replay_body_camera(duke_entry); // D14H: no-op outside late first-person redraws
     if(list_step_after_duke) replay_beam_roots(); // D49: no-op outside late first-person redraws
     replay_quake_camera(duke_entry); // D44A: no-op without a first-person earthquake
-    if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
+    if(duke_entry || list_step_after_duke) {display_hand_done=false;motion_frame_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);
     // D39E: Polymorph draws frozen blue as a present tint (damage_flash.inc);
@@ -1103,6 +1104,49 @@ static ArmRoll arm_roll[33][4];
 // swim, climbs): a draw or switch never snaps the forearm (a Pipe Bomb redraw
 // turned it 65 degrees in one tick when the lock simply switched off).
 static double roll_weight[2],roll_last[4];
+// D36N: seed rest rolls (degrees: left upper, left forearm, right upper,
+// right forearm; NAN none). The lock learned a weapon's rest roll only while
+// Duke stood still with it, so a weapon first drawn on the move had no lock
+// and its native run twisted the arm until the first stop (user, 2026-11-28:
+// the Gatling and Buffalo Rifle switched to while running; lab: Gatling right
+// forearm 19 degrees, upper arm 26). The values are what the still sampler
+// learns: the D08A53 idle traces, confirmed in a fresh session per weapon
+// (within 0.2 degrees, the Desert Eagle 0.7). The sampler still refines them
+// at rest. A/B DNTTK_FP_ROLL_SEED=0.
+static constexpr double roll_none=__builtin_nan("");
+static constexpr double arm_roll_seed[15][4]={
+    {roll_none,roll_none,roll_none,roll_none},
+    {roll_none,roll_none,18.9,-6.57},       // 1 Throwing Knife
+    {roll_none,roll_none,5.97,-6.53},       // 2 Throwing Axe
+    {35.93,91.85,-154.79,-29.18},           // 3 Crossbow
+    {roll_none,roll_none,161.35,8.25},      // 4 Desert Eagle
+    {62.21,80.81,164.02,-29.36},            // 5 Combat Shotgun
+    {60.76,79.06,73.16,-31.55},             // 6 Buffalo Rifle
+    {63.09,78.39,-134.35,0.00},             // 7 Gatling (and Laser)
+    {28.40,-6.18,-33.06,-4.52},             // 8 RPG (and Incendiary)
+    {31.88,110.08,87.16,-32.05},            // 9 Flamethrower (and upgrade)
+    {28.53,111.14,148.63,-30.12},           // 10 Energy Weapon
+    {46.77,81.64,-131.62,0.00},             // 11 Freezethrower
+    {roll_none,roll_none,-14.90,-5.76},     // 12 Pipe Bomb
+    {roll_none,roll_none,-15.59,-5.73},     // 13 Holy Hand Grenade
+    {roll_none,roll_none,-15.59,-5.73},     // 14 Dynamite
+};
+static void arm_roll_seed_slot(unsigned slot) {
+    static const int on=ttk_env_switch("DNTTK_FP_ROLL_SEED");
+    if(!on || slot>=15)return;
+    for(int k=0;k<4;++k)if(!arm_roll[slot][k].valid && arm_roll_seed[slot][k]==arm_roll_seed[slot][k])arm_roll[slot][k]={true,arm_roll_seed[slot][k]};
+}
+// D36N: learned rest rolls, for the debug port (controls fp_motion.rolls).
+static const char* arm_roll_json() {
+    static char buf[2048];size_t n=0;buf[0]=0;
+    for(unsigned sl=0;sl<33;++sl) {
+        if(!arm_roll[sl][0].valid && !arm_roll[sl][1].valid && !arm_roll[sl][2].valid && !arm_roll[sl][3].valid)continue;
+        n+=std::snprintf(buf+n,sizeof buf-n,"%u:",sl);
+        for(int k=0;k<4;++k)n+=std::snprintf(buf+n,sizeof buf-n,k<3?"%.2f,":"%.2f;",arm_roll[sl][k].valid?arm_roll[sl][k].deg:999.0);
+        if(n>sizeof buf-80)break;
+    }
+    return buf;
+}
 static uint64_t roll_tick=~0ull,roll_valid_tick;
 static uint32_t arm_bias_root[3];
 static uint64_t arm_bias_updates;
@@ -1213,6 +1257,7 @@ static ExactArms exact_arm_pose_live() {
     }
     {
         const uint64_t tick=input_host_frame();
+        if(slot<32)arm_roll_seed_slot(bslot);   // D36N
         if(tick!=roll_tick) {
             if(tick-roll_valid_tick>4)roll_weight[0]=roll_weight[1]=0;
             for(int s=0;s<2;++s) {
@@ -1556,6 +1601,19 @@ static void view_exact_camera(double c[3][3]) {
     if(r[0]*c[0][0]+r[1]*c[0][1]+r[2]*c[0][2]<0)for(double& x:r)x=-x;
     for(int i=0;i<3;++i){c[0][i]=r[i];c[1][i]=u[i];c[2][i]=f[i];}
 }
+// D36N: the view lock's camera-space refinement, 4 (quarter units); A/B DNTTK_FP_SUBUNIT=1..4.
+static uint64_t view_subunit_limited;
+// One factor for every view-locked part of a frame (hand, arms, weapon mesh):
+// they sort against each other by depth, and a part at another factor would
+// sort as if nearer or farther. Chosen in prepare_display_matrix from the
+// view's projection scale and the weapon's display scale (the Energy Weapon
+// and Freezer meshes are drawn at 1.4: at 4 their rotation would pass the
+// 16-bit limit, their mesh fell back alone and covered Duke's hand).
+static double view_subunit_frame=4;
+static double view_subunit() {
+    static const double k=[]{const char* t=std::getenv("DNTTK_FP_SUBUNIT");const int v=t?std::atoi(t):4;return double(std::clamp(v,1,4));}();
+    return k;
+}
 static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     const bool enabled=view_exact_on();
     if(!input_modernized() || !weapon_duke_draw || fp_blend<0.999 || !orbit_valid || cpu->gpr[4]!=camera)return;
@@ -1603,15 +1661,29 @@ static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     int32_t eye[3];
     for(int i=0;i<3;++i)eye[i]=int32_t(psx_mod_read_word(camera+0x14+4*i));
     for(int i=0;i<0x40;i+=4)psx_mod_write_word(view_lock_camera+i,psx_mod_read_word(camera+i));
-    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
-        psx_mod_write_half(view_lock_camera+0x20+2*(3*r+k),uint16_t(int16_t(std::clamp(std::lround(vp[r][k]*4096),-32768L,32767L))));
-        psx_mod_write_half(view_lock_matrix+2*(3*r+k),uint16_t(int16_t(std::clamp(std::lround(mp[r][k]*4096),-32768L,32767L))));
+    // D36N: sub-unit placement. The GTE keeps camera space in whole units, so
+    // the drawn viewmodel moved in 1-unit steps (2.5 px at the grip at 2560
+    // wide): deliberate slow motion read as stair steps. The private matrix's
+    // rotation is scaled by k and its offset given in 1/k units: camera space
+    // is k times finer and the projection (x/z, y/z) is unchanged.
+    // The GTE rotation (Vp Mp^T, 0x800b41dc) saturates at 16 bits (Q12,
+    // under 8): keep k so every entry stays below 7.9, else this call uses less.
+    double k=std::min(view_subunit(),view_subunit_frame);
+    {
+        double peak=0;
+        for(int r=0;r<3;++r)for(int c2=0;c2<3;++c2)peak=std::max(peak,std::abs(vp[r][r]*mp[c2][r]));
+        while(k>1 && peak*k>=7.9){k-=1;++view_subunit_limited;}
+    }
+    for(int r=0;r<3;++r)for(int c2=0;c2<3;++c2) {
+        psx_mod_write_half(view_lock_camera+0x20+2*(3*r+c2),uint16_t(int16_t(std::clamp(std::lround(vp[r][c2]*4096),-32768L,32767L))));
+        psx_mod_write_half(view_lock_matrix+2*(3*r+c2),uint16_t(int16_t(std::clamp(std::lround(mp[r][c2]*k*4096),-32768L,32767L))));
     }
     psx_mod_write_half(view_lock_matrix+0x12,psx_mod_read_half(m+0x12));
     double dp[3];
     for(int r=0;r<3;++r) {
-        dp[r]=double(std::lround(x->view[r]));
-        psx_mod_write_word(view_lock_matrix+0x14+4*r,uint32_t(eye[r]+int32_t(dp[r])));
+        const int32_t fine=int32_t(std::lround(x->view[r]*k));
+        dp[r]=fine/k;
+        psx_mod_write_word(view_lock_matrix+0x14+4*r,uint32_t(eye[r]+fine));
     }
     if(present_trace_enabled()) {
         // The world point the GTE now sees: eye + C^T dp (Vp dp = V C^T dp).
@@ -1623,6 +1695,25 @@ static void view_locked_transform(CPUState* cpu,uint32_t ra) {
     cpu->gpr[4]=view_lock_camera;cpu->gpr[5]=view_lock_matrix;++view_exact_draws;
 }
 static bool quick_kick_live();   // kick.inc (D08A53)
+// D36N: the Shotgun's support grip (developer: fpgrip in the console, session only).
+static std::array<double,6> shotgun_grip_dev{};static bool shotgun_grip_dev_on;
+static const std::array<double,6>& shotgun_grip() {
+    // Placed for the eye (stills sweep, note 572): under the front of the
+    // fore-end, a little to its left so the knuckles wrap it, rolled 15 degrees.
+    static const std::array<double,6> fixed{-8,72,12,0,0,15};
+    static const std::array<double,6> none{};static const int on=ttk_env_switch("DNTTK_FP_SHOTGUN_GRIP");
+    return shotgun_grip_dev_on ? shotgun_grip_dev : on ? fixed : none;
+}
+bool fp_grip_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strncmp(line,"fpgrip",6) || (line[6] && line[6]!=' '))return false;
+    close=false;double v[6]={0,0,0,0,0,0};
+    const int n=line[6]?std::sscanf(line+7,"%lf %lf %lf %lf %lf %lf",&v[0],&v[1],&v[2],&v[3],&v[4],&v[5]):0;
+    if(n>=3) {for(int i=0;i<6;++i)shotgun_grip_dev[i]=v[i];shotgun_grip_dev_on=true;say("Shotgun grip set (session only).");}
+    else if(line[6] && !std::strcmp(line+7,"off")) {shotgun_grip_dev_on=false;say("Shotgun grip back to the build's.");}
+    else say("Usage: fpgrip ox oy oz [pitch yaw roll] | fpgrip off (developer, D36N)");
+    return true;
+}
+#include "viewmodel_motion.inc"   // D36N
 static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=false) {
     if(!advance && display_hand_done)return true;
     live_valid=false;
@@ -1634,6 +1725,19 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
         h[r][k]=(int16_t)psx_mod_read_half(real+2*(3*r+k))/4096.0;
     }
     view_exact_camera(c);   // D08A53
+    {
+        // D36N: this frame's sub-unit factor (view_locked_transform).
+        double sp=0;
+        for(int r=0;r<3;++r) {
+            double vn=0,cn=0;
+            for(int k2=0;k2<3;++k2) {const double v=(int16_t)psx_mod_read_half(camera+0x20+2*(3*r+k2))/4096.0;vn+=v*v;cn+=c[r][k2]*c[r][k2];}
+            if(cn>0.25)sp=std::max(sp,std::sqrt(vn/cn));
+        }
+        const unsigned fs=weapon_view_slot();
+        const double peak=std::max(1.0,sp)*std::max(1.0,fs<32 ? slot_scale(fs) : 1.0)*1.03;
+        double kf=4;while(kf>1 && peak*kf>=7.9)kf-=1;
+        view_subunit_frame=kf;
+    }
     // Level frame: the camera's right and forward axes without pitch (game Y down).
     const double rl=std::hypot(c[0][0],c[0][2]),fl=std::hypot(c[2][0],c[2][2]);
     if(rl<0.5 || fl<0.1) return false;
@@ -1701,6 +1805,17 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     }
     // D53G: the idle gesture, about the grip in the level frame (as the tilt).
     double idle_pose[6];fp_idle_view(idle_pose);
+    // D36N: the viewmodel motion layer, the same pose convention, added on.
+    {
+        // Once per live frame, at its first build (the arms build before the
+        // hand), so every part of the rig draws this frame's pose.
+        static uint64_t motion_host=~0ull;
+        if(!render_override && !motion_frame_done && input_host_frame()!=motion_host) {
+            motion_frame_done=true;motion_host=input_host_frame();motion_update(c);
+        }
+        double m[6];motion_view(m);
+        for(int i=0;i<6;++i) idle_pose[i]+=m[i];
+    }
     if(idle_pose[0] || idle_pose[1] || idle_pose[2]) {
         const double d=3.14159265358979/180,p=idle_pose[0]*d,y=idle_pose[1]*d,r=idle_pose[2]*d;
         const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
@@ -1927,6 +2042,13 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         RunArms held;
         if(arm_reference(unsigned(gatling_hold[0]),unsigned(gatling_hold[1]),held)) {run=held;arm_weight=1;}
     }
+    // D36N: the Shotgun's support chain held on its ready grip (clip 20 key 0)
+    // through ready, run, fire, pump and return (viewmodel_motion.inc).
+    if(part<13 && slot==5) {
+        const double hold=motion_value(7);
+        RunArms held;
+        if(hold>0 && arm_reference(20,0,held)) {run=held;arm_weight=std::max(arm_weight,hold);}
+    }
     if(arm_weight>0)toward(run.q,run.left,arm_weight);
     if(part<13) {
         const double scale=slot_scale(weapon_view_slot());
@@ -1959,6 +2081,30 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         }();
         for(int r=0;r<3;++r)for(int n=0;n<3;++n)
             native[n][r]+=shift[0]*c[0][r]+shift[1]*c[1][r]+shift[2]*c[2][r];
+    }
+    // D36N: the Shotgun's support hand on the fore-end (developer knob while
+    // tuning: DNTTK_FP_SHOTGUN_GRIP=ox,oy,oz[,pitch,yaw,roll]; offset in the
+    // gun's own axes, the hand turned in view axes, degrees).
+    if(part<13 && slot==5) {
+        const std::array<double,6>& grip=shotgun_grip();
+        // The rack: back along the barrel (the gun's +y), scaled by the hold.
+        const double stroke=-motion_tuning.pump_stroke*motion_value(6)*motion_value(7);
+        double shift[3];
+        for(int r=0;r<3;++r) shift[r]=d[0][r]*grip[0]+d[1][r]*(grip[1]+stroke)+d[2][r]*grip[2];
+        for(int r=0;r<3;++r)for(int n2=0;n2<3;++n2)native[n2][r]+=shift[r];
+        if(grip[3] || grip[4] || grip[5]) {
+            // World rotation about the wrist in view axes: W' = C^T R C W; the
+            // joint rows are stored world-to-joint (posed = W^T), so posed' = posed C^T R^T C.
+            const double dg=3.14159265358979/180,pa=grip[3]*dg,ya=grip[4]*dg,ra=grip[5]*dg;
+            const Mat3 rx={{1,0,0},{0,std::cos(pa),-std::sin(pa)},{0,std::sin(pa),std::cos(pa)}};
+            const Mat3 ry={{std::cos(ya),0,std::sin(ya)},{0,1,0},{-std::sin(ya),0,std::cos(ya)}};
+            const Mat3 rz={{std::cos(ra),-std::sin(ra),0},{std::sin(ra),std::cos(ra),0},{0,0,1}};
+            Mat3 rv,m1,ct,w,wt;mat_mul(ry,rx,m1);mat_mul(m1,rz,rv);
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)ct[r][k]=c[k][r];
+            Mat3 t1;mat_mul(ct,rv,t1);mat_mul(t1,c,w);   // world rotation C^T R C
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)wt[r][k]=w[k][r];
+            Mat3 o;mat_mul(posed[2],wt,o);std::memcpy(posed[2],o,sizeof o);
+        }
     }
     // Energy Weapon: move the connected support chain clear of the housing.
     if(part<13 && slot==10)for(int r=0;r<3;++r)for(int n=0;n<3;++n)
@@ -2073,6 +2219,8 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
                 const uint64_t tick=input_host_frame();
                 if(!rest.valid)rest={true,ang};
                 else if(tick!=eased[k])rest.deg+=0.3*std::remainder(ang-rest.deg,360.0);
+                static const bool roll_log=std::getenv("DNTTK_FP_ROLL_LOG")!=nullptr;
+                if(roll_log)std::fprintf(stderr,"[TTK roll] slot %u k %u ang %.1f rest %.1f\n",rslot,k,ang,rest.deg);
                 eased[k]=tick;
             }
             if(roll_on && exact.has_roll[k])turn(o,b,exact.roll_w[side]*std::remainder(exact.roll[k]-ang,360.0));

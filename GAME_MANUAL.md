@@ -1037,6 +1037,36 @@ each stride. Choose its strength with
 Crouching, jumping, stairs and drops move the eye as before at every setting;
 **off** keeps the eye fixed to Duke with no bob.
 
+### Weapon motion (Modernized, first person)
+
+In first person your weapon and both arms move together as one, with weight:
+
+- **Turning and looking**, the gun trails the view a little and settles
+  back without wobbling.
+- **Walking and running**, it sways with your steps in Duke Nukem 3D's arc
+  (lowest as it crosses the middle, rising to each side), deeper when running.
+  It keeps the view bob's pace, so the eye and the gun step together.
+- **Starting, stopping and strafing**, it lags behind for a moment and tilts
+  into a strafe.
+- **Jumping**, it lags low on the way up and floats up as you fall. A landing
+  dips it quickly and it comes back up more slowly. Harder landings dip deeper.
+- **Running**, it settles a little lower and turned in. Any shot brings it
+  straight back up, and it stays up until you stop shooting.
+- **While you fire**, the sway eases right down, so the muzzle holds still
+  as shots leave.
+- **Standing still**, there is a faint, slow breath. The idle gestures (IDLE
+  ANIMATIONS) play as before.
+
+**OPTIONS > GAMEPLAY > WEAPON MOTION** sets it: **ON** (default), **SUBTLE**
+(half as much) or **OFF** (the gun is held still). It changes at once. To
+save it when launching, use `--weapon-motion on|subtle|off`. Crouching,
+swimming, climbing and one-handed climbs keep their own poses. Vanilla has no
+first-person weapon.
+
+The weapon and arms are also placed more finely than before, so slow movement
+(a sway settling, a recoil returning, an idle gesture) is smooth instead of
+moving in tiny steps.
+
 If the busiest areas (for example the strip club with the dancers in view)
 still feel heavy, the emulated CPU option (`--cpu-overclock 150`, or the
 settings menu) keeps the game at 30 frames per second there; it does not change
@@ -1772,6 +1802,11 @@ hand rests against its underside at idle, including the Laser Gatling. The Buffa
 lifts with its hands for the cocking stroke, then returns to its ready grip.
 Its left support hand keeps a stable contact while turning, and its right
 wrist retains the ready alignment while running.
+In first person Duke holds the Combat Shotgun by its fore-end, his left fist
+under the front of the wooden pump with the knuckles wrapped round its left
+side. After each shot he racks it: the hand pulls back along the pump and
+drives it home while the gun turns in so you see the stroke. The hand stays
+on the gun throughout, at every WEAPON MOTION setting.
 The shotgun, Gatling, Energy Weapon, Flamethrower and Freezethrower use restrained
 first-person arm motion while running, including their upgrades. The Gatling and
 Freezethrower retain their walking support grip while running; the Flamethrower
@@ -2409,8 +2444,8 @@ the original's style:
 - **DISPLAY**: window (windowed / borderless / exclusive), resolution,
   widescreen, frame rate, renderer (Polymorph / Classic), first-person FOV,
   camera distance, **LEVEL STATS** and **FPS** (see Level stats below).
-- **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
-  and view bob.
+- **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars,
+  view bob and **weapon motion** (see Weapon motion above).
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
   MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
   COMBAT: kick (third person: quick / original), weapon feel, **auto aim**.

@@ -2553,7 +2553,7 @@ filed as [D36O](#d36o---first-person-weapon-model-repair).
 
 ### D36O - First-person weapon model repair
 
-**Status: Todo (backlog; user request 2026-11-28 at the D36N closeout: "i
+**Status: Done, user-accepted 2026-11-28 ("lock it in and close it out!! its working!!"; requested 2026-11-28 at the D36N closeout: "i
 think we properly fix the weapon model ... that should also contain a review
 of all the other weapons to see if similar problems occur too. a real fix").
 Dependencies: D36N.**
@@ -2594,3 +2594,63 @@ D36N motion and the D53G gestures. No sliding hits, frame rate never changes.
 **Acceptance:** the survey's report of every weapon; the repaired weapons
 show no gaps through the sweep, the motion and the idle gestures; the user's
 playtest confirms the Energy Weapon at any angle.
+
+#### Work log
+
+**2026-11-28 - diagnosis, survey and fix (Needs playtest).**
+[Note 573](../documentation/573-d36o-weapon-model-survey.md).
+
+- Diagnosis (lab `DNTTK_VIEWMODEL_CULL=both` and a culled-face log): the
+  Energy Weapon's vanishing section is one textured quad of its housing,
+  folded along its diagonal. The renderer, like the original's NCLIP, judged
+  a quad by its first half (0 1 2) alone; a few degrees from ready that half
+  faces away while the other (1 3 2) still faces the eye, so the whole face
+  was dropped. The model is closed (every edge shared twice, consistent
+  winding): not a missing face.
+- Fix (Modernized, `near_clip.cpp`, every weapon): the D17BE rule for world
+  props now covers the held weapon: such a quad is drawn as its front half.
+  Whole back faces stay culled, planar faces unchanged. Developer A/B
+  `DNTTK_VIEWMODEL_FOLDED=0`; near report `viewmodel_folded`. D36N's
+  Energy Weapon motion limit (`motion_slot_shape`) is removed; its D53G
+  down-only rule stays.
+- Hole detector (lab `DNTTK_VIEWMODEL_CULL=mark`): still-culled faces drawn
+  first in a colour that encodes the record, so visible colour means the
+  background shows through the silhouette.
+- Survey, 14 weapons (the upgrades share the Flamethrower, Gatling and RPG
+  models), 35 held poses each to +-15 degrees and the motion layer's travel
+  corners, plus the three idle gestures: with the fix every weapon 0-1 px
+  except the Crossbow and Freezer; before, the Energy Weapon up to 897 px,
+  the Shotgun 72 and the RPG 88 (both pitch +10). Energy Weapon gestures at
+  every second update (270 frames): about 90 with holes before (including
+  the gesture ends the user filmed), 0 after. Full motion with the limit
+  removed (running, jumping, hard turns, looking up and down): Energy Weapon
+  0 in 60 frames.
+- Freezer: no defect (its translucent ice crystals). Crossbow: an opening
+  beside the trigger that reads as authored, left for the user to decide.
+- Tests: new `ttk-near-test` D36O group (fails with the fix off);
+  `ttk-controls-test` 170 groups, `ttk-input-test`, Python 293 OK. Found:
+  the legacy `DNTTK_UNIFIED_GEOMETRY=0` pass of `ttk-near-test` fails at the
+  D17AH sky group on the committed code too.
+- Remaining: the user's playtest of the Energy Weapon at any angle (idle
+  gestures, running, jumping, turning); the Crossbow decision.
+
+**2026-11-28 - round 2: the corner above Duke's right hand (Needs playtest).**
+User, after the first fix: still blinking while walking and turning (video
+15:20), "at the corner, above the top left of Duke's right hand". Not a
+culled face (hole detector 0): the viewmodel was painted by mean depth with
+no depth test, and the white bracket and the housing face beside it swapped
+order between game frames and redraws. The held weapon and arms are now
+depth-tested among themselves in a thin depth slice nearer than the room
+(Modernized; kick leg and Bio Mask keep their painter places; developer
+`DNTTK_VIEWMODEL_DEPTH=0`). Every weapon's rest picture checked, the kick
+leg still behind, a wall and a tree at contact still behind the gun. Tests:
+near (D36O group extended), controls 170, input, Python 293 OK. Remaining:
+the user's playtest (walking and turning with the Energy Weapon; the blink
+was not measured away in the lab).
+
+**2026-11-28 - closeout (Done).** User playtest: "its working!! now we have
+extremely professional looking new animations for every single one of the
+weapons"; "lock it in and close it out". The Energy Weapon holds up while
+walking, running, turning and through its idle gestures. Not changed: the
+Crossbow's opening beside the trigger (reads as authored; a possible
+follow-up if the user wants it closed).

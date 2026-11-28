@@ -431,6 +431,7 @@ struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; double
 struct Poly {
     uint32_t source=0;
     bool phone_back=false;
+    bool lab_mark=false;   // D36O lab (DNTTK_VIEWMODEL_CULL=mark): drawn first, magenta
     bool native_order=false;int native_slot=-1;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     // D41H: smoothed world normal per corner (zero: the face's own) and
@@ -838,7 +839,8 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     const uint32_t slot=ordering+(uint32_t)index*8,head=psx_mod_read_word(slot),tag=((size>>2)-1)<<24;
     if(f.viewmodel) {
         double z=0;for(unsigned i=0;i<n;++i) z+=v[i].p[2]/n;
-        held_packets.push_back({prim,tag,z,uint8_t(f.kick_leg?0:1)});
+        if(poly.lab_mark) z=1e30;
+        held_packets.push_back({prim,tag,z,uint8_t(f.kick_leg || poly.lab_mark?0:1)});
     } else if(!head) {
         psx_mod_write_word(prim,tag);psx_mod_write_word(slot,prim);psx_mod_write_word(slot+4,prim);
         const uint32_t word=bitmap+((uint32_t)index>>5)*4;
@@ -853,7 +855,23 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
     // of the PS1's affine warp across a polygon beside the eye.
     double trace_raster[4][4];
     // D17AM2: translucent faces keep painter order (no depth test or write).
-    const bool painter=f.viewmodel || f.sky || (unified_scene(f) && (poly.command&0x02000000u) && !poly.shade);
+    // D36O: the held weapon and arms are depth-tested among themselves
+    // (Modernized). Painted farthest-first alone, two nearly equally deep
+    // faces that overlap on screen (the Energy Weapon's white bracket and the
+    // housing face above Duke's right hand) swapped order between the game's
+    // frames and the redraws and a corner blinked while walking and turning
+    // (user video 2026-11-28 15:20). Their view depth is compressed into a
+    // thin slice just beyond the depth curve's 16 (1 - 16/z: about 0.0003 to
+    // 0.003), nearer than the room, so they stay in front of it as before and
+    // their own faces meet per pixel, the same in every frame (the classic
+    // viewmodel depth range). Translucent faces test without writing; the
+    // kick leg stays painted first, behind (D08A53), the Bio Mask last, in
+    // front (D08A26); lab marks stay first.
+    // DNTTK_VIEWMODEL_DEPTH=0 (developer) keeps painter order alone.
+    static const bool vm_depth_on=env_int("DNTTK_VIEWMODEL_DEPTH",1,0,1)!=0;
+    const bool vm_depth=f.viewmodel && vm_depth_on && input_modernized() && !f.kick_leg && !f.biomask && !poly.lab_mark;
+    const bool vm_test_only=vm_depth && (poly.command&0x02000000u);
+    const bool painter=(f.viewmodel && !vm_depth) || f.sky || (unified_scene(f) && (poly.command&0x02000000u) && !poly.shade);
     const bool lit=lit_frame(f,poly);
     if(light_probe_on() && light_frame && f.object && !f.viewmodel) {
         std::lock_guard<std::mutex> g(light_probe_lock);
@@ -905,16 +923,16 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             // prop subdivisions cannot turn a shared plane into intersecting
             // triangles. Keep texture perspective and visible PS1 snapping.
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
-            const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
+            const double depth=vm_depth ? 16.0+v[i].p[2]*1e-4 : (depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
             if(f.nv_glow || poly.clut_bank) {
                 // D08A44: the same modes as below, plus the night-vision remap;
                 // D08A46: plus a key card's palette from the second bank.
-                const uint32_t mode=(poly.depth_only?2u:poly.depth_test_only?1u:(f.borrowed || poly.foreign)?PSX_MOD_HOST_BANK:0u)|
+                const uint32_t mode=(poly.depth_only?2u:(poly.depth_test_only || vm_test_only)?1u:(f.borrowed || poly.foreign)?PSX_MOD_HOST_BANK:0u)|
                     (f.nv_glow?PSX_MOD_HOST_REMAP:0u)|(poly.clut_bank?PSX_MOD_HOST_CLUT_BANK:0u);
                 psx_mod_gpu_host_vertex_mode(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth),(float)f.coverage,mode);
             } else
-            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
+            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:(poly.depth_test_only || vm_test_only)?psx_mod_gpu_host_vertex_test_only:(f.borrowed || poly.foreign)?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
             if(lit) {
                 const double* p=v[i].p;const double* m=light_inv;
                 const float wx=(float)(m[0]*p[0]+m[1]*p[1]+m[2]*p[2]+decal_lift[0]),wy=(float)(m[3]*p[0]+m[4]*p[1]+m[5]*p[2]+decal_lift[1]),wz=(float)(m[6]*p[0]+m[7]*p[1]+m[8]*p[2]+decal_lift[2]);
@@ -2419,6 +2437,26 @@ bool open_models_on() {static const bool v=env_int("DNTTK_OPEN_MODELS",1,0,1)!=0
 // meshes draw such a quad as its front half, as the world's repeated-corner
 // triangle (D17AV). DNTTK_FOLDED_QUADS=0 (developer) keeps the original cull.
 uint64_t folded_quads=0;
+// D36O lab: the held weapon's culled faces per draw, printed when they change.
+// D36O: the held weapon is culled the same way. Its models were built for the
+// original's views; first person turns them further (D36N motion, D53G
+// gestures), and the Energy Weapon's housing side, a quad folded along its
+// diagonal, lost its front half 2.5 degrees from ready (note 573). Modernized
+// only; DNTTK_VIEWMODEL_FOLDED=0 (developer) keeps the original cull.
+uint64_t viewmodel_folded=0;
+bool viewmodel_folded_live() {static const bool v=env_int("DNTTK_VIEWMODEL_FOLDED",1,0,1)!=0;return v && input_modernized();}
+bool vm_cull_log_on() {static const bool v=env_int("DNTTK_VIEWMODEL_CULL_LOG",0,0,1)!=0;return v;}
+static std::string vm_cull_line;static uint32_t vm_cull_mesh;
+void vm_cull_note(uint32_t mesh,uint32_t offset,uint32_t type,bool half_front) {
+    if(mesh!=vm_cull_mesh) {vm_cull_mesh=mesh;char m[24];std::snprintf(m,sizeof m," mesh=%08x",mesh);vm_cull_line+=m;}
+    char b[40];std::snprintf(b,sizeof b," %x:%02x%s",offset,type,half_front?"F":"");vm_cull_line+=b;
+}
+void vm_cull_flush() {
+    static std::string last;
+    if(!vm_cull_log_on() || vm_cull_line==last) {vm_cull_line.clear();return;}
+    std::fprintf(stderr,"[d36o] cull%s\n",vm_cull_line.c_str());
+    last=vm_cull_line;vm_cull_line.clear();vm_cull_mesh=0;
+}
 bool folded_quads_on() {static const bool v=env_int("DNTTK_FOLDED_QUADS",1,0,1)!=0;return v;}
 // 0x80010000 entry, same register contract as the world renderer.
 // D41H: smooth light on models. TTK's meshes carry no normals (note 184) and
@@ -3177,7 +3215,21 @@ void object(CPUState* cpu) {
         const bool gouraud=type==0x30 || type==0x38 || type==0x34 || type==0x3c;
         const uint32_t bits=psx_mod_read_word(record+(type==0x20 || type==0x28 || type==0x30 || type==0x38 ? 4 : 8))>>25;
         bool folded=false;
-        if(!(bits&1) && !front_facing(f,p,flags,false)) {
+        // D36O: the held weapon's folded quads too (Modernized). Lab only:
+        // DNTTK_VIEWMODEL_CULL=both draws its faces two-sided, =mark paints
+        // the faces it still culls magenta (a hole where the colour shows);
+        // DNTTK_VIEWMODEL_CULL_LOG=1 prints the culled faces on change.
+        static const int vm_cull=[]{const char* e=std::getenv("DNTTK_VIEWMODEL_CULL");return !e?0:!std::strcmp(e,"both")?2:!std::strcmp(e,"mark")?3:0;}();
+        bool mark=false;
+        if(viewmodel && !(bits&1) && !front_facing(f,p,flags,false)) {
+            Poly half=p;half.idx[0]=p.idx[1];half.idx[1]=p.idx[3];half.idx[2]=p.idx[2];
+            const bool half_front=p.count==4 && front_facing(f,half,flags,false);
+            if(vm_cull_log_on()) vm_cull_note(mesh,record-list,type,half_front);
+            if(half_front && viewmodel_folded_live()) {folded=true;++viewmodel_folded;trace_record(f,"folded_half",record);}
+            else if(vm_cull==2) p.two_sided=true;
+            else if(vm_cull==3) {p.two_sided=true;mark=true;}
+        }
+        if(!(bits&1) && !p.two_sided && !folded && !front_facing(f,p,flags,false)) {
             Poly half=p;half.idx[0]=p.idx[1];half.idx[1]=p.idx[3];half.idx[2]=p.idx[2];
             if(p.count==4 && folded_quads_on() && unified_scene(f) && !actor && !body && !viewmodel && !f.sky &&
                front_facing(f,half,flags,false)) {folded=true;++folded_quads;trace_record(f,"folded_half",record);}
@@ -3233,6 +3285,13 @@ void object(CPUState* cpu) {
                 c=t;
             }
             p.colors[j]=c&0xffffff;
+        }
+        // The colour carries q = the record's offset in its face list / 4
+        // (lab): red 196+8*(q&7), green 4+8*((q>>3)&7), blue 196+8*(q>>6),
+        // each in the middle of a 5-bit step so dithering keeps the level.
+        if(mark) {
+            const uint32_t q=((record-list)/4)&511,c=((196+8*(q>>6))<<16)|((4+8*((q>>3)&7))<<8)|(196+8*(q&7));
+            p.lab_mark=true;p.textured=false;p.command=0x30000000u;for(unsigned j=0;j<p.count;++j) p.colors[j]=c;
         }
         if(folded) {
             static const int half[3]={1,3,2};Poly t=p;t.count=3;
@@ -3552,6 +3611,7 @@ void near_clip_load_frame_state(const NearClipFrameState& s) {
 }
 
 void near_clip_viewmodel_flush() {
+    vm_cull_flush();
     region_after_load();
     if(held_packets.empty()) return;
     // Packets from an earlier frame may already be overwritten in the ring.
@@ -3761,7 +3821,7 @@ const char* near_clip_debug_json() {
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits,(unsigned long long)s.skipped);
     };
     char w[256],o[256];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu,\"prune_checked\":%llu,\"prune_mismatch\":%llu,\"prune_fallbacks\":%llu,\"obj\":[%llu,%llu,%llu,%llu,%llu]},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu,\"exact_origin\":[%llu,%llu]}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu,\"prune_checked\":%llu,\"prune_mismatch\":%llu,\"prune_fallbacks\":%llu,\"obj\":[%llu,%llu,%llu,%llu,%llu]},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu,\"viewmodel_folded\":%llu,\"game_view_drops\":%llu,\"security_tv_fallbacks\":%llu,\"exact_origin\":[%llu,%llu]}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -3774,7 +3834,7 @@ const char* near_clip_debug_json() {
         (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,(unsigned long long)coplanar_prune_checked,(unsigned long long)coplanar_prune_mismatch,(unsigned long long)coplanar_prune_fallbacks,(unsigned long long)coplanar_obj_meshes,(unsigned long long)coplanar_obj_faces,(unsigned long long)coplanar_obj_tested,(unsigned long long)coplanar_obj_found,(unsigned long long)coplanar_obj_max,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
         (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
-        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)game_view_drops,(unsigned long long)security_tv_fallbacks,
+        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads,(unsigned long long)viewmodel_folded,(unsigned long long)game_view_drops,(unsigned long long)security_tv_fallbacks,
         (unsigned long long)exact_origin_used,(unsigned long long)exact_origin_far);
     return buffer;
 }

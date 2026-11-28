@@ -547,6 +547,40 @@ static void packet_contracts(const char* executable) {
             }
             std::puts("D17AT2/AT5 small models: re-projected, near faces kept, flat faces drawn as decals (depth pass, test-only colour, one slot), other transforms and Vanilla untouched; D17AT6 host-shown rooms pass the object room test for that object only PASS");
         }
+        // D36O: a one-sided held-weapon quad is culled by its first half (0 1 2)
+        // alone, as the original's NCLIP. A quad folded along its diagonal (the
+        // Energy Weapon's housing side) turned that half away a few degrees from
+        // ready while its other half (1 3 2) still faced the eye, and the side
+        // vanished. Modernized draws the front half; a whole back face stays
+        // culled, a planar front face is unchanged, Vanilla keeps the original.
+        {
+            live_eye=true;test_viewmodel=true;test_owner=ttk::LimbOwner::DisplayHand;
+            auto quad=[&](const int (*q)[2]) {
+                auto c=reset();c.gte_ctrl[26]=256;c.gpr[31]=0x80034dd0;c.gpr[18]=0x80180000+100*0x60;
+                word(0x800d2660,0x80190000);word(c.gpr[18]+0x2c,3);word(0x80190000+28*3,0);
+                psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
+                for(int i=0;i<4;++i) {word(verts+8*i,uint16_t(q[i][0])|uint32_t(uint16_t(q[i][1]))<<16);word(verts+8*i+4,900);}
+                word(list,0x0001002c);word(list+4,0x03020100);word(list+8,0x00000000);
+                word(list+12,0x0000001f);word(list+16,0x1f1f1f00);word(list+20,0xff);
+                host_vertices=0;host_corners.clear();observed_hook(&c,0x80010000);
+                return host_vertices;
+            };
+            // GPU corner order 0 1 3 2: 0 top left, 1 top right, 2 bottom left, 3 bottom right.
+            static const int flat[4][2]={{-100,-100},{100,-100},{-100,100},{100,100}};
+            static const int back[4][2]={{100,-100},{-100,-100},{100,100},{-100,100}};
+            static const int fold[4][2]={{80,60},{100,-100},{-100,100},{100,100}};
+            const unsigned front_corners=quad(flat),back_corners=quad(back),folded_corners=quad(fold);
+            assert(front_corners>=4 && back_corners==0);
+            assert(folded_corners>=3 && folded_corners<front_corners);
+            // The held weapon is depth-tested among its own faces in a thin depth
+        // slice just beyond 16 (z 900: 16.09), in front of the room; the kick
+        // leg stays painter-only (drawn first, behind) and so does Vanilla.
+        quad(flat);for(const auto& c:host_corners) assert(c.depth>16.0f && c.depth<16.2f && std::abs(c.depth-(16.0f+c.z*1e-4f))<1e-3f);
+        test_owner=ttk::LimbOwner::Kick;quad(flat);for(const auto& c:host_corners) assert(c.depth<0);test_owner=ttk::LimbOwner::DisplayHand;
+        modern=false;assert(quad(fold)==0 && quad(flat)==front_corners);for(const auto& c:host_corners) assert(c.depth<0);modern=true;
+            test_viewmodel=false;ttk::near_clip_load_frame_state({0,0,0,0});
+            std::puts("PASS: D36O held-weapon folded quad draws its front half and the weapon is depth-tested in its own slice (Modernized); back faces culled, flat faces, kick leg and Vanilla painter-only");
+        }
         std::puts("D20H mid-frame load: the rest of a loaded frame goes to the next region, restored packets intact PASS");
         std::puts("D17AM2 unified geometry: one GT4 per unclipped quad, native slots, far silhouettes, clip-rectangle cull, painter-only translucency, Vanilla guard PASS");
         return;

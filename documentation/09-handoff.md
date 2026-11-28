@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-11-28 - D36O closed out (Done)
+
+User-accepted: "lock it in and close it out!! its working!!". First-person weapons hold up at any angle: no faces vanish when turned and the weapon's own parts no longer blink over each other; the Energy Weapon moves as freely as the rest (Modernized). Left as is: the Crossbow's opening beside the trigger. See [note 573](573-d36o-weapon-model-survey.md).
+
+## 2026-11-28 - D36O round 2 (Needs playtest)
+
+The blinking corner of the Energy Weapon above Duke's right hand (walking and turning) came from the weapon's faces being painted in an order that changed between frames; the held weapon and arms are now depth-tested among themselves (Modernized). Playtest: walk and turn with the Energy Weapon, and check the other weapons look right. See [note 573](573-d36o-weapon-model-survey.md).
+
+## 2026-11-28 - D36O weapon faces (Needs playtest)
+
+The Energy Weapon's housing beside the green panel no longer disappears when it turns (running, turning, the end of the idle gestures): the renderer drew a folded face by half of it only; it now draws every weapon's folded faces properly (Modernized), and D36N's limit on the Energy Weapon's motion is gone. Every weapon was surveyed in poses to 15 degrees and its idle gestures. Playtest: hold the Energy Weapon through its idle gestures, run, jump and turn. Open: the Crossbow's opening beside the trigger (keep or close). See [note 573](573-d36o-weapon-model-survey.md).
+
 ## 2026-11-28 - D36N closed out (Done)
 
 User-accepted: "lock this in and close it all out". First-person weapons and arms move as one with weight (OPTIONS > GAMEPLAY > WEAPON MOTION), the Shotgun is held by its pump, and slow viewmodel motion is smooth (quarter units). Next in this line: D36O (survey and repair of the weapon models so they hold up at any angle). See [note 572](572-d36n-viewmodel-motion.md).

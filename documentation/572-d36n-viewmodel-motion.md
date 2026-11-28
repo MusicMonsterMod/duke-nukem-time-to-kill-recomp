@@ -331,3 +331,6 @@ same spot in the idle animations". Accepted: "lock this in and close it all
 out". The round 3 limit stays as a safety net until
 [D36O](../jobs/first-person.md#d36o---first-person-weapon-model-repair)
 repairs the models (survey of every weapon first) and removes it.
+
+D36O (2026-11-28) found the cause, a folded quad culled by its first half,
+and removed the round 3 limit; see [note 573](573-d36o-weapon-model-survey.md).

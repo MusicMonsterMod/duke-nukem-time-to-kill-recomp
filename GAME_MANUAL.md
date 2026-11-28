@@ -1063,6 +1063,11 @@ save it when launching, use `--weapon-motion on|subtle|off`. Crouching,
 swimming, climbing and one-handed climbs keep their own poses. Vanilla has no
 first-person weapon.
 
+The weapon models stay whole as they turn: parts that used to vanish for a
+moment (the side of the Energy Weapon beside its green panel, while running,
+turning or at the end of its idle gestures) are drawn at every angle, and
+the Energy Weapon moves as freely as the other weapons.
+
 The weapon and arms are also placed more finely than before, so slow movement
 (a sway settling, a recoil returning, an idle gesture) is smooth instead of
 moving in tiny steps.

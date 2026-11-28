@@ -142,18 +142,9 @@ static void motion_slot_shape(unsigned slot,double* p) {
     if(slot==8) {for(int i=0;i<3;++i) p[i]*=0.5; p[3]*=0.7; p[4]*=0.7;}
     if(slot==10) {
         p[0]=std::min(p[0],0.0); p[4]=std::max(p[4],0.0);
-        // The housing's outer right face sits nearly edge-on at ready and is
-        // turns away once the muzzle turns about 2.5 degrees left, or less
-        // with the muzzle down, the top rolled left or the gun moved right; the
-        // model has nothing behind it, so the street showed through (stills
-        // sweeps, note 572 round 3; user video 2026-11-28). Those directions
-        // are softly limited short of it: the worst corner together, at the
-        // layer's full travel (x -9..4, y 0..20, z -5..5), still draws.
-        auto soft=[](double x,double l){return l*std::tanh(x/l);};
-        p[0]=-soft(-p[0],0.8);
-        if(p[1]<0) p[1]=-soft(-p[1],0.5);
-        if(p[2]>0) p[2]=soft(p[2],0.8);
-        if(p[3]>0) p[3]=soft(p[3],4.0);
+        // D36O: the D36N limit on its muzzle-down, muzzle-left, top-left and
+        // rightward motion is gone: the housing side it protected was a folded
+        // quad the renderer now draws whole (near_clip.cpp, note 573).
     }
     // Two-handed weapons: a lift brings the bare support forearm into the
     // eye (D53G rest at 0.6), so upward travel is limited.

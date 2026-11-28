@@ -782,3 +782,19 @@ two executables play the same game (guest RAM, VRAM and pictures after
 savestate loads). Both lab tools run another tree's executable from
 `build-local` (the overlay shard cache is the executable's directory). See
 [note 554](554-d23ah-lto-pgo-build.md).
+
+2026-11-28 D36O (held-weapon faces):
+- `DNTTK_VIEWMODEL_FOLDED=0` keeps the original cull of held-weapon quads
+  (A/B); the near report counts the fixed ones as `viewmodel_folded`.
+  `DNTTK_VIEWMODEL_DEPTH=0` paints the held weapon by mean depth alone
+  instead of depth-testing it in its own slice (A/B).
+- Lab hole detector: `DNTTK_VIEWMODEL_CULL=mark` draws the faces the held
+  weapon still culls first, in a colour encoding the face record, so visible
+  colour means the background shows through; `=both` draws it two-sided;
+  `DNTTK_VIEWMODEL_CULL_LOG=1` prints culled faces per mesh on change.
+- `recomp/analysis/d36o/` (local): `probe.py` cases `survey`, `gestures`,
+  `eseq2`, `posesweep`, `models`, `walkburst`, `turnfast`, `burst`, `wall`; `meshdump.py` (a mesh from RAM over the
+  debug port, open edges), `orient.py` (winding clashes), `decode.py` (faces
+  from a mark screenshot). Two lab games started at the same moment can
+  refuse to launch ("cannot publish state"); start them a little apart.
+  See [note 573](573-d36o-weapon-model-survey.md).

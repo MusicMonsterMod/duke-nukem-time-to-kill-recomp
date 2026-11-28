@@ -853,7 +853,7 @@ judges whether it feels fair at 180 Hz on the real display.
 
 ### D10H - Weapon responsiveness against Duke Nukem 3D (research report)
 
-**Status: Report ready (2026-11-05, [note 388](documentation/388-d10h-duke3d-weapon-feel.md)); awaiting discussion with the user. Dependencies: D10G4.** User:
+**Status: Todo (shelved 2026-11-28; report 2026-11-05, [note 388](documentation/388-d10h-duke3d-weapon-feel.md)). Dependencies: D10G4.** User:
 "a great test is chasing a pig cop with the pistol ... you can easily fire a
 trail of bullets at it and not a single one will land", and "I want the
 benchmark to actually be Duke 3D ... each analogue weapon ... should
@@ -864,6 +864,23 @@ From the local EDuke32 source: the pistol fires on the tic after the press
 degrees; the world is drawn at most one tic behind. TTK: 91-228 ms press to
 shot, world drawn 90 ms behind, Modernized auto aim off. Jobs D10H1-D10H6
 follow, iterating with the D10H1 lab.
+
+Work log:
+
+- 2026-11-28 - reopened for discussion with the user (user: "no reopen it.
+  we can work on D10H. let's discuss"). The report's six proposed jobs and
+  the later D10H7-D10H9 are Done; remaining gaps against the Duke 3D analogs
+  are being reviewed before any new work is scoped.
+- 2026-11-28 - shelved. User: "it's not so much weapon fire rate, I'm
+  actually not too sure right now with this one ... probably better to just
+  do in small chunks over time as i notice it 'let's tune the behaviour of
+  weapon X in this way'". Kept open as the home for per-weapon tuning.
+  Open items from the review, for when the user returns: Shotgun and RPG
+  repeat faster than Duke 3D (1.22 vs 1.0, 2.23 vs 1.5 per second, left by
+  D10H6); throwables and the Mighty Boot / quick kick never measured against
+  the Duke 3D pipe bomb and knee; moving-target hits proven only for the
+  pistol (D10H2), not the Shotgun or Gatling. Weapon transitions moved to
+  the new job D63.
 
 ### D10H1 - Weapon feel lab: TTK against Duke 3D analogs
 

@@ -1,6 +1,6 @@
 # Time to Kill jobs - Weapons and combat
 
-Job descriptions and work logs for D38, D39, D44, D49 and D51. Status and
+Job descriptions and work logs for D38, D39, D44, D49, D51 and D63. Status and
 dependencies are on [the job board](../MODERNIZATION_JOBS.md); the dated
 session log is in the `log-YYYY-MM.md` files beside this one. Moved verbatim
 from the board on 2026-11-10 (D58), one section per job in ID order.
@@ -497,6 +497,38 @@ old pose (-12, -26, 16) for both. Lab: the regular Gatling logs the same pose
 matrix as the Laser Gatling, its rounds are unchanged; stills
 `research/before-after/D49F/fp180-gatling-*`. Suites pass.
 
+### D49G - Shots and muzzle effects lined up with the new weapon motion
+
+**Status: Todo (user report 2026-11-28). Dependencies: D49, D36N, D36O.**
+User: "the energy weapon blast doesnt line up with the tip of the gun.
+probably worth a quick review too to line everything up after the new
+animations". D49 rooted the drawn beam on the barrel tip in first person,
+using the placement the muzzle flash uses (display hand matrix and the
+slot's muzzle vector). Since then D36N moves the weapon and both arms as one
+pose about the grip (sway, inertia, bob, air and landing, run carry, breath),
+placed in quarter units under the view lock, and D36O draws the viewmodel in
+its own depth slice. Note 572 records that the muzzle flash and held items
+were not view-locked and kept whole-unit placement. Lead, not established:
+the beam's origin may no longer include the motion pose or the quarter-unit
+factor, so it starts beside the tip the player sees.
+
+1. **Energy Weapon.** Measure the drawn beam's start against the barrel tip
+   as rendered: still, walking, running, strafing, turning, jumping and
+   landing, during idle gestures, at WEAPON MOTION on, subtle and off, first
+   and third person, 180 and 120 Hz. Find the cause and root the beam on the
+   tip in every case.
+2. **Review of every weapon.** With the same measurement, check whatever
+   leaves or sits at a muzzle: muzzle flashes, Laser Gatling bolts (D49E,
+   D49F), rounds in flight, rockets and fireballs (D49B), the Flamethrower
+   stream, the Freezer, and impact glows that follow the beam (D49A). Fix
+   game-wide in one place, not per weapon.
+
+Modernized only. Vanilla, hit positions and damage are unchanged. Never
+move world hits to hide a gap (D49D). Matched before/after captures for the
+README. Tests: the D49 lab measurements, `ttk-near-test` (D36O group),
+`ttk-controls-test` (D36N group), `ttk-aim-test`. Acceptance: user playtest
+of the Energy Weapon moving and turning, then the other weapons.
+
 ### D51 - Continuous fire stops when running into a wall
 
 **Status: Done (user-accepted 2026-11-08: "lock it in, close it out, that is fixed!"; closeout authorized; [note 391](documentation/391-d10h6-held-fire-clock.md)). Dependencies: none.**
@@ -532,3 +564,43 @@ walking forward in open space, unrelated to walls. Vanilla: the swap is gated
 by `input_modernized()`. `ttk-input-test`, `ttk-aim-test` pass;
 `ttk-controls-test` stops at the known D14 HUD check. User playtest accepted
 2026-11-08: "lock it in, close it out, that is fixed!"
+
+### D63 - Weapon transitions: investigation, review and rebuild
+
+**Status: Todo (user request 2026-11-28). Dependencies: none.** User: "The
+bigger thing for me right now is actually weapon transitions ... stand up a
+new weapon transitions investigation/review/rebuild job". Split from D10H,
+which stays shelved for per-weapon fire tuning.
+
+Scope: every way a weapon leaves or enters Duke's hands in Modernized, in
+first and third person: switching by number key, wheel and `;` `'`, cycling
+within a slot (6: Pipe Bomb, grenade, Dynamite; D08A54), quick taps and
+queued choices (D08A37, D08A52), drawing from holstered (left click, Scroll
+Lock; D08E, D28), automatic holster and redraw around traversal (ladders,
+mantles, water, jetpack; D08J, D08J6, D08O3, D08O5, D08Q5), picking up a
+new weapon, running out of ammo, and the quick kick's hand-off.
+
+Work in three stages, with the user's choice between them:
+
+1. **Investigation.** Measure each transition offscreen at 180 Hz: press to
+   the old weapon starting to go, its lowered pose, the new one appearing,
+   and the first possible shot. Note the native tracks and handlers involved,
+   which parts are original timing and which are ours, and how arms, wrists
+   and grips look through the change (D08A53, D36N weapon motion). Log
+   visible defects such as pops, double draws, hands leaving the gun or
+   clipping.
+2. **Review.** A report comparing these with Duke 3D / EDuke32 (`research/`
+   source: weapon lower and raise through `weapon_pos`, switches allowed
+   mid-lower, the newest choice wins) and with modern shooters. Propose what
+   to keep, tune and rebuild, behind a Modernized switch. Covers the user's
+   own observations, collected at the start of the job.
+3. **Rebuild.** Implement the transitions the user picks. Purpose-built where
+   the native chain fights it, not layered patches. Lab before/after numbers,
+   plus matched before/after captures for visual changes.
+
+Modernized only. Vanilla is unchanged. Ammo, damage and fire timing stay as
+they are (those belong to D10H). Read
+[note 257](../documentation/257-d36-first-person-presentation-audit.md)
+first for first-person presentation ownership. Tests: `ttk-controls-test`
+(D08A37, D08A52, D08A54 groups), `ttk-input-test`, and new lab measurements.
+Acceptance: user playtest of switching in play, first and third person.
